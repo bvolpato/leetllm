@@ -1,181 +1,161 @@
+// Scene 16 (paired-prompts): "Subtract two outcomes before averaging away shared difficulty"
+// Shared prompt difficulty cancels out -> Var(T - C) = Var(T) + Var(C) - 2*Cov = 9 + 4 - 6 = 7 (vs 13) -> 2,000-answer budget SE 0.085 -> 0.027 (89.5% variance drop)!
+import { line } from 'vizmatic/stage';
 import {
-  arrow,
-  axes,
-  boxOf,
-  column,
-  dot,
-  fade,
-  line,
-  place,
-  polyline,
-  row,
-  tex,
-  to,
-} from 'vizmatic/stage';
-import { chip, heading, label, mono, note, para } from '../../kit-narrated.mjs';
-import { BODY, FOOT } from '../parts.mjs';
-import { pairedContrastVariance } from '../../../films/ab-testing/model.mjs';
-import { AB_VISUAL_FIXTURES as fixture } from '../../../films/ab-testing/fixtures.mjs';
-export default function paired(s, c) {
-  const [promptRegion, scoresRegion, contrastRegion] = BODY.rows([1, 3, 3], 'wide');
-  const prompt = place(chip('same offline prompt'), promptRegion);
-  const scoreRegions = scoresRegion.rows(2, 'wide');
-  const shared = scoreRegions.map((region, i) =>
-    place(
-      row(
-        [
-          label(i ? 'treatment' : 'control', { color: i ? 'blue' : 'cyan' }),
-          chip('difficulty'),
-          label(i ? '+ effect + noise T' : '+ noise C', { size: 36 }),
-        ],
-        { gap: 'normal' },
+  AB_VISUAL_FIXTURES,
+  COSMOS,
+  CTRL_COLOR,
+  GOOD_COLOR,
+  TRT_COLOR,
+  WARN_COLOR,
+  aura,
+  glowDot,
+  glowTex,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  makePlot,
+  pairedContrastVariance,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
+
+const P = AB_VISUAL_FIXTURES.paired;
+const TOY_PAIRED = pairedContrastVariance(9, 4, 3); // 7
+
+export default function pairedPrompts(s, c) {
+  const phase = s.value(0);
+  const showCancel = s.value(0);
+  const showVar = s.value(0);
+  const showInd = s.value(0);
+  const showPaired = s.value(0);
+  const showGain = s.value(0);
+  const showInter = s.value(0);
+
+  const bgAura = aura(0, 20, 620, '#133a4a32', '#133a3d20');
+  const title = heroTitle(['Paired Prompt Evaluation:', 'Cancel Shared Difficulty'], {
+    x: -855,
+    y: -430,
+    size: 52,
+    lineHeight: 60,
+    accent: GOOD_COLOR,
+    eyebrow: 'WITHIN-PROMPT COVARIANCE REDUCTION',
+  });
+
+  const eqVar = glowTex(
+    `\\operatorname{Var}(T - C) = \\operatorname{Var}(T) + \\operatorname{Var}(C) - 2\\operatorname{Cov}(T,C) = 9 + 4 - 2(3) = ${TOY_PAIRED}`,
+    { x: 0, y: 270, size: 30, color: WARN_COLOR, glow: 7 },
+  );
+
+  const live = guardedDynamic(s.value(1), () => {
+    // Left: 12 paired prompt scores linked by vertical delta segments
+    const plot = makePlot(-820, -230, 860, 405, { x: [0.5, 12.5], y: [1.5, 8.0] });
+    const nodes = [
+      ...plot.axesNodes(0.85),
+      txt(
+        '12 SHARED PROMPTS: CONTROL vs TREATMENT SCORES',
+        -820,
+        -265,
+        26,
+        CTRL_COLOR,
+        'mono',
+        'left',
       ),
-      region,
-    ),
-  );
-  const terms = shared.map((block) => block.nodes[1]);
-  const equation = place(
-    tex('T-C = effect + noise_T-noise_C', { size: 40 }),
-    contrastRegion,
-    'top',
-  );
-  const compareTitle = place(
-    note('2,000 simulated answers per design   ·   approximate 95% intervals'),
-    promptRegion,
-  );
-  const compareAxis = place(
-    axes({
-      x: [0, 1],
-      y: [0, 3],
-      width: scoresRegion.width * 0.8,
-      height: scoresRegion.height * 0.7,
-      labels: false,
-      tips: false,
-    }),
-    scoresRegion,
-  );
-  const compareRows = ['independent', 'paired'].map((name, i) => {
-    const estimate = fixture.paired[i ? 'pairedLift' : 'independentLift'];
-    const se = fixture.paired[i ? 'pairedSe' : 'independentSe'];
-    const y = i ? 0.65 : 2;
-    const color = i ? 'yellow' : 'cyan';
-    return [
-      mono(`${name}: ${estimate.toFixed(3)}, SE ${se.toFixed(3)}`, { size: 36, color }).moveTo(
-        compareAxis.world(0.5, y + 0.65),
-      ),
-      line(compareAxis.world(estimate - 1.96 * se, y), compareAxis.world(estimate + 1.96 * se, y), {
-        stroke: color,
-        width: 8,
-      }),
-      dot(10, color).moveTo(compareAxis.world(estimate, y)),
     ];
+
+    P.sampleRows.forEach((r, idx) => {
+      const k = idx + 1;
+      const pC = plot.pt([k, r.control]);
+      const pT = plot.pt([k, r.treatment]);
+      nodes.push(
+        line(pC, pT, { stroke: GOOD_COLOR, width: 3.2 }).opacity(0.45 + 0.55 * showCancel.value),
+        glowDot(pC[0], pC[1], { radius: 6.5, color: CTRL_COLOR, glow: 8 }),
+        glowDot(pT[0], pT[1], { radius: 6.5, color: TRT_COLOR, glow: 8 }),
+      );
+    });
+
+    // Right: Independent SE (0.085) vs Paired SE (0.027) -> 89.5% variance drop!
+    const rx = 115;
+    const indW = 540;
+    const pairW = (P.pairedSe / P.independentSe) * indW;
+
+    nodes.push(
+      txt('SAME BUDGET: 2,000 ANSWERS', rx, -230, 26, WARN_COLOR, 'mono', 'left'),
+
+      txt(
+        `Separate prompts:  lift +${P.independentLift.toFixed(3)},  SE = ${P.independentSe.toFixed(3)}`,
+        rx,
+        -155,
+        26,
+        CTRL_COLOR,
+        'mono',
+        'left',
+      ).opacity(0.45 + 0.55 * showInd.value),
+      lumBar(rx + indW / 2, -100, indW, 42, {
+        color: CTRL_COLOR,
+        fillOpacity: 0.65,
+        glow: 7,
+        opacity: 0.45 + 0.55 * showInd.value,
+      }),
+
+      txt(
+        `1,000 paired prompts:  lift +${P.pairedLift.toFixed(3)},  SE = ${P.pairedSe.toFixed(3)}`,
+        rx,
+        -10,
+        26,
+        GOOD_COLOR,
+        'mono',
+        'left',
+      ).opacity(0.4 + 0.6 * showPaired.value),
+      lumBar(rx + pairW / 2, 45, pairW, 42, {
+        color: GOOD_COLOR,
+        fillOpacity: 0.78,
+        glow: 9,
+        opacity: 0.4 + 0.6 * showPaired.value,
+      }),
+
+      txt(
+        `VARIANCE REDUCTION:  −${(P.varianceReduction * 100).toFixed(1)}%`,
+        rx,
+        135,
+        34,
+        GOOD_COLOR,
+        'mono',
+        'left',
+      )
+        .glow(8, GOOD_COLOR)
+        .opacity(0.35 + 0.65 * showGain.value),
+    );
+
+    if (showInter.value > 0.02) {
+      nodes.push(
+        txt(
+          'Blind A/B order, hide arm IDs, calibrate ties & check sources (showing both answers changes exposure)',
+          -855,
+          365,
+          26,
+          COSMOS.cyan,
+          'sans',
+          'left',
+        ).opacity(showInter.value),
+      );
+    }
+
+    return nodes;
   });
-  const compareTicks = [0, 0.5, 1].map((x) => {
-    const p = compareAxis.world(x, 0);
-    return mono(String(x), { size: 34, color: 'dim' }).moveTo([p[0], p[1] + 35]);
-  });
-  const gain = place(
-    mono(`Contrast variance −${(fixture.paired.varianceReduction * 100).toFixed(1)}%`, {
-      color: 'yellow',
-      size: 38,
-    }),
-    contrastRegion,
-  );
-  const [lastTitle, content, experience] = BODY.rows([1, 4, 1.5], 'wide');
-  const [listRegion, answerRegion] = content.columns([1, 1.5], 'wide');
-  const ranked = place(
-    column(
-      [
-        label('Interleaved results', { size: 36 }),
-        note('1. C: canary status', { color: 'cyan' }),
-        note('2. T: rollback policy', { color: 'blue' }),
-        note('3. C: error chart', { color: 'cyan' }),
-        note('4. T: owner record', { color: 'blue' }),
-        note('click → source credit', { color: 'yellow' }),
-      ],
-      { gap: 'normal' },
-    ),
-    listRegion,
-  );
-  const answerSlots = answerRegion.rows(2, 'wide');
-  const answers = [
-    place(
-      column(
-        [
-          label('Answer C', { color: 'cyan', size: 34 }),
-          para('Check canary status. Inspect the error chart.', answerSlots[0].width, { size: 34 }),
-        ],
-        { gap: 'normal' },
-      ),
-      answerSlots[0],
-    ),
-    place(
-      column(
-        [
-          label('Answer T', { color: 'blue', size: 34 }),
-          para('Read the rollback policy. Confirm owner acknowledgement.', answerSlots[1].width, {
-            size: 34,
-          }),
-        ],
-        { gap: 'normal' },
-      ),
-      answerSlots[1],
-    ),
-  ];
-  const finalTitle = place(
-    label('Lists and complete answers expose different things', { size: 36 }),
-    lastTitle,
-  );
-  const incident = place(chip('inc-17: engineer sees C', { color: 'cyan' }), experience);
-  const mixed = place(chip('inc-17: engineer sees C + T', { color: 'red' }), experience);
-  const entry = boxOf(incident).point('right');
-  const routes = answers.map((answer) => {
-    const start = boxOf(answer).point('right');
-    start[0] += 18;
-    const outside = BODY.point('right')[0] + 24;
-    return [start, [outside, start[1]], [outside, entry[1]], entry];
-  });
-  const links = routes.map((points, i) => [
-    polyline(points.slice(0, 3), { stroke: i ? 'blue' : 'cyan', width: 3 }),
-    arrow(points[2], points[3], { stroke: i ? 'blue' : 'cyan', width: 3, pad: 20 }),
-  ]);
-  const token = dot(12, 'blue').moveTo(routes[1][0]);
-  const limit = place(
-    note('A hard prompt lowers both scores. Pairing cancels the shared difficulty.'),
-    FOOT,
-  );
-  const exposure = place(
-    note('Showing both answers changes exposure to the incident policy.'),
-    FOOT,
-  );
-  s.add(heading('Cancel shared difficulty before averaging'), prompt, shared);
-  const pairedVariance = pairedContrastVariance(4, 9, 3);
-  const difference = place(
-    mono('Independent prompts   9 + 4 = 13     ·     Paired   9 + 4 − 2 × 3 = ' + pairedVariance, {
-      size: 39,
-    }),
-    FOOT,
-  );
-  c.on('cancel', () => s.play(...terms.map((term) => fade(term, 0.2, { duration: 1.2 }))));
-  c.show('cancel', equation, { after: true });
-  c.show('variance', difference, { after: true });
-  c.swap(1, [prompt, shared, equation, difference], [compareTitle, compareAxis, compareTicks]);
-  c.show('independent', compareRows[0], { after: true });
-  c.show('paired-se', compareRows[1], { after: true });
-  c.show('variance-gain', gain, { after: true });
-  c.show('scope', limit);
-  c.swap(
-    'interleaving',
-    [compareTitle, compareAxis, compareTicks, compareRows, gain, limit],
-    [finalTitle, ranked],
-  );
-  c.show('answers', [answers, incident, links[0]]);
-  c.show('exposure', [links[1], token]);
-  c.on('exposure', () => {
-    for (const point of routes[1].slice(1))
-      s.play(to(token, (n) => n.moveTo(point), { duration: 0.4 }));
-  });
-  c.swap('exposure', incident, mixed, { after: true });
-  c.show('exposure', exposure, { after: true });
-  c.clear(links.flat(), 0.5, 0.2);
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  tweenCue(s, c, 'cancel', showCancel, 1, { duration: 0.45 });
+  c.show('variance', eqVar);
+  tweenCue(s, c, 'variance', showVar, 1, { duration: 0.45 });
+  tweenCue(s, c, 'independent', showInd, 1, { duration: 0.45 });
+  tweenCue(s, c, 'paired-se', showPaired, 1, { duration: 0.5 });
+  tweenCue(s, c, 'variance-gain', showGain, 0.85, { duration: 0.45 });
+  tweenCue(s, c, 'scope', showGain, 1, { duration: 0.35 });
+  tweenCue(s, c, 'interleaving', showInter, 0.6, { duration: 0.35 });
+  tweenCue(s, c, 'answers', showInter, 0.85, { duration: 0.35 });
+  tweenCue(s, c, 'exposure', showInter, 1, { duration: 0.35 });
 }

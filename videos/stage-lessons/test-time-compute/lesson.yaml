@@ -1,0 +1,1805 @@
+version: 1
+id: test-time-compute
+opening: lesson
+title: Giving a Model More Time to Think
+source: fundamentals/reasoning-models-test-time-compute/content.md
+sources:
+  - title: Scaling LLM Test-Time Compute Optimally
+    url: https://arxiv.org/abs/2408.03314
+  - title: Self-Consistency Improves Chain of Thought Reasoning
+    url: https://arxiv.org/abs/2203.11171
+  - title: Let's Verify Step by Step
+    url: https://arxiv.org/abs/2305.20050
+  - title: DeepSeek-R1 original report
+    url: https://arxiv.org/abs/2501.12948v1
+  - title: Math-Shepherd completion-based process targets
+    url: https://arxiv.org/abs/2312.08935v1
+  - title: Scaling Test-Time Compute Without Verification or RL is Suboptimal
+    url: https://arxiv.org/abs/2502.12118v1
+  - title: "Rethinking Fine-Tuning when Scaling Test-Time Compute: Limiting Confidence Improves Mathematical
+      Reasoning"
+    url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/e8f4eae0a41cab67fdead3aa6b77f083-Abstract-Conference.html
+  - title: Does Thinking More always Help? Understanding Test-Time Scaling in Reasoning Models
+    url: https://arxiv.org/abs/2506.04210v1
+  - title: Inverse Scaling in Test-Time Compute
+    url: https://alignment.anthropic.com/2025/inverse-scaling/
+  - title: OpenAI reasoning guide, checked November 7 2026
+    url: https://developers.openai.com/api/docs/guides/reasoning
+  - title: Gemini thinking and Interactions, checked November 7 2026
+    url: https://ai.google.dev/gemini-api/docs/thinking
+  - title: Anthropic extended thinking, checked November 7 2026
+    url: https://platform.claude.com/docs/en/build-with-claude/extended-thinking
+  - title: PagedAttention memory ownership
+    url: https://arxiv.org/abs/2309.06180v1
+scenes:
+  - id: intro
+    title: How many chairs are in this room?
+    visual: Keep the model’s answer beside the seating plan. Count the seats at the four tables, then light up
+      the row of chairs the model missed.
+    beats:
+      - say: The model counted thirty-two chairs. Four tables seat eight people each. There’s another row along
+          the wall. What count would you send the organizer?
+        hold: 2.3
+        caption_starts:
+          - What count would you send the organizer
+        visual_cues:
+          - id: first-draft
+            phrase: The model counted thirty-two chairs
+            targets:
+              - draft
+            color: blue
+            linger: 0
+          - id: chair-tables
+            phrase: Four tables seat eight people each
+            targets:
+              - tables
+            color: blue
+            linger: 0
+          - id: extra-chairs
+            phrase: another row along the wall
+            targets:
+              - wall
+            color: yellow
+            linger: 0
+          - id: send-question
+            phrase: What count would you send the organizer
+            targets:
+              - decision
+            color: yellow
+            linger: 0
+      - say: Thirty-two at the tables. Add the twelve along the wall. Forty-four chairs.
+        hold: 0.9
+        caption_starts:
+          - Add the twelve
+          - Forty-four chairs
+        visual_cues:
+          - id: table-subtotal
+            phrase: Thirty-two at the tables
+            targets:
+              - sum
+            color: blue
+            linger: 0
+          - id: include-wall
+            phrase: Add the twelve along the wall
+            targets:
+              - wall
+            color: yellow
+            linger: 0
+          - id: room-total
+            phrase: Forty-four chairs
+            targets:
+              - sum
+            color: green
+            linger: 0
+      - say: That extra check is test-time compute. We kept the model’s weights fixed and spent a little more time
+          on this request. We could also ask the same model for four drafts. Which one should we send?
+        hold: 0.9
+        visual_cues:
+          - id: fixed-weight-work
+            phrase: That extra check is test-time compute
+            targets:
+              - decision
+            color: cyan
+            linger: 0
+  - id: candidates
+    title: Four drafts for the same room
+    visual: Keep the room in view. Apply a vote and an exact chair count to the same four drafts, then replace
+      the only matching draft and check again.
+    beats:
+      - say: Here are four possible replies. Two drafts say thirty-two, so the vote returns thirty-two. Now check
+          each draft against the room. Only the third draft matches. The calculator accepts forty-four.
+        hold: 0.9
+        visual_cues:
+          - id: candidate-pool
+            phrase: four possible replies
+            targets:
+              - answer-candidates
+            color: blue
+            linger: 0.18
+          - id: plurality-vote
+            phrase: the vote returns thirty-two
+            targets:
+              - vote
+            color: yellow
+            linger: 0.18
+          - id: arithmetic-check
+            phrase: the calculator accepts forty-four
+            targets:
+              - match
+            color: green
+            linger: 0.18
+        caption_starts:
+          - so the vote returns thirty-two
+          - Now check each draft
+          - Only the third draft matches
+          - The calculator accepts forty-four
+      - say: Try that same check on a different set. Change the third draft to forty. The room stays exactly as it
+          was. Which of these four drafts can the checker return?
+        hold: 2.3
+        visual_cues:
+          - id: replace-candidate
+            phrase: Change the third draft to forty
+            targets:
+              - third-draft
+            color: yellow
+            linger: 0.18
+          - id: check-again
+            phrase: Which of these four drafts can the checker return
+            targets:
+              - match
+            color: yellow
+            linger: 0.18
+      - say: None of them. The calculator knows the count, but a selector can only return a candidate it received.
+          Report that no draft passed. If budget remains, ask for a new one. Voting on extracted answers is
+          called self-consistency. Best-of-N usually ranks the drafts with a scorer. Both need good
+          candidates, and each rule needs evidence it can use.
+        hold: 0.9
+        visual_cues:
+          - id: empty-selection
+            phrase: None of them
+            targets:
+              - match
+            color: pink
+            linger: 0.18
+          - id: vote-name
+            phrase: Voting on extracted answers
+            targets:
+              - vote
+            color: blue
+            linger: 0.18
+  - id: selector
+    title: Which answer will the scorer send?
+    visual: Keep the arithmetic check beside 44 while a separate return marker moves to the highest score.
+      Compare the same prefix before and after the third draft arrives.
+    beats:
+      - say: Try a scorer on three possible chair counts. Forty-four starts with a score of point eight two. The
+          next answer, thirty-two, scores lower. Now a third answer arrives. It says forty-eight and scores
+          point nine five. If the largest score wins, which count will the organizer receive?
+        hold: 2.1
+        visual_cues:
+          - id: scorer-ranking
+            phrase: The next answer, thirty-two, scores lower
+            targets:
+              - score-rows
+            color: blue
+            linger: 0.18
+          - id: overrated-answer
+            phrase: It says forty-eight and scores point nine five
+            targets:
+              - third-score
+            color: yellow
+            linger: 0.18
+          - id: score-question
+            phrase: which count will the organizer receive
+            targets:
+              - selected-slot
+            color: yellow
+            linger: 0.18
+        caption_starts:
+          - Now a third answer arrives
+          - If the largest score wins
+      - say: Forty-eight takes the return slot. The check mark stays beside forty-four. We had the correct answer
+          with two candidates, and we still have it with three. What changed was which one we sent. A higher
+          best score can go with a worse answer.
+        hold: 1
+        visual_cues:
+          - id: winner-moves
+            phrase: Forty-eight takes the return slot
+            targets:
+              - selected-slot
+            color: pink
+            linger: 0.18
+          - id: coverage-preserved
+            phrase: The check mark stays beside forty-four
+            targets:
+              - checked-row
+            color: green
+            linger: 0.18
+      - say: When you compare search budgets, run the same independent check on what each budget actually returned.
+          A learned score might reward a preference, a correct final answer, or an intermediate step that
+          later work can repair. Find out which judgment the scorer learned before letting it choose.
+        hold: 0.8
+        visual_cues:
+          - id: selection-regression
+            phrase: what each budget actually returned
+            targets:
+              - selected-slot
+            color: pink
+            linger: 0.18
+  - id: coverage
+    title: What do four attempts buy?
+    visual: Draw the probability of at least one hit and split that area into returned and lost answers. Charge
+      all generated tokens on the same row.
+    beats:
+      - say: Keep one prompt fixed. Give each independent attempt a one-in-four chance of hitting the answer. One
+          attempt misses three quarters of the time. For four attempts to miss, all four misses have to
+          happen. Multiply four copies of three quarters. What share is left for pools with at least one hit?
+        hold: 2
+        visual_cues:
+          - id: independent-attempts
+            phrase: One attempt misses three quarters of the time
+            targets:
+              - row-one
+            color: blue
+            linger: 0.18
+          - id: failure-product
+            phrase: Multiply four copies of three quarters
+            targets:
+              - product
+            color: yellow
+            linger: 0.18
+      - say: About sixty-eight percent. That is candidate coverage. At eight hundred tokens per attempt, those four
+          tries cost thirty-two hundred generated tokens. Move to sixteen attempts. Coverage approaches
+          ninety-nine percent, while token work quadruples. If attempts copy one another or their success
+          rates change, we need a different probability model.
+        hold: 0.8
+        visual_cues:
+          - id: four-attempts
+            phrase: About sixty-eight percent
+            targets:
+              - row-four
+            color: green
+            linger: 0.18
+          - id: diminishing-returns
+            phrase: Move to sixteen attempts
+            targets:
+              - row-sixteen
+            color: cyan
+            linger: 0.18
+      - say: Return to the four-try row. Suppose the selector finds the right answer in four fifths of the pools
+          that contain one. Take four fifths of the green length. About fifty-five percent of all requests
+          now return a correct answer. The remaining part of that green length is where the generator
+          succeeded and the selector lost the answer. With one attempt we simply return that attempt.
+        hold: 1
+        visual_cues:
+          - id: selector-recall
+            phrase: Take four fifths of the green length
+            targets:
+              - row-four
+            color: green
+            linger: 0.18
+          - id: selected-success
+            phrase: About fifty-five percent of all requests
+            targets:
+              - returned-four
+            color: green
+            linger: 0.18
+        caption_starts:
+          - Take four fifths of the green length
+          - About fifty-five percent
+  - id: per-prompt-distribution
+    title: Average coverage after computing each prompt
+    visual: Construct two per-prompt miss products and complement them before averaging; move probability mass
+      between prompts while retaining the sampling budget.
+    beats:
+      - say: For one fixed prompt with independent identically distributed attempts, let p be its one-attempt hit
+          probability. The chance all N attempts miss is the quantity one minus p raised to N. Subtract that
+          result from one to obtain candidate coverage. To estimate dataset coverage, compute that quantity
+          for each prompt first, then average those prompt-level results.
+        visual_cues:
+          - id: tt-per-prompt-distribution-0
+            phrase: For one fixed prompt with independent identically distributed attempts, let p be its one-attempt hit
+              probability.
+            targets:
+              - tt-per-prompt-distribution-0
+            color: cyan
+            linger: 0.4
+        hold: 0.7
+      - say: Consider the article’s two hypothetical prompts. Before training their hit probabilities are point eight
+          and point two. Afterward they are point nine nine and point zero five. Mean one-attempt success
+          rises from point five to point five two. But mean four-attempt coverage falls from about point seven
+          nine four to point five nine three, because one prompt has become much harder to cover.
+        visual_cues:
+          - id: tt-per-prompt-distribution-1
+            phrase: Consider the article’s two hypothetical prompts.
+            targets:
+              - tt-per-prompt-distribution-1
+            color: yellow
+            linger: 0.4
+          - id: tt-probability-shift
+            phrase: Afterward they are point nine nine and point zero five.
+            targets:
+              - tt-probability-shift
+            color: cyan
+            linger: 0
+          - id: tt-prompt-coverage
+            phrase: But mean four-attempt coverage falls from about point seven nine four to point five nine three,
+              because one prompt has become much harder to cover.
+            targets:
+              - tt-prompt-coverage
+            color: pink
+            linger: 0
+        hold: 0.7
+      - say: For fixed p, adding independent attempts cannot reduce oracle coverage. Changing the trained probability
+          distribution is a different comparison. Selection can also lose a correct candidate already present.
+          If a selector succeeds with conditional probability r whenever coverage exists, selected success is
+          coverage multiplied by r. Charge all N generated attempts even when just one answer returns.
+        visual_cues:
+          - id: tt-per-prompt-distribution-2
+            phrase: For fixed p, adding independent attempts cannot reduce oracle coverage.
+            targets:
+              - tt-per-prompt-distribution-2
+            color: green
+            linger: 0.4
+        hold: 0.7
+  - id: policy-training
+    title: Train for the way you’ll choose an answer
+    visual: Contrast a target-likelihood update with per-prompt multi-attempt coverage and retain the prompt
+      distribution in both evaluation tables.
+    beats:
+      - say: Token-level likelihood training rewards the demonstrated target. At serving time we may try four
+          answers and let a verifier choose. A model can get better at its first guess while giving us
+          fewer useful alternatives on hard prompts. Evaluate it with the sampling budget and selector you
+          plan to use.
+        visual_cues:
+          - id: tt-policy-training-0
+            phrase: Token-level likelihood training rewards the demonstrated target.
+            targets:
+              - tt-policy-training-0
+            color: cyan
+            linger: 0.4
+        hold: 0.7
+      - say: Chen and colleagues studied this on math problems and formal theorem proving. They changed the
+          training objective to limit how much probability the model puts on a single answer. In their
+          evaluations, that helped search find correct alternatives.
+        visual_cues:
+          - id: tt-policy-training-1
+            phrase: Chen and colleagues studied this on math problems and formal theorem proving
+            targets:
+              - tt-policy-training-1
+            color: yellow
+            linger: 0.4
+          - id: tt-training-search
+            phrase: limit how much probability the model puts on a single answer
+            targets:
+              - tt-training-search
+            color: cyan
+            linger: 0
+        hold: 0.7
+      - say: At each sampling budget, ask two questions. How often did any draft get the answer right? How often
+          did the verifier send one of those correct drafts? That gap tells you where selection lost a
+          good answer.
+        visual_cues:
+          - id: tt-policy-training-2
+            phrase: At each sampling budget, ask two questions
+            targets:
+              - tt-policy-training-2
+            color: green
+            linger: 0.4
+          - id: tt-selected-evaluation
+            phrase: How often did the verifier send one of those correct drafts
+            targets:
+              - tt-selected-evaluation
+            color: green
+            linger: 0
+        hold: 0.7
+  - id: process-targets
+    title: What does a step score measure?
+    visual: Keep a false intermediate equation fixed while completed rollouts repair or repeat it, constructing
+      separate human-validity, any-success and fraction-success labels.
+    beats:
+      - say: An outcome reward model scores a completed trajectory. Its signal can be correctness, a scalar judgment
+          or a preference. A process reward model scores intermediate work conditioned on the problem and
+          preceding steps. Its training labels determine what that score means. Human step-validity labels ask
+          whether the step itself is sound. Rollout-based labels ask whether a continuation policy can recover
+          a correct final answer.
+        visual_cues:
+          - id: tt-process-targets-0
+            phrase: An outcome reward model scores a completed trajectory.
+            targets:
+              - tt-process-targets-0
+            color: cyan
+            linger: 0.4
+        hold: 0.7
+      - say: The first step says two plus two equals five. A human checking that step would mark it wrong. Now let
+          four continuations finish from there. They answer four, five, four and four. The any-success
+          target is one because at least one continuation recovered. The fraction-success target is three
+          quarters. It counts how often the continuation fixed the mistake.
+        visual_cues:
+          - id: tt-process-targets-1
+            phrase: The first step says two plus two equals five
+            targets:
+              - tt-process-targets-1
+            color: yellow
+            linger: 0.4
+          - id: tt-rollout-targets
+            phrase: The fraction-success target is three quarters
+            targets:
+              - tt-rollout-targets
+            color: green
+            linger: 0
+        hold: 0.7
+        caption_starts:
+          - The any-success target
+          - The fraction-success target
+      - say: Math-Shepherd’s completion-based targets depend on the completer and rollout budget. In another
+          reward-to-go setup, Snell and colleagues found the last-step aggregate worked better than minimum or
+          product aggregation. Our minimum-step controller is a declared search heuristic. Match aggregation
+          and pruning to the actual score contract instead of treating every process score as the same
+          probability.
+        visual_cues:
+          - id: tt-process-targets-2
+            phrase: Math-Shepherd’s completion-based targets depend on the completer and rollout budget.
+            targets:
+              - tt-process-targets-2
+            color: green
+            linger: 0.4
+        hold: 0.7
+  - id: revision
+    title: The cost of a rewrite
+    visual: Track a critique and rewrite against each draft. Compare the next gain with the stopping threshold
+      while the externally checked answer stays pinned.
+    beats:
+      - say: Let each draft see the feedback on the one before it. The first draft counts the tables and fails the
+          room check. Its critique points to the wall. The rewrite counts forty-four and passes. Keep that
+          copy. A third draft changes the count to forty-eight and fails. Its score still rises from point
+          seven six to point seven eight. Those are the scorer’s judgments. We can count the chairs
+          ourselves.
+        hold: 0.9
+        visual_cues:
+          - id: draft-check
+            phrase: The first draft counts the tables and fails the room check
+            targets:
+              - revision-candidate-1
+            color: pink
+            linger: 0.18
+          - id: repair-candidate
+            phrase: Its critique points to the wall. The rewrite counts forty-four and passes
+            targets:
+              - revision-candidate-2
+            color: blue
+            linger: 0.18
+          - id: checked-candidate
+            phrase: Keep that copy
+            targets:
+              - retained-checked-answer
+            color: green
+            linger: 0.18
+          - id: damaged-revision
+            phrase: A third draft changes the count to forty-eight and fails
+            targets:
+              - revision-candidate-3
+            color: pink
+            linger: 0.18
+        caption_starts:
+          - The rewrite counts forty-four and passes
+          - A third draft changes the count
+      - say: Our budget rule buys another revision while the score improves by at least one hundredth. Pay for one
+          more critique and rewrite. The fourth score comes back at point seven eight one. Compare it with
+          point seven eight zero. Under that rule, would you pay for a fifth draft?
+        hold: 2.2
+        visual_cues:
+          - id: stop-threshold
+            phrase: at least one hundredth
+            targets:
+              - threshold
+            color: yellow
+            linger: 0.18
+          - id: fourth-paid
+            phrase: Pay for one more critique and rewrite
+            targets:
+              - paid-calls
+            color: blue
+            linger: 0.18
+          - id: plateau-score
+            phrase: comes back at point seven eight one
+            targets:
+              - revision-candidate-4
+            color: cyan
+            linger: 0.18
+          - id: compare-gain
+            phrase: Compare it with point seven eight zero
+            targets:
+              - delta
+            color: yellow
+            linger: 0.18
+          - id: fifth-draft
+            phrase: would you pay for a fifth draft
+            targets:
+              - delta
+            color: yellow
+            linger: 0.18
+        caption_starts:
+          - The fourth score comes back
+          - Under that rule
+      - say: Stop here. The fourth draft bought a gain of one thousandth. A fifth draft stays unstarted. Four
+          evaluated drafts cost seven generation calls, one initial draft plus three pairs of critique and
+          rewrite. Separate checks cost extra. Send draft two. It’s the one that counted every chair.
+        hold: 1
+        visual_cues:
+          - id: stop-revision
+            phrase: Stop here
+            targets:
+              - delta
+            color: yellow
+            linger: 0.18
+          - id: generation-ledger
+            phrase: seven generation calls
+            targets:
+              - paid-calls
+            color: blue
+            linger: 0.18
+          - id: usable-stop
+            phrase: Send draft two
+            targets:
+              - retained-checked-answer
+            color: green
+            linger: 0.18
+  - id: search-completion
+    title: Keep finished answers separate from active prefixes
+    visual: Expand the actual scripted frontier into active and completed pools, apply the final-answer parser,
+      and spend a finite proposal budget without promoting a prefix.
+    beats:
+      - say: Keep two pools as you search. One holds unfinished paths you can extend. The other holds answers that
+          have reached the final marker. A proposed step can be a whole sentence. Score each proposal,
+          move finished answers to the completed pool, and spend the next round on the strongest
+          unfinished paths.
+        visual_cues:
+          - id: tt-search-completion-0
+            phrase: Keep two pools as you search
+            targets:
+              - tt-search-completion-0
+            color: cyan
+            linger: 0.4
+          - id: tt-pool-transfer
+            phrase: move finished answers to the completed pool
+            targets:
+              - tt-pool-transfer
+            color: cyan
+            linger: 0
+        hold: 0.7
+      - say: Take three rounds. Each time, keep one unfinished path and propose two ways to extend it. At the
+          deadline, the unfinished path scores point nine. A finished answer scores point eight. Return
+          the finished answer. If the completed pool is empty, mark the best partial path incomplete so
+          the caller can retry or escalate.
+        visual_cues:
+          - id: tt-search-completion-1
+            phrase: Take three rounds
+            targets:
+              - tt-search-completion-1
+            color: yellow
+            linger: 0.4
+          - id: tt-completed-return
+            phrase: Return the finished answer
+            targets:
+              - tt-completed-return
+            color: green
+            linger: 0
+        hold: 0.7
+        caption_starts:
+          - A finished answer scores
+          - Return the finished answer
+      - say: The parser strips whitespace, handles case and requires nonempty text after its final marker. A guess
+          can meet all three conditions. Run the task’s checker on the finished answer. When ranking
+          paths, reject malformed or non-finite scores.
+        visual_cues:
+          - id: tt-search-completion-2
+            phrase: The parser strips whitespace, handles case and requires nonempty text after its final marker.
+            targets:
+              - tt-search-completion-2
+            color: green
+            linger: 0.4
+        hold: 0.7
+  - id: search-bound
+    title: Can the unfinished path still win?
+    visual: Run one possible extension against a fixed completed score under two different path-scoring rules.
+      Then count proposals over three rounds.
+    beats:
+      - say: Try a different frontier. One answer is finished. Its score is point eight. The only unfinished path
+          stands at point seven. Our first rule keeps the lowest step score on the path. Imagine its next
+          step scores point nine. Could that lift the path above the finished answer?
+        hold: 2.2
+        visual_cues:
+          - id: bound-inputs
+            phrase: The only unfinished path stands at point seven
+            targets:
+              - minimum
+            color: blue
+            linger: 0.18
+          - id: offer-step
+            phrase: next step scores point nine
+            targets:
+              - next-score
+            color: yellow
+            linger: 0.18
+      - say: The lower score stays. Even a perfect next step would leave the minimum at point seven. We can stop
+          this retained search. Replay the very same extension with a rule that keeps just the latest
+          step. Now the path reaches point nine. With that rule the path was worth extending. The bound
+          covers the paths still in play. Check the finished answer separately.
+        hold: 1
+        visual_cues:
+          - id: tt-path-bound
+            phrase: The lower score stays
+            targets:
+              - minimum
+            color: green
+            linger: 0.18
+          - id: replay-latest
+            phrase: keeps just the latest step
+            targets:
+              - latest
+            color: yellow
+            linger: 0.18
+          - id: latest-rise
+            phrase: the path reaches point nine
+            targets:
+              - latest
+            color: cyan
+            linger: 0.18
+        caption_starts:
+          - Now the path reaches point nine
+      - say: Suppose we keep one unfinished path at a time and propose two next steps per round. Over three full
+          rounds, that buys at most six proposals and six scores. In general multiply beam width by proposals
+          per path by rounds. Finishing early can save proposals. A proposal could be one token or a whole
+          sentence, so six scores alone won’t tell you the token bill or the latency.
+        hold: 0.8
+        visual_cues:
+          - id: search-rounds
+            phrase: two next steps per round
+            targets:
+              - proposals
+            color: blue
+            linger: 0.18
+          - id: tt-proposal-ceiling
+            phrase: at most six proposals and six scores
+            targets:
+              - proposal-total
+            color: green
+            linger: 0.18
+  - id: pruning
+    title: Check a branch before funding its remaining steps
+    visual: Four eight-step paths contrast full outcome scoring with correctly timed process pruning, counting
+      generated steps and scoring calls separately.
+    beats:
+      - say: A process scorer can inspect intermediate steps. If it reliably detects a bad path early, the controller
+          can stop funding that branch before its final answer. An outcome scorer waits for a completed
+          answer. The two approaches therefore see evidence at different moments in the computation.
+        visual_cues:
+          - id: outcome-completion
+            phrase: outcome scorer waits for a completed answer
+            targets:
+              - branch-steps
+            color: blue
+          - id: intermediate-evidence
+            phrase: different moments in the computation
+            targets:
+              - branch-steps
+            color: yellow
+        hold: 0.6
+      - say: These four branches would each take eight steps. Our supplied process decisions prune three at the marked
+          positions, leaving fourteen generated steps instead of thirty-two. Follow which work disappears. The
+          saving depends on those pruning decisions preserving the path that can actually finish correctly.
+        visual_cues:
+          - id: process-pruning
+            phrase: prune three at the marked positions
+            targets:
+              - branch-steps
+            color: blue
+          - id: saved-steps
+            phrase: fourteen generated steps instead of thirty-two
+            targets:
+              - pruning-readout-3
+            color: green
+        hold: 0.65
+      - say: Step checks also cost work. This fixture makes fourteen process-scoring calls, compared with four
+          outcome-scoring calls. Generated steps and scorer calls are different units, and their lengths can
+          vary. Measure total compute and selected correctness before concluding that early pruning improves
+          the complete system.
+        visual_cues:
+          - id: scorer-cost
+            phrase: fourteen process-scoring calls
+            targets:
+              - pruning-process-checks-14-outcome-checks-4
+            color: yellow
+          - id: different-work-units
+            phrase: Generated steps and scorer calls are different units
+            targets:
+              - pruning-readout-3
+            color: blue
+        hold: 0.7
+  - id: train-time-axis
+    title: Separate weight learning from request-time work
+    visual: Construct a training parameter-by-token rectangle, freeze its resulting weight artifact, then branch
+      the same request through different inference policies.
+    beats:
+      - say: Training compute changes weights. For a dense transformer, a common rough training estimate is six times
+          parameter count times processed training tokens. Processed tokens include repeated epochs. Three
+          billion parameters trained on twenty billion tokens for two epochs therefore use forty billion
+          processed tokens, giving about seven point two times ten to the twentieth floating-point operations.
+        visual_cues:
+          - id: tt-train-time-axis-0
+            phrase: Training compute changes weights.
+            targets:
+              - tt-train-time-axis-0
+            color: cyan
+            linger: 0.4
+          - id: tt-training-epochs
+            phrase: Processed tokens include repeated epochs.
+            targets:
+              - tt-training-epochs
+            color: cyan
+            linger: 0
+          - id: tt-training-product
+            phrase: Three billion parameters trained on twenty billion tokens for two epochs therefore use forty billion
+              processed tokens, giving about seven point two times ten to the twentieth floating-point
+              operations.
+            targets:
+              - tt-training-product
+            color: green
+            linger: 0
+        hold: 0.7
+      - say: Look at the eight experts on the left. This token uses two of them. Counting all eight as active
+          would overstate the work. The training estimate also depends on the optimizer and
+          implementation.
+        visual_cues:
+          - id: tt-train-time-axis-1
+            phrase: Look at the eight experts on the left
+            targets:
+              - tt-train-time-axis-1
+            color: yellow
+            linger: 0.4
+          - id: tt-active-experts
+            phrase: This token uses two of them
+            targets:
+              - tt-active-experts
+            color: cyan
+            linger: 0
+        hold: 0.7
+      - say: After training, freeze one weight artifact and vary the request policy. The same weights can generate
+          a longer answer, try several drafts in parallel, or revise one draft. Reasoning-oriented
+          training can teach the model to use that time. To see whether it helped, check the answer you
+          return.
+        visual_cues:
+          - id: tt-train-time-axis-2
+            phrase: After training, freeze one weight artifact and vary the request policy.
+            targets:
+              - tt-train-time-axis-2
+            color: green
+            linger: 0.4
+        hold: 0.7
+  - id: r1-zero
+    title: Trace R1-Zero’s training signal
+    visual: Start from the pretrained base, apply rule accuracy and format feedback without cold-start SFT, and
+      retain readability limitations next to longer generated traces.
+    beats:
+      - say: DeepSeek-R1-Zero starts from a pretrained base and applies reinforcement learning without cold-start
+          supervised fine-tuning. Its rule-based rewards check answer accuracy and a required reasoning
+          format. The report does not use a learned outcome or process neural reward model for this stage.
+          Verification here belongs to the training signal.
+        visual_cues:
+          - id: tt-r1-zero-0
+            phrase: DeepSeek-R1-Zero starts from a pretrained base and applies reinforcement learning without cold-start
+              supervised fine-tuning.
+            targets:
+              - tt-r1-zero-0
+            color: cyan
+            linger: 0.4
+          - id: tt-zero-rewards
+            phrase: Its rule-based rewards check answer accuracy and a required reasoning format.
+            targets:
+              - tt-zero-rewards
+            color: green
+            linger: 0
+        hold: 0.7
+      - say: The authors report longer reasoning, reflection and self-checking behavior during training. Some
+          answers also switched languages midstream and were hard to follow. For R1, the team gave the
+          model readable worked examples before rewarding it for solving problems.
+        visual_cues:
+          - id: tt-r1-zero-1
+            phrase: The authors report longer reasoning, reflection and self-checking behavior during training.
+            targets:
+              - tt-r1-zero-1
+            color: yellow
+            linger: 0.4
+        hold: 0.7
+  - id: r1-pipeline
+    title: How DeepSeek trained R1
+    visual: Follow the reasoning checkpoint’s examples into the next training set. Trace the new run’s
+      starting weights back to V3-Base, then show which parts of a response the final rewards assess.
+    beats:
+      - say: DeepSeek starts with V3-Base, fine-tunes it on readable examples, then trains it with reinforcement
+          learning on reasoning tasks. Rewarding consistent language made the answers easier to read at
+          some cost to reasoning performance. The team uses this checkpoint to write solutions and keeps
+          the ones that pass its checks. Those are training examples for a second supervised run. Which
+          weights start that run?
+        hold: 1.7
+        caption_starts:
+          - Rewarding consistent language
+          - The team uses this checkpoint
+          - Those are training examples
+          - Which weights start that run
+        visual_cues:
+          - id: tt-r1-pipeline-0
+            phrase: DeepSeek starts with V3-Base, fine-tunes it on readable examples, then trains it with
+              reinforcement learning on reasoning tasks
+            targets:
+              - reasoning-run
+            color: blue
+            linger: 0
+          - id: r1-language
+            phrase: Rewarding consistent language
+            targets:
+              - language-reward
+            color: yellow
+            linger: 0
+          - id: tt-r1-data-edge
+            phrase: uses this checkpoint to write solutions and keeps the ones that pass its checks
+            targets:
+              - examples
+            color: green
+            linger: 0
+          - id: r1-weight-question
+            phrase: Which weights start that run
+            targets:
+              - weight-question
+            color: yellow
+            linger: 0
+      - say: The original V3-Base weights. Follow the blue arrow down. This copy of the base model learns from
+          about six hundred thousand filtered reasoning examples and two hundred thousand general
+          examples. It goes through that mix twice.
+        hold: 0.8
+        caption_starts:
+          - This copy of the base model
+          - It goes through that mix twice
+        visual_cues:
+          - id: tt-r1-weight-reset
+            phrase: The original V3-Base weights
+            targets:
+              - weight-start
+            color: blue
+            linger: 0
+          - id: tt-r1-pipeline-1
+            phrase: six hundred thousand filtered reasoning examples
+            targets:
+              - mixture
+            color: green
+            linger: 0
+          - id: r1-general
+            phrase: two hundred thousand general examples
+            targets:
+              - general-examples
+            color: cyan
+            linger: 0
+          - id: r1-epochs
+            phrase: It goes through that mix twice
+            targets:
+              - mixture
+            color: blue
+            linger: 0
+      - say: A final round of reinforcement learning broadens the training. Rules still check reasoning answers.
+          On general tasks, helpfulness is judged from the final summary. Harmlessness is judged across
+          the whole response, including the reasoning.
+        hold: 1
+        caption_starts:
+          - Harmlessness is judged across the whole response
+        visual_cues:
+          - id: tt-r1-pipeline-2
+            phrase: A final round of reinforcement learning broadens the training
+            targets:
+              - final-rl
+            color: cyan
+            linger: 0
+          - id: r1-helpfulness
+            phrase: helpfulness is judged from the final summary
+            targets:
+              - summary
+            color: green
+            linger: 0
+          - id: r1-harmlessness
+            phrase: Harmlessness is judged across the whole response
+            targets:
+              - response
+            color: pink
+            linger: 0
+  - id: distill-benchmark
+    title: How often does one sampled answer succeed?
+    visual: Build the teacher-to-student training-data path, place historical pass-at-one results beside
+      temperature and sampling settings, and retain missing hardware-cost evidence.
+    beats:
+      - say: Distillation trains a smaller model on worked solutions from a larger one. The R1 team fine-tuned
+          Qwen students with its curated examples. On the AIME 2024 math problems, the smallest student,
+          with one and a half billion parameters, reached about twenty-nine percent. The seven-billion
+          student reached fifty-five point five percent. The thirty-two-billion student reached
+          seventy-two point six percent.
+        visual_cues:
+          - id: tt-distill-benchmark-0
+            phrase: Distillation trains a smaller model on worked solutions from a larger one
+            targets:
+              - tt-distill-benchmark-0
+            color: cyan
+            linger: 0.4
+          - id: tt-student-results
+            phrase: about twenty-nine percent
+            targets:
+              - tt-student-results
+            color: cyan
+            linger: 0
+          - id: r1-seven-billion
+            phrase: fifty-five point five percent
+            targets:
+              - r1-seven-billion
+            color: blue
+            linger: 0
+          - id: r1-thirty-two-billion
+            phrase: seventy-two point six percent
+            targets:
+              - r1-thirty-two-billion
+            color: blue
+            linger: 0
+        hold: 0.7
+        caption_starts:
+          - On the AIME 2024 math problems
+          - The seven-billion student
+          - The thirty-two-billion student
+      - say: The study sampled at temperature point six and top-p point nine five. Each bar estimates the chance
+          that one sampled answer solves the problem. On the same test, full R1 reached seventy-nine point
+          eight percent.
+        visual_cues:
+          - id: tt-distill-benchmark-1
+            phrase: The study sampled at temperature point six and top-p point nine five
+            targets:
+              - tt-distill-benchmark-1
+            color: yellow
+            linger: 0.4
+          - id: tt-r1-result
+            phrase: full R1 reached seventy-nine point eight percent
+            targets:
+              - tt-r1-result
+            color: pink
+            linger: 0
+        hold: 0.7
+        caption_starts:
+          - On the same test
+      - say: Those scores tell us what each student could solve. For a service that handles the same kind of
+          question all day, a smaller student may repay the cost of generating traces and training on
+          them. Time it on the hardware you’ll use, and count how many checked answers it gets right.
+        visual_cues:
+          - id: tt-distill-benchmark-2
+            phrase: a smaller student may repay the cost of generating traces and training on them
+            targets:
+              - tt-distill-benchmark-2
+            color: green
+            linger: 0.4
+        hold: 0.7
+  - id: distill-boundary
+    title: What can a student learn from a worked solution?
+    visual: Retain accepted teacher traces in a student dataset while keeping rejected alternatives, checks and
+      search-controller behavior in separate artifacts.
+    beats:
+      - say: Watch what crosses from the teacher to the student. The student sees a worked solution. The discarded
+          drafts, the checker’s code and the rule that chose the winner stay with the teacher. If a new
+          answer needs a calculator check, give the student a calculator and run it.
+        visual_cues:
+          - id: tt-distill-boundary-0
+            phrase: Watch what crosses from the teacher to the student
+            targets:
+              - tt-distill-boundary-0
+            color: cyan
+            linger: 0.4
+          - id: tt-trace-transfer
+            phrase: The student sees a worked solution
+            targets:
+              - tt-trace-transfer
+            color: green
+            linger: 0
+        hold: 0.7
+      - say: Setlur and colleagues studied what happens when a learner can try its own solutions and check them.
+          Under their assumptions about the tasks and the spread of possible rewards, they found settings
+          where verification makes better use of a growing inference budget than imitating successful
+          traces alone.
+        visual_cues:
+          - id: tt-distill-boundary-1
+            phrase: Setlur and colleagues studied what happens when a learner can try its own solutions and check them
+            targets:
+              - tt-distill-boundary-1
+            color: yellow
+            linger: 0.4
+        hold: 0.7
+      - say: The practical test is whether the chosen training and inference system can detect its relevant errors at
+          the allowed budget. Compare trace training, further verified practice and explicit checking on the
+          actual task distribution. Preserve the cost of each information source when deciding where
+          additional compute is worthwhile.
+        visual_cues:
+          - id: tt-distill-boundary-2
+            phrase: The practical test is whether the chosen training and inference system can detect its relevant errors
+              at the allowed budget.
+            targets:
+              - tt-distill-boundary-2
+            color: green
+            linger: 0.4
+        hold: 0.7
+  - id: provider-usage
+    title: Read the generated-token ledger before billing
+    visual: Build one inclusive output bar, separate its declared reasoning and visible components, then compare a
+      separate-field endpoint without double counting.
+    beats:
+      - say: A short answer can have a long generated-token ledger. In this example there are two kinds of output,
+          reasoning tokens and visible text. Look at the OpenAI-style record. Its total output is fourteen
+          hundred tokens, including twelve hundred twenty reasoning tokens. Subtracting the reasoning
+          count from the total leaves one hundred eighty visible tokens.
+        visual_cues:
+          - id: tt-provider-usage-0
+            phrase: A short answer can have a long generated-token ledger.
+            targets:
+              - tt-provider-usage-0
+            color: cyan
+            linger: 0.4
+          - id: tt-usage-components
+            phrase: total output is fourteen hundred tokens, including twelve hundred twenty reasoning tokens.
+            targets:
+              - tt-usage-components
+            color: cyan
+            linger: 0
+          - id: tt-visible-count
+            phrase: Subtracting the reasoning count from the total leaves one hundred eighty visible tokens.
+            targets:
+              - tt-visible-count
+            color: green
+            linger: 0
+        hold: 0.7
+        caption_starts:
+          - Its total output
+          - Subtracting the reasoning count
+          - one hundred eighty visible tokens
+      - say: At the illustrative price of ten dollars per million output tokens, multiply fourteen hundred by ten and
+          divide by one million. The output charge is zero point zero one four dollars. Charge the inclusive
+          total once. Adding the included reasoning tokens a second time double counts them. Input charges and
+          separate tool or scorer costs remain separate.
+        visual_cues:
+          - id: tt-provider-usage-1
+            phrase: At the illustrative price of ten dollars per million output tokens, multiply fourteen hundred by ten
+              and divide by one million.
+            targets:
+              - tt-provider-usage-1
+            color: yellow
+            linger: 0.4
+          - id: tt-output-charge
+            phrase: The output charge is zero point zero one four dollars.
+            targets:
+              - tt-output-charge
+            color: green
+            linger: 0
+          - id: tt-inclusive-once
+            phrase: Adding the included reasoning tokens a second time double counts them.
+            targets:
+              - tt-inclusive-once
+            color: pink
+            linger: 0
+        hold: 0.7
+      - say: The fields tell you which calculation to use. If the output total also includes hidden formatting,
+          subtracting reasoning leaves formatting mixed in with visible text. Gemini’s selected
+          Interactions endpoint instead reports thought and output fields separately, and its pricing adds
+          them. To size the cache, look at what the engine actually retained.
+        visual_cues:
+          - id: tt-provider-usage-2
+            phrase: The fields tell you which calculation to use
+            targets:
+              - tt-provider-usage-2
+            color: green
+            linger: 0.4
+          - id: tt-usage-separate
+            phrase: Gemini’s selected Interactions endpoint instead reports thought and output fields separately, and
+              its pricing adds them.
+            targets:
+              - tt-usage-separate
+            color: cyan
+            linger: 0
+        hold: 0.7
+  - id: effort-cutoff
+    title: Trace guidance, cutoff, completion and correctness
+    visual: Change an effort control independently of a hard token cap, consume a hidden-only response, then run a
+      separate arithmetic check on a completed answer.
+    beats:
+      - say: Effort guides how a supported model allocates reasoning. A hard output-token limit can interrupt it.
+          OpenAI Responses includes reasoning inside its total output limit. Gemini Interactions also includes
+          thoughts in its hard cap, independently of thinking level. Anthropic adaptive thinking separates
+          effort guidance from a hard response limit. Field names and support belong to the chosen model and
+          endpoint.
+        visual_cues:
+          - id: tt-effort-cutoff-0
+            phrase: Effort guides how a supported model allocates reasoning.
+            targets:
+              - tt-effort-cutoff-0
+            color: cyan
+            linger: 0.4
+        hold: 0.7
+      - say: Our first supplied response consumes its entire sixty-four-token cap in non-visible reasoning. The
+          status reads incomplete. The caller gets an empty answer and pays for sixty-four tokens. Use the
+          remaining budget to decide whether to retry, escalate, or stop.
+        visual_cues:
+          - id: tt-effort-cutoff-1
+            phrase: Our first supplied response consumes its entire sixty-four-token cap in non-visible reasoning.
+            targets:
+              - tt-effort-cutoff-1
+            color: yellow
+            linger: 0.4
+          - id: tt-hidden-cap
+            phrase: Our first supplied response consumes its entire sixty-four-token cap in non-visible reasoning.
+            targets:
+              - tt-hidden-cap
+            color: pink
+            linger: 0
+        hold: 0.7
+      - say: The second request finished and returned five thousand cached positions. Here’s the question it
+          answered. Count one shared prompt of four thousand positions and eight private tails of a
+          thousand each. The total is twelve thousand. The caller has a complete response with a wrong
+          answer. Check the status, read the text, then check the arithmetic.
+        visual_cues:
+          - id: tt-effort-cutoff-2
+            phrase: The second request finished and returned five thousand cached positions
+            targets:
+              - tt-effort-cutoff-2
+            color: green
+            linger: 0.4
+          - id: tt-completed-wrong
+            phrase: The total is twelve thousand
+            targets:
+              - tt-completed-wrong
+            color: pink
+            linger: 0
+        hold: 0.7
+        caption_starts:
+          - Here’s the question it answered
+          - Count one shared prompt
+          - The total is twelve thousand
+  - id: opaque-continuation
+    title: Preserve continuation state under its own contract
+    visual: Link the next request to actually retained structured response items, contrast an unsupported family
+      transition, and retain a human summary as a different artifact.
+    beats:
+      - say: Continuation can reuse structured reasoning state without exposing raw thoughts. In the checked OpenAI
+          contract, making compatible earlier reasoning available requires the actual earlier response items.
+          Inspect the effective reasoning-context field on the response. An all-turns setting cannot
+          reconstruct items that the application discarded, and compatible-family requirements still apply.
+        visual_cues:
+          - id: tt-opaque-continuation-0
+            phrase: Continuation can reuse structured reasoning state without exposing raw thoughts.
+            targets:
+              - tt-opaque-continuation-0
+            color: cyan
+            linger: 0.4
+          - id: tt-state-replay
+            phrase: making compatible earlier reasoning available requires the actual earlier response items.
+            targets:
+              - tt-state-replay
+            color: cyan
+            linger: 0
+        hold: 0.7
+      - say: Gemini Interactions can retain state through a stored interaction identifier. A stateless client
+          instead replays the required thought blocks unchanged, including required tool-result
+          signatures. Keep that state for the next request and use the readable summary for the person
+          reading the answer.
+        visual_cues:
+          - id: tt-opaque-continuation-1
+            phrase: Gemini Interactions can retain state through a stored interaction identifier.
+            targets:
+              - tt-opaque-continuation-1
+            color: yellow
+            linger: 0.4
+          - id: tt-signature-replay
+            phrase: A stateless client instead replays the required thought blocks unchanged, including required
+              tool-result signatures.
+            targets:
+              - tt-signature-replay
+            color: cyan
+            linger: 0
+        hold: 0.7
+      - say: Begin with clear task constraints, success criteria and an evaluation baseline. A model can alternate
+          between reasoning, tool calls and visible text within one request. Try the effort controls its
+          endpoint supports, then compare the returned answers with your baseline.
+        visual_cues:
+          - id: tt-opaque-continuation-2
+            phrase: Begin with clear task constraints, success criteria and an evaluation baseline.
+            targets:
+              - tt-opaque-continuation-2
+            color: green
+            linger: 0.4
+        hold: 0.7
+  - id: budget
+    title: Which budget gives the best accuracy in time?
+    visual: Align four measured quantities from a synthetic sweep on one latency ruler. Move the deadline from
+      1,000 to 400 milliseconds and choose again using the same points.
+    beats:
+      - say: Suppose you ran these four reasoning budgets on the same workload. The numbers here are invented. Each
+          dot tells you how long that budget took. Its accuracy is on the same row. You have one thousand
+          milliseconds. Among the dots that fit, which budget gives the highest accuracy?
+        hold: 2.1
+        visual_cues:
+          - id: budget-sweep
+            phrase: Each dot tells you how long that budget took
+            targets:
+              - points
+            color: blue
+            linger: 0.18
+          - id: delay-limit
+            phrase: one thousand milliseconds
+            targets:
+              - deadline
+            color: yellow
+            linger: 0.18
+      - say: Choose five hundred twelve tokens. It reached eighty-three percent at six hundred ten milliseconds.
+          The largest budget took longer and got fewer answers right. Now tighten just the deadline to four
+          hundred milliseconds. Keep the same four measurements. Which budget would you use now?
+        hold: 2.15
+        visual_cues:
+          - id: chosen-budget
+            phrase: Choose five hundred twelve tokens
+            targets:
+              - budget-readout
+            color: green
+            linger: 0.18
+          - id: largest-budget
+            phrase: The largest budget took longer and got fewer answers right
+            targets:
+              - largest
+            color: pink
+            linger: 0.18
+          - id: tighter-budget
+            phrase: tighten just the deadline to four hundred milliseconds
+            targets:
+              - deadline
+            color: yellow
+            linger: 0.18
+        caption_starts:
+          - Now tighten just the deadline
+          - Which budget would you use now
+      - say: One hundred twenty-eight tokens. Seventy-eight percent is the best accuracy left inside this deadline.
+          Before you set a real router this way, measure the latency statistic your service promises,
+          including uncertainty under load. Charge the cost of deciding which requests get extra work, and
+          check how long the other requests have to wait.
+        hold: 0.9
+        visual_cues:
+          - id: tighter-winner
+            phrase: One hundred twenty-eight tokens
+            targets:
+              - budget-readout
+            color: green
+            linger: 0.18
+          - id: shared-capacity
+            phrase: how long the other requests have to wait
+            targets:
+              - deadline
+            color: yellow
+            linger: 0.18
+  - id: scaling-evidence
+    title: What happens when the model keeps going?
+    visual: Plot the existing synthetic sweep beside clearly separate source-study panels, retain the forcing
+      intervention, and compare lifetime FLOPs with per-request clocks.
+    beats:
+      - say: What happens if a model is ready to finish and we make it keep going? Ghosal and colleagues tried
+          this with three R1-distilled models on GSM8K, MATH500 and AIME2024. One intervention suppresses
+          the end-of-thinking delimiter and appends Wait. As the forced continuation grew longer, accuracy
+          could fall.
+        visual_cues:
+          - id: tt-scaling-evidence-0
+            phrase: What happens if a model is ready to finish and we make it keep going
+            targets:
+              - tt-scaling-evidence-0
+            color: cyan
+            linger: 0.4
+          - id: tt-forced-extension
+            phrase: One intervention suppresses the end-of-thinking delimiter and appends Wait.
+            targets:
+              - tt-forced-extension
+            color: yellow
+            linger: 0
+        hold: 0.7
+        caption_starts:
+          - As the forced continuation grew longer
+      - say: The Anthropic Fellows study constructs distraction and constraint-tracking tasks where additional
+          reasoning can hurt. A longer trace gives the model more chances to follow a distraction or lose
+          track of a constraint. To choose an effort setting for your service, try it on the questions
+          your service receives and check the answers it returns.
+        visual_cues:
+          - id: tt-scaling-evidence-1
+            phrase: The Anthropic Fellows study constructs distraction and constraint-tracking tasks where additional
+              reasoning can hurt.
+            targets:
+              - tt-scaling-evidence-1
+            color: yellow
+            linger: 0.4
+        hold: 0.7
+      - say: Snell and colleagues also compare a smaller model with additional inference against a larger model
+          sampled once. Their cross-over analysis balances pretraining and expected lifetime inference
+          FLOPs. A service that answers a million questions pays for that extra inference a million times.
+          Include the work of estimating each question’s difficulty, then measure the latency and cost per
+          request.
+        visual_cues:
+          - id: tt-scaling-evidence-2
+            phrase: Snell and colleagues also compare a smaller model with additional inference against a larger model
+              sampled once.
+            targets:
+              - tt-scaling-evidence-2
+            color: green
+            linger: 0.4
+          - id: tt-lifetime-work
+            phrase: Their cross-over analysis balances pretraining and expected lifetime inference FLOPs.
+            targets:
+              - tt-lifetime-work
+            color: cyan
+            linger: 0
+        hold: 0.7
+  - id: router-feasible
+    title: Which route meets both limits?
+    visual: Filter a supplied table independently by quality and latency, select its lowest-cost remaining row,
+      and construct a separate no-eligible fallback state.
+    beats:
+      - say: Now apply a complete local routing rule. Require measured quality at least point eight four and latency
+          at most one thousand milliseconds, then choose the cheapest eligible tested policy. Our invented
+          single-pass row has quality point seven eight, latency two hundred forty and cost point zero zero
+          two dollars. It fails quality.
+        visual_cues:
+          - id: tt-router-feasible-0
+            phrase: Now apply a complete local routing rule.
+            targets:
+              - tt-router-feasible-0
+            color: cyan
+            linger: 0.4
+          - id: tt-router-single
+            phrase: It fails quality.
+            targets:
+              - tt-router-single
+            color: pink
+            linger: 0
+        hold: 0.7
+      - say: The bounded-reasoning row has point eight six quality, seven hundred eighty milliseconds and point zero
+          one zero dollars. It passes both requirements. The guided-search row has point nine quality,
+          twenty-six hundred milliseconds and point zero four five dollars. It fails latency. Bounded
+          reasoning is the eligible choice in this table.
+        visual_cues:
+          - id: tt-router-feasible-1
+            phrase: The bounded-reasoning row has point eight six quality, seven hundred eighty milliseconds and point
+              zero one zero dollars.
+            targets:
+              - tt-router-feasible-1
+            color: yellow
+            linger: 0.4
+          - id: tt-router-bounded
+            phrase: It passes both requirements.
+            targets:
+              - tt-router-bounded
+            color: green
+            linger: 0
+          - id: tt-router-guided
+            phrase: It fails latency.
+            targets:
+              - tt-router-guided
+            color: pink
+            linger: 0
+          - id: tt-router-choice
+            phrase: Bounded reasoning is the eligible choice in this table.
+            targets:
+              - tt-router-choice
+            color: green
+            linger: 0
+        hold: 0.7
+      - say: These quality and latency measurements describe a workload. Run the comparison on the requests you
+          expect, with the latency statistic your service promises. If no route meets both limits, use the
+          fallback. A cheap lookup can stay on the single-pass route when more work brings no measured
+          gain.
+        visual_cues:
+          - id: tt-router-feasible-2
+            phrase: These quality and latency measurements describe a workload
+            targets:
+              - tt-router-feasible-2
+            color: green
+            linger: 0.4
+        hold: 0.7
+  - id: memory
+    title: Where do eight continuations live?
+    visual: Compare the physical storage for an identical prompt beside eight private tails, first with one
+      shared copy and then with eight copies.
+    beats:
+      - say: A sizing request asks how many positions the key-value cache holds. Eight finished branches used the
+          same four-thousand-token prompt. Each then wrote a thousand tokens of its own. Here the engine
+          shares the prompt perfectly. Someone reports five thousand positions. How many of the eight tails
+          did that count?
+        hold: 2
+        visual_cues:
+          - id: shared-prompt
+            phrase: same four-thousand-token prompt
+            targets:
+              - shared-prefix
+            color: blue
+            linger: 0.18
+          - id: private-branches
+            phrase: a thousand tokens of its own
+            targets:
+              - shared-tails
+            color: yellow
+            linger: 0.18
+      - say: Just one. Count the other seven and you get twelve thousand positions. Now change the engine so it
+          keeps a prompt copy for every branch. The continuations stay put. The extra prompt copies bring the
+          total to forty thousand. At a hundred twenty-eight kibibytes per position, that’s about one point
+          four six gibibytes with sharing, or four point eight eight without it.
+        hold: 0.9
+        visual_cues:
+          - id: retained-positions
+            phrase: you get twelve thousand positions
+            targets:
+              - shared-total
+            color: green
+            linger: 0.18
+          - id: unshare-prefix
+            phrase: keeps a prompt copy for every branch
+            targets:
+              - copied-prefix
+            color: blue
+            linger: 0.18
+          - id: copied-total
+            phrase: bring the total to forty thousand
+            targets:
+              - copied-total
+            color: cyan
+            linger: 0.18
+          - id: kv-volume
+            phrase: one point four six gibibytes with sharing, or four point eight eight without it
+            targets:
+              - byte-pair
+            color: yellow
+            linger: 0.18
+        caption_starts:
+          - Count the other seven
+          - Now change the engine
+          - The extra prompt copies bring the total to forty thousand
+      - say: Both engines generated the same eight thousand continuation tokens. Only the number of stored prompt
+          copies changed. To turn either position count into a memory budget, we need the size of a stored
+          key and value at every layer. Actual allocation also includes block rounding and engine overhead.
+        hold: 0.8
+        visual_cues:
+          - id: resource-accounting
+            phrase: same eight thousand continuation tokens
+            targets:
+              - generated-work
+            color: yellow
+            linger: 0.18
+  - id: memory-geometries
+    title: Convert retained positions into raw KV payload
+    visual: Multiply key/value, layer, KV-head, head-width and dtype factors, attach them to shared and private
+      position owners, then separate raw payload from engine allocation.
+    beats:
+      - say: For a uniform full-attention decoder, raw KV bytes per retained position equal two times layer count
+          times KV-head count times head width times bytes per stored scalar. The two accounts for keys and
+          values. Use KV heads, not query heads. Multiply bytes per position by the actually retained shared
+          and private positions.
+        visual_cues:
+          - id: tt-memory-geometries-0
+            phrase: For a uniform full-attention decoder, raw KV bytes per retained position equal two times layer count
+              times KV-head count times head width times bytes per stored scalar.
+            targets:
+              - tt-memory-geometries-0
+            color: cyan
+            linger: 0.4
+        hold: 0.7
+      - say: One kibibyte is one thousand twenty-four bytes. One gibibyte is two raised to thirty bytes. The original
+          geometry has thirty-two layers, eight KV heads, width one hundred twenty-eight and two-byte scalars.
+          Its product is one hundred thirty-one thousand seventy-two bytes per position, or one hundred
+          twenty-eight kibibytes.
+        visual_cues:
+          - id: tt-memory-geometries-1
+            phrase: One kibibyte is one thousand twenty-four bytes.
+            targets:
+              - tt-memory-geometries-1
+            color: yellow
+            linger: 0.4
+          - id: tt-kv-product
+            phrase: Its product is one hundred thirty-one thousand seventy-two bytes per position, or one hundred
+              twenty-eight kibibytes.
+            targets:
+              - tt-kv-product
+            color: green
+            linger: 0
+        hold: 0.7
+      - say: Paged attention can share blocks for an identical prompt and use copy-on-write when branches diverge.
+          Diverged continuations keep separate state. Sliding windows, heterogeneous layers and state-space
+          components need their own geometry. Allocator rounding, block tables, weights, activations and
+          workspace sit outside this raw KV worksheet; real allocation needs engine measurements.
+        visual_cues:
+          - id: tt-memory-geometries-2
+            phrase: Paged attention can share blocks for an identical prompt and use copy-on-write when branches diverge.
+            targets:
+              - tt-memory-geometries-2
+            color: green
+            linger: 0.4
+          - id: tt-cow-diverge
+            phrase: Paged attention can share blocks for an identical prompt and use copy-on-write when branches diverge.
+            targets:
+              - tt-cow-diverge
+            color: pink
+            linger: 0
+        hold: 0.7
+  - id: hidden-ttft
+    title: Translate hidden decode into the first-visible-token clock
+    visual: Accumulate the hidden-token interval before the first visible token, retain other latency components,
+      and show the same engine serving a second request.
+    beats:
+      - say: Time to first visible token can include prompt processing, queueing and hidden generation. To put the
+          hidden work on the clock, divide its token count by the decode rate. That gives seconds.
+          Multiply by a thousand to get milliseconds, then add the other delays. If the server slows under
+          load, those same tokens take longer.
+        visual_cues:
+          - id: tt-hidden-ttft-0
+            phrase: Time to first visible token can include prompt processing, queueing and hidden generation.
+            targets:
+              - tt-hidden-ttft-0
+            color: cyan
+            linger: 0.4
+        hold: 0.7
+      - say: Use the article’s eighty hidden tokens per second and one hundred eighty milliseconds of other delay. A
+          cap fully used for one hundred twenty-eight hidden tokens gives seventeen hundred eighty
+          milliseconds. Five hundred twelve hidden tokens give sixty-five hundred eighty milliseconds. Only
+          the first fits a three-thousand-millisecond limit in this toy clock.
+        visual_cues:
+          - id: tt-hidden-ttft-1
+            phrase: Use the article’s eighty hidden tokens per second and one hundred eighty milliseconds of other delay.
+            targets:
+              - tt-hidden-ttft-1
+            color: yellow
+            linger: 0.4
+          - id: tt-clock-short
+            phrase: A cap fully used for one hundred twenty-eight hidden tokens gives seventeen hundred eighty
+              milliseconds.
+            targets:
+              - tt-clock-short
+            color: green
+            linger: 0
+          - id: tt-clock-long
+            phrase: Five hundred twelve hidden tokens give sixty-five hundred eighty milliseconds.
+            targets:
+              - tt-clock-long
+            color: pink
+            linger: 0
+          - id: tt-clock-service-verdict
+            phrase: Only the first fits a three-thousand-millisecond limit in this toy clock.
+            targets:
+              - tt-clock-service-verdict
+            color: yellow
+            linger: 0
+        hold: 0.7
+      - say: Extra hidden decode can also consume capacity needed by other requests and worsen their inter-token
+          delay. Measure useful completions that satisfy all quality and service gates per wall-clock second.
+          That qualified-completion rate is goodput. It is different from offered requests per second or raw
+          generated-token throughput.
+        visual_cues:
+          - id: tt-hidden-ttft-2
+            phrase: Extra hidden decode can also consume capacity needed by other requests and worsen their inter-token
+              delay.
+            targets:
+              - tt-hidden-ttft-2
+            color: green
+            linger: 0.4
+        hold: 0.7
+  - id: work-ledger
+    title: Retain spent work when candidates are discarded
+    visual: Keep generation, scoring, checking, routing and retry entries in an append-only work ledger while
+      selected outputs and retained caches shrink independently.
+    beats:
+      - say: Parallel branches can reduce latency only when capacity permits. Eight queued candidates do not behave
+          like eight simultaneous candidates, and simultaneous work can slow neighboring requests. Sequential
+          revision has dependency depth as well as total work. Evaluate both wall time and all generated and
+          checked work under the actual serving load.
+        visual_cues:
+          - id: tt-work-ledger-0
+            phrase: Parallel branches can reduce latency only when capacity permits.
+            targets:
+              - tt-work-ledger-0
+            color: cyan
+            linger: 0.4
+          - id: tt-queued-work
+            phrase: Eight queued candidates do not behave like eight simultaneous candidates, and simultaneous work can
+              slow neighboring requests.
+            targets:
+              - tt-queued-work
+            color: cyan
+            linger: 0
+        hold: 0.7
+      - say: Cost includes discarded candidates, critique calls, rewrites, difficulty estimates, external checks and
+          retries. A revision loop with one initial draft and two generation calls per later round has one
+          plus twice the number of later revisions. The round that discovers insufficient improvement has
+          already been paid for.
+        visual_cues:
+          - id: tt-work-ledger-1
+            phrase: Cost includes discarded candidates, critique calls, rewrites, difficulty estimates, external checks
+              and retries.
+            targets:
+              - tt-work-ledger-1
+            color: yellow
+            linger: 0.4
+          - id: tt-paid-work
+            phrase: A revision loop with one initial draft and two generation calls per later round has one plus twice the
+              number of later revisions.
+            targets:
+              - tt-paid-work
+            color: yellow
+            linger: 0
+        hold: 0.7
+      - say: Releasing an unselected branch’s retained KV cache can lower live memory after its completion. The
+          work of generating and scoring the branch is already on the bill. Keep track of what you spent,
+          which caches are still live, and which answer you sent. Watch those three numbers on the next
+          request.
+        visual_cues:
+          - id: tt-work-ledger-2
+            phrase: Releasing an unselected branch’s retained KV cache can lower live memory after its completion.
+            targets:
+              - tt-work-ledger-2
+            color: green
+            linger: 0.4
+          - id: tt-release-state
+            phrase: Releasing an unselected branch’s retained KV cache can lower live memory after its completion.
+            targets:
+              - tt-release-state
+            color: pink
+            linger: 0
+        hold: 0.7
+  - id: fresh-branch-repair
+    title: Which caches can stay?
+    visual: Keep the six original answers on screen. Release completed private caches one at a time against a
+      fixed raw KV limit, with the checked answer and spent work kept separately.
+    beats:
+      - say: Six branches have finished. You want to keep their raw keys and values in a quarter of a gibibyte.
+          That’s two hundred fifty-six mebibytes. They share one three-thousand-token prompt. Each wrote five
+          hundred tokens of its own. The six pieces on the right are private. The blue piece on the left
+          belongs to all six.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-limit
+            phrase: two hundred fifty-six mebibytes
+            targets:
+              - pool-limit
+            color: yellow
+            linger: 0.18
+          - id: fresh-prefix
+            phrase: one three-thousand-token prompt
+            targets:
+              - prefix
+            color: blue
+            linger: 0.18
+          - id: fresh-tails
+            phrase: five hundred tokens of its own
+            targets:
+              - tails
+            color: cyan
+            linger: 0.18
+      - say: Each draft estimates the original six-branch total. The scorer gives its highest mark to the first
+          draft. Before you trust it, count the shared piece once and add all six tails. Which draft gives
+          that number of positions?
+        hold: 2.5
+        visual_cues:
+          - id: fresh-answers
+            phrase: Each draft estimates the original six-branch total
+            targets:
+              - answers
+            color: blue
+            linger: 0.18
+          - id: fresh-high-score
+            phrase: highest mark to the first draft
+            targets:
+              - first-answer
+            color: yellow
+            linger: 0.18
+          - id: fresh-pick
+            phrase: Which draft gives that number of positions
+            targets:
+              - choice
+            color: yellow
+            linger: 0.18
+      - say: Six thousand. Keep the third draft. Now size the cache for this full-attention decoder. At each
+          position there’s a key and a value in each of twenty-four layers, with four KV heads, width one
+          hundred twenty-eight, and two bytes per scalar.
+          That makes forty-eight kibibytes per position. The whole cache takes two hundred eighty-one and a
+          quarter mebibytes. Look at the last five-hundred-position tail. Would releasing just that one get
+          us under the line?
+        hold: 2.5
+        visual_cues:
+          - id: tt-fresh-candidate
+            phrase: Six thousand. Keep the third draft
+            targets:
+              - choice
+            color: green
+            linger: 0.18
+          - id: fresh-factors
+            phrase: a key and a value in each of twenty-four layers
+            targets:
+              - geometry
+            color: blue
+            linger: 0.18
+          - id: tt-fresh-geometry
+            phrase: forty-eight kibibytes per position
+            targets:
+              - geometry
+            color: cyan
+            linger: 0.18
+          - id: tt-fresh-overflow
+            phrase: two hundred eighty-one and a quarter mebibytes
+            targets:
+              - usage
+            color: pink
+            linger: 0.18
+          - id: one-enough
+            phrase: Would releasing just that one get us under the line
+            targets:
+              - last-tail
+            color: yellow
+            linger: 0.18
+        caption_starts:
+          - Now size the cache
+          - That makes forty-eight kibibytes
+          - The whole cache takes
+          - Look at the last five-hundred-position tail
+      - say: Release the sixth tail. With five tails, the cache still takes nearly two hundred fifty-eight
+          mebibytes. That’s less than two mebibytes over. Release the fifth tail as well. Four tails and
+          the shared prompt now take about two hundred thirty-four mebibytes. They fit. Draft three is
+          still here.
+        hold: 1.2
+        visual_cues:
+          - id: tt-fresh-release-one
+            phrase: Release the sixth tail
+            targets:
+              - usage
+            color: cyan
+            linger: 0.18
+          - id: first-over
+            phrase: less than two mebibytes over
+            targets:
+              - usage
+            color: pink
+            linger: 0.18
+          - id: tt-fresh-release
+            phrase: Release the fifth tail as well
+            targets:
+              - usage
+            color: cyan
+            linger: 0.18
+          - id: tt-fresh-fits
+            phrase: They fit
+            targets:
+              - usage
+            color: green
+            linger: 0.18
+        caption_starts:
+          - With five tails
+          - Release the fifth tail as well
+          - Four tails and the shared prompt
+          - They fit
+      - say: Return six thousand for the original question. Five thousand positions are live now. All six drafts
+          still count toward the bill. We spent three thousand generated tokens and six scorer calls. The
+          draft text survives either release. To continue a released branch, the engine would have to
+          rebuild its cache. The next lesson puts the model, its verifier, and that budget under version
+          control.
+        hold: 1.2
+        visual_cues:
+          - id: returned-answer
+            phrase: Return six thousand for the original question
+            targets:
+              - choice
+            color: green
+            linger: 0.18
+          - id: tt-fresh-spent
+            phrase: three thousand generated tokens and six scorer calls
+            targets:
+              - spent
+            color: yellow
+            linger: 0.18
+        caption_starts:
+          - Five thousand positions
+          - We spent three thousand

@@ -1,0 +1,2096 @@
+version: 1
+id: design-reasoning-agent-test-time-compute
+title: Spend Reasoning Where Verification Can Help
+source: system-design/design-reasoning-agent-test-time-compute/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "Snell et al.: Scaling LLM Test-Time Compute Optimally"
+    url: https://arxiv.org/abs/2408.03314
+  - title: "Kwon et al.: Efficient Memory Management for Large Language Model Serving with PagedAttention"
+    url: https://arxiv.org/abs/2309.06180
+  - title: "Reasoning models"
+    url: https://developers.openai.com/api/docs/guides/reasoning
+  - title: "Self-Consistency Improves Chain of Thought Reasoning in Language Models."
+    url: https://arxiv.org/abs/2203.11171
+  - title: "Tree of Thoughts: Deliberate Problem Solving with Large Language Models."
+    url: https://arxiv.org/abs/2305.10601
+  - title: "Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning Algorithm."
+    url: https://arxiv.org/abs/1712.01815
+  - title: "Let's Verify Step by Step."
+    url: https://arxiv.org/abs/2305.20050
+  - title: "An Enigma of Artificial Reason: Investigating the Production-Evaluation Gap in Large Reasoning Models"
+    url: https://arxiv.org/abs/2606.01462
+  - title: "DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning"
+    url: https://arxiv.org/abs/2501.12948
+  - title: "SGLang: Efficient Execution of Structured Language Model Programs"
+    url: https://arxiv.org/abs/2312.07104
+  - title: "Value-Aware Stochastic KV Cache Eviction for Reasoning Models"
+    url: https://arxiv.org/abs/2606.03928
+  - title: "Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach"
+    url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Abstract-Conference.html
+  - title: "Does Thinking More Always Help? Mirage of Test-Time Scaling in Reasoning Models"
+    url: https://arxiv.org/abs/2506.04210
+  - title: "Scaling Laws for Reward Model Overoptimization"
+    url: https://proceedings.mlr.press/v202/gao23h.html
+scenes:
+  - id: intro
+    title: The checkout canary
+    visual: A 240 ms metrics receipt slides beside the live checkout rollout. Compare their revision numbers,
+      fetch a matching receipt, then place its latency on the release policy ruler.
+    beats:
+      - say: Would you use this reading for revision seven? It serves one checkout request in ten. Its smoke test
+          passed. The receipt says two hundred forty milliseconds at the ninety-fifth percentile. Compare the
+          revisions. Which call would help?
+        hold: 2.2
+        visual_cues:
+          - id: intro-smoke
+            phrase: Its smoke test passed
+            targets:
+              - traffic
+            color: cyan
+            linger: 0.15
+          - id: intro-meter
+            phrase: two hundred forty milliseconds
+            targets:
+              - receipt
+            color: cyan
+            linger: 0.15
+          - id: intro-revision
+            phrase: Compare the revisions
+            targets:
+              - traffic
+              - receipt
+            color: cyan
+            linger: 0.15
+      - say: Ask the metrics tool for revision seven. The first receipt belongs to six. The new receipt says
+          revision seven. Same latency, now for the right rollout.
+        hold: 0.75
+        visual_cues:
+          - id: intro-request
+            phrase: Ask the metrics tool
+            targets:
+              - receipt
+            color: cyan
+            linger: 0.15
+          - id: intro-match
+            phrase: The new receipt says revision seven
+            targets:
+              - receipt
+            color: cyan
+            linger: 0.15
+      - say: It's ten seconds old, inside the thirty-second window. With smoke tests passing, hold starts at
+          two hundred milliseconds and rollback starts at three hundred. Where does this reading land?
+        hold: 2
+        caption_starts:
+          - rollback starts at three hundred
+        visual_cues:
+          - id: intro-age
+            phrase: ten seconds old
+            targets:
+              - receipt
+            color: cyan
+            linger: 0.15
+          - id: intro-policy
+            phrase: hold starts at two hundred milliseconds
+            targets:
+              - policy
+            color: cyan
+            linger: 0.15
+      - say: Hold the canary at ten percent. One lookup settled it. Test-time compute is the work a model does
+          after training to answer a request. For a repair, the next call might be better spent trying another
+          path or checking a step.
+        hold: 0.9
+        visual_cues:
+          - id: intro-hold
+            phrase: Hold the canary at ten percent
+            targets:
+              - policy
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+  - id: api-controls
+    title: A reasoning setting is not the shared request budget
+    visual: Pair each per-call model setting with what it controls. Keep authenticated observations and the shared
+      request budget in application state.
+    beats:
+      - say: Suppose you turn up reasoning effort on the call that drafted Hold. Effort changes how much the model
+          deliberates, execution mode selects a supported standard or pro run, and context controls which
+          compatible reasoning items carry into a later turn. The tool receipt still has to come from the metrics
+          service, and the application still decides whether to search.
+        hold: 0.6
+        visual_cues:
+          - id: ra-api-controls-0-0
+            phrase: Suppose you turn up reasoning effort on the call that drafted Hold.
+            targets:
+              - ra-api-controls-trace
+            color: blue
+            linger: 0.3
+          - id: ra-api-controls-0-1
+            phrase: Effort changes how much the model deliberates, execution mode selects a supported standard or pro run,
+              and context controls which compatible reasoning items carry into a later turn.
+            targets:
+              - ra-api-controls-trace
+            color: blue
+            linger: 0.3
+          - id: ra-api-controls-0-2
+            phrase: The tool receipt still has to come from the metrics service, and the application still decides whether
+              to search.
+            targets:
+              - ra-api-controls-trace
+            color: blue
+            linger: 0.3
+      - say: Support depends on the model. In the guide used for this lesson, GPT-six Astra rejects an effort setting
+          of none. The output limit on one call counts hidden reasoning, visible output and formatting tokens.
+          Three calls can each hit that limit, so the application needs a budget for the whole request. Keep the
+          receipts and the reservations in application state, where the controller can check them.
+        hold: 0.6
+        visual_cues:
+          - id: ra-api-controls-1-0
+            phrase: Support depends on the model. In the guide used for this lesson, GPT-six Astra rejects an effort
+              setting of none.
+            targets:
+              - ra-api-controls-trace
+            color: blue
+            linger: 0.3
+          - id: ra-api-controls-1-1
+            phrase: The output limit on one call counts hidden reasoning, visible output and formatting tokens.
+            targets:
+              - ra-api-controls-trace
+            color: blue
+            linger: 0.3
+          - id: ra-api-controls-1-2
+            phrase: Three calls can each hit that limit, so the application needs a budget for the whole request.
+            targets:
+              - ra-api-controls-trace
+            color: blue
+            linger: 0.3
+          - id: ra-api-controls-1-3
+            phrase: Keep the receipts and the reservations in application state, where the controller can check them.
+            targets:
+              - ra-api-controls-trace
+            color: blue
+            linger: 0.3
+  - id: xml-contract
+    title: What did the parser accept?
+    visual: Put an invalid final tag beside its corrected spelling. The valid XML projects one advisory but the
+      evidence slot stays empty until a qualifying tool receipt arrives.
+    beats:
+      - say: Read the last field in this response. It says final. The parser expects final underscore answer. It
+          rejects the document even though a person can see the word Hold. Fix the tag and keep the text. Now the
+          parser can read the checkpoint, the verification summary and the final answer. Has the model supplied a
+          metrics receipt?
+        hold: 1.8
+        visual_cues:
+          - id: xml-invalid
+            phrase: It rejects the document
+            targets:
+              - xml
+            color: cyan
+            linger: 0.15
+          - id: xml-fix
+            phrase: Fix the tag and keep the text
+            targets:
+              - xml
+            color: cyan
+            linger: 0.15
+          - id: xml-parse
+            phrase: the verification summary and the final answer
+            targets:
+              - xml
+            color: cyan
+            linger: 0.15
+      - say: The receipt slot is still empty. The bounded parser checks field names, structure and nonempty values. It
+          rejects declarations, attributes, nested fields and oversized input. The metrics adapter supplies a
+          separate authenticated record. Match the deployment, integer revision and ten-percent traffic share.
+          Check for a Boolean smoke result and finite, nonnegative latency.
+        hold: 0.9
+        visual_cues:
+          - id: xml-empty
+            phrase: The receipt slot is still empty
+            targets:
+              - xml-result
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+          - id: xml-receipt
+            phrase: The metrics adapter supplies a separate authenticated record
+            targets:
+              - xml-result
+            color: cyan
+            linger: 0.15
+      - say: This exercise also uses whole seconds for both clock readings. Subtract observed time from current time.
+          Ages from zero through thirty seconds qualify. A future reading, a stale one or a wrong revision blocks
+          the advice until the evidence is corrected. Once the record passes, we can use the release owner's
+          policy.
+        hold: 0.8
+        visual_cues:
+          - id: xml-age
+            phrase: Subtract observed time from current time
+            targets:
+              - xml-result
+            color: cyan
+            linger: 0.15
+  - id: evidence
+    title: Where does the reading land?
+    visual: Keep one authenticated receipt on the same p95 ruler. Move to the exact rollback boundary, then age the
+      same record past the freshness window and withhold the policy result.
+    beats:
+      - say: Keep the fresh revision-seven receipt and the passing smoke test. Under this policy, a failed smoke test
+          would already call for rollback. With smoke passing, latency decides. At two hundred forty
+          milliseconds, the marker lands inside the hold range. Now change just the latency to exactly three
+          hundred milliseconds. Does the boundary itself belong to hold or rollback?
+        hold: 2
+        visual_cues:
+          - id: evidence-move
+            phrase: change just the latency to exactly three hundred milliseconds
+            targets:
+              - policy
+            color: cyan
+            linger: 0.15
+      - say: Rollback starts at three hundred. The comparison includes equality. Now leave the reading there and
+          advance the clock. At thirty-one seconds old, can this receipt still support rollback?
+        hold: 2
+        visual_cues:
+          - id: evidence-boundary
+            phrase: Rollback starts at three hundred
+            targets:
+              - policy
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+          - id: evidence-late
+            phrase: At thirty-one seconds old
+            targets:
+              - receipt
+            color: cyan
+            linger: 0.15
+      - say: Withhold the advice and refresh the measurement. A stale reading can cross a threshold just as easily as a
+          fresh one. Checking the revision and the time comes first. An authorized actuator would have to check
+          the live revision again before changing traffic.
+        hold: 0.9
+        visual_cues:
+          - id: evidence-refresh
+            phrase: Withhold the advice and refresh the measurement
+            targets:
+              - policy
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+  - id: candidates
+    title: Which repair reaches the database?
+    visual: Two complete dependency paths share an API and a database. Score A higher, mark the blocked edge on A,
+      and follow only the eligible path to the database.
+    beats:
+      - say: Holding the canary buys time to investigate. The parser flag changed near the spike. Compare timing by
+          route and run a compatibility check before attributing the slowdown to that flag. For the repair,
+          suppose two complete paths lead from the API to the database. A goes through the legacy adapter. B goes
+          through the feature flag.
+        hold: 0.6
+        visual_cues:
+          - id: paths-introduce
+            phrase: two complete paths
+            targets:
+              - paths
+            color: cyan
+            linger: 0.15
+          - id: paths-branches
+            phrase: through the legacy adapter
+            targets:
+              - paths
+            color: cyan
+            linger: 0.15
+      - say: A learned scorer prefers A. Now read the compatibility record. The link from the API to the legacy adapter
+          is blocked. Which candidate can you send on for review?
+        hold: 2.1
+        visual_cues:
+          - id: paths-scores
+            phrase: A learned scorer prefers A
+            targets:
+              - paths
+            color: cyan
+            linger: 0.15
+          - id: paths-block
+            phrase: to the legacy adapter is blocked
+            targets:
+              - paths
+            color: cyan
+            linger: 0.15
+      - say: Send B. A scores higher, but its first hop fails the exact check. Follow B through the feature flag to the
+          database. Both of its hops pass. Best-of-N means generating complete candidates, checking which ones
+          are eligible and ranking the survivors. To evaluate this selector, count how often its chosen path
+          works on real repairs.
+        hold: 0.9
+        visual_cues:
+          - id: paths-select
+            phrase: Send B
+            targets:
+              - paths
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+          - id: paths-follow
+            phrase: Follow B through the feature flag to the database
+            targets:
+              - paths
+            color: cyan
+            linger: 0.15
+  - id: coverage-operation
+    title: Candidate coverage and returned correctness are different counts
+    visual: Multiply the failure probability across five independent attempts, take the complement, and show how
+      stable arithmetic handles a very small probability.
+    beats:
+      - say: What if each attempt has a thirty percent chance of finding a sound repair, and all five attempts are
+          independent? For all five to miss, the first must miss, and the next, all the way to the fifth.
+          Multiply point seven five times. Subtract that chance of five misses from one. There's about an
+          eighty-three percent chance the set contains a sound repair. That figure counts sets with at least one
+          good plan. Whether the user gets it depends on the selector.
+        hold: 0.6
+        visual_cues:
+          - id: ra-coverage-operation-0-0
+            phrase: What if each attempt has a thirty percent chance of finding a sound repair, and all five attempts are
+              independent?
+            targets:
+              - ra-coverage-operation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-coverage-operation-0-1
+            phrase: For all five to miss, the first must miss, and the next, all the way to the fifth. Multiply point seven
+              five times.
+            targets:
+              - ra-coverage-operation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-coverage-operation-0-2
+            phrase: Subtract that chance of five misses from one. There's about an eighty-three percent chance the set
+              contains a sound repair.
+            targets:
+              - ra-coverage-operation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-coverage-operation-0-3
+            phrase: That figure counts sets with at least one good plan. Whether the user gets it depends on the selector.
+            targets:
+              - ra-coverage-operation-trace
+            color: blue
+            linger: 0.3
+      - say: "A shared prompt can send different attempts down the same wrong path. If errors are correlated,
+          multiplying five independent failure probabilities gives the wrong estimate. There's also a numerical
+          trap: at a success probability of ten to the minus twenty, ordinary subtraction makes one minus that
+          probability round to one. The stable formula on screen still gives about ten to the minus eighteen for
+          a hundred attempts. That is a tiny chance of finding a candidate even with the arithmetic fixed."
+        hold: 0.6
+        visual_cues:
+          - id: ra-coverage-operation-1-0
+            phrase: A shared prompt can send different attempts down the same wrong path.
+            targets:
+              - ra-coverage-operation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-coverage-operation-1-1
+            phrase: If errors are correlated, multiplying five independent failure probabilities gives the wrong estimate.
+            targets:
+              - ra-coverage-operation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-coverage-operation-1-2
+            phrase: "There's also a numerical trap: at a success probability of ten to the minus twenty, ordinary
+              subtraction makes one minus that probability round to one. The stable formula on screen still gives
+              about ten to the minus eighteen for a hundred attempts."
+            targets:
+              - ra-coverage-operation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-coverage-operation-1-3
+            phrase: That is a tiny chance of finding a candidate even with the arithmetic fixed.
+            targets:
+              - ra-coverage-operation-trace
+            color: blue
+            linger: 0.3
+  - id: voting-baseline
+    title: A majority label can preserve a shared mistake
+    visual: Count five votes for the two repair paths. Check the blocked edge on the majority path, then compare
+      token continuations with genuinely different parser choices.
+    beats:
+      - say: Suppose each of five attempts names its preferred repair, A or B. Count the labels. Three name A and two
+          name B, so a majority vote returns A. That's self-consistency. But all three votes for A use the same
+          blocked connection. Repeating a mistake can win the vote. Use voting for comparable final answers and
+          let an exact compatibility check decide whether the winner can run.
+        hold: 0.6
+        visual_cues:
+          - id: ra-voting-baseline-0-0
+            phrase: Suppose each of five attempts names its preferred repair, A or B.
+            targets:
+              - ra-voting-baseline-trace
+            color: blue
+            linger: 0.3
+          - id: ra-voting-baseline-0-1
+            phrase: Count the labels. Three name A and two name B, so a majority vote returns A. That's self-consistency.
+            targets:
+              - ra-voting-baseline-trace
+            color: blue
+            linger: 0.3
+          - id: ra-voting-baseline-0-2
+            phrase: But all three votes for A use the same blocked connection. Repeating a mistake can win the vote.
+            targets:
+              - ra-voting-baseline-trace
+            color: blue
+            linger: 0.3
+          - id: ra-voting-baseline-0-3
+            phrase: Use voting for comparable final answers and let an exact compatibility check decide whether the winner
+              can run.
+            targets:
+              - ra-voting-baseline-trace
+            color: blue
+            linger: 0.3
+      - say: "A token beam keeps several likely ways to continue the text. Read the starts on the left. All three have
+          already committed to parser version two. On the right we can keep two genuinely different plans alive:
+          add a shim for version two or patch version one. Compare these strategies on actual repairs to see
+          whether the branches produce useful alternatives."
+        hold: 0.6
+        visual_cues:
+          - id: ra-voting-baseline-1-0
+            phrase: A token beam keeps several likely ways to continue the text.
+            targets:
+              - ra-voting-baseline-trace
+            color: blue
+            linger: 0.3
+          - id: ra-voting-baseline-1-1
+            phrase: Read the starts on the left. All three have already committed to parser version two.
+            targets:
+              - ra-voting-baseline-trace
+            color: blue
+            linger: 0.3
+          - id: ra-voting-baseline-1-2
+            phrase: "On the right we can keep two genuinely different plans alive: add a shim for version two or patch
+              version one."
+            targets:
+              - ra-voting-baseline-trace
+            color: blue
+            linger: 0.3
+          - id: ra-voting-baseline-1-3
+            phrase: Compare these strategies on actual repairs to see whether the branches produce useful alternatives.
+            targets:
+              - ra-voting-baseline-trace
+            color: blue
+            linger: 0.3
+  - id: tree
+    title: Keep useful alternatives and prune exact failures
+    visual: A two-level parser-repair tree rejects nightly and removed-API paths before retaining complete
+      feasible plans.
+    beats:
+      - say: Some repairs benefit from keeping partial alternatives. A beam search retains a limited number of
+          promising states after each expansion. Here two parser choices survive, while the nightly build
+          violates the runtime floor. A proxy score ranks the feasible states that remain.
+        hold: 0.75
+        visual_cues:
+          - id: tree-beat-1-focus-1
+            phrase: Here two parser choices survive, while the nightly build violates the runtime floor
+            targets:
+              - tree-branch-0
+              - tree-branch-1
+              - tree-branch-2
+            color: cyan
+            linger: 0.65
+          - id: ra-tree-0-0
+            phrase: Some repairs benefit from keeping partial alternatives.
+            targets:
+              - ra-tree-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-0-1
+            phrase: A beam search retains a limited number of promising states after each expansion.
+            targets:
+              - ra-tree-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-0-2
+            phrase: Here two parser choices survive, while the nightly build violates the runtime floor.
+            targets:
+              - ra-tree-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-0-3
+            phrase: A proxy score ranks the feasible states that remain.
+            targets:
+              - ra-tree-trace
+            color: blue
+            linger: 0.3
+      - say: Expand those states. The removed API and the deferred security fix fail exact checks. Two complete plans
+          survive, and the supplied scores prefer patching the sanitizer. Preserve complete plans separately
+          from unfinished branches so a later expansion cannot erase the best eligible answer already found.
+        hold: 0.85
+        visual_cues:
+          - id: tree-failed-leaves
+            phrase: The removed API and the deferred security fix fail exact checks
+            targets:
+              - tree-leaf-1
+              - tree-leaf-3
+            color: pink
+            linger: 0.5
+          - id: tree-complete-plans
+            phrase: Two complete plans survive
+            targets:
+              - tree-leaf-0
+              - tree-leaf-2
+            color: green
+            linger: 0.5
+          - id: tree-completed-winner
+            phrase: the supplied scores prefer patching the sanitizer
+            targets:
+              - tree-leaf-2
+              - tree-complete-winner
+            color: yellow
+            linger: 0.5
+          - id: ra-tree-1-0
+            phrase: Expand those states.
+            targets:
+              - ra-tree-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-1-1
+            phrase: The removed API and the deferred security fix fail exact checks.
+            targets:
+              - ra-tree-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-1-2
+            phrase: Two complete plans survive, and the supplied scores prefer patching the sanitizer.
+            targets:
+              - ra-tree-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-1-3
+            phrase: Preserve complete plans separately from unfinished branches so a later expansion cannot erase the best
+              eligible answer already found.
+            targets:
+              - ra-tree-trace
+            color: blue
+            linger: 0.3
+  - id: tree-contract
+    title: A completed plan survives the next frontier
+    visual: Track the unfinished beam and the completed sanitizer patch separately as the depth limit changes.
+    beats:
+      - say: Give the repair search two slots for unfinished branches and a minimum score of point three five. Nightly
+          fails the runtime requirement. Calling the removed API or leaving the advisory unfixed also rules a
+          branch out. Look at the deferred fix. Its score of point three nine clears the cutoff. It still leaves
+          the advisory unfixed, so it can't enter either slot.
+        hold: 0.6
+        visual_cues:
+          - id: ra-tree-contract-0-0
+            phrase: Give the repair search two slots for unfinished branches and a minimum score of point three five.
+            targets:
+              - ra-tree-contract-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-contract-0-1
+            phrase: Nightly fails the runtime requirement. Calling the removed API or leaving the advisory unfixed also
+              rules a branch out.
+            targets:
+              - ra-tree-contract-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-contract-0-2
+            phrase: Look at the deferred fix. Its score of point three nine clears the cutoff.
+            targets:
+              - ra-tree-contract-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-contract-0-3
+            phrase: It still leaves the advisory unfixed, so it can't enter either slot.
+            targets:
+              - ra-tree-contract-trace
+            color: blue
+            linger: 0.3
+      - say: Keep a separate place for completed plans. Stop at depth one and you have only a parser pin. Allow a
+          second level and the sanitizer patch finishes. Asking for a third level leaves the completed patch
+          where it was. Branches squeezed out of this beam are gone. To go back to one later, the controller
+          would have to retain it. When time runs out, a promising unfinished pin cannot displace the patch that
+          passed its checks.
+        hold: 0.6
+        visual_cues:
+          - id: ra-tree-contract-1-0
+            phrase: Keep a separate place for completed plans.
+            targets:
+              - ra-tree-contract-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-contract-1-1
+            phrase: Stop at depth one and you have only a parser pin. Allow a second level and the sanitizer patch
+              finishes. Asking for a third level leaves the completed patch where it was.
+            targets:
+              - ra-tree-contract-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-contract-1-2
+            phrase: Branches squeezed out of this beam are gone.
+            targets:
+              - ra-tree-contract-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-contract-1-3
+            phrase: To go back to one later, the controller would have to retain it.
+            targets:
+              - ra-tree-contract-trace
+            color: blue
+            linger: 0.3
+          - id: ra-tree-contract-1-4
+            phrase: When time runs out, a promising unfinished pin cannot displace the patch that passed its checks.
+            targets:
+              - ra-tree-contract-trace
+            color: blue
+            linger: 0.3
+  - id: puct-allocation
+    title: Which branch gets the next visit?
+    visual: Compare two feasible repair branches by stacking a visit bonus on each value estimate. Back up a
+      successful rollout, then replay the same visit with value zero. Only the attraction of A changes between
+      the replays.
+    beats:
+      - say: Suppose we can afford one more visit to a repair branch. In this small search example, A and B are both
+          feasible and each has an estimated value of one half. The parent has sixteen visits. Each of these two
+          children has one. The prior is the model's preference before seeing the rollout. A has the higher
+          prior. When the values and visit counts tie, this rule gives the higher prior a bigger exploration
+          bonus. Which branch gets the next visit?
+        hold: 1.9
+        visual_cues:
+          - id: puct-input
+            phrase: each has an estimated value of one half
+            targets:
+              - puct-plot
+            linger: 0.15
+          - id: puct-priors
+            phrase: A has the higher prior
+            targets:
+              - puct-plot
+            linger: 0.15
+      - say: Give each branch a bonus for exploration. Multiply its prior by the square root of the parent's visits,
+          then divide by one plus that child's visits. Here the exploration constant is one. For A that's point
+          two times four divided by two. Add the bonus to its half and A reaches point nine. B reaches point
+          eight. Visit A. This selection rule is called PUCT. At an unvisited parent the bonus is zero, so ties
+          need a starting rule.
+        hold: 0.8
+        caption_starts:
+          - A reaches point nine
+        visual_cues:
+          - id: puct-bonus
+            phrase: For A that's point two times four divided by two
+            targets:
+              - puct-plot
+            linger: 0.15
+          - id: puct-initial
+            phrase: B reaches point eight
+            targets:
+              - puct-plot
+            linger: 0.15
+            caption_boundary: true
+          - id: puct-visit
+            phrase: Visit A
+            targets:
+              - puct-plot
+            linger: 0.15
+            caption_boundary: true
+      - say: Follow A to an outcome worth one. Its earlier visit was worth one half. Average the two and its value
+          rises to three quarters. The parent now has seventeen visits and A has two. Recompute both bonuses. A
+          still leads, even with a smaller exploration bonus. Its selection score is above one because it adds a
+          bonus to an estimate.
+        hold: 1
+        visual_cues:
+          - id: puct-good
+            phrase: an outcome worth one
+            targets:
+              - puct-history
+            linger: 0.15
+          - id: puct-update
+            phrase: the parent now has seventeen visits and A has two
+            targets:
+              - puct-plot
+            linger: 0.15
+          - id: puct-good-result
+            phrase: A still leads
+            targets:
+              - puct-plot
+            linger: 0.15
+            caption_boundary: true
+      - say: Replay that same visit with an outcome of zero. Keep the visit counts and priors fixed. A's average is now
+          one quarter. Look at where its bar ends. Which branch would you explore next?
+        hold: 2.1
+        visual_cues:
+          - id: puct-zero
+            phrase: with an outcome of zero
+            targets:
+              - puct-history
+            linger: 0.15
+          - id: puct-bad-update
+            phrase: A's average is now one quarter
+            targets:
+              - puct-plot
+            linger: 0.15
+      - say: Visit B. A's exploration bonus stayed the same in the replay. Its lower observed value moved its bar below
+          B. This arithmetic allocates another check. A branch still needs its own compatibility result before we
+          can recommend it.
+        hold: 1
+        visual_cues:
+          - id: puct-bad-result
+            phrase: Visit B
+            targets:
+              - puct-plot
+            linger: 0.15
+            caption_boundary: true
+  - id: process
+    title: When do you check the third step?
+    visual: Compare the same four possible generation calls on two aligned tracks. Mark each issued call, inspect
+      the third result, and let the late-check controller generate the fourth before comparing costs.
+    beats:
+      - say: Zoom in on the parser-v2 branch. In this example each step takes one generator call. The top controller
+          asks for a complete draft before checking it. The bottom controller checks each step before asking for
+          another. Both read the manifest, pin version two and propose the same API call.
+        hold: 0.7
+        visual_cues:
+          - id: process-first
+            phrase: read the manifest
+            targets:
+              - calls
+            color: cyan
+            linger: 0.15
+          - id: process-second
+            phrase: pin version two
+            targets:
+              - calls
+            color: cyan
+            linger: 0.15
+          - id: process-third
+            phrase: propose the same API call
+            targets:
+              - calls
+            color: cyan
+            linger: 0.15
+      - say: Here is the compatibility result for step three. The runtime has removed that API. Look at the empty
+          fourth column. Which controller will pay to generate the recommendation?
+        hold: 2.2
+        visual_cues:
+          - id: process-check
+            phrase: The runtime has removed that API
+            targets:
+              - calls
+            color: cyan
+            linger: 0.15
+      - say: Only the top controller makes call four. It can reject the finished draft, but the generator has already
+          done the work. The bottom controller stops at three. Checking before continuation saved one generator
+          call on this branch. A learned step checker adds work of its own, so count its tokens and latency as
+          well.
+        hold: 1
+        visual_cues:
+          - id: process-fourth
+            phrase: Only the top controller makes call four
+            targets:
+              - calls
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+      - say: The exact verdict also has a type. A checker that returns the word false in quotes has sent text. Even a
+          high score cannot make that a Boolean. Reject that record, and reject a score such as NaN before
+          ranking. Repair the checker output or abstain. A learned score needs validation against outcomes on
+          real repairs.
+        hold: 0.8
+        visual_cues:
+          - id: process-malformed
+            phrase: the word false in quotes
+            targets:
+              - checker
+            color: cyan
+            linger: 0.15
+          - id: process-nan
+            phrase: a score such as NaN
+            targets:
+              - checker
+            color: cyan
+            linger: 0.15
+  - id: verifier-evidence
+    title: Step supervision and rollout success answer different questions
+    visual: Compare human step labels with the fraction of successful completions. Return to the third parser step
+      to locate the generation call that an early check saves.
+    beats:
+      - say: If the training label describes the completed answer, the evaluator learns to grade outcomes. If a person
+          marks an individual step, a process reward model can learn where a repair starts to go wrong. Lightman
+          and colleagues released about eight hundred thousand human step labels. Process supervision worked
+          better in their tested math setting. Before using such a score to prune repairs, measure which valid
+          branches it would discard and which invalid ones it would keep.
+        hold: 0.6
+        visual_cues:
+          - id: ra-verifier-evidence-0-0
+            phrase: If the training label describes the completed answer, the evaluator learns to grade outcomes.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+          - id: ra-verifier-evidence-0-1
+            phrase: If a person marks an individual step, a process reward model can learn where a repair starts to go
+              wrong.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+          - id: ra-verifier-evidence-0-2
+            phrase: Lightman and colleagues released about eight hundred thousand human step labels. Process supervision
+              worked better in their tested math setting.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+          - id: ra-verifier-evidence-0-3
+            phrase: Before using such a score to prune repairs, measure which valid branches it would discard and which
+              invalid ones it would keep.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+      - say: These example step labels allow a positive, negative or neutral judgment. A two-class version can turn a
+          learned projection into a score with a sigmoid. Check calibration before interpreting the score as a
+          probability. Now finish the same partial path several times and count how many completions pass. That
+          fraction estimates downstream success under this rollout policy. A later correction can rescue a bad
+          step, so successful endings alone cannot tell you whether the step was valid.
+        hold: 0.6
+        visual_cues:
+          - id: ra-verifier-evidence-1-0
+            phrase: These example step labels allow a positive, negative or neutral judgment.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+          - id: ra-verifier-evidence-1-1
+            phrase: A two-class version can turn a learned projection into a score with a sigmoid. Check calibration before
+              interpreting the score as a probability.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+          - id: ra-verifier-evidence-1-2
+            phrase: Now finish the same partial path several times and count how many completions pass. That fraction
+              estimates downstream success under this rollout policy.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+          - id: ra-verifier-evidence-1-3
+            phrase: A later correction can rescue a bad step, so successful endings alone cannot tell you whether the step
+              was valid.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+      - say: Remember the empty fourth position in the parser trace. It stayed empty because the controller checked the
+          third step before requesting the fourth. Apply a learned scorer after the whole trace is written and
+          you have already paid for all four steps. Require Boolean verdicts and finite scores in range before
+          making that decision, and measure the cost of running the scorer itself.
+        hold: 0.6
+        visual_cues:
+          - id: ra-verifier-evidence-2-0
+            phrase: Remember the empty fourth position in the parser trace.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+          - id: ra-verifier-evidence-2-1
+            phrase: It stayed empty because the controller checked the third step before requesting the fourth.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+          - id: ra-verifier-evidence-2-2
+            phrase: Apply a learned scorer after the whole trace is written and you have already paid for all four steps.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+          - id: ra-verifier-evidence-2-3
+            phrase: Require Boolean verdicts and finite scores in range before making that decision, and measure the cost
+              of running the scorer itself.
+            targets:
+              - ra-verifier-evidence-trace
+            color: blue
+            linger: 0.3
+  - id: answer-bias
+    title: Would you accept this reasoning?
+    visual: Lock a verdict on an invalid division before swapping a correct endpoint for a wrong one. Count
+      accepted flawed solutions separately from ordinary solved problems.
+    beats:
+      - say: The problem on screen asks for every value of x that makes this product zero. A proposed solution divides
+          both sides by x. Hide the final answer and judge that step. The derivation gives no reason x is
+          nonzero. Lock your verdict before uncovering the answer.
+        hold: 1.6
+        visual_cues:
+          - id: bias-lock
+            phrase: Lock your verdict
+            targets:
+              - bias-step
+            linger: 0.15
+      - say: The step is invalid. Dividing by x would lose zero as a solution. Now reveal a correct final answer.
+          Change only the endpoint to a wrong answer. The same division is still invalid in both versions. A
+          grader that changes its step verdict when it sees the answer may be favoring the endpoint. Also try a
+          wrong answer after valid early steps. Those steps deserve their own judgments.
+        hold: 0.9
+        visual_cues:
+          - id: bias-invalid
+            phrase: The step is invalid
+            targets:
+              - bias-step
+            linger: 0.15
+            caption_boundary: true
+          - id: bias-correct
+            phrase: reveal a correct final answer
+            targets:
+              - bias-endpoint
+            linger: 0.15
+          - id: bias-wrong
+            phrase: to a wrong answer
+            targets:
+              - bias-endpoint
+            linger: 0.15
+      - say: In the VAIR math study, GPT-five point four graded flawed solutions with correct endpoints correctly only
+          forty-seven point nine percent of the time, despite strong performance solving the problems. To measure
+          this on your own tasks, keep two counts. In this toy set, a grader accepts six of eight flawed
+          solutions. A separate solver gets nine of ten ordinary problems right. What's the grader's false
+          acceptance rate?
+        hold: 2
+        visual_cues:
+          - id: bias-study
+            phrase: forty-seven point nine percent
+            targets:
+              - bias-step
+            linger: 0.15
+          - id: bias-eval-count
+            phrase: six of eight flawed solutions
+            targets:
+              - bias-step
+            linger: 0.15
+          - id: bias-solver-count
+            phrase: nine of ten ordinary problems
+            targets:
+              - bias-endpoint
+            linger: 0.15
+      - say: Seventy-five percent. Count the six false accepts among the eight flawed solutions you handed the grader.
+          The solver's ninety percent comes from a different set of ten. On the canary, a matching tool receipt
+          and the exact policy settle eligibility even if a learned grader is persuaded by the final word.
+        hold: 0.9
+        visual_cues:
+          - id: bias-eval-rate
+            phrase: Seventy-five percent
+            targets:
+              - bias-step
+            linger: 0.15
+            caption_boundary: true
+          - id: bias-solver-rate
+            phrase: The solver's ninety percent
+            targets:
+              - bias-endpoint
+            linger: 0.15
+            caption_boundary: true
+  - id: trained-policy
+    title: How a model learns which repairs to propose
+    visual: Four repairs for one failing test earn rewards of zero or one. Bars extend from the group mean to each
+      reward. The next live request uses the trained model and fetches its own metrics.
+    beats:
+      - say: Give the model one failing test and ask for four repairs. Two pass and earn one point each. Two fail and
+          earn zero. The group's average is half a point. Each passing repair sits half a point above that line.
+          Each failing repair sits half a point below. Training favors the above-average outputs. DeepSeek R-one
+          used this idea in group relative policy optimization. The group supplies the comparison, so training
+          can skip a separate critic model.
+        hold: 0.6
+        visual_cues:
+          - id: ra-trained-policy-0-0
+            phrase: four repairs
+            targets:
+              - ra-trained-policy-trace
+            color: blue
+            linger: 0.3
+          - id: ra-trained-policy-0-1
+            phrase: Two pass and earn one point each.
+            targets:
+              - ra-trained-policy-trace
+            color: blue
+            linger: 0.3
+          - id: training-failed
+            phrase: Two fail and earn zero.
+            targets:
+              - ra-trained-policy-trace
+            color: blue
+            linger: 0.3
+          - id: ra-trained-policy-0-2
+            phrase: The group's average is half a point
+            targets:
+              - ra-trained-policy-trace
+            color: blue
+            linger: 0.3
+          - id: ra-trained-policy-0-3
+            phrase: Each passing repair sits half a point above that line.
+            targets:
+              - ra-trained-policy-trace
+            color: blue
+            linger: 0.3
+          - id: training-below
+            phrase: Each failing repair sits half a point below.
+            targets:
+              - ra-trained-policy-trace
+            color: blue
+            linger: 0.3
+      - say: Now freeze the weights and take a live checkout request. Training can make a usable repair easier to
+          sample. If usable repairs are rare, the selector may get a whole batch that fails. The controller
+          chooses a route and budgets the calls. For today's latency it asks the metrics service. Once it checks
+          the receipt, it can report that progress and use the reading in its advice.
+        hold: 0.6
+        visual_cues:
+          - id: ra-trained-policy-1-0
+            phrase: freeze the weights
+            targets:
+              - ra-trained-policy-trace
+            color: blue
+            linger: 0.3
+          - id: ra-trained-policy-1-1
+            phrase: The controller chooses a route and budgets the calls
+            targets:
+              - ra-trained-policy-trace
+            color: blue
+            linger: 0.3
+          - id: ra-trained-policy-1-2
+            phrase: For today's latency it asks the metrics service
+            targets:
+              - ra-trained-policy-trace
+            color: blue
+            linger: 0.3
+  - id: router-evaluation
+    title: A route is a ceiling selected from measured need
+    visual: Route three requests by keyword in the example. Compare the best of three recent proxy scores with the
+      previous best.
+    beats:
+      - say: "Our example router matches words in a request. It sends a threshold lookup down one path, canary
+          debugging to three candidates, and the compatibility problem to a tree. Check a real router on held-out
+          requests: a shallow route can miss a repair, while unnecessary search adds cost and latency. Each route
+          must meet the same evidence requirements."
+        hold: 0.6
+        visual_cues:
+          - id: ra-router-evaluation-0-0
+            phrase: Our example router matches words in a request. It sends a threshold lookup down one path, canary
+              debugging to three candidates, and the compatibility problem to a tree.
+            targets:
+              - ra-router-evaluation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-router-evaluation-0-1
+            phrase: "Check a real router on held-out requests: a shallow route can miss a repair, while unnecessary search
+              adds cost and latency."
+            targets:
+              - ra-router-evaluation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-router-evaluation-0-2
+            phrase: Each route must meet the same evidence requirements.
+            targets:
+              - ra-router-evaluation-trace
+            color: blue
+            linger: 0.3
+      - say: After routing, stop as soon as an exact check settles the question. Compare complete plans if that
+          suffices, or keep a tree if intermediate choices matter. A high-impact claim with no verifier needs a
+          tool or an authorized reviewer. For other requests without an acceptance criterion, clarify the task or
+          agree on a rubric. Even a high proxy score cannot supply the missing evidence.
+        hold: 0.6
+        visual_cues:
+          - id: ra-router-evaluation-1-0
+            phrase: After routing, stop as soon as an exact check settles the question. Compare complete plans if that
+              suffices, or keep a tree if intermediate choices matter.
+            targets:
+              - ra-router-evaluation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-router-evaluation-1-1
+            phrase: A high-impact claim with no verifier needs a tool or an authorized reviewer.
+            targets:
+              - ra-router-evaluation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-router-evaluation-1-2
+            phrase: For other requests without an acceptance criterion, clarify the task or agree on a rubric.
+            targets:
+              - ra-router-evaluation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-router-evaluation-1-3
+            phrase: Even a high proxy score cannot supply the missing evidence.
+            targets:
+              - ra-router-evaluation-trace
+            color: blue
+            linger: 0.3
+      - say: Suppose we keep expanding. The first call earned point seven two. Compare the best of the next three
+          scores with that first one. Their best is point seven one. On this rule the branch has stopped
+          improving, so we stop expanding it. A repeated state, an exhausted token budget or a deadline can also
+          stop the next call. A later call might have helped. Tune this plateau rule on held-out tasks.
+        hold: 0.6
+        visual_cues:
+          - id: ra-router-evaluation-2-0
+            phrase: Suppose we keep expanding. The first call earned point seven two. Compare the best of the next three
+              scores with that first one.
+            targets:
+              - ra-router-evaluation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-router-evaluation-2-1
+            phrase: Their best is point seven one. On this rule the branch has stopped improving, so we stop expanding it.
+            targets:
+              - ra-router-evaluation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-router-evaluation-2-2
+            phrase: A repeated state, an exhausted token budget or a deadline can also stop the next call.
+            targets:
+              - ra-router-evaluation-trace
+            color: blue
+            linger: 0.3
+          - id: ra-router-evaluation-2-3
+            phrase: A later call might have helped. Tune this plateau rule on held-out tasks.
+            targets:
+              - ra-router-evaluation-trace
+            color: blue
+            linger: 0.3
+  - id: budget
+    title: Will a third call fit?
+    visual: A new reservation is measured against the free end of a fixed 4,000-token ledger. One receipt converts
+      a reservation into a smaller charge. The waiting call then fits the same capacity.
+    beats:
+      - say: The repair request has one budget of four thousand generated tokens. B and A each reserve fifteen hundred
+          before either starts. A verifier called C wants fifteen hundred too. Compare its bracket with the space
+          still free. Can C start?
+        hold: 2.2
+        visual_cues:
+          - id: budget-held
+            phrase: each reserve fifteen hundred
+            targets:
+              - ledger
+            color: cyan
+            linger: 0.15
+          - id: budget-ask
+            phrase: C wants fifteen hundred
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+      - say: C waits. The two reservations leave only a thousand free. Now the receipt arrives for A. It generated nine
+          hundred tokens. Keep B where it is and charge those nine hundred to A. How much room is there for C
+          now?
+        hold: 2.2
+        visual_cues:
+          - id: budget-wait
+            phrase: C waits
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+          - id: budget-actual
+            phrase: charge those nine hundred to A
+            targets:
+              - ledger
+            color: cyan
+            linger: 0.15
+      - say: Sixteen hundred tokens are free. A used six hundred fewer than it reserved. C can take fifteen hundred of
+          the free space, leaving one hundred. Charge generators, verifiers and retries to this same ledger. A
+          dollar budget must also count inputs and cache pricing. Time and memory need their own limits.
+        hold: 1
+        visual_cues:
+          - id: budget-free
+            phrase: Sixteen hundred tokens are free
+            targets:
+              - ledger
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+          - id: budget-admit
+            phrase: leaving one hundred
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+  - id: reservation-reconcile
+    title: What if the receipt arrives twice?
+    visual: Keep the 4,000-token bar in its final position. Deliver the same receipt, a conflicting receipt and an
+      oversized receipt. Observe the actual ledger after each delivery.
+    beats:
+      - say: Leave the ledger exactly where it was. A's nine hundred tokens are charged. B and C still hold fifteen
+          hundred each. Suppose A's receipt arrives a second time with the same call ID and the same usage.
+          Should the spent bar move?
+        hold: 1.9
+        visual_cues:
+          - id: receipt-repeat
+            phrase: A's receipt arrives a second time
+            targets:
+              - request
+            linger: 0.15
+      - say: Leave it at nine hundred. The ledger already recorded that receipt. Change the second receipt to nine
+          hundred fifty for the same ID. That conflicts with the first one. Set it aside for reconciliation. An
+          ID that has already been used cannot reserve capacity again.
+        hold: 1
+        visual_cues:
+          - id: receipt-same
+            phrase: Leave it at nine hundred
+            targets:
+              - ledger
+            linger: 0.15
+            caption_boundary: true
+          - id: receipt-conflict
+            phrase: nine hundred fifty for the same ID
+            targets:
+              - request
+            linger: 0.15
+          - id: receipt-reject
+            phrase: That conflicts with the first one
+            targets:
+              - request
+            linger: 0.15
+      - say: Now B reports sixteen hundred against a fifteen-hundred reservation. The backend exceeded its maximum. The
+          ledger raises an error and keeps B's reservation. An exception cannot undo work the backend already
+          did. Resolve the discrepancy against backend usage.
+        hold: 0.9
+        visual_cues:
+          - id: receipt-over
+            phrase: B reports sixteen hundred
+            targets:
+              - request
+            linger: 0.15
+          - id: receipt-over-result
+            phrase: keeps B's reservation
+            targets:
+              - ledger
+            linger: 0.15
+            caption_boundary: true
+      - say: Replay B from before its receipt. This time B times out without any receipt, so those same tokens stay
+          held. Stop dispatching at the deadline, request cancellation where supported and reconcile the actual
+          usage or confirmed cancellation. With concurrent workers, serialize reservations or use a transaction.
+          Save receipts by unique call ID so a retry after a crash cannot charge twice.
+        hold: 0.9
+        visual_cues:
+          - id: receipt-timeout
+            phrase: B times out without any receipt
+            targets:
+              - request
+            linger: 0.15
+  - id: incomplete-advisory
+    title: Which draft can the controller send?
+    visual: Charge usage for an incomplete response containing the word Hold. Compare provider completion, checked
+      evidence and nonempty text.
+    beats:
+      - say: The model spent seven hundred tokens. Its entire draft is one word. Hold. Read the provider status.
+          It says incomplete because the model hit its output cap. That can happen even before the first visible
+          word. Withhold this draft. Charge the seven hundred tokens and reserve a new call if you retry.
+        hold: 0.6
+        caption_starts:
+          - Withhold this draft
+        visual_cues:
+          - id: ra-incomplete-advisory-0-0
+            phrase: Its entire draft is one word. Hold.
+            targets:
+              - ra-incomplete-advisory-trace
+            color: blue
+            linger: 0.3
+          - id: ra-incomplete-advisory-0-1
+            phrase: Read the provider status. It says incomplete because the model hit its output cap. That can happen even
+              before the first visible word.
+            targets:
+              - ra-incomplete-advisory-trace
+            color: blue
+            linger: 0.3
+          - id: ra-incomplete-advisory-0-2
+            phrase: Withhold this draft.
+            targets:
+              - ra-incomplete-advisory-trace
+            color: blue
+            linger: 0.3
+          - id: ra-incomplete-advisory-0-3
+            phrase: Charge the seven hundred tokens and reserve a new call if you retry.
+            targets:
+              - ra-incomplete-advisory-trace
+            color: blue
+            linger: 0.3
+      - say: All three drafts say Hold. Read across each row. The first draft ran out of tokens. The second finished,
+          but its evidence check failed. The third finished and its evidence passed. Send it after checking
+          that trimming whitespace leaves some text. Tool calls and refusals have their own response types.
+          Handle each one before looking for final advice.
+        hold: 0.6
+        caption_starts:
+          - The first draft ran out of tokens
+          - The third finished and its evidence passed
+        visual_cues:
+          - id: ra-incomplete-advisory-1-0
+            phrase: All three drafts say Hold. Read across each row.
+            targets:
+              - ra-incomplete-advisory-trace
+            color: blue
+            linger: 0.3
+          - id: ra-incomplete-advisory-1-1
+            phrase: The first draft ran out of tokens. The second finished, but its evidence check failed.
+            targets:
+              - ra-incomplete-advisory-trace
+            color: blue
+            linger: 0.3
+          - id: ra-incomplete-advisory-1-2
+            phrase: The third finished and its evidence passed. Send it after checking that trimming whitespace leaves some text.
+            targets:
+              - ra-incomplete-advisory-trace
+            color: blue
+            linger: 0.3
+          - id: ra-incomplete-advisory-1-3
+            phrase: Tool calls and refusals have their own response types. Handle each one before looking for final advice.
+            targets:
+              - ra-incomplete-advisory-trace
+            color: blue
+            linger: 0.3
+  - id: memory
+    title: A shared prefix changes the branch memory bill
+    visual: Eight branch histories expose duplicated stems, then reuse one compatible prefix while preserving all
+      divergent tails.
+    beats:
+      - say: Every active branch also retains attention key and value states. Their size depends on layers, key-value
+          heads, head dimension and storage precision. Multiply those factors for the supplied model, then
+          multiply by sequence length and the number of simultaneously retained branches.
+        hold: 0.75
+        visual_cues:
+          - id: memory-beat-1-focus-1
+            phrase: Every active branch also retains attention key and value states
+            targets:
+              - memory-panel-memory
+            color: cyan
+            linger: 0.65
+          - id: ra-memory-0-0
+            phrase: Every active branch also retains attention key and value states.
+            targets:
+              - ra-memory-trace
+            color: blue
+            linger: 0.3
+          - id: ra-memory-0-1
+            phrase: Their size depends on layers, key-value heads, head dimension and storage precision.
+            targets:
+              - ra-memory-trace
+            color: blue
+            linger: 0.3
+          - id: ra-memory-0-2
+            phrase: Multiply those factors for the supplied model, then multiply by sequence length and the number of
+              simultaneously retained branches.
+            targets:
+              - ra-memory-trace
+            color: blue
+            linger: 0.3
+      - say: Our eight full histories would occupy forty gibibytes before overhead. Sharing their identical prefix
+          leaves one stem and eight distinct tails, reducing the illustrated allocation substantially. Reuse
+          requires compatible tokens, positions, model configuration and authenticated tenant scope. Measure
+          real allocation and fragmentation under the serving implementation.
+        hold: 0.85
+        visual_cues:
+          - id: memory-beat-2-focus-1
+            phrase: Sharing their identical prefix leaves one stem and eight distinct tails
+            targets:
+              - memory-panel-memory-4
+            color: cyan
+            linger: 0.65
+          - id: ra-memory-1-0
+            phrase: Our eight full histories would occupy forty gibibytes before overhead.
+            targets:
+              - ra-memory-trace
+            color: blue
+            linger: 0.3
+          - id: ra-memory-1-1
+            phrase: Sharing their identical prefix leaves one stem and eight distinct tails, reducing the illustrated
+              allocation substantially.
+            targets:
+              - ra-memory-trace
+            color: blue
+            linger: 0.3
+          - id: ra-memory-1-2
+            phrase: Reuse requires compatible tokens, positions, model configuration and authenticated tenant scope.
+            targets:
+              - ra-memory-trace
+            color: blue
+            linger: 0.3
+          - id: ra-memory-1-3
+            phrase: Measure real allocation and fragmentation under the serving implementation.
+            targets:
+              - ra-memory-trace
+            color: blue
+            linger: 0.3
+  - id: kv-byte-model
+    title: Count dimensions before multiplying branch histories
+    visual: Multiply the KV dimensions for one token, convert bytes to binary units, and count the shared stem once
+      across eight branch histories.
+    beats:
+      - say: "To price a live token in a full-attention model, start with the two pieces the model retains: a key and a
+          value. Each has one vector per KV head at every layer. Multiply by the head width and by the bytes in
+          one element. Use the number of KV heads here. A grouped-query model can have more query heads. Our
+          example has eighty layers, eight KV heads, a width of one hundred twenty-eight and two bytes per
+          element. The product on screen is the storage for one token."
+        hold: 0.6
+        visual_cues:
+          - id: ra-kv-byte-model-0-0
+            phrase: "To price a live token in a full-attention model, start with the two pieces the model retains: a key
+              and a value."
+            targets:
+              - ra-kv-byte-model-trace
+            color: blue
+            linger: 0.3
+          - id: ra-kv-byte-model-0-1
+            phrase: Each has one vector per KV head at every layer. Multiply by the head width and by the bytes in one
+              element.
+            targets:
+              - ra-kv-byte-model-trace
+            color: blue
+            linger: 0.3
+          - id: ra-kv-byte-model-0-2
+            phrase: Use the number of KV heads here. A grouped-query model can have more query heads.
+            targets:
+              - ra-kv-byte-model-trace
+            color: blue
+            linger: 0.3
+          - id: ra-kv-byte-model-0-3
+            phrase: Our example has eighty layers, eight KV heads, a width of one hundred twenty-eight and two bytes per
+              element. The product on screen is the storage for one token.
+            targets:
+              - ra-kv-byte-model-trace
+            color: blue
+            linger: 0.3
+      - say: Divide the byte count by one thousand twenty-four. Each token needs three hundred twenty kibibytes. A
+          gibibyte is one thousand twenty-four cubed bytes. At that rate one branch holding sixteen thousand
+          three hundred eighty-four tokens needs five gibibytes. Eight copies bring the total to forty. Share the
+          first twelve thousand two hundred eighty-eight positions. Count that stem once, then add eight tails of
+          four thousand ninety-six. At the same price per slot, the total falls to thirteen and three quarter
+          gibibytes. That covers logical cache storage. Allow extra space for weights, workspace, page rounding
+          and other live requests.
+        hold: 0.6
+        visual_cues:
+          - id: ra-kv-byte-model-1-0
+            phrase: Divide the byte count by one thousand twenty-four. Each token needs three hundred twenty kibibytes.
+            targets:
+              - ra-kv-byte-model-trace
+            color: blue
+            linger: 0.3
+          - id: ra-kv-byte-model-1-1
+            phrase: A gibibyte is one thousand twenty-four cubed bytes.
+            targets:
+              - ra-kv-byte-model-trace
+            color: blue
+            linger: 0.3
+          - id: ra-kv-byte-model-1-2
+            phrase: At that rate one branch holding sixteen thousand three hundred eighty-four tokens needs five gibibytes.
+            targets:
+              - ra-kv-byte-model-trace
+            color: blue
+            linger: 0.3
+          - id: ra-kv-byte-model-1-3
+            phrase: Eight copies bring the total to forty.
+            targets:
+              - ra-kv-byte-model-trace
+            color: blue
+            linger: 0.3
+          - id: ra-kv-byte-model-1-4
+            phrase: Share the first twelve thousand two hundred eighty-eight positions. Count that stem once, then add
+              eight tails of four thousand ninety-six. At the same price per slot, the total falls to thirteen
+              and three quarter gibibytes.
+            targets:
+              - ra-kv-byte-model-trace
+            color: blue
+            linger: 0.3
+          - id: ra-kv-byte-model-1-5
+            phrase: That covers logical cache storage. Allow extra space for weights, workspace, page rounding and other
+              live requests.
+            targets:
+              - ra-kv-byte-model-trace
+            color: blue
+            linger: 0.3
+  - id: prefix-lease
+    title: A shared prefix has readers and write boundaries
+    visual: Four branches reference a shared prefix page. Drop two references and copy a diverging branch. Keep a losing suffix until the device reader finishes.
+    beats:
+      - say: Paged attention uses noncontiguous blocks and can share compatible pages with copy-on-write. A
+          radix-style cache indexes reusable prefixes in a tree. These are related responsibilities. Reuse
+          needs matching token and position interpretation, model and adapter, cache format and intended
+          tenant scope. Identical visible prompt text is not a complete cache key.
+        hold: 0.6
+        visual_cues:
+          - id: ra-prefix-lease-0-0
+            phrase: Paged attention uses noncontiguous blocks and can share compatible pages with copy-on-write.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+          - id: ra-prefix-lease-0-1
+            phrase: A radix-style cache indexes reusable prefixes in a tree.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+          - id: ra-prefix-lease-0-2
+            phrase: These are related responsibilities.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+          - id: ra-prefix-lease-0-3
+            phrase: Reuse needs matching token and position interpretation, model and adapter, cache format and intended
+              tenant scope.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+          - id: ra-prefix-lease-0-4
+            phrase: Identical visible prompt text is not a complete cache key.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+      - say: Keep an actual reference count on a shared prefix page. Pruning a branch releases its references, but
+          another branch may still need the same page. A diverging write needs a private copy under the
+          runtime’s sharing contract, not an in-place change to the common stem. In-flight device readers also
+          keep storage live.
+        hold: 0.6
+        visual_cues:
+          - id: ra-prefix-lease-1-0
+            phrase: Keep an actual reference count on a shared prefix page.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+          - id: ra-prefix-lease-1-1
+            phrase: Pruning a branch releases its references, but another branch may still need the same page.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+          - id: ra-prefix-lease-1-2
+            phrase: A diverging write needs a private copy under the runtime’s sharing contract, not an in-place change to
+              the common stem.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+          - id: ra-prefix-lease-1-3
+            phrase: In-flight device readers also keep storage live.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+      - say: Reclaim a losing suffix only after its outstanding readers finish and the last reference is gone. Logical
+          slot savings do not by themselves equal a physical allocation measurement; page rounding and
+          metadata add costs. Admission must use the live working set and other allocations, not merely the
+          final shared prefix total.
+        hold: 0.6
+        visual_cues:
+          - id: ra-prefix-lease-2-0
+            phrase: Reclaim a losing suffix only after its outstanding readers finish and the last reference is gone.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+          - id: ra-prefix-lease-2-1
+            phrase: Logical slot savings do not by themselves equal a physical allocation measurement; page rounding and
+              metadata add costs.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+          - id: ra-prefix-lease-2-2
+            phrase: Admission must use the live working set and other allocations, not merely the final shared prefix
+              total.
+            targets:
+              - ra-prefix-lease-trace
+            color: blue
+            linger: 0.3
+  - id: eviction-architecture
+    title: Losing KV state changes the evidence the model can use
+    visual: Remove one value from the cache and follow a repeated failed proposal. Trace a token through a model
+      trained to use a recurrent block.
+    beats:
+      - say: Watch the rare value disappear from the cache. A later step may need the information that page held. In the
+          VaSE experiments, evicting rare, large-magnitude values sometimes sent a model back through the same
+          failed proposal. VaSE protects those values and samples others for eviction. To recover an evicted state
+          from saved text, the model has to compute it again. At your target compression ratio, compare repeated
+          loops, exact checks and final quality with the uncompressed run.
+        hold: 0.6
+        visual_cues:
+          - id: ra-eviction-architecture-0-0
+            phrase: Watch the rare value disappear from the cache.
+            targets:
+              - ra-eviction-architecture-trace
+            color: blue
+            linger: 0.3
+          - id: ra-eviction-architecture-0-1
+            phrase: In the VaSE experiments, evicting rare, large-magnitude values sometimes sent a model back through the
+              same failed proposal. VaSE protects those values and samples others for eviction.
+            targets:
+              - ra-eviction-architecture-trace
+            color: blue
+            linger: 0.3
+          - id: ra-eviction-architecture-0-2
+            phrase: To recover an evicted state from saved text, the model has to compute it again.
+            targets:
+              - ra-eviction-architecture-trace
+            color: blue
+            linger: 0.3
+          - id: ra-eviction-architecture-0-3
+            phrase: At your target compression ratio, compare repeated loops, exact checks and final quality with the
+              uncompressed run.
+            targets:
+              - ra-eviction-architecture-trace
+            color: blue
+            linger: 0.3
+      - say: Now follow one token through a recurrent model. In a published three-point-five-billion-parameter model,
+          the token state can pass through a trained block more than once. Those passes can share KV state.
+          Varying the number of passes changes the compute spent on that token. That choice requires a model
+          trained for recurrence and a runtime that can execute the loop.
+        hold: 0.6
+        visual_cues:
+          - id: ra-eviction-architecture-1-0
+            phrase: Now follow one token through a recurrent model.
+            targets:
+              - ra-eviction-architecture-trace
+            color: blue
+            linger: 0.3
+          - id: ra-eviction-architecture-1-1
+            phrase: In a published three-point-five-billion-parameter model, the token state can pass through a trained
+              block more than once.
+            targets:
+              - ra-eviction-architecture-trace
+            color: blue
+            linger: 0.3
+          - id: ra-eviction-architecture-1-2
+            phrase: Those passes can share KV state. Varying the number of passes changes the compute spent on that token.
+            targets:
+              - ra-eviction-architecture-trace
+            color: blue
+            linger: 0.3
+          - id: ra-eviction-architecture-1-3
+            phrase: That choice requires a model trained for recurrence and a runtime that can execute the loop.
+            targets:
+              - ra-eviction-architecture-trace
+            color: blue
+            linger: 0.3
+  - id: stopping
+    title: Let completion and progress choose the next action
+    visual: Compare the threshold question, parser repair and an unsupported claim. Follow a proxy score history to the point where the plateau rule stops the branch.
+    beats:
+      - say: A cheap router can ask whether exact evidence has already completed the task, whether partial
+          alternatives matter and whether a valid acceptance criterion exists. The threshold question can stop
+          immediately. The parser repair can justify search. A high-impact claim without evidence needs a tool
+          or authorized review.
+        hold: 0.75
+        visual_cues:
+          - id: stopping-beat-1-focus-1
+            phrase: A cheap router can ask whether exact evidence has already completed the task
+            targets:
+              - stopping-rows
+            color: cyan
+            linger: 0.65
+          - id: ra-stopping-0-0
+            phrase: A cheap router can ask whether exact evidence has already completed the task, whether partial
+              alternatives matter and whether a valid acceptance criterion exists.
+            targets:
+              - ra-stopping-trace
+            color: blue
+            linger: 0.3
+          - id: ra-stopping-0-1
+            phrase: The threshold question can stop immediately.
+            targets:
+              - ra-stopping-trace
+            color: blue
+            linger: 0.3
+          - id: ra-stopping-0-2
+            phrase: The parser repair can justify search.
+            targets:
+              - ra-stopping-trace
+            color: blue
+            linger: 0.3
+          - id: ra-stopping-0-3
+            phrase: A high-impact claim without evidence needs a tool or authorized review.
+            targets:
+              - ra-stopping-trace
+            color: blue
+            linger: 0.3
+      - say: Search also needs exits. Stop repeated states, enforce token and wall-clock ceilings, and evaluate a
+          progress rule before another expansion. A plateau heuristic can discard a useful path, so tune it on
+          held-out tasks. Return an eligible completed result or a clear abstention when the budget ends.
+        hold: 0.85
+        visual_cues:
+          - id: stopping-progress-history
+            phrase: evaluate a progress rule before another expansion
+            targets:
+              - stopping-actual-history
+              - stopping-actual-decision
+            color: cyan
+            linger: 0.5
+          - id: stopping-plateau
+            phrase: A plateau heuristic can discard a useful path
+            targets:
+              - stopping-actual-history
+              - stopping-actual-decision
+            color: yellow
+            linger: 0.5
+          - id: ra-stopping-1-0
+            phrase: Search also needs exits.
+            targets:
+              - ra-stopping-trace
+            color: blue
+            linger: 0.3
+          - id: ra-stopping-1-1
+            phrase: Stop repeated states, enforce token and wall-clock ceilings, and evaluate a progress rule before
+              another expansion.
+            targets:
+              - ra-stopping-trace
+            color: blue
+            linger: 0.3
+          - id: ra-stopping-1-2
+            phrase: A plateau heuristic can discard a useful path, so tune it on held-out tasks.
+            targets:
+              - ra-stopping-trace
+            color: blue
+            linger: 0.3
+          - id: ra-stopping-1-3
+            phrase: Return an eligible completed result or a clear abstention when the budget ends.
+            targets:
+              - ra-stopping-trace
+            color: blue
+            linger: 0.3
+  - id: safe-progress
+    title: A quick status event is not the final-answer latency
+    visual: Place the first status, first model token and final advisory on one request clock. Compare internal
+      events with their public fields.
+    beats:
+      - say: Watch the request clock. The gateway sends status at a tenth of a second, the first model token arrives at
+          eight tenths, and the checked answer comes back at two and a half seconds. A user can see a quick
+          update and still wait too long for the answer. Set a deadline for what the user actually needs. Record
+          time to each event, along with generator and verifier work, so a stream of early updates cannot conceal
+          the cost.
+        hold: 0.6
+        visual_cues:
+          - id: ra-safe-progress-0-0
+            phrase: Watch the request clock. The gateway sends status at a tenth of a second, the first model token arrives
+              at eight tenths, and the checked answer comes back at two and a half seconds.
+            targets:
+              - ra-safe-progress-trace
+            color: blue
+            linger: 0.3
+          - id: ra-safe-progress-0-1
+            phrase: A user can see a quick update and still wait too long for the answer. Set a deadline for what the user
+              actually needs.
+            targets:
+              - ra-safe-progress-trace
+            color: blue
+            linger: 0.3
+          - id: ra-safe-progress-0-2
+            phrase: Record time to each event, along with generator and verifier work, so a stream of early updates cannot
+              conceal the cost.
+            targets:
+              - ra-safe-progress-trace
+            color: blue
+            linger: 0.3
+      - say: The stream can tell the owner which strategy is running, how much it has spent and which evidence has
+          arrived. Only the component that received and checked the observation can vouch for that milestone.
+          Keep an internal score and a model's claim of verification out of the public event, and release the
+          final answer only after its checks pass. Keep hidden scratchpads private, restrict access to retained
+          traces and handle disconnects while work is in flight.
+        hold: 0.6
+        visual_cues:
+          - id: ra-safe-progress-1-0
+            phrase: The stream can tell the owner which strategy is running, how much it has spent and which evidence has
+              arrived.
+            targets:
+              - ra-safe-progress-trace
+            color: blue
+            linger: 0.3
+          - id: ra-safe-progress-1-1
+            phrase: Only the component that received and checked the observation can vouch for that milestone.
+            targets:
+              - ra-safe-progress-trace
+            color: blue
+            linger: 0.3
+          - id: ra-safe-progress-1-2
+            phrase: Keep an internal score and a model's claim of verification out of the public event, and release the
+              final answer only after its checks pass.
+            targets:
+              - ra-safe-progress-trace
+            color: blue
+            linger: 0.3
+          - id: ra-safe-progress-1-3
+            phrase: Keep hidden scratchpads private, restrict access to retained traces and handle disconnects while work
+              is in flight.
+            targets:
+              - ra-safe-progress-trace
+            color: blue
+            linger: 0.3
+  - id: evaluation-release
+    title: Measure the whole controller before increasing its budget
+    visual: Keep paraphrases of an incident together. Compare controllers on frozen, held-out incidents using
+      eligible answers, unsafe advice, abstentions, latency and full serving cost.
+    beats:
+      - say: On some math prompts, Snell and colleagues found that a smaller model with extra reasoning could beat a
+          model fourteen times its size. They matched estimated compute for training and answering the whole
+          workload. The smaller system used trained revision models and verifiers. Harder prompts and heavier
+          inference workloads can favor the larger model.
+        hold: 0.6
+        visual_cues:
+          - id: ra-evaluation-release-0-0
+            phrase: a model fourteen times its size
+            targets:
+              - ra-evaluation-release-trace
+            color: blue
+            linger: 0.3
+          - id: ra-evaluation-release-0-1
+            phrase: They matched estimated compute for training and answering the whole workload
+            targets:
+              - ra-evaluation-release-trace
+            color: blue
+            linger: 0.3
+          - id: ra-evaluation-release-0-2
+            phrase: trained revision models and verifiers
+            targets:
+              - ra-evaluation-release-trace
+            color: blue
+            linger: 0.3
+          - id: ra-evaluation-release-0-3
+            phrase: Harder prompts and heavier inference workloads can favor the larger model
+            targets:
+              - ra-evaluation-release-trace
+            color: blue
+            linger: 0.3
+      - say: Follow the last step in this example. The proxy score rises from point six five to point eight. The
+          independent score drops from point seven six to point six. Gao and colleagues observed this divergence
+          when optimizing a proxy reward in a synthetic experiment. Ghosal and colleagues forced models to keep
+          reasoning on math problems. Accuracy rose at first, then fell. They also compared parallel voting at
+          the same thinking-token budget. For checkout, we'd measure whether an extra call actually improves the
+          advice.
+        hold: 0.6
+        visual_cues:
+          - id: ra-evaluation-release-1-0
+            phrase: The proxy score rises from point six five to point eight.
+            targets:
+              - ra-evaluation-release-trace
+            color: blue
+            linger: 0.3
+          - id: eval-independent
+            phrase: The independent score drops from point seven six to point six.
+            targets:
+              - ra-evaluation-release-trace
+            color: blue
+            linger: 0.3
+          - id: ra-evaluation-release-1-1
+            phrase: Ghosal and colleagues forced models to keep reasoning on math problems
+            targets:
+              - ra-evaluation-release-trace
+            color: blue
+            linger: 0.3
+          - id: ra-evaluation-release-1-2
+            phrase: For checkout, we'd measure whether an extra call actually improves the advice
+            targets:
+              - ra-evaluation-release-trace
+            color: blue
+            linger: 0.3
+      - say: Freeze evidence snapshots and policy versions, split incidents rather than paraphrases across development
+          and held-out sets, then compare a single path with candidates or a tree at total
+          generator-plus-verifier cost. Report correct eligible advice, false acceptance, unsafe advice,
+          abstentions, final latency and input/output cost separately. Accept extra compute only for cohorts
+          whose observed improvement earns it.
+        hold: 0.6
+        visual_cues:
+          - id: ra-evaluation-release-2-0
+            phrase: Freeze evidence snapshots and policy versions, split incidents rather than paraphrases across
+              development and held-out sets, then compare a single path with candidates or a tree at total
+              generator-plus-verifier cost.
+            targets:
+              - ra-evaluation-release-trace
+            color: blue
+            linger: 0.3
+          - id: ra-evaluation-release-2-1
+            phrase: Report correct eligible advice, false acceptance, unsafe advice, abstentions, final latency and
+              input/output cost separately.
+            targets:
+              - ra-evaluation-release-trace
+            color: blue
+            linger: 0.3
+          - id: ra-evaluation-release-2-2
+            phrase: Accept extra compute only for cohorts whose observed improvement earns it.
+            targets:
+              - ra-evaluation-release-trace
+            color: blue
+            linger: 0.3
+  - id: fresh-deadline
+    title: A second request has six thousand tokens
+    visual: Keep C visible as a completed canary advisory while D requests 1,500 tokens from the same ledger before
+      and after A settles. At the deadline, close dispatch and retain B and D.
+    beats:
+      - say: Try a different request. The owner wants canary advice and a repair suggestion if time permits. This time
+          the cap is six thousand generated tokens. C has already used nine hundred to produce a completed hold
+          recommendation with matching evidence. A and B are exploring repairs and each hold two thousand. D
+          wants fifteen hundred for a compatibility check. Can D start now? Work out what happens if A finishes
+          using fourteen hundred before the deadline. Will that receipt make room?
+        hold: 2.7
+        visual_cues:
+          - id: ra-fresh-deadline-0-0
+            phrase: different request
+            targets:
+              - ledger
+            color: cyan
+            linger: 0.15
+          - id: ra-fresh-deadline-0-1
+            phrase: six thousand generated tokens
+            targets:
+              - ledger
+            color: cyan
+            linger: 0.15
+          - id: ra-fresh-deadline-0-2
+            phrase: completed hold recommendation
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+          - id: ra-fresh-deadline-0-3
+            phrase: each hold two thousand
+            targets:
+              - ledger
+            color: cyan
+            linger: 0.15
+          - id: ra-fresh-deadline-0-4
+            phrase: D wants fifteen hundred
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+          - id: ra-fresh-deadline-0-5
+            phrase: Can D start now
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+          - id: ra-fresh-deadline-0-6
+            phrase: if A finishes using fourteen hundred
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+          - id: ra-fresh-deadline-0-7
+            phrase: Will that receipt make room
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+      - say: At first D waits, with only eleven hundred free. A's receipt releases six hundred, which takes the free
+          space to seventeen hundred. D fits and leaves two hundred free. Now the deadline arrives. B and D may
+          still be running. Keep both reservations until actual usage or cancellation is confirmed. Return C to
+          the owner. C has finished, its evidence still qualifies, and sending advice leaves the deployment in
+          the owner's hands.
+        hold: 1.1
+        visual_cues:
+          - id: ra-fresh-deadline-1-0
+            phrase: At first D waits, with only eleven hundred free
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+          - id: deadline-receipt
+            phrase: which takes the free space to seventeen hundred
+            targets:
+              - ledger
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+          - id: ra-fresh-deadline-1-1
+            phrase: D fits and leaves two hundred free
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+          - id: ra-fresh-deadline-1-2
+            phrase: Now the deadline arrives
+            targets:
+              - ledger
+            color: cyan
+            linger: 0.15
+          - id: ra-fresh-deadline-1-3
+            phrase: Keep both reservations
+            targets:
+              - ledger
+            color: cyan
+            linger: 0.15
+          - id: ra-fresh-deadline-1-4
+            phrase: Return C to the owner
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+          - id: ra-fresh-deadline-1-5
+            phrase: its evidence still qualifies
+            targets:
+              - request
+            color: cyan
+            linger: 0.15
+  - id: synthesis
+    title: One second at the deadline
+    visual: Replay the 6,000-token deadline with the same candidate, traffic, policy, p95, and outstanding
+      reservations. Move only its observation from second 100 to 99. The 30-second eligibility window stays
+      fixed.
+    beats:
+      - say: Look again at C, the completed hold recommendation. The clock stopped at second one hundred thirty. The
+          metrics tool observed revision seven at second one hundred. The smoke test passed, and the reading was
+          two hundred forty milliseconds. That puts the receipt exactly thirty seconds back. The policy includes
+          that edge.
+        hold: 0.85
+        visual_cues:
+          - id: last-clock
+            phrase: second one hundred thirty
+            targets:
+              - window
+            color: cyan
+            linger: 0.15
+          - id: last-edge
+            phrase: exactly thirty seconds back
+            targets:
+              - window
+            color: cyan
+            linger: 0.15
+      - say: Replay the deadline. This time the tool took that same reading one second earlier, at second ninety-nine.
+          The text of C still says hold. Can the owner receive C now, and how many tokens must we still hold for
+          B and D?
+        hold: 2.75
+        visual_cues:
+          - id: last-shift
+            phrase: one second earlier, at second ninety-nine
+            targets:
+              - window
+            color: cyan
+            linger: 0.15
+          - id: last-predict
+            phrase: how many tokens must we still hold for B and D
+            targets:
+              - open-calls
+            color: cyan
+            linger: 0.15
+      - say: Withhold C. The reading is thirty-one seconds old, outside the window. There is no time left for a fresh
+          observation on this request. Abstain and tell the owner which measurement to refresh. B and D still
+          hold thirty-five hundred tokens until their receipts arrive. The clock closed the reply while those two
+          calls were still open.
+        hold: 1.4
+        caption_starts:
+          - thirty-five hundred tokens until their receipts arrive
+        visual_cues:
+          - id: last-withhold
+            phrase: Withhold C
+            targets:
+              - verdict
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+          - id: last-account
+            phrase: B and D still hold thirty-five hundred tokens
+            targets:
+              - open-calls
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+      - say: The next Python systems lab puts this rule into a scheduler. It has to close one request and still
+          recognize the receipts that come back later.
+        hold: 1

@@ -121,13 +121,15 @@ export function create(theme: ThemeMode = 'dark') {
     })
 
     // Bottom aligned target probabilities & mean loss
-    fig.text(20, 412, 'Target p:  0.84   0.77   0.72   0.82', {
+    const probText = trueProbabilities.map((p) => p.toFixed(3)).join('  ')
+    const meanLoss = losses.reduce((s, v) => s + v, 0) / losses.length
+    fig.text(20, 412, `Target p:  ${probText}`, {
         size: 16,
         mono: true,
         color: c.textSecondary,
         weight: 600,
     })
-    fig.text(20, 440, 'Mean loss = 0.209 nats', {
+    fig.text(20, 440, `Mean loss = ${meanLoss.toFixed(3)} nats`, {
         size: 18,
         mono: true,
         weight: 750,

@@ -246,7 +246,7 @@ $$
 $$
 
 <figure>
-  <img src="illustrations/_generated/wilson_intervals_dark.png" alt="95 percent Wilson intervals for 3/3 (0.438 to 1.00), 49/50 (0.895 to 0.996), and 990/1000 (0.982 to 0.995)." />
+  <img src="illustrations/_generated/wilson_intervals_dark.png" alt="95 percent Wilson intervals for 3/3 (0.439 to 1.00), 49/50 (0.895 to 0.996), and 990/1000 (0.982 to 0.995)." />
   <figcaption>Three passes out of three still permit true accuracy below 0.50 under a 95% Wilson interval, whereas 990/1,000 lifts the lower bound to 0.982.</figcaption>
 </figure>
 

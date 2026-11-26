@@ -517,14 +517,14 @@ Triage monitoring alerts in strict order before retraining:
     "explanation": "With zero fitting-fold rows in that pool, m-estimate smoothing returns the fitting-fold prior (0 + 4 * 0.4) / 4 = 0.4, unaffected by the held-out row's own label."
   },
   {
-    "question": "A stream sink receives whole-window totals for [11:00, 12:00): revision 1 emits count 2, revision 2 emits count 3 after a late arrival, and a retry later redelivers revision 1 (count 2). What should the materialized count be?",
+    "question": "A stream sink receives whole-window totals for [14:00, 15:00): revision 1 emits count 4, revision 2 emits count 6 after a late arrival, and a retry later redelivers revision 1 (count 4). What should the materialized count be?",
     "options": [
-      "5, by summing revisions 1 and 2.",
-      "7, by summing all three emissions.",
-      "2, because revision 1 arrived last.",
-      "3, by replacing only on strictly higher revision numbers."
+      "10, by summing revisions 1 and 2.",
+      "14, by summing all three emissions.",
+      "4, because revision 1 arrived last.",
+      "6, by replacing only on strictly higher revision numbers."
     ],
-    "answer": "3, by replacing only on strictly higher revision numbers.",
+    "answer": "6, by replacing only on strictly higher revision numbers.",
     "explanation": "Whole-window re-emissions replace the keyed row only when revision strictly increases, preventing double-counting and blocking stale retries."
   },
   {

@@ -6,7 +6,7 @@ export { createFilm } from './_parts/attention-film'
 export const width = 660
 export const height = 560
 export const alt =
-    'Side-by-side attention matrices for the tokens Birds and sing: scaled QK compatibility scores [[0.636, 0.530], [0.424, 0.742]] pass through row-wise softmax to produce routing weights [[0.527, 0.473], [0.421, 0.579]], which mix value vectors [2, 1] and [1, 2] into sing output [1.421, 1.579].'
+    'Side-by-side attention matrices for the tokens Birds and sing: scaled QK compatibility scores [[0.636, 0.530], [0.424, 0.742]] pass through row-wise softmax to produce routing weights [[0.526, 0.474], [0.421, 0.579]], which mix value vectors [2, 1] and [1, 2] into sing output [1.421, 1.579].'
 
 const tokens = ['Birds', 'sing']
 
@@ -18,7 +18,7 @@ export function create(theme: Theme) {
         [0.424, 0.742],
     ]
     const weights = [
-        [0.527, 0.473],
+        [0.526, 0.474],
         [0.421, 0.579],
     ]
 

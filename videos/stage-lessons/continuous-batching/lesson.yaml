@@ -1,0 +1,1361 @@
+version: 1
+id: continuous-batching
+title: Keeping a Model Server Busy
+opening: lesson
+source: fundamentals/continuous-batching-request-scheduling/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: Yu et al. Orca
+    url: https://www.usenix.org/conference/osdi22/presentation/yu
+  - title: Kwon et al. Efficient Memory Management for Large Language Model Serving
+      with PagedAttention
+    url: https://arxiv.org/abs/2309.06180
+  - title: Zhong et al. DistServe
+    url: https://arxiv.org/abs/2401.09670
+  - title: Sarathi-Serve
+    url: https://arxiv.org/abs/2403.02310
+  - title: vLLM optimization
+    url: https://docs.vllm.ai/en/latest/configuration/optimization/
+  - title: vLLM disaggregated prefill
+    url: https://docs.vllm.ai/en/latest/features/disagg_prefill/
+  - title: Published Qwen3.6-27B geometry
+    url: https://huggingface.co/Qwen/Qwen3.6-27B
+scenes:
+  - id: intro
+    title: "Who gets the next turn?"
+    visual: >-
+      A code completion finishes the line "return a + b". D takes its seat while the other two replies
+      continue. A six-step trace shows which request produced each token.
+    beats:
+      - say: >-
+          One more token finishes this line of Python. There's the b. The other two replies are still
+          streaming. D is ready to run. Does it have to wait for those replies to finish?
+        caption_starts:
+          - "There's the b"
+          - "D is ready to run"
+        visual_cues:
+          - id: mixed-requests
+            phrase: "this line of Python"
+            targets:
+              - intro-readout
+            color: blue
+          - id: finished-seat
+            phrase: "There's the b"
+            targets:
+              - intro-mechanism
+            color: yellow
+        hold: 1.9
+      - say: >-
+          D takes the open seat. On that same decode step, B and C each get another token. The server
+          chooses who runs between steps. That's continuous batching.
+        caption_starts:
+          - "On that same decode step"
+          - "That's continuous batching"
+        visual_cues:
+          - id: admit-replacement
+            phrase: "D takes the open seat"
+            targets:
+              - intro-waiting-d
+            color: yellow
+          - id: generation-boundary
+            phrase: "On that same decode step"
+            targets:
+              - intro-mechanism
+            color: yellow
+        hold: 0.6
+      - say: >-
+          Read across the top row. A finishes on step two. D gets step three. Each mark is one more
+          token. Here the waiting prompts have already been processed, and their state fits in memory.
+          What would that row look like if the server kept A's seat until the longest reply finished?
+        visual_cues:
+          - id: three-seats
+            phrase: "Read across the top row"
+            targets:
+              - intro-readout
+            color: blue
+          - id: intro-six
+            phrase: "Each mark is one more token"
+            targets:
+              - intro-readout
+            color: cyan
+        hold: 0.8
+  - id: iterations
+    title: Generation creates repeated scheduling opportunities
+    visual: Prompt prefill establishes initial state; repeated decode steps extend
+      each visible request by one token.
+    beats:
+      - say: >-
+          Before ordinary decoding begins, prefill processes a request’s prompt and creates attention key
+          and value state. Its final scores can supply the first output token. Subsequent decode steps
+          read the saved history and process the newest input to predict the next token.
+        visual_cues:
+          - id: prompt-prefill
+            phrase: prefill processes a request’s prompt
+            targets:
+              - prompt-input
+            color: blue
+          - id: retained-state
+            phrase: creates attention key and value state
+            targets:
+              - resident-kv
+            color: cyan
+          - id: decode-step
+            phrase: Subsequent decode steps
+            targets:
+              - decode-step
+            color: yellow
+        hold: 0.6
+      - say: >-
+          A stopped after its second decode step. B and C kept going. Each request maintains its own
+          history and stops when it reaches an end token or an output limit. The scheduler usually
+          learns the final length as the reply unfolds. An image classifier can finish a fixed-shape
+          batch in one pass. Generating text gives the scheduler another decision after every pass.
+        visual_cues:
+          - id: request-history
+            phrase: maintains its own history
+            targets:
+              - resident-kv
+            color: cyan
+          - id: output-boundary
+            phrase: stops when it reaches an end token or an output limit
+            targets:
+              - decode-step
+            color: yellow
+        hold: 0.6
+      - say: >-
+          Our first simulation starts after prefill. Each active request advances once per iteration and
+          its replacement is ready to decode. Count a tick when the server finishes a pass. The time a
+          tick takes depends on the requests and kernels sharing that pass.
+        visual_cues:
+          - id: ready-decode
+            phrase: starts after prefill
+            targets:
+              - prompt-prefill
+            color: blue
+          - id: iteration-advance
+            phrase: advances once per iteration
+            targets:
+              - decode-step
+            color: green
+        hold: 0.8
+  - id: static
+    title: Count useful work in a fixed batch
+    visual: >-
+      Six fixed decode steps reserve eighteen seat-steps. A and B finish early, leaving six gaps. The
+      first gap in A’s row is the one D could use.
+    beats:
+      - say: The first three requests need two, four, and six remaining decode
+          iterations. A static batch reserves all three seats until the longest
+          finishes. Follow the short request as its final token arrives, then
+          notice the empty seat beside the continuing streams.
+        visual_cues:
+          - id: static-seats
+            phrase: reserves all three seats until the longest finishes
+            targets:
+              - decode-grid
+            color: blue
+          - id: empty-seat
+            phrase: notice the empty seat
+            targets:
+              - decode-grid
+            color: yellow
+        hold: 0.6
+      - say: >-
+          Three seats times six steps gives eighteen chances to generate a token. Twelve contain a
+          token. That's two thirds of the seats doing useful work. To find out how busy the GPU was
+          during those steps, you'd measure it on the device.
+        visual_cues:
+          - id: seat-accounting
+            phrase: eighteen chances to generate a token
+            targets:
+              - static-readout
+            color: yellow
+          - id: useful-occupancy
+            phrase: seats doing useful work
+            targets:
+              - decode-grid
+            color: green
+        hold: 0.6
+      - say: >-
+          Pause at the first empty seat. All six columns were reserved, but D could have used the third
+          column in A's row. D is ready for another useful token on the next iteration. Keep B and C
+          where they are. Let's change just the decision about that seat.
+        visual_cues:
+          - id: first-empty
+            phrase: Pause at the first empty seat
+            targets:
+              - static-first-gap
+            color: yellow
+          - id: next-opportunity
+            phrase: another useful token on the next iteration
+            targets:
+              - static-first-gap
+            color: green
+        hold: 0.8
+  - id: refill
+    title: Replace finished requests at the next boundary
+    visual: >-
+      D and E fill A’s and B’s rows. For the same five ready-to-decode requests, the last continuous
+      reply finishes at tick 8 and the last static reply at tick 11.
+    beats:
+      - say: "Back to the second tick. Take A out and bring D into that same row. Look down one row. B's count carries straight on. When B finishes, E can join too. A seat changes owners. Each continuing request keeps its own state and its own output."
+        visual_cues:
+          - id: refill-seat
+            phrase: "bring D into that same row"
+            targets:
+              - decode-grid
+            color: green
+          - id: refill-b-ends
+            phrase: "When B finishes"
+            targets:
+              - decode-grid
+            color: cyan
+          - id: refill-e-starts
+            phrase: "E can join too"
+            targets:
+              - decode-grid
+            color: green
+          - id: continuing-identity
+            phrase: Each continuing request keeps its own state
+            targets:
+              - decode-grid
+            color: blue
+        hold: 0.6
+      - say: "The replacements fill every seat. Find the six places that went empty before. D and E use all six. That's eighteen tokens in the same six steps."
+        visual_cues:
+          - id: full-seats
+            phrase: replacements fill every seat
+            targets:
+              - decode-grid
+            color: green
+          - id: useful-token-count
+            phrase: eighteen tokens in the same six steps
+            targets:
+              - static-readout
+            color: yellow
+        hold: 0.6
+      - say: >-
+          Trace an individual request past tick six. D needs one more turn, and E needs two. A finished
+          request never returns. D finishes at seven and E at eight. With fixed groups, C holds the
+          first group open through tick six. D and E both start at seven. D runs five turns, from seven
+          through eleven. The same five replies took eleven ticks in fixed groups and eight with refill.
+        visual_cues:
+          - id: request-trace
+            phrase: Trace an individual request
+            targets:
+              - decode-grid
+            color: blue
+          - id: finished-once
+            phrase: "A finished request never returns"
+            targets:
+              - decode-grid
+            color: green
+          - id: refill-end
+            phrase: "D finishes at seven and E at eight"
+            targets:
+              - refill-finish
+            color: green
+          - id: static-end
+            phrase: "D runs five turns, from seven through eleven"
+            targets:
+              - refill-finish
+            color: yellow
+        hold: 0.8
+  - id: scheduler
+    title: "When can E join?"
+    visual: >-
+      E reaches the queue before iteration four. The three occupied rows show why E stays there. When B
+      finishes, E moves into the middle row for iteration five.
+    beats:
+      - say: >-
+          At a safe iteration boundary, the scheduler can change the group. Here A has finished. All
+          reads, writes and transfers on its private pages have finished too. Those pages can go back
+          to the pool. Look for waiting requests that fit the seat, work and memory budgets. D fits.
+          Reserve the pages it needs, then launch the third pass with B and C.
+        visual_cues:
+          - id: iteration-boundary
+            phrase: safe iteration boundary
+            targets:
+              - scheduler-readout
+            color: yellow
+          - id: fitting-request
+            phrase: waiting requests that fit
+            targets:
+              - scheduler-readout-2
+            color: blue
+          - id: scheduler-launch
+            phrase: "launch the third pass with B and C"
+            targets:
+              - scheduler-readout-4
+            color: cyan
+        hold: 0.6
+      - say: >-
+          E is a later arrival. At the next decision boundary, all three seats are taken for iteration
+          four. Watch B take its fourth and final turn. Now E can join at iteration five. C keeps its own
+          place and its own history. A late result from a canceled request must stay out of the reply,
+          even if the pass was already running.
+        caption_starts:
+          - "Watch B take its fourth and final turn"
+          - "Now E can join at iteration five"
+        visual_cues:
+          - id: later-arrival
+            phrase: later arrival
+            targets:
+              - scheduler-readout-3
+            color: yellow
+          - id: admission-boundary
+            phrase: next decision boundary
+            targets:
+              - scheduler-readout-4
+            color: green
+          - id: scheduler-b-finishes
+            phrase: "fourth and final turn"
+            targets:
+              - scheduler-readout-4
+            color: yellow
+          - id: scheduler-e-joins
+            phrase: "E can join at iteration five"
+            targets:
+              - scheduler-readout-3
+            color: green
+        hold: 0.6
+      - say: >-
+          Try a different boundary. One seat is open, but D needs two pages and only one is free.
+          Under strict arrival order, an empty seat can be the correct decision. The scheduler can
+          also look for another fitting request, or pause a resident under a policy that accounts
+          for the cost of bringing it back.
+        visual_cues:
+          - id: empty-correct
+            phrase: an empty seat can be the correct decision
+            targets:
+              - scheduler-readout-4
+            color: yellow
+          - id: request-fits
+            phrase: another fitting request
+            targets:
+              - scheduler-readout-2
+            color: green
+        hold: 0.8
+  - id: queue-policies
+    title: A shorter average can conceal an older request waiting
+    visual: >-
+      Two strips share a 75-step ruler. Each job keeps its color as the finish marks move from the
+      arrival-order strip to the shortest-first strip.
+    beats:
+      - say: >-
+          Keep one worker and three jobs. All three are ready now. Give the longest job the first turn.
+          Even the five-step job has to wait fifty steps to start. Average the three finish times and you
+          get sixty. Rewind and let the five-step job go first, the twenty-step job second, and the
+          fifty-step job last. The last finish stays at seventy-five. What fell to thirty-five was the
+          average finish time. That ordering assumes known lengths and one worker that runs each job to
+          completion. On a GPU, the cost of a step depends on who shares it.
+        hold: 0.8
+        visual_cues:
+          - id: queue-policies-b1
+            phrase: "one worker and three jobs"
+            targets:
+              - queue-policies-mechanism
+            linger: 0.8
+          - id: queue-fcfs
+            phrase: "Give the longest job the first turn"
+            targets:
+              - queue-policies-mechanism
+            linger: 0.8
+          - id: queue-sjf
+            phrase: "let the five-step job go first, the twenty-step job second, and the fifty-step job last"
+            targets:
+              - queue-policies-mechanism
+            linger: 0.8
+      - say: >-
+          When an open-ended request arrives, its final output length is usually unknown. An output
+          cap gives an upper bound. To estimate service cost, also look at the prompt, its context
+          and the other requests in the batch.
+          First-come-first-served can leave a small request behind a large one. With shortest-first,
+          a steady stream of short jobs can leave a long request waiting indefinitely. Check
+          the ninety-ninth percentile and the longest wait for each class.
+        hold: 0.8
+        visual_cues:
+          - id: queue-policies-b2
+            phrase: When an open-ended request arrives
+            targets:
+              - queue-policies-mechanism
+            linger: 0.8
+      - say: >-
+          Priority and decode-first affect who gets served. To protect an older request, raise
+          its priority as it waits, reserve a turn or give its tenant a share of the budget. Check
+          which end of the scale means urgent. In this example larger numbers go first. In the
+          article's v L L M priority queue, smaller numbers go first and arrival order breaks ties.
+          Check that convention in the engine you use.
+        hold: 0.8
+        visual_cues:
+          - id: queue-policies-b3
+            phrase: Priority and decode-first affect who gets served
+            targets:
+              - queue-policies-mechanism
+            linger: 0.8
+  - id: fitting-and-fairness
+    title: "Who gets the free page?"
+    visual: >-
+      C holds two pages throughout. The third page stays empty under strict arrival order, then serves
+      four successive small jobs under a fit scan. D remains at the front throughout.
+    beats:
+      - say: >-
+          Two of three pages remain owned by a resident stream. D is first in line and needs two. The
+          smaller job behind it needs one. One page is already free. If the scheduler stops at D, that
+          page stays empty. Now scan past D. Watch the same page change hands. Four successive small
+          arrivals can each finish and return it before the next decision. Where was D while all four
+          finished?
+        hold: 0.8
+        visual_cues:
+          - id: fitting-and-fairness-b1
+            phrase: Two of three pages remain owned by a resident stream
+            targets:
+              - fitting-and-fairness-mechanism
+            linger: 0.8
+          - id: fairness-head
+            phrase: "that page stays empty"
+            targets:
+              - fairness-free-page
+            color: yellow
+          - id: fairness-four
+            phrase: "Four successive small arrivals can each finish and return it before the next decision"
+            targets:
+              - fitting-and-fairness-mechanism
+            linger: 0.8
+      - say: >-
+          Four other jobs finished while D waited. Giving D higher priority still leaves it one page short.
+          D needs two pages free at the same boundary. A policy can hold capacity as pages become free,
+          wait for the resident to finish, or pause it and pay for replay or transfer. If a waiting
+          request expires or is rejected, keep it in the count of arrivals when you judge that policy.
+        hold: 0.8
+        visual_cues:
+          - id: fitting-and-fairness-b2
+            phrase: Giving D higher priority still leaves it one page short
+            targets:
+              - fitting-and-fairness-mechanism
+            linger: 0.8
+  - id: prefill
+    title: A prompt competes with live decode work
+    visual: >-
+      Three live decodes use three of twelve input positions. The waiting prompt moves through the
+      remaining slots in chunks of nine, nine and two.
+    beats:
+      - say: Now restore prefill to the picture. A new long prompt may require many
+          input positions, while each ordinary live decode stream needs one.
+          Mixing the entire prompt into a step can make every current stream
+          wait longer for its next output token.
+        visual_cues:
+          - id: long-prompt
+            phrase: many input positions
+            targets:
+              - prefill-prompt-chunk
+            color: yellow
+          - id: one-per-stream
+            phrase: live decode stream needs one
+            targets:
+              - prefill-live-decodes
+            color: cyan
+        hold: 0.6
+      - say: >-
+          The budget is twelve positions. Give one to each of our three live streams. That leaves nine
+          positions for a chunk of the waiting prompt. Eleven of its twenty positions are still waiting.
+          Nine more go into the second pass. The last two go into the third. Each chunk uses the
+          attention state built by the earlier chunks. Each pass also gives the live streams another
+          turn.
+        visual_cues:
+          - id: input-budget
+            phrase: budget is twelve positions
+            targets:
+              - prefill-work-slots
+            color: blue
+          - id: chunk-prompt
+            phrase: nine positions for a chunk of the waiting prompt
+            targets:
+              - prefill-prompt-chunk
+            color: yellow
+          - id: prefill-second
+            phrase: "Nine more go into the second pass"
+            targets:
+              - prefill-prompt-chunk
+            color: yellow
+          - id: later-chunks
+            phrase: "The last two go into the third"
+            targets:
+              - prefill-readout-6
+            color: green
+        hold: 0.6
+      - say: >-
+          A smaller prompt chunk gives the live streams an earlier chance to run. The new prompt may
+          take more steps to finish. The time per step depends on the mix of prefill and decode work.
+          Measure the gaps between tokens for people already reading and the first-token wait for
+          someone just joining.
+        visual_cues:
+          - id: input-work
+            phrase: mix of prefill and decode work
+            targets:
+              - prefill-work-slots
+            color: blue
+          - id: per-user-gaps
+            phrase: gaps between tokens for people already reading
+            targets:
+              - prefill-live-decodes
+            color: cyan
+        hold: 0.8
+  - id: memory
+    title: "Where does the next position go?"
+    visual: A finishes while a transfer is still writing its two private pages. The pages stay with A until the transfer ends, return to the pool, then pass to D.
+    beats:
+      - say: >-
+          In these full-attention layers, each processed position adds keys and values that the next
+          decode step can read. Watch what happens when a history crosses a page boundary. The server
+          needs a memory budget for those growing histories. A sliding-window layer can stop growing its
+          cache when the window fills. A recurrent layer can update its state in place.
+        visual_cues:
+          - id: growing-state
+            phrase: "a history crosses a page boundary"
+            targets:
+              - memory-readout-2
+            color: cyan
+          - id: state-budget
+            phrase: memory budget
+            targets:
+              - memory-readout
+            color: yellow
+        hold: 0.6
+      - say: Paging divides that state into fixed-size blocks and maps logical positions
+          to physical pages. A newly admitted request can use separated free
+          pages when the attention kernel supports that layout. Iteration-level
+          scheduling can also use other compatible allocation schemes.
+        visual_cues:
+          - id: physical-pages
+            phrase: fixed-size blocks
+            targets:
+              - memory-readout-2
+            color: blue
+          - id: independent-pages
+            phrase: separated free pages
+            targets:
+              - memory-readout-2
+            color: green
+        hold: 0.6
+      - say: >-
+          A has finished, but a transfer is still writing its two private pages. D has to wait. Once
+          all earlier reads, writes and transfers on those pages have finished, release both pages.
+          Now D can take them. Shared prefix pages need reference tracking. If you preempt a request
+          by recomputation, keep the output it already sent. Rebuild its state without sampling or
+          sending those tokens again.
+        visual_cues:
+          - id: retire-pages
+            phrase: release both pages
+            targets:
+              - memory-readout-2
+            color: green
+          - id: memory-reassign
+            phrase: Now D can take them
+            targets:
+              - memory-readout-2
+            color: green
+          - id: shared-references
+            phrase: Shared prefix pages need reference tracking
+            targets:
+              - memory-readout-3
+            color: yellow
+        hold: 0.8
+  - id: physical-pages
+    title: How much room does a reply take?
+    visual: >-
+      D takes pages 0, 1 and 6 from an eight-page pool. In a separate example, four histories occupy twelve pages
+      and expose their final-page slack. The hybrid model’s 4,096 positions fill 256 blocks exactly.
+    beats:
+      - say: >-
+          D needs three pages. There are two free on the left and two on the right. How could you fit D
+          around the replies in the middle?
+        hold: 1.8
+        visual_cues:
+          - id: physical-pages-b1
+            phrase: D needs three pages
+            targets:
+              - physical-pages-mechanism
+            linger: 0.8
+      - say: >-
+          Put the first two on the left. Put the third on page six. The block table records those three
+          addresses in order, so the decoder can follow D's history across the gap. B and C stay where
+          they are, and page seven is still free.
+        caption_starts:
+          - "Put the third on page six"
+        hold: 0.8
+        visual_cues:
+          - id: physical-pair
+            phrase: Put the first two on the left
+            targets:
+              - physical-pages-mechanism
+          - id: physical-map
+            phrase: on page six
+            targets:
+              - physical-pages-mechanism
+            linger: 0.8
+      - say: >-
+          Now take a separate example. Four histories occupy twelve pages of sixteen slots each.
+          Follow the first history. Its seventeenth position opens a second sixteen-slot page.
+          The fifteen unused places still belong to that
+          request. Now look at the history of forty-eight. It fills three pages exactly. The four
+          histories use one hundred sixty-one of the one hundred ninety-two allocated slots, leaving
+          thirty-one unused. Those slots are spread across pages that still belong to these replies.
+          A new request needs a free page of its own.
+        hold: 0.8
+        visual_cues:
+          - id: physical-pages-b2
+            phrase: Four histories occupy twelve pages
+            targets:
+              - physical-pages-mechanism
+            linger: 0.8
+          - id: physical-slack
+            phrase: leaving thirty-one unused
+            targets:
+              - physical-pages-mechanism
+            color: yellow
+      - say: >-
+          In this hybrid model, sixteen full-attention layers each store four key and value heads. Each
+          head has two hundred fifty-six elements. At two bytes per element, a key and a value together
+          bring the total to sixty-four kibibytes per position across those layers. At four thousand
+          ninety-six positions, that's a quarter gibibyte of attention cache. These positions fill
+          exactly two hundred fifty-six pages of sixteen. Recurrent state, weights and workspace use
+          additional memory. If all twenty-four query heads stored separate keys and values, this part
+          would be six times larger.
+        hold: 0.8
+        visual_cues:
+          - id: physical-pages-b3
+            phrase: "sixteen full-attention layers"
+            targets:
+              - physical-pages-mechanism
+            linger: 0.8
+          - id: physical-bytes
+            phrase: sixty-four kibibytes per position
+            targets:
+              - physical-pages-mechanism
+          - id: physical-total
+            phrase: a quarter gibibyte of attention cache
+            targets:
+              - physical-pages-mechanism
+  - id: projected-growth
+    title: Will the next token fit?
+    visual: >-
+      Two full sixteen-slot pages leave nowhere to reserve position seventeen. Pausing the background
+      reply makes its page available to the urgent reply. A separate close-up distinguishes reserving a
+      slot from writing that token's keys and values.
+    beats:
+      - say: >-
+          Both pages are full. The urgent reply owns one, and the background reply owns the other.
+          Each has sixteen positions cached. The scheduler wants to reserve one more position for each
+          reply before it runs them. How many pages would the two replies need?
+        hold: 1.8
+        visual_cues:
+          - id: projected-growth-b1
+            phrase: Both pages are full
+            targets:
+              - projected-growth-mechanism
+            linger: 0.8
+          - id: growth-next
+            phrase: reserve one more position for each reply
+            targets:
+              - projected-growth-mechanism
+      - say: >-
+          Four pages. Position seventeen opens a whole new page for each reply. We have two pages to
+          work with. Pause the background reply. Once its private page is free, reserve it for the
+          urgent reply. When the urgent reply finishes, the background reply can resume and finish too.
+          Both pages are free again after one pause. Together they hold thirty-two positions. This
+          scheduler turns away a request whose maximum history would exceed that whole pool.
+        caption_starts:
+          - "Pause the background reply"
+          - "When the urgent reply finishes"
+        hold: 0.8
+        visual_cues:
+          - id: projected-growth-b2
+            phrase: Four pages
+            targets:
+              - projected-growth-mechanism
+            linger: 0.8
+          - id: growth-preempt
+            phrase: Pause the background reply
+            targets:
+              - projected-growth-mechanism
+            linger: 0.8
+          - id: growth-reserve
+            phrase: reserve it for the urgent reply
+            targets:
+              - projected-growth-mechanism
+          - id: growth-resume
+            phrase: the background reply can resume
+            targets:
+              - projected-growth-mechanism
+          - id: growth-done
+            phrase: Both pages are free again
+            targets:
+              - projected-growth-mechanism
+          - id: growth-limit
+            phrase: Together they hold thirty-two positions
+            targets:
+              - projected-growth-mechanism
+      - say: >-
+          Look inside that reserved slot. This scheduler sets it aside before the pass that samples
+          the token. The decoder writes the keys and values when it uses that token as input on the
+          following pass. The scheduler keeps page ownership fixed while a pass is running. If the
+          client cancels, discard its late output. Reuse a private page after its last read, write and
+          transfer. For a shared page, also check who still holds a reference and whether the cache
+          keeps it for reuse.
+        hold: 0.8
+        visual_cues:
+          - id: projected-growth-b3
+            phrase: sets it aside before the pass
+            targets:
+              - projected-growth-mechanism
+            linger: 0.8
+          - id: growth-write
+            phrase: on the following pass
+            targets:
+              - projected-growth-mechanism
+          - id: growth-cancel
+            phrase: If the client cancels
+            targets:
+              - projected-growth-mechanism
+          - id: growth-release
+            phrase: after its last read, write and transfer
+            targets:
+              - projected-growth-mechanism
+          - id: growth-shared
+            phrase: For a shared page
+            targets:
+              - projected-growth-mechanism
+  - id: recompute-history
+    title: Replay accepted history without sampling or emitting it again
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: A request has prompt I Ds one hundred one, one hundred two and one hundred
+          three. Accepted output I Ds two hundred one and two hundred two have
+          already reached the client. The cache contains the prompt and two
+          hundred one; the newest sampled two hundred two has not yet been
+          consumed as input. Accepted output and computed cache positions are
+          different ledgers.
+        hold: 0.8
+        visual_cues:
+          - id: recompute-history-b1
+            phrase: A request has prompt I Ds one hundred one, one hundred two and one
+              hundred three
+            targets:
+              - recompute-history-mechanism
+            linger: 0.8
+      - say: Preemption by recomputation discards those four cached positions but
+          preserves both accepted outputs. Replay one hundred one, one hundred
+          two, one hundred three and two hundred one to rebuild cache, without
+          sampling or emitting any replayed token. Then consume two hundred two
+          as the next decode input. Replaying a different model, position
+          mapping or adapter changes the computation; preserve the relevant
+          sampling state too.
+        hold: 0.8
+        visual_cues:
+          - id: recompute-history-b2
+            phrase: Preemption by recomputation discards those four cached positions but
+              preserves both accepted outputs
+            targets:
+              - recompute-history-mechanism
+            linger: 0.8
+          - id: history-drop
+            phrase: discards those four cached positions
+            targets:
+              - b-history-kv
+            linger: 0.8
+          - id: history-replay
+            phrase: Replay one hundred one, one hundred two, one hundred three and two
+              hundred one to rebuild cache, without sampling or emitting any
+              replayed token
+            targets:
+              - recompute-history-mechanism
+            linger: 0.8
+          - id: history-next
+            phrase: Then consume two hundred two as the next decode input
+            targets:
+              - b-history-pending
+            linger: 0.8
+      - say: >-
+          Swap-out instead transfers compatible K V to host memory and back, spending transfer time and
+          host capacity. With recomputation, process each missing history position again, including
+          previously generated tokens. Four positions need replay here. The compute cost depends on the
+          context length and the kind of attention. Frequent pauses spend time on replay or transfers
+          that could have served new output. Check which preemption policy the engine uses. Optional
+          state offloading is a separate feature.
+        hold: 0.8
+        visual_cues:
+          - id: recompute-history-b3
+            phrase: Swap-out instead transfers compatible K V to host memory and back,
+              spending transfer time and host capacity
+            targets:
+              - recompute-history-mechanism
+            linger: 0.8
+  - id: speculative-work
+    title: "What counts against the pass budget?"
+    visual: Four verification positions stay on the twelve-position strip when the target rejects the first proposal. The stream emits one correction token.
+    beats:
+      - say: An ordinary live decode usually schedules one input position per stream.
+          Speculative verification can schedule multiple positions for one
+          request. If the target accepts all k proposed tokens, it can emit those k plus a bonus token.
+          Reserve the lookahead the engine requires and count every
+          position scheduled for verification.
+        hold: 0.8
+        visual_cues:
+          - id: speculative-work-b1
+            phrase: An ordinary live decode usually schedules one input position per stream
+            targets:
+              - speculative-work-mechanism
+            linger: 0.8
+      - say: >-
+          This pass has room for twelve input positions. Four go to verification and two go to ordinary
+          decode. That leaves six for prefill. Suppose the target rejects the first proposal. It accepts
+          zero draft tokens and emits one correction token for that request. All four verification
+          positions still count. Check which mixtures and verification widths your engine supports.
+        hold: 0.8
+        visual_cues:
+          - id: speculative-work-b2
+            phrase: Four go to verification and two go to ordinary decode
+            targets:
+              - speculative-work-mechanism
+            linger: 0.8
+          - id: spec-reject
+            phrase: rejects the first proposal
+            targets:
+              - speculative-work-mechanism
+            color: yellow
+          - id: spec-correction
+            phrase: emits one correction token
+            targets:
+              - speculative-work-mechanism
+            color: green
+      - say: Acceptance variation can produce uneven delivery and wasted draft work
+          while a mean time per output token looks healthy. Measure each stream's
+          token gaps and the effect on neighboring requests. Continuous batching
+          decides who shares the next pass; speculative acceptance separately
+          determines which proposals become target output.
+        hold: 0.8
+        visual_cues:
+          - id: speculative-work-b3
+            phrase: Acceptance variation can produce uneven delivery and wasted draft work
+              while a mean time per output token looks healthy
+            targets:
+              - speculative-work-mechanism
+            linger: 0.8
+  - id: latency
+    title: "Where did the reply stall?"
+    visual: >-
+      Received words appear on the client clock. A bracket spans the half second before “just.” A second
+      arrival waits two seconds without contributing a gap.
+    beats:
+      - say: >-
+          Watch this reply arrive. Which word did you wait for? The first wait starts when the client
+          sends the request and ends when it receives the first token. That's time to first token, or T T
+          F T. It includes queueing, prompt processing and delivery. The gaps between received tokens
+          measure inter-token latency. Look at the space before “just.”
+        visual_cues:
+          - id: first-delay
+            phrase: "The first wait"
+            targets:
+              - latency-ttft-1-0-s
+            color: blue
+          - id: token-gaps
+            phrase: "gaps between received tokens"
+            targets:
+              - delivered-token-times
+            color: cyan
+        hold: 0.6
+      - say: >-
+          “Seat” arrived at one point two seconds. “Just” came at one point seven. Half a second went by
+          before that word arrived. A reader who had caught up could notice the pause. Averaging the
+          three gaps gives three tenths of a second. A single-token reply has no gap to average. Compare
+          the distributions for each request class at the load you actually serve.
+        visual_cues:
+          - id: long-gap
+            phrase: "Half a second went by"
+            targets:
+              - latency-longest-shown-gap-0-50-s
+            color: yellow
+          - id: mean-gap
+            phrase: "Averaging the three gaps"
+            targets:
+              - latency-mean-gap-0-30-s
+            color: cyan
+        hold: 0.6
+      - say: >-
+          Now add another arrival at time zero. Two seconds later, that person is still waiting for a
+          first token. How many gaps did they contribute to our average? None. Measure long-request
+          waiting separately. If decode uses every work slot while prefills miss their deadlines, try
+          reserving work for an aging prefill within the token and memory limits. Measure its first-token
+          wait and the live streams' gaps again. Under sustained overload, admission control can reject
+          or expire an arrival. Keep that person in the offered count.
+        caption_starts:
+          - "None"
+        visual_cues:
+          - id: older-waiting
+            phrase: long-request waiting
+            targets:
+              - latency-older-request-needs-2-blocks
+            color: yellow
+          - id: admission-limit
+            phrase: admission control
+            targets:
+              - latency-free-capacity-1-block
+            color: blue
+        hold: 0.8
+  - id: slo-completions
+    title: "Which replies kept both promises?"
+    visual: >-
+      Four measured replies are checked against both limits. A separate five-token stream exposes a gap
+      hidden by its mean. A fifth offered request expires in the original window.
+    beats:
+      - say: >-
+          Four people got a reply in ten seconds. Each was promised a first token within three hundred
+          milliseconds and a mean gap of at most thirty milliseconds. Read across each row. Which replies
+          kept both promises? The second reply started late. The third started on time, but its
+          forty-two-millisecond mean gap exceeds the thirty-millisecond limit. Only the first and fourth
+          meet both. Four replies in ten seconds gives us four tenths of a completion per second, but
+          only two tenths that kept both promises.
+        caption_starts:
+          - "The second reply started late"
+          - "Only the first and fourth meet both"
+        hold: 0.8
+        visual_cues:
+          - id: slo-completions-b1
+            phrase: "Four people got a reply in ten seconds"
+            targets:
+              - slo-completions-mechanism
+            linger: 0.8
+          - id: slo-misses
+            phrase: "The second reply started late"
+            targets:
+              - slo-completions-mechanism
+            color: yellow
+          - id: slo-third
+            phrase: "forty-two-millisecond mean gap"
+            targets:
+              - slo-completions-mechanism
+            color: yellow
+          - id: slo-joint
+            phrase: "Only the first and fourth meet both"
+            targets:
+              - slo-completions-mechanism
+            linger: 0.8
+          - id: slo-rates
+            phrase: "only two tenths that kept both promises"
+            targets:
+              - slo-completions-mechanism
+            linger: 0.8
+      - say: >-
+          Here's a different stream. Start the clock at its first token. Count the gaps after the first
+          token. Five tokens give four gaps. Divide the time from first to last by four to get the mean,
+          often called T P O T. A single-token reply needs a separate convention. Now give each gap a
+          hundred-millisecond limit. The mean passes, but only three of the four gaps meet the limit.
+          With nearest-rank p ninety-nine, passing means at least ninety-nine percent of this request's
+          measured gaps meet the inclusive limit. Specify the percentage and the percentile method when
+          you compare runs.
+        hold: 0.8
+        visual_cues:
+          - id: slo-completions-b2
+            phrase: "Count the gaps after the first token"
+            targets:
+              - slo-completions-mechanism
+            linger: 0.8
+          - id: slo-gap-limit
+            phrase: "give each gap a hundred-millisecond limit"
+            targets:
+              - slo-completions-mechanism
+            color: yellow
+          - id: slo-gap-rank
+            phrase: "With nearest-rank p ninety-nine"
+            targets:
+              - slo-completions-mechanism
+            color: cyan
+      - say: >-
+          Go back to our four completed replies. Suppose a fifth arrival in the same window expired in
+          the queue. We still have two successes, but five people asked. That's forty percent attainment.
+          Rejections, timeouts, cancellations and invalid replies stay in the offered count as failures
+          under this rule. Set a drain deadline for unfinished work. The rate of replies that meet both
+          targets is goodput at this load. To find the server's capacity, raise the offered rate and
+          check how many arrivals still meet both targets.
+        hold: 0.8
+        visual_cues:
+          - id: slo-completions-b3
+            phrase: goodput at this load
+            targets:
+              - slo-completions-mechanism
+            linger: 0.8
+          - id: slo-expired
+            phrase: "a fifth arrival in the same window expired"
+            targets:
+              - slo-completions-mechanism
+            color: yellow
+  - id: load-operating-point
+    title: "Which offered rate meets the target?"
+    visual: >-
+      A replay with fixed lengths matches requested token counts. An illustrative two-GPU sweep puts
+      each offered rate beside its example attainment and the 90% requirement.
+    beats:
+      - say: >-
+          Replay the same prompts and arrival trace on each scheduler. Keep the model, tokenizer, engine
+          version, hardware, decoding settings, warmup and measurement window fixed. One example mix is
+          sixty percent short, thirty percent medium and ten percent long. To match requested token
+          counts, fix each request's output length across both runs. Measure cache reuse, replayed
+          positions and verification work separately. If you let the model stop naturally, keep the
+          stop rules fixed and compare the lengths actually produced. Check output quality, token counts, errors and
+          cancellations before comparing rates.
+        hold: 0.8
+        visual_cues:
+          - id: load-operating-point-b1
+            phrase: "Replay the same prompts and arrival trace"
+            targets:
+              - load-operating-point-mechanism
+            linger: 0.8
+          - id: load-work
+            phrase: Measure cache reuse, replayed positions and verification work separately
+            targets:
+              - load-operating-point-mechanism
+            color: blue
+          - id: load-natural
+            phrase: "stop naturally"
+            targets:
+              - load-operating-point-mechanism
+            color: cyan
+      - say: >-
+          A reply takes four hundred milliseconds. The open-loop client sends a request every hundred
+          milliseconds, even while earlier replies are on their way. The closed-loop client waits for
+          each reply. Its next request goes out at four hundred milliseconds. As the server slows,
+          that client offers less work. Record the planned and actual send times so you can see when
+          the load generator itself fell behind.
+        caption_starts:
+          - "The closed-loop client waits for each reply"
+          - "Its next request goes out at four hundred milliseconds"
+        hold: 0.8
+        visual_cues:
+          - id: load-operating-point-b2
+            phrase: The open-loop client sends a request every hundred milliseconds
+            targets:
+              - load-operating-point-mechanism
+            linger: 0.8
+          - id: load-closed
+            phrase: Its next request goes out at four hundred milliseconds
+            targets:
+              - load-operating-point-mechanism
+      - say: >-
+          Suppose two GPUs give the results on screen. We need ninety percent of arrivals to meet
+          both targets. Where would you set the rate? At four requests a second, only eighty-four percent
+          pass. At three, ninety-two percent pass. Three requests per second is the highest rate shown
+          that meets the target. Divide by two GPUs to get one and a half requests per second per GPU.
+          The next test can try a rate between three and four. Check the median and the ninety-ninth percentile by request class,
+          along with memory pressure, preemptions and output quality.
+        caption_starts:
+          - "At four requests a second"
+          - "Three requests per second is the highest rate shown"
+        hold: 0.8
+        visual_cues:
+          - id: load-operating-point-b3
+            phrase: "We need ninety percent of arrivals to meet both targets"
+            targets:
+              - load-operating-point-mechanism
+            linger: 0.8
+          - id: load-choice
+            phrase: "Three requests per second is the highest rate shown"
+            targets:
+              - load-operating-point-mechanism
+            color: green
+  - id: state-handoff
+    title: "When does the second token arrive?"
+    visual: >-
+      Prefill hands off the state for positions 0 through 2 and its sampled output ID 201. Decode consumes
+      201 at position 3. With immediate delivery between client and server, buffering moves the first
+      receipt from 80 to 135 ms. The second receipt stays at 145 ms.
+    beats:
+      - say: >-
+          Move prefill to one worker and decode to another. They can share a node or run on different
+          nodes. Prefill processes three prompt tokens at positions zero through two. It samples two oh
+          one as the first output token. Hand off the prompt state and that exact sampled ID. The
+          decoder consumes two oh one at position three to predict the second token. Preserve the model
+          computation and token positions. If both workers tokenize text, verify that they get the same
+          prompt IDs. Transfer compatible keys, values and any recurrent state, or convert or rebuild
+          that state before decoding. Different transports can carry the state. The decoder needs a
+          cache layout and data type it can read.
+        hold: 0.8
+        visual_cues:
+          - id: handoff-sampled
+            phrase: samples two oh one as the first output token
+            targets:
+              - state-handoff-mechanism
+            color: yellow
+          - id: state-handoff-b1
+            phrase: "Hand off the prompt state and that exact sampled ID"
+            targets:
+              - state-handoff-mechanism
+            linger: 0.8
+          - id: handoff-consume
+            phrase: "consumes two oh one at position three"
+            targets:
+              - state-handoff-mechanism
+            color: green
+      - say: Our quarter-gibibyte attention payload takes an ideal five milliseconds at
+          fifty gibibytes per second. At theoretical line rates of ten and
+          twenty-five gigabits per second it instead takes about two hundred
+          fifteen and eighty-six milliseconds before overhead. Convert bits to
+          bytes and use the same units. Setup, queueing, layout conversion and
+          other model state remain additional. Overlap can hide part of a
+          transfer, so measure the exposed critical path.
+        hold: 0.8
+        visual_cues:
+          - id: state-handoff-b2
+            phrase: Our quarter-gibibyte attention payload takes an ideal five milliseconds
+              at fifty gibibytes per second
+            targets:
+              - state-handoff-mechanism
+            linger: 0.8
+      - say: >-
+          Start the clock when the client sends the request. Assume the server receives it immediately,
+          and the client receives each token the instant it is sent. After twenty milliseconds in the
+          prefill queue and sixty in prefill, token one is ready. Send it now. The decoder still has to
+          wait through the handoff and its own queue, then run one step. Token two arrives at one hundred forty-five
+          milliseconds. That's a sixty-five-millisecond gap. Try holding the first token until the
+          decoder is ready. Token two still arrives at one hundred forty-five milliseconds. Which
+          deadline did the first token cross?
+        hold: 1.8
+        visual_cues:
+          - id: state-handoff-b3
+            phrase: "Send it now"
+            targets:
+              - state-handoff-mechanism
+            linger: 0.8
+          - id: handoff-second
+            phrase: "Token two arrives at one hundred forty-five milliseconds"
+            targets:
+              - state-handoff-mechanism
+            color: cyan
+          - id: handoff-buffer
+            phrase: "holding the first token until the decoder is ready"
+            targets:
+              - state-handoff-mechanism
+            color: yellow
+      - say: >-
+          Early delivery meets the ninety-millisecond first-token limit and misses the thirty-millisecond
+          gap limit. With buffering, the first token arrives at one hundred thirty-five milliseconds.
+          The ten-millisecond gap passes, but the first token is late. Both deliveries miss one promise.
+          To meet both, look for time you can remove from the queues or the exposed handoff.
+        hold: 0.8
+        visual_cues:
+          - id: handoff-verdict
+            phrase: "Both deliveries miss one promise"
+            targets:
+              - state-handoff-mechanism
+            color: yellow
+  - id: overload-and-health
+    title: A full worker needs an admission decision
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: A healthy worker at capacity should defer or reject additional work under
+          policy. Restarting it because it is full discards live streams and
+          cache, adds cold-start work and pushes load onto other workers. Engine
+          health, readiness and present load are separate observations. A
+          genuinely failed engine must stop receiving work even when its queue
+          is empty.
+        hold: 0.8
+        visual_cues:
+          - id: overload-and-health-b1
+            phrase: A healthy worker at capacity should defer or reject additional work
+              under policy
+            targets:
+              - overload-and-health-mechanism
+            linger: 0.8
+      - say: Bound queued work, waiting deadlines and retry budgets, and preserve the
+          original deadline through retries. Immediate retry storms amplify
+          overload. An interrupted stream cannot safely append a newly sampled
+          unrelated continuation to its earlier answer. Use a supported
+          continuation contract or report interruption. Diagnose queue/prefill
+          wait, mixed-step gap, projected-state growth and exposed handoff from
+          the actual trace; one latency signature has multiple possible causes.
+        hold: 0.8
+        visual_cues:
+          - id: overload-and-health-b2
+            phrase: Bound queued work, waiting deadlines and retry budgets, and preserve the
+              original deadline through retries
+            targets:
+              - overload-and-health-mechanism
+            linger: 0.8
+  - id: transfer
+    title: "Is there room for D?"
+    visual: >-
+      D’s requested seat, one new input and three pages are outlined against the free resources. Under
+      strict arrival order B and C run while the third seat stays empty.
+    beats:
+      - say: >-
+          D is back at the door. One seat is free. D has saved keys and values for eleven processed
+          positions. Once restored, it needs one input position on the next decode step. There's room for
+          that. Now look at the cache pages. Each gold outline is a page D needs for its history and that
+          next input. Where would the last one go?
+        visual_cues:
+          - id: sequence-seats
+            phrase: "One seat is free"
+            targets:
+              - sequence-seats
+            color: blue
+          - id: token-work
+            phrase: "one input position"
+            targets:
+              - token-work
+            color: yellow
+          - id: resident-memory
+            phrase: "cache pages"
+            targets:
+              - resident-kv
+            color: cyan
+        hold: 1.7
+      - say: >-
+          The missing page keeps D out. Under strict arrival order, only B and C run in this step.
+          Another seat would leave us one page short. You can see the memory pressure in that last gold
+          outline.
+        visual_cues:
+          - id: surviving-streams
+            phrase: "only B and C run in this step"
+            targets:
+              - transfer-running
+            color: blue
+          - id: memory-pressure
+            phrase: memory pressure
+            targets:
+              - resident-kv
+            color: yellow
+        hold: 0.6
+      - say: >-
+          E is waiting just behind D. When you count completed requests, keep both arrivals in the
+          offered count. We have enough state accounting to try two choices from exactly this moment.
+        visual_cues:
+          - id: completed-requests
+            phrase: completed requests
+            targets:
+              - sequence-seats
+            color: green
+          - id: state-accounting
+            phrase: enough state accounting
+            targets:
+              - resident-kv
+            color: cyan
+        hold: 0.8
+  - id: fresh-admission
+    title: "Who runs, and who has to wait?"
+    visual: >-
+      Two policy branches start with the same five pages. Restore E’s or D’s saved KV before decode.
+      After D finishes, B rebuilds its three lost positions and delivers 703 once.
+    beats:
+      - say: >-
+          E is right behind D. Both have compatible state saved outside the GPU pool. D has eleven
+          positions to restore. E has three. Each needs room for one more input after the restore.
+          Each GPU page holds four positions. With two pages free, which request could join B and C?
+        caption_starts:
+          - "D has eleven positions to restore"
+          - "E has three"
+        hold: 1.8
+        visual_cues:
+          - id: fresh-admission-b1
+            phrase: "E is right behind D"
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+          - id: fresh-next-input
+            phrase: one more input after the restore
+            targets:
+              - fresh-admission-mechanism
+      - say: >-
+          Under strict arrival order, D waits for a third page. Scan for a fit instead. Give E one page
+          and restore its three positions. Its next input fills the fourth position. Run C, B and E
+          together. That's three of the eight input positions for this step. The oldest request is still
+          waiting.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-admission-b2
+            phrase: "Scan for a fit"
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+          - id: fresh-e-restore
+            phrase: "restore its three positions"
+            targets:
+              - fresh-admission-mechanism
+            color: green
+          - id: fresh-e-run
+            phrase: "Run C, B and E together"
+            targets:
+              - fresh-admission-mechanism
+            color: cyan
+      - say: >-
+          Rewind to the same two free pages. This time give D a turn by pausing B. Once the last read,
+          write and transfer on B's page have finished, release its exclusive page. B keeps its accepted
+          output, but we'll have to rebuild its cache. Restore D's eleven positions across the three
+          pages. Now run C and D. Their two inputs
+          fit the budget. D needs one more output and finishes on this pass. Once all operations on D's
+          pages finish, its three exclusive pages become reusable.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-admission-b3
+            phrase: "release its exclusive page"
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+          - id: fresh-d-restore
+            phrase: "Restore D's eleven positions across the three pages"
+            targets:
+              - fresh-admission-mechanism
+            color: yellow
+          - id: fresh-d-run
+            phrase: "Now run C and D"
+            targets:
+              - fresh-admission-mechanism
+            color: cyan
+          - id: fresh-d-complete
+            phrase: "finishes on this pass"
+            targets:
+              - fresh-admission-mechanism
+            color: yellow
+          - id: fresh-d-return
+            phrase: "its three exclusive pages become reusable"
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+      - say: >-
+          B's reader already has seven oh one and seven oh two. B gets one page back. Which tokens
+          should it replay? The two prompt tokens and seven oh one. Those three positions rebuild the
+          cache while the reader's reply stays put. Now feed in seven oh two. The reader gets one new
+          token, seven oh three. Giving D a turn cost B a wait and three positions of replay.
+        caption_starts:
+          - "The two prompt tokens and seven oh one"
+          - "Now feed in seven oh two"
+          - "seven oh three"
+          - "Giving D a turn"
+        hold: 0.8
+        visual_cues:
+          - id: fresh-admission-b4
+            phrase: "B's reader already has"
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+          - id: fresh-history-replay
+            phrase: "The two prompt tokens and seven oh one"
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+          - id: fresh-b-input
+            phrase: "feed in seven oh two"
+            targets:
+              - fresh-admission-mechanism
+            color: cyan
+          - id: fresh-only-new
+            phrase: "seven oh three"
+            targets:
+              - fresh-b-history-emitted
+            linger: 0.8
+          - id: fresh-replay-cost
+            phrase: "Giving D a turn cost B"
+            targets:
+              - fresh-admission-mechanism

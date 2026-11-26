@@ -389,7 +389,7 @@ Ship a distilled student only when it clears *every* target threshold simultaneo
 
 <figure>
   <img src="illustrations/_generated/student_release_gate_dark.png" alt="Deployment check compares four student metrics against thresholds: accuracy 0.92 clears 0.90, error rate 0.04 exceeds the 0.02 cap, latency 42 ms clears 60 ms, and monthly cost $18,000 clears $20,000. Three checks pass while critical error rate blocks deployment." />
-  <figcaption>The 7B student is 4.3x faster, 57% cheaper, and clears 90% accuracy, yet its 4% critical error rate exceeds the 2% ceiling, holding back deployment until the failure slice is fixed.</figcaption>
+  <figcaption>The 7B student is 4.3x faster (42 ms vs. 180 ms), stays under its \$20k monthly serving budget (\$18k), and clears 90% accuracy (92%), yet its 4% critical error rate exceeds the 2% ceiling, holding back deployment until the failure slice is fixed.</figcaption>
 </figure>
 
 | Symptom | Likely cause | Fix |

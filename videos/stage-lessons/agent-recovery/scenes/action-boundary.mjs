@@ -1,180 +1,261 @@
-// Scene `action-boundary`: application code decides if a proposal leaves.
-//
-// The picture: the model at the left, a wall with one door on the lane, the controller at the
-// right. The list of what is allowed is under the model, and the wall reads it. A status read
-// goes through the door. The rollback stops, because its approval place is empty. A proposal
-// with a bad schema bounces, is repaired one time and passes. A denied proposal bounces again.
+// Scene 2: action-boundary - "A proposal passes through an admission check"
+// Laser admission gate splits read proposals (permitted -> pass) from write proposals (approval slot empty -> stopped),
+// then contrasts bounded 1-step schema repair vs persistent permission denial.
+import { circle, line } from 'vizmatic/stage';
 import {
-  appear,
-  beside,
-  column,
-  indicate,
-  line,
-  moveTo,
-  place,
-  pulse,
-  row,
-  seq,
-  shake,
-  vanish,
-} from 'vizmatic/stage';
-import { chip, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { COLOR, OP, board, docked, token, travel, wall } from '../parts.mjs';
-
-/** The door takes this long to open or to shut. */
-const DOOR = 0.4;
+  COSMOS,
+  OP,
+  ROLE,
+  actorOrb,
+  ambientClock,
+  cinemaAtmosphere,
+  glowArrow,
+  glowCross,
+  glowDot,
+  glowPill,
+  glowingTrail,
+  guardedDynamic,
+  heroTitle,
+  hexAlpha,
+  lowerFooter,
+  playCue,
+  txt,
+} from '../parts.mjs';
 
 export default function actionBoundary(s, c) {
-  const b = board({ agentName: 'model', view: false, ledger: false });
-  const laneY = b.out[1];
-  const lower = b.region.rows(2, 'none')[1];
-
-  // What is allowed: the task gives a status read, and the place of an approval is empty.
-  const task = chip('task: status question', { color: COLOR.attempt, stroke: COLOR.attempt });
-  const grant = chip('status read', { color: COLOR.sure, stroke: COLOR.sure });
-  const gives = mono('→', { color: 'dim' });
-  const slot = chip(`approval: ${OP.revision}, now`, {
-    color: 'dim',
-    stroke: 'dim',
-    dash: [10, 8],
+  const title = heroTitle(['A proposal passes through', 'an admission check'], {
+    x: -855,
+    y: -440,
+    size: 50,
+    lineHeight: 58,
+    accent: ROLE.sure,
   });
-  const allowedName = note('what is allowed');
-  place(column([allowedName, row([task, gives, grant]), slot], { gap: 'normal' }), lower, 'left');
 
-  // The wall is at six tenths of the lane. It goes down to the place of the approval.
-  const at = [b.out[0] + (b.door[0] - b.out[0]) * 0.6, laneY];
-  const slotY = slot.center[1];
-  const gate = wall(s, { at, top: b.region.top, bottom: slotY });
-  const gateName = beside(
-    row([note('application code'), label('admission check')]),
-    [at[0], b.region.top],
-    'left',
-    'normal',
-    'top',
-  );
-  // The wall reads the list on these two lines.
-  const wire = { stroke: 'faint', width: 3 };
-  const grantY = grant.center[1];
-  const readLine = line([grant.right[0] + 12, grantY], [at[0], grantY], wire);
-  const approvalLine = line([slot.right[0] + 12, slotY], [at[0], slotY], wire);
+  const amb = ambientClock(s, c);
+  const readSlide = s.value(0);
+  const gateCheck = s.value(0);
+  const readAllowed = s.value(0);
+  const writeSlide = s.value(0);
+  const validArgs = s.value(0);
+  const emptyApproval = s.value(0);
+  const writeDenied = s.value(0);
+  const schemaMode = s.value(0);
+  const repaired = s.value(0);
+  const readmitted = s.value(0);
+  const repeatDenied = s.value(0);
 
-  // The proposals. Each one starts at the model. A call that is let out rests inside the controller.
-  const start = (node) => docked(node, b.out, 'right');
-  const inside = (node, index) => [
-    b.store.left + node.width / 2 + 24,
-    laneY + index * (node.height + 16),
-  ];
-  const read = token('get_status()');
-  const write = token(`${OP.action} → ${OP.revision}`, COLOR.op);
-  const bad = token('get_status(??)');
-  const fixed = token('get_status(run)');
-  const again = token(`${OP.action} → ${OP.revision}`, COLOR.op);
-  // A denied proposal waits under the lane, before the wall, with what the wall found under it.
-  const parked = [gate.before(write)[0], laneY + write.height + 40];
-  write.moveTo(parked);
-  const checks = [
-    note('valid name', { color: COLOR.sure }),
-    note('valid arguments', { color: COLOR.sure }),
-    note('no approval', { color: COLOR.fail }),
-  ];
-  beside(row(checks), write, 'under', 'tight', 'right');
-  const ends = beside(
-    note('this path ends', { color: COLOR.fail }),
-    checks,
-    'under',
-    'tight',
-    'right',
-  );
-  const badMark = beside(
-    chip('schema: invalid', { color: COLOR.fail, stroke: COLOR.fail }),
-    gate.before(bad),
-    'above',
-    'wide',
-  );
-  const repair = beside(
-    chip('repair 1 of 1', { color: COLOR.attempt, stroke: COLOR.attempt }),
-    b.agent,
-    'above',
-    'normal',
-    'left',
-  );
-  for (const node of [read, write, bad, again]) node.moveTo(start(node));
-  fixed.moveTo(start(fixed));
+  const gateX = -20;
+  const readY = -120;
+  const writeY = 140;
 
-  s.add(heading(c.title), b.base, gate.nodes, gateName, allowedName, task, readLine);
-  b.close(c);
-  c.on('app-decides', () => s.play(indicate(gateName.nodes[0], { color: COLOR.mark, scale: 1 })));
+  const layer = guardedDynamic(
+    () => 1,
+    (alpha) => {
+      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 12);
+      const nodes = [];
 
-  // A status read: the wall finds the grant, the door opens, and the call goes out.
-  c.on('proposed-read', () => s.play(travel(read, gate.before(read), { duration: 1.2 })));
-  c.show('read-authority', [gives, grant]);
-  c.on('read-authority', () =>
-    s.play(
-      seq(
-        pulse(readLine, { color: COLOR.sure, duration: 0.5 }),
-        gate.open.to(1, { duration: DOOR }),
-        moveTo(read, inside(read, -1), { duration: 0.9 }),
-      ),
-    ),
+      // Operator task scope badge on top right
+      nodes.push(
+        glowPill('Task: "How is deploy going?" (read-only)', 470, -405, ROLE.agent, {
+          size: 26,
+          alpha,
+        }),
+      );
+
+      // Vertical glowing admission laser gate at x = gateX
+      const gateGlow = 6 + 6 * gateCheck.value + 3 * pulse;
+      nodes.push(
+        line([gateX, -290], [gateX, 282], {
+          stroke: hexAlpha(ROLE.mark, 0.85 * alpha),
+          width: 4.5,
+        }).glow(gateGlow, ROLE.mark),
+        txt('HOST ADMISSION GATE', gateX, -320, 26, ROLE.mark, 'mono', 'center').opacity(alpha),
+      );
+
+      // Left origin & right execution targets
+      nodes.push(
+        actorOrb(-700, 10, 62, ROLE.violet, 'Model', 'untrusted proposal', { alpha }),
+        actorOrb(680, readY, 58, ROLE.sure, 'Read API', 'status query', {
+          alpha,
+          active: readAllowed.value > 0.5 || readmitted.value > 0.5,
+        }),
+        actorOrb(680, writeY, 58, ROLE.fail, 'Write API', 'rollback rev-17', {
+          alpha,
+          active: false,
+        }),
+      );
+
+      // Upper lane: Status Read (or Schema Repair in beat 3)
+      const readStart = -610;
+      const readEnd = 590;
+      nodes.push(
+        glowArrow(readStart, readY, readEnd, readY, hexAlpha(ROLE.agent, 0.38 * alpha), {
+          width: 2.6,
+          alpha,
+          glow: 3,
+        }),
+      );
+
+      if (schemaMode.value < 0.5) {
+        if (readSlide.value > 0.02) {
+          const rx =
+            readStart + (readEnd - readStart) * (0.45 * readSlide.value + 0.55 * readAllowed.value);
+          const rCol = readAllowed.value > 0.5 ? ROLE.sure : ROLE.agent;
+          const rPillX = readAllowed.value > 0.5 ? 295 : -325;
+          nodes.push(
+            glowingTrail(
+              [
+                [readStart, readY],
+                [rx, readY],
+              ],
+              { color: rCol, width: 5.5, glow: 10, opacity: alpha },
+            ),
+            glowDot(rx, readY, { radius: 11, color: rCol, glow: 14, opacity: alpha }),
+            glowPill(
+              readAllowed.value > 0.5 ? 'status_read -> PERMITTED' : 'propose: status_read',
+              rPillX,
+              readY - 62,
+              rCol,
+              { size: 26, alpha },
+            ),
+          );
+        }
+      } else {
+        // Beat 3: Schema error -> 1 bounded repair -> re-admitted
+        const sa = schemaMode.value * alpha;
+        const rx =
+          readmitted.value > 0.05
+            ? gateX + (readEnd - gateX) * readmitted.value
+            : gateX - 180 + 140 * repaired.value;
+        const rCol =
+          readmitted.value > 0.5 ? ROLE.sure : repaired.value > 0.5 ? ROLE.agent : ROLE.mark;
+        const rLabel =
+          readmitted.value > 0.5
+            ? 'repaired read -> ADMITTED'
+            : repaired.value > 0.5
+              ? '+ run_id (1 repair)'
+              : 'missing run_id (schema)';
+        const rPillX = readmitted.value > 0.5 ? 295 : -325;
+        nodes.push(
+          glowingTrail(
+            [
+              [readStart, readY],
+              [rx, readY],
+            ],
+            { color: rCol, width: 5.5, glow: 10, opacity: sa },
+          ),
+          glowDot(rx, readY, { radius: 11, color: rCol, glow: 14, opacity: sa }),
+          glowPill(rLabel, rPillX, readY - 62, rCol, {
+            size: 26,
+            alpha: sa,
+          }),
+        );
+      }
+
+      // Lower lane: Rollback Write (stopped at empty approval slot!)
+      nodes.push(
+        glowArrow(readStart, writeY, readEnd, writeY, hexAlpha(ROLE.fail, 0.32 * alpha), {
+          width: 2.6,
+          alpha,
+          dash: [8, 8],
+          glow: 3,
+        }),
+      );
+
+      // Approval slot indicator on the gate at writeY
+      const slotCol = emptyApproval.value > 0.5 ? ROLE.fail : ROLE.mark;
+      nodes.push(
+        circle(34, {
+          fill: hexAlpha(slotCol, 0.1 * alpha),
+          stroke: slotCol,
+          width: 3,
+          dash: [7, 5],
+        })
+          .at(gateX, writeY)
+          .glow(emptyApproval.value > 0.5 ? 10 : 4, slotCol),
+        txt(
+          emptyApproval.value > 0.5 ? 'APPROVAL: EMPTY' : 'approval slot',
+          gateX + 185,
+          writeY - 58,
+          26,
+          slotCol,
+          'mono',
+          'center',
+        ).opacity((0.6 + 0.4 * emptyApproval.value) * alpha),
+      );
+
+      if (writeSlide.value > 0.02) {
+        const stopX = gateX - 74;
+        const wx = readStart + (stopX - readStart) * writeSlide.value;
+        const wCol = writeDenied.value > 0.5 ? ROLE.fail : ROLE.op;
+        const wText =
+          repeatDenied.value > 0.5
+            ? 'ask 2x -> STILL DENIED'
+            : writeDenied.value > 0.5
+              ? 'STOPPED: no approval'
+              : validArgs.value > 0.5
+                ? `valid args (${OP.revision})`
+                : `propose: ${OP.action}`;
+        nodes.push(
+          glowingTrail(
+            [
+              [readStart, writeY],
+              [wx, writeY],
+            ],
+            { color: wCol, width: 5.5, glow: 10, opacity: alpha },
+          ),
+          glowDot(wx, writeY, { radius: 11, color: wCol, glow: 14, opacity: alpha }),
+          glowPill(wText, Math.max(-360, wx - 110), writeY + 62, wCol, { size: 26, alpha }),
+        );
+        if (writeDenied.value > 0.4) {
+          nodes.push(glowCross(gateX, writeY, 32, ROLE.fail, writeDenied.value * alpha));
+        }
+      }
+
+      // Bottom summary bar
+      const summary =
+        repeatDenied.value > 0.5
+          ? 'Schema errors allow one bounded repair; missing permission stays blocked.'
+          : writeDenied.value > 0.5
+            ? 'Valid JSON syntax does not grant write authority.'
+            : readAllowed.value > 0.5
+              ? 'Host code matches each proposal against operator authority.'
+              : 'Every tool call enters host code as an untrusted proposal.';
+      nodes.push(
+        txt(summary, 0, 325, 28, COSMOS.ink, 'sans', 'center').opacity(alpha),
+        lowerFooter(
+          'SYNTAX != AUTHORITY',
+          repeatDenied.value > 0.5
+            ? 'SCHEMA: 1 REPAIR · WRITE: BLOCKED'
+            : writeDenied.value > 0.5
+              ? 'APPROVAL SLOT EMPTY -> HALT'
+              : 'READ PERMITTED',
+          { accent: writeDenied.value > 0.5 ? ROLE.fail : ROLE.sure, alpha },
+        ),
+      );
+
+      return nodes;
+    },
   );
 
-  // The rollback: the door shuts, the proposal stops, and the place of its approval is empty.
-  c.on('rollback-proposal', () =>
-    s.play(
-      gate.open.to(0, { duration: DOOR }),
-      travel(write, gate.before(write), { duration: 1.4 }),
-    ),
-  );
-  c.show('separate-approval', [slot, approvalLine]);
-  c.on('separate-approval', () =>
-    s.play(
-      indicate(slot, { color: COLOR.mark }),
-      seq(shake(write, { duration: 0.4 }), moveTo(write, parked, { duration: 0.6 })),
-    ),
-  );
-  c.show('valid-request', [checks[0], checks[1]], { stagger: true });
-  c.show('no-approval', checks[2]);
-  c.on('no-approval', () => s.play(pulse(approvalLine, { color: COLOR.fail, duration: 0.6 })));
+  s.add(cinemaAtmosphere(ROLE.sure, ROLE.fail), title, layer);
 
-  // A bad schema: the proposal bounces, the runtime asks one time, and the new proposal passes.
-  c.on('schema-fail', () =>
-    s.play(
-      seq(
-        travel(bad, gate.before(bad), { duration: 0.9 }),
-        shake(bad, { duration: 0.4 }),
-        moveTo(bad, start(bad), { duration: 0.8 }),
-      ),
-    ),
-  );
-  c.show('schema-fail', badMark, { after: true });
-  c.on('bounded-repair', () =>
-    s.play(vanish(bad), appear(fixed), indicate(fixed, { color: COLOR.mark })),
-  );
-  c.show('bounded-repair', repair);
-  c.hide('readmit-repaired', badMark);
-  c.on('readmit-repaired', () =>
-    s.play(
-      seq(
-        moveTo(fixed, gate.before(fixed), { duration: 0.7 }),
-        gate.open.to(1, { duration: DOOR }),
-        moveTo(fixed, inside(fixed, 1), { duration: 0.7 }),
-        gate.open.to(0, { duration: DOOR }),
-      ),
-    ),
-  );
-
-  // A denial ends the path: the same proposal bounces again, and the place stays empty.
-  c.show('permission-failure', ends);
-  c.on('permission-failure', () => s.play(indicate(checks[2], { color: COLOR.fail, scale: 1.2 })));
-  c.on('repeat-call', () =>
-    s.play(
-      seq(
-        travel(again, gate.before(again), { duration: 0.8 }),
-        shake(again, { duration: 0.4 }),
-        moveTo(again, start(again), { duration: 0.6 }),
-        vanish(again),
-        indicate(slot, { color: COLOR.mark }),
-      ),
-    ),
-  );
+  playCue(s, c, 'proposed-read', (d) => s.play(readSlide.to(1, { duration: d })), { dur: 0.7 });
+  playCue(s, c, 'app-decides', (d) => s.play(gateCheck.to(1, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'read-authority', (d) => s.play(readAllowed.to(1, { duration: d })), { dur: 0.7 });
+  playCue(s, c, 'rollback-proposal', (d) => s.play(writeSlide.to(1, { duration: d })), {
+    dur: 0.75,
+  });
+  playCue(s, c, 'valid-request', (d) => s.play(validArgs.to(1, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'separate-approval', (d) => s.play(emptyApproval.to(1, { duration: d })), {
+    dur: 0.45,
+  });
+  playCue(s, c, 'no-approval', (d) => s.play(writeDenied.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'schema-fail', (d) => s.play(schemaMode.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'bounded-repair', (d) => s.play(repaired.to(1, { duration: d })), { dur: 0.5 });
+  playCue(s, c, 'readmit-repaired', (d) => s.play(readmitted.to(1, { duration: d })), { dur: 0.6 });
+  playCue(s, c, 'permission-failure', (d) => s.play(repeatDenied.to(0.6, { duration: d })), {
+    dur: 0.4,
+  });
+  playCue(s, c, 'repeat-call', (d) => s.play(repeatDenied.to(1, { duration: d })), { dur: 0.4 });
 }

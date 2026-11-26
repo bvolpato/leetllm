@@ -4,7 +4,7 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 740
 export const height = 458
 export const alt =
-    'Top: side-by-side 8x8 attention grids contrast Standard Attention materializing the entire N by N score matrix in HBM (O(N^2)) against FlashAttention streaming a single active B_r by B_c tile in on-chip SRAM (O(N) temporary HBM). Bottom: FP16 score-matrix size per head grows quadratically from 2 MB at N=1k to 32 MB at 4k, 128 MB at 8k, and 512 MB at 16k, while tiled FlashAttention stays flat near the bottom axis.'
+    'Top: side-by-side 8x8 attention grids contrast Standard Attention materializing the entire N by N score matrix in HBM (O(N^2)) against FlashAttention streaming a single active B_r by B_c tile in on-chip SRAM (O(N) temporary HBM). Bottom: FP16 score-matrix size per head grows quadratically from 2 MiB at N=1k to 32 MiB at 4k, 128 MiB at 8k, and 512 MiB at 16k, while tiled FlashAttention stays flat near the bottom axis.'
 
 export function create(theme: ThemeMode = 'dark') {
     const fig = new Figure(theme, width, height)
@@ -117,7 +117,7 @@ export function create(theme: ThemeMode = 'dark') {
         xTicks: [0, 4, 8, 12, 16],
         yTicks: [0, 128, 256, 384, 512],
         xFormat: (v) => (v === 0 ? '0' : `${v}k`),
-        yFormat: (v) => `${v} MB`,
+        yFormat: (v) => `${v} MiB`,
         xLabel: 'Sequence length N  (FP16 score matrix per head = 2N² bytes)',
         yLabel: 'HBM per head',
         labelSize: 13.5,
@@ -139,8 +139,8 @@ export function create(theme: ThemeMode = 'dark') {
 
     // Key points along Standard O(N^2) curve with direct labels
     const pts: Array<{ k: number; mb: number; dx: number; dy: number; align: 'left' | 'center' | 'right' }> = [
-        { k: 1, mb: 2, dx: 6, dy: -16, align: 'left' },
-        { k: 4, mb: 32, dx: 0, dy: -16, align: 'center' },
+        { k: 1, mb: 2, dx: -4, dy: -16, align: 'left' },
+        { k: 4, mb: 32, dx: 6, dy: -20, align: 'center' },
         { k: 8, mb: 128, dx: -10, dy: -14, align: 'right' },
         { k: 16, mb: 512, dx: -10, dy: 4, align: 'right' },
     ]
@@ -148,7 +148,7 @@ export function create(theme: ThemeMode = 'dark') {
         const px = plot.px(p.k)
         const py = plot.py(p.mb)
         fig.circle(px, py, 5.2, { fill: warm, stroke: c.bg, width: 1.8 })
-        fig.text(px + p.dx, py + p.dy, `${p.k}k: ${p.mb} MB`, {
+        fig.text(px + p.dx, py + p.dy, `${p.k}k: ${p.mb} MiB`, {
             size: 13,
             color: warm,
             align: p.align,

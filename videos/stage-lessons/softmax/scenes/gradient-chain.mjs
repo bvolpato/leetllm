@@ -1,152 +1,407 @@
-// A symbolic route earns each signed logit gradient beside the fixed dog board.
+// Scene 06 (gradient-chain): "What moves when one score rises?"
+// Zero-sum probability perturbation bars -> Softmax Jacobian -> Chain-rule cancellation to p - y.
 import {
-  column,
-  dynamic,
-  fade,
-  grid,
-  line,
-  place,
-  rect,
-  row,
-  tex,
-  text,
-  write,
-} from 'vizmatic/stage';
-import { completeModel } from '../../../films/softmax/model.mjs';
-import { PROBS, TARGET } from '../../../films/softmax/fixtures.mjs';
-import { mono, note } from '../../kit-narrated.mjs';
-import { MARK_COLOR, SIDE, STATE, WORDS, WORD_COLOR, dogScene } from '../parts.mjs';
+  COSMOS,
+  GRAD,
+  LOGITS,
+  MARK_COLOR,
+  MODEL,
+  PROBS,
+  TARGET,
+  TARGET_COLOR,
+  WORD_COLOR,
+  WORDS,
+  aura,
+  crossSwap,
+  glowArrow,
+  glowTex,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  rule,
+  runAmbientPhase,
+  stableSoftmax,
+  tweenCue,
+  txt,
+  unitRibbon,
+} from '../parts.mjs';
 
-const signed = (value, digits) => `${value < 0 ? '−' : '+'}${Math.abs(value).toFixed(digits)}`;
+const JAC = MODEL.jacobian;
+const NUDGE = 0.5;
+const NUDGED_PROBS = stableSoftmax([LOGITS[0], LOGITS[1] + NUDGE, LOGITS[2]]);
+const DELTAS = NUDGED_PROBS.map((p, i) => p - PROBS[i]);
 
 export default function gradientChain(s, c) {
-  const { b, stack, under, finish } = dogScene(s, c, STATE.loss, 4);
-  const model = completeModel();
-  const region = under(4);
-  const [tableBand, routeBand] = region.rows([3, 1.4], 'normal');
-  const entry = tex('J_{ij} = p_i\\,(\\delta_{ij} - p_j)', { size: 52 });
-  const zero = note('Σ = 0');
-  place(column([entry, zero], { gap: 'tight' }), region, 'top left');
-  const [reference, chart, legendBand] = SIDE.rows([1, 3.5, 1], 'wide');
-  const nudge = place(
-    note('Change in probability from the original prediction'),
-    reference,
-    'left',
-  );
-  const [names, plot] = chart.columns([1, 3], 'normal');
-  const lanes = plot.rows(3, 'normal');
-  const zeroX = plot.cx;
-  const axis = line([zeroX, chart.top], [zeroX, chart.bottom], { stroke: 'dim', width: 3 });
-  const namesAt = WORDS.map((word, i) =>
-    text(word, { size: 44, color: WORD_COLOR[i] }).at(names.cx, lanes[i].cy),
-  );
-  const zeroLabel = [
-    text('lost', { size: 32, color: 'dim' }).at((plot.left + zeroX) / 2, legendBand.cy),
-    text('0', { size: 32, font: 'mono' }).at(zeroX, legendBand.cy),
-    text('gained', { size: 32, color: 'dim' }).at((zeroX + plot.right) / 2, legendBand.cy),
-  ];
-  const changes = dynamic(() =>
-    b.shares().flatMap((p, i) => {
-      const change = p - PROBS[i];
-      const length = Math.abs(change) * plot.width * 8;
-      if (length < 1) return [];
-      return [
-        rect(length, 48, { fill: WORD_COLOR[i], stroke: null }).at(
-          zeroX + (Math.sign(change) * length) / 2,
-          lanes[i].cy,
-        ),
-      ];
-    }),
-  );
-  const gauge = [nudge, axis, namesAt, zeroLabel, changes];
-  const formulas = stack.slice(0, 4).flat();
+  const phase = s.value(0);
+  const vNudge = s.value(1);
+  const vCancel = s.value(0);
 
-  const order = [1, 0, 2];
-  const heads = [
-    ['raised\nlogit', 'z_i'],
-    ['probability\nderivative', '\\partial p_s / \\partial z_i'],
-    ['loss slope', '\\partial L / \\partial p_s'],
-    ['logit\ngradient', '\\partial L / \\partial z_i'],
-  ].map(([name, formula]) => column([note(name), tex(formula, { size: 34 })], { gap: 'tight' }));
-  const rows = order.map((i) => [
-    mono(WORDS[i], { color: WORD_COLOR[i], size: 34 }),
-    mono(signed(model.jacobian[1][i], i === 2 ? 4 : 3), { size: 34 }),
-    mono(`× ${model.targetSlope.toFixed(2)}`, { size: 34 }),
-    mono(signed(model.chain[i], 3), { size: 34, color: MARK_COLOR }),
-  ]);
-  place(
-    grid([...heads, ...rows.flat()], { columns: 4, gap: ['normal', 'tight'], align: 'left' }),
-    tableBand,
-    'top left',
-  );
-  const targetFactor = tex('p_s(1-p_s)', { size: 44 });
-  const targetSlope = tex('\\times \\frac{-1}{p_s}', { size: 44 });
-  const competitorFactor = tex('-p_s p_r', { size: 44 });
-  const competitorSlope = tex('\\times \\frac{-1}{p_s}', { size: 44 });
-  const targetResult = tex('= p_s - 1', { size: 44, color: MARK_COLOR });
-  const competitorResult = tex('= p_r', { size: 44, color: MARK_COLOR });
-  const targetRoute = row([targetFactor, targetSlope, targetResult], { gap: 'normal' });
-  const competitorRoute = row([competitorFactor, competitorSlope, competitorResult], {
-    gap: 'normal',
+  const nudgeAmt = s.value(0);
+  const showJacFormula = s.value(0);
+  const showColSum = s.value(0);
+
+  const showSelf = s.value(0);
+  const showRan = s.value(0);
+  const showAte = s.value(0);
+  const showLossSlope = s.value(0);
+
+  const showTargetRoute = s.value(0);
+  const showTargetCancel = s.value(0);
+  const showTargetGrad = s.value(0);
+  const showCompRoute = s.value(0);
+  const showCompCancel = s.value(0);
+  const showCompGrad = s.value(0);
+  const showNormRule = s.value(0);
+  const showLseRoute = s.value(0);
+
+  const bgAura = aura(0, 20, 620, '#182b5230', '#2b1b4a18');
+  const title = heroTitle(['What Moves When', 'One Score Rises?'], {
+    x: -855,
+    y: -430,
+    size: 54,
+    lineHeight: 62,
+    accent: TARGET_COLOR,
+    eyebrow: 'SOFTMAX JACOBIAN & CHAIN RULE',
   });
-  const legend = note('s = slept · r = ran');
-  place(column([legend, targetRoute], { gap: 'tight' }), routeBand, 'left');
-  place(competitorRoute, routeBand, 'bottom left');
 
-  c.swap('gradient-chain-0', formulas, gauge);
-  c.on('jacobian-nudge', () => s.play(b.z[TARGET].to(1.4, { duration: 1.2 })));
-  c.on('jacobian-formula', () => s.play(b.z[TARGET].to(1, { duration: 0.9 })));
-  c.swap('jacobian-formula', gauge, [formulas, entry], { lead: -1.1 });
-  c.show('jacobian-column', zero, { after: true });
-  c.swap('gradient-chain-1', entry, [heads[0], heads[1], ...rows.map((cells) => cells[0])]);
-  c.hide('gradient-chain-1', zero);
-  c.show('jacobian-self', rows[0][1], { after: true });
-  c.show('jacobian-ran', rows[1][1], { after: true });
-  c.show('jacobian-ate', rows[2][1], { after: true });
-  c.show('jacobian-loss-slope', [heads[2], ...rows.map((cells) => cells[2])], { after: true });
-  c.show('gradient-chain-2', [heads[3], legend]);
-  c.show('chain-target-route', [targetFactor, targetSlope]);
-  c.on('chain-target-cancel', () =>
-    s.play(
-      ...[...targetFactor.part('p_s').slice(0, 2), ...targetSlope.part('p_s')].map((glyph) =>
-        fade(glyph, 0.25),
+  const eqJac = glowTex('\\frac{\\partial p_i}{\\partial z_j} = p_i(\\delta_{ij} - p_j)', {
+    x: 410,
+    y: -275,
+    size: 42,
+    color: COSMOS.cyan,
+    glow: 7,
+  });
+
+  // View 1: Signed zero-sum probability shift bars + Softmax Jacobian column
+  const view1 = guardedDynamic(vNudge, (a) => {
+    const n = nudgeAmt.value;
+    const colSum = showColSum.value;
+    const axisX = -320;
+    const scale = 2800;
+
+    const nodes = [
+      txt(
+        n > 0.1
+          ? `Nudge z_slept by +${(NUDGE * n).toFixed(2)}  →  zero-sum probability shift`
+          : 'If z_slept rises, where does its extra probability come from?',
+        -855,
+        -225,
+        30,
+        n > 0.1 ? TARGET_COLOR : MARK_COLOR,
+        'sans',
+        'left',
+      ).opacity(a),
+      rule(axisX, -155, axisX, 235, COSMOS.muted, 2.5).opacity(a * 0.8),
+      txt('0', axisX, 265, 26, COSMOS.muted, 'mono').opacity(a),
+      txt('−Δp (give up)', axisX - 240, -172, 26, COSMOS.muted, 'mono').opacity(a),
+      txt('+Δp (gain)', axisX + 185, -172, 26, TARGET_COLOR, 'mono').opacity(a),
+    ];
+
+    WORDS.forEach((w, i) => {
+      const y = -80 + i * 120;
+      const d = DELTAS[i] * n;
+      const bw = Math.abs(d) * scale;
+      const cx = d >= 0 ? axisX + bw / 2 : axisX - bw / 2;
+      nodes.push(txt(w, -855, y, 32, WORD_COLOR[i], 'sans', 'left').opacity(a));
+      if (bw >= 3) {
+        nodes.push(
+          lumBar(cx, y, bw, 54, {
+            color: WORD_COLOR[i],
+            fillOpacity: 0.78,
+            strokeWidth: 2,
+            glow: 9,
+            opacity: a,
+          }),
+          txt(
+            `${d >= 0 ? '+' : ''}${(d * 100).toFixed(1)}%`,
+            d >= 0 ? axisX + bw + 22 : axisX - bw - 22,
+            y,
+            28,
+            WORD_COLOR[i],
+            'mono',
+            d >= 0 ? 'left' : 'right',
+          ).opacity(a),
+        );
+      }
+    });
+
+    // Always-visible live conserved ribbon on lower-right showing the zero-sum trade directly
+    const curProbs = stableSoftmax([LOGITS[0], LOGITS[1] + NUDGE * n, LOGITS[2]]);
+    nodes.push(
+      txt('LIVE UNIT BUDGET (Σ p_i = 1.000)', 130, 240, 26, COSMOS.cyan, 'mono', 'left').opacity(a),
+      ...unitRibbon(130, 305, 710, 52, curProbs, WORD_COLOR, { opacity: a }),
+      txt(
+        `ran ${(curProbs[0] * 100).toFixed(1)}% · slept ${(curProbs[1] * 100).toFixed(1)}% · ate ${(curProbs[2] * 100).toFixed(1)}%`,
+        485,
+        376,
+        26,
+        COSMOS.muted,
+        'mono',
+      ).opacity(a),
+    );
+
+    if (showJacFormula.value > 0.02) {
+      const jf = showJacFormula.value * a;
+      nodes.push(
+        txt('COLUMN j = slept (LOCAL SLOPES)', 410, -165, 26, COSMOS.muted, 'mono').opacity(jf),
+      );
+      WORDS.forEach((w, i) => {
+        const slope = JAC[i][TARGET];
+        const y = -95 + i * 74;
+        nodes.push(
+          txt(
+            `∂p_${w} / ∂z_slept = ${slope >= 0 ? '+' : ''}${slope.toFixed(4)}`,
+            410,
+            y,
+            28,
+            WORD_COLOR[i],
+            'mono',
+          ).opacity(jf),
+        );
+      });
+    }
+
+    if (colSum > 0.02) {
+      nodes.push(
+        rule(180, 112, 640, 112, COSMOS.rule, 2).opacity(colSum * a),
+        txt('Column sum = 0.0000 (unit budget conserved)', 410, 158, 28, MARK_COLOR, 'mono')
+          .glow(6, MARK_COLOR)
+          .opacity(colSum * a),
+      );
+    }
+
+    return nodes;
+  });
+
+  // View 2: Target row slopes × (-1 / p_slept) -> clean cancellation to p - y
+  const view2 = guardedDynamic(vCancel, (a) => {
+    const sSelf = showSelf.value;
+    const sRan = showRan.value;
+    const sAte = showAte.value;
+    const sSlope = showLossSlope.value;
+
+    const tR = showTargetRoute.value;
+    const tC = showTargetCancel.value;
+    const tG = showTargetGrad.value;
+    const cR = showCompRoute.value;
+    const cC = showCompCancel.value;
+    const cG = showCompGrad.value;
+    const nR = showNormRule.value;
+    const lse = showLseRoute.value;
+
+    const nodes = [
+      txt(
+        'TARGET SHARE SLOPES  ∂p_slept / ∂z_j',
+        -855,
+        -245,
+        26,
+        COSMOS.cyan,
+        'mono',
+        'left',
+      ).opacity(a),
+      // Top-right persistent chain-rule flow diagram (fills upper-right cleanly during Beat 3)
+      lumBar(225, -350, 140, 58, { color: COSMOS.cyan, fillOpacity: 0.2, glow: 6, opacity: a }),
+      txt('z_j', 225, -350, 28, COSMOS.cyan, 'mono').opacity(a),
+      glowArrow([305, -350], [385, -350], COSMOS.cyan, { opacity: a }),
+      lumBar(485, -350, 180, 58, { color: TARGET_COLOR, fillOpacity: 0.22, glow: 7, opacity: a }),
+      txt('p_slept', 485, -350, 28, TARGET_COLOR, 'mono').opacity(a),
+      glowArrow([585, -350], [665, -350], MARK_COLOR, { opacity: a }),
+      lumBar(760, -350, 170, 58, { color: MARK_COLOR, fillOpacity: 0.22, glow: 7, opacity: a }),
+      txt('L = −ln p', 760, -350, 28, MARK_COLOR, 'mono').opacity(a),
+      // Persistent visual sensitivity bars on lower-left (clean non-overlapping P5 handoff to nR)
+      ...(Math.max(0, 1 - nR * 2.6) > 0.02
+        ? [
+            txt(
+              'SENSITIVITY MAGNITUDES  |∂p_slept / ∂z_j|',
+              -855,
+              245,
+              26,
+              COSMOS.muted,
+              'mono',
+              'left',
+            ).opacity(a * Math.max(0, 1 - nR * 2.6)),
+            lumBar(-855 + 240, 305, 480, 26, {
+              color: WORD_COLOR[1],
+              fillOpacity: 0.72,
+              glow: 7,
+              opacity: a * Math.max(0, 1 - nR * 2.6),
+            }),
+            txt('slept +0.101', -355, 305, 26, WORD_COLOR[1], 'mono', 'left').opacity(
+              a * Math.max(0, 1 - nR * 2.6),
+            ),
+            lumBar(-855 + 228, 350, 456, 26, {
+              color: WORD_COLOR[0],
+              fillOpacity: 0.72,
+              glow: 7,
+              opacity: a * Math.max(0, 1 - nR * 2.6),
+            }),
+            txt('ran −0.096', -380, 350, 26, WORD_COLOR[0], 'mono', 'left').opacity(
+              a * Math.max(0, 1 - nR * 2.6),
+            ),
+            lumBar(-855 + 14, 395, 28, 26, {
+              color: WORD_COLOR[2],
+              fillOpacity: 0.72,
+              glow: 7,
+              opacity: a * Math.max(0, 1 - nR * 2.6),
+            }),
+            txt('ate −0.005', -810, 395, 26, WORD_COLOR[2], 'mono', 'left').opacity(
+              a * Math.max(0, 1 - nR * 2.6),
+            ),
+          ]
+        : []),
+    ];
+
+    const rows = [
+      {
+        label: '∂p_slept / ∂z_slept',
+        expr: 'p_s (1 − p_s)',
+        val: `+${JAC[TARGET][1].toFixed(4)}`,
+        col: WORD_COLOR[1],
+        vis: sSelf,
+      },
+      {
+        label: '∂p_slept / ∂z_ran',
+        expr: '−p_s · p_ran',
+        val: `${JAC[TARGET][0].toFixed(4)}`,
+        col: WORD_COLOR[0],
+        vis: sRan,
+      },
+      {
+        label: '∂p_slept / ∂z_ate',
+        expr: '−p_s · p_ate',
+        val: `${JAC[TARGET][2].toFixed(4)}`,
+        col: WORD_COLOR[2],
+        vis: sAte,
+      },
+    ];
+
+    rows.forEach((r, idx) => {
+      if (r.vis > 0.02) {
+        const y = -165 + idx * 82;
+        nodes.push(
+          txt(r.label, -855, y, 28, r.col, 'mono', 'left').opacity(r.vis * a),
+          txt(`= ${r.expr} = ${r.val}`, -430, y, 28, COSMOS.ink, 'mono', 'left').opacity(r.vis * a),
+        );
+      }
+    });
+
+    if (sSlope > 0.02) {
+      nodes.push(
+        txt(
+          `× Loss slope:  ∂L / ∂p_slept = −1 / p_slept = ${MODEL.targetSlope.toFixed(2)}`,
+          -855,
+          98,
+          28,
+          MARK_COLOR,
+          'mono',
+          'left',
+        )
+          .glow(6, MARK_COLOR)
+          .opacity(sSlope * a),
+      );
+    }
+
+    // Right side: crisp cancellation steps (luminous guide rails keep right half balanced!)
+    const rx = 110;
+    nodes.push(
+      rule(rx, -82, 820, -82, COSMOS.cyan, 2.5).opacity(0.65 * a),
+      rule(rx, 128, 820, 128, COSMOS.cyan, 2.5).opacity(0.65 * a),
+      txt('CHAIN-RULE CANCELLATION ROUTES', rx, -280, 26, COSMOS.muted, 'mono', 'left').opacity(
+        0.75 * a,
       ),
-      { duration: 0.7 },
-    ),
-  );
-  c.show('chain-target', [rows[0][3], targetResult], { after: true });
-  c.swap(
-    'chain-competitor-route',
-    [targetFactor, targetSlope, targetResult],
-    [competitorFactor, competitorSlope],
-    { lead: -1.2 },
-  );
-  c.on('chain-competitor-cancel', () =>
-    s.play(
-      ...[...competitorFactor.part('p_s'), ...competitorSlope.part('p_s')].map((glyph) =>
-        fade(glyph, 0.25),
-      ),
-      { duration: 0.7 },
-    ),
-  );
-  c.show('chain-competitor', [rows[1][3], rows[2][3], competitorResult], { after: true });
-  c.hide('chain-normalized', [
-    heads,
-    rows,
-    legend,
-    competitorFactor,
-    competitorSlope,
-    competitorResult,
-  ]);
-  c.show('chain-normalized', [stack[4][0], write(stack[4][1])], { after: true });
-  const direct = place(
-    tex(
-      '\\frac{\\partial}{\\partial z_i}\\ln\\!\\sum_j e^{z_j} = \\frac{e^{z_i}}{\\sum_j e^{z_j}} = p_i',
-      { size: 46 },
-    ),
-    under(5),
-    'left',
-  );
-  c.show('chain-logsumexp', direct, { after: true });
-  finish(STATE['gradient-chain'], 5);
+    );
+    if (tR > 0.02) {
+      nodes.push(
+        txt('TARGET (slept):', rx, -235, 26, TARGET_COLOR, 'mono', 'left').opacity(tR * a),
+        txt('p_s (1 − p_s) · (−1 / p_s)', rx, -182, 28, COSMOS.ink, 'mono', 'left').opacity(tR * a),
+      );
+    }
+    if (tC > 0.02) {
+      nodes.push(
+        txt('p_s cancels!', rx + 515, -182, 26, MARK_COLOR, 'mono', 'left').opacity(tC * a),
+      );
+    }
+    if (tG > 0.02) {
+      nodes.push(
+        txt(`⇒  p_slept − 1 = ${GRAD[1].toFixed(3)}`, rx, -125, 32, TARGET_COLOR, 'mono', 'left')
+          .glow(7, TARGET_COLOR)
+          .opacity(tG * a),
+      );
+    }
+
+    if (cR > 0.02) {
+      nodes.push(
+        txt('COMPETITOR (ran):', rx, -28, 26, WORD_COLOR[0], 'mono', 'left').opacity(cR * a),
+        txt('(−p_s · p_ran) · (−1 / p_s)', rx, 25, 28, COSMOS.ink, 'mono', 'left').opacity(cR * a),
+      );
+    }
+    if (cC > 0.02) {
+      nodes.push(txt('(−)(−) = +', rx + 520, 25, 26, MARK_COLOR, 'mono', 'left').opacity(cC * a));
+    }
+    if (cG > 0.02) {
+      nodes.push(
+        txt(`⇒  +p_ran = +${GRAD[0].toFixed(3)}`, rx, 82, 32, WORD_COLOR[0], 'mono', 'left')
+          .glow(7, WORD_COLOR[0])
+          .opacity(cG * a),
+      );
+    }
+
+    const nROp = Math.max(0, (nR - 0.45) / 0.55) * a;
+    if (nROp > 0.02) {
+      nodes.push(
+        rule(-855, 192, 855, 192, COSMOS.rule, 2).opacity(nROp),
+        txt('FULL GRADIENT:   ∇_z L = p − y', -855, 265, 42, MARK_COLOR, 'mono', 'left')
+          .glow(9, MARK_COLOR)
+          .opacity(nROp),
+      );
+    }
+    if (lse > 0.02) {
+      nodes.push(
+        txt(
+          'Shortcut:  ∂/∂z_i [ log Σ e^{z_j} ] = p_i',
+          65,
+          265,
+          30,
+          COSMOS.cyan,
+          'mono',
+          'left',
+        ).opacity(lse * a),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, view1, view2);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  // Beat 0-2 cues
+  c.on('gradient-chain-0', () => {
+    s.play(nudgeAmt.to(0.01, { duration: 0.2 }));
+  });
+  tweenCue(s, c, 'jacobian-nudge', nudgeAmt, 1, { duration: 0.85 });
+  c.on('jacobian-formula', () => {
+    s.play(nudgeAmt.to(0, { duration: 0.7 }));
+    s.play(showJacFormula.to(1, { duration: 0.55 }));
+  });
+  c.show('jacobian-formula', eqJac);
+  tweenCue(s, c, 'jacobian-column', showColSum, 1, { duration: 0.5, after: true });
+
+  // Beat 3-4 transition & cancellation cues
+  c.hide('gradient-chain-1', eqJac);
+  crossSwap(s, c, 'gradient-chain-1', vNudge, vCancel, { duration: 0.55 });
+  tweenCue(s, c, 'jacobian-self', showSelf, 1, { duration: 0.4, after: true });
+  tweenCue(s, c, 'jacobian-ran', showRan, 1, { duration: 0.4, after: true });
+  tweenCue(s, c, 'jacobian-ate', showAte, 1, { duration: 0.4, after: true });
+  tweenCue(s, c, 'jacobian-loss-slope', showLossSlope, 1, { duration: 0.45, after: true });
+
+  tweenCue(s, c, 'gradient-chain-2', showTargetRoute, 0.35, { duration: 0.3 });
+  tweenCue(s, c, 'chain-target-route', showTargetRoute, 1, { duration: 0.4 });
+  tweenCue(s, c, 'chain-target-cancel', showTargetCancel, 1, { duration: 0.4 });
+  tweenCue(s, c, 'chain-target', showTargetGrad, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'chain-competitor-route', showCompRoute, 1, { duration: 0.4 });
+  tweenCue(s, c, 'chain-competitor-cancel', showCompCancel, 1, { duration: 0.4 });
+  tweenCue(s, c, 'chain-competitor', showCompGrad, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'chain-normalized', showNormRule, 1, { duration: 0.5, after: true });
+  tweenCue(s, c, 'chain-logsumexp', showLseRoute, 1, { duration: 0.5 });
 }

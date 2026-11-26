@@ -227,7 +227,8 @@ caller = Caller("dev-42", "ml-platform", frozenset({"eng:platform"}))
 query = "batch inference API v2 max requests per JSONL file"
 
 all_vec = TfidfVectorizer(stop_words="english")
-all_sims = cosine_similarity(all_vec.fit_transform([query]), all_vec.transform([c.text for c in CHUNKS]))[0]
+all_mat = all_vec.fit_transform([c.text for c in CHUNKS])
+all_sims = cosine_similarity(all_vec.transform([query]), all_mat)[0]
 unfiltered_top = CHUNKS[int(np.argmax(all_sims))].chunk_id
 
 hits = search_prefiltered(query, caller, CHUNKS, TODAY, top_k=2)
@@ -246,7 +247,7 @@ assert len(packed) == 1 and packed[0]["parent_id"] == "batch-api-sec4-v2"
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-Unfiltered top hit (leaky/stale risk): batch-api-v2-limits
+Unfiltered top hit (leaky/stale risk): batch-api-v1-limits
 Pre-filtered hits: [('batch-api-v2-limits', 0.661)]
 Packed context: [('E1', 'batch-api-sec4-v2', 'a609ac25af27')]
 After tombstone delete: []
@@ -275,7 +276,7 @@ An end-to-end score hides whether retrieval, context packing, or generation fail
 
 ### Faithfulness vs. citation syntax vs. answer relevance
 
-Checking whether packed context $E$ entails atomic claim $c_j$ is an NLI check (**entailed**, **contradicted**, or **unsupported**). Keep three distinct failures separate: a **valid citation with an unfaithful claim** (`[E1]` exists, yet says 20,000 instead of 50,000), a **faithful but off-topic answer** (accurately summarizing SSE timeouts when asked about batch limits: faithfulness `1.0`, answer relevance `0.0`), and **supported denial vs. abstention** (a 25,000-request job against the `v2` limit is a supported no, whereas missing documentation calls for explicit abstention).
+Checking whether packed context $E$ entails atomic claim $c_j$ is an NLI check (**entailed**, **contradicted**, or **unsupported**). Keep three distinct failures separate: a **valid citation with an unfaithful claim** (`[E1]` exists and states 20,000, yet the model claims 50,000), a **faithful but off-topic answer** (accurately summarizing SSE timeouts when asked about batch limits: faithfulness `1.0`, answer relevance `0.0`), and **supported denial vs. abstention** (a 25,000-request job against the `v2` limit is a supported no, whereas missing documentation calls for explicit abstention).
 
 ### Attribute the first failed stage
 

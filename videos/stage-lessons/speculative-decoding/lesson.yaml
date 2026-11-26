@@ -1,0 +1,1948 @@
+version: 1
+id: speculative-decoding
+title: Which Draft Tokens Can We Keep?
+source: fundamentals/speculative-decoding/content.md
+opening: lesson
+voice: af_heart
+rate: +12%
+sources:
+  - title: Leviathan et al. Algorithm 1, analysis and conditional sampler proof
+    url: https://arxiv.org/html/2211.17192v1
+  - title: Chen et al. Algorithm 2 and conditional scoring
+    url: https://arxiv.org/html/2302.01318v1
+  - title: NVIDIA H100 SXM specifications with sparsity footnote
+    url: https://www.nvidia.com/en-us/data-center/h100/
+  - title: Medusa key components and training/typical acceptance
+    url: https://arxiv.org/html/2401.10774v3
+  - title: Original EAGLE feature and token conditioning
+    url: https://arxiv.org/html/2401.15077v3
+  - title: EAGLE-2 dynamic expansion and reranking
+    url: https://arxiv.org/html/2406.16858v1
+  - title: EAGLE-3 objectives and section 4.3 historical serving result
+    url: https://arxiv.org/html/2503.01840v3
+  - title: vLLM actual lossless sampler and heterogeneous vocabulary contract
+    url: https://docs.vllm.ai/en/latest/features/speculative_decoding/
+  - title: vLLM n-gram prompt lookup
+    url: https://docs.vllm.ai/en/latest/features/speculative_decoding/n_gram/
+  - title: vLLM family-specific MTP and assistant path
+    url: https://docs.vllm.ai/en/latest/features/speculative_decoding/mtp/
+  - title: vLLM trained parallel draft model path
+    url: https://docs.vllm.ai/en/latest/features/speculative_decoding/parallel_draft_model/
+  - title: SGLang token-wise/block methods and method compatibility
+    url: https://docs.sglang.io/docs/advanced_features/speculative_decoding
+scenes:
+  - id: intro
+    title: Three words ahead
+    visual: A cursor separates the words the reader has seen from three draft guesses on the same line. The target
+      scores the guesses together. The sampler keeps sang and drops the two words on the rejected path.
+    beats:
+      - say: The reader sees “The bird.” The draft is already three words ahead. It guessed sang, used sang
+          to guess softly, then used softly to guess today.
+        hold: 0.6
+        visual_cues:
+          - id: draft-sang
+            phrase: It guessed sang
+            targets:
+              - draft-line
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: draft-softly
+            phrase: used sang to guess softly
+            targets:
+              - draft-line
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: draft-today
+            phrase: used softly to guess today
+            targets:
+              - draft-line
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: The target scores all three guesses in one pass. Look at today. Which word did the target have
+          to read just before it could score today?
+        hold: 2.3
+        visual_cues:
+          - id: verify-line
+            phrase: scores all three guesses in one pass
+            targets:
+              - score-line
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: ask-history
+            phrase: Which word did the target have to read just before it could score today
+            targets:
+              - score-line
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: It read softly. Suppose the sampler keeps sang. The cursor moves. Now suppose it rejects softly.
+          The score for today went through softly, so that score goes with it. We need a word that follows
+          sang.
+        hold: 0.65
+        caption_starts:
+          - The score for today went through softly
+        visual_cues:
+          - id: trace-history
+            phrase: It read softly
+            targets:
+              - score-line
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: keep-sang
+            phrase: Suppose the sampler keeps sang
+            targets:
+              - reader-line
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: open-space
+            phrase: We need a word that follows sang
+            targets:
+              - reader-line
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: old-history
+            phrase: Now suppose it rejects softly
+            targets:
+              - draft-line
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: That's speculative decoding. The target scores the draft together, and the sampler checks each
+          guess in order. How do we fill that space and give each word its usual chance under the target?
+        hold: 0.7
+        visual_cues:
+          - id: sampler-question
+            phrase: How do we fill that space
+            targets:
+              - reader-line
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: draft
+    title: The child saw a …
+    visual: Three word columns pair each draft probability with its target probability. A uniform draw on
+      the cumulative draft strip selects dog.
+    beats:
+      - say: The child saw a ... Suppose there are just three possible next words. The small model gives dog half
+          its probability. The target gives dog three tenths. We need both numbers for that same word, after
+          that same prefix.
+        hold: 0.65
+        visual_cues:
+          - id: dog-row
+            phrase: The small model gives dog half its probability
+            targets:
+              - dog-pair
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: target-row
+            phrase: The target gives dog three tenths
+            targets:
+              - dog-pair
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Lay the draft probabilities end to end. Draw a uniform number between zero and one. Our draw is point
+          three five. It lands inside dog, so dog is the proposal. Its draft probability, which we'll call q,
+          is one half. The target probability, p, is three tenths.
+        hold: 0.7
+        visual_cues:
+          - id: draw-source
+            phrase: Lay the draft probabilities end to end
+            targets:
+              - draft-strip
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: sample-mark
+            phrase: Our draw is point three five
+            targets:
+              - draft-strip
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: select-dog
+            phrase: dog is the proposal
+            targets:
+              - dog-pair
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Use the probabilities that actually generated these choices. If the draft filters out a word,
+          renormalize what remains. Apply the target's own serving rules to its column as well. And check that
+          dog is the same token event in both columns.
+        hold: 0.6
+        visual_cues:
+          - id: served-laws
+            phrase: the probabilities that actually generated these choices
+            targets:
+              - dog-pair
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: accept
+    title: How often should dog get through?
+    visual: Five tenths of draft mass and three tenths of target mass establish a cutoff on a fixed unit
+      interval. Replay the same dog proposal with a new acceptance draw. Only the marker moves.
+    beats:
+      - say: The draft supplies five tenths of the mass on dog. The target needs three tenths. If you kept every
+          dog, the reader would see too many. What fraction of the proposed dogs should get through?
+        hold: 2
+        visual_cues:
+          - id: dog-inputs
+            phrase: five tenths of the mass on dog
+            targets:
+              - dog-shares
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: dog-question
+            phrase: What fraction of the proposed dogs should get through
+            targets:
+              - dog-shares
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Three out of five. Divide the target's three tenths by the draft's five tenths. That sets the cutoff at
+          point six. If the target wants at least as much of a word as the draft supplies, keep every proposal
+          of that word. That's why we cap the ratio at one. A word the draft just sampled has positive draft
+          probability.
+        hold: 0.55
+        visual_cues:
+          - id: acceptance-ratio
+            phrase: That sets the cutoff at point six
+            targets:
+              - draw-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: cap-one
+            phrase: cap the ratio at one
+            targets:
+              - dog-shares
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Use a fresh uniform draw for the acceptance test. Point two falls inside the keep region, so this dog
+          passes. Replay the same proposal. Move just the draw to point eight. Does this dog pass?
+        hold: 2.15
+        visual_cues:
+          - id: first-draw
+            phrase: Point two falls inside the keep region
+            targets:
+              - draw-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: first-result
+            phrase: this dog passes
+            targets:
+              - draw-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: second-draw
+            phrase: Move just the draw to point eight
+            targets:
+              - draw-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: draw-question
+            phrase: Does this dog pass
+            targets:
+              - draw-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Reject this dog. Point eight is outside the keep region. Over repeated draws we keep three fifths of
+          the dogs, which leaves three tenths of all outputs on the accepted dog path. Now we have to decide
+          which word to emit on a rejection.
+        hold: 0.7
+        visual_cues:
+          - id: second-result
+            phrase: Reject this dog
+            targets:
+              - draw-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: accepted-share
+            phrase: three tenths of all outputs on the accepted dog path
+            targets:
+              - dog-shares
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: residual
+    title: A rejection supplies the target’s missing mass
+    visual: The positive part of target minus draft leaves a gap on bird. Normalization assigns bird the
+      full correction probability. Moving the draft onto the target makes rejection impossible.
+    beats:
+      - say: Acceptance alone leaves a probability deficit wherever the target wants more mass than the proposer
+          supplies. On rejection, draw a replacement from the positive part of target minus draft, normalized
+          by its sum. This is the residual distribution for the current prefix.
+        visual_cues:
+          - id: positive-deficit
+            phrase: positive part of target minus draft
+            targets:
+              - positive-deficit
+            color: yellow
+          - id: normalize-residual
+            phrase: normalized by its sum
+            targets:
+              - residual-law
+            color: green
+        hold: 0.6
+      - say: Our constructed distributions leave a deficit only on bird. The residual therefore puts all correction
+          probability on that token. The other words can already obtain their complete target mass through
+          accepted proposals, so they receive no additional correction mass in this example.
+        visual_cues:
+          - id: bird-deficit
+            phrase: deficit only on bird
+            targets:
+              - positive-deficit
+            color: yellow
+          - id: bird-correction
+            phrase: all correction probability on that token
+            targets:
+              - residual-law
+            color: green
+        hold: 0.6
+      - say: The total residual mass equals the overall chance of rejection. If the two distributions match exactly,
+          that total is zero and rejection is impossible. A correct implementation avoids attempting to
+          normalize a zero residual on a branch that cannot be reached.
+        visual_cues:
+          - id: rejection-mass
+            phrase: overall chance of rejection
+            targets:
+              - residual-equation
+            color: yellow
+          - id: zero-residual
+            phrase: that total is zero
+            targets:
+              - positive-deficit
+              - residual-equation
+              - residual-law
+            color: blue
+          - id: matching-laws
+            phrase: If the two distributions match exactly
+            targets:
+              - matching-laws
+              - positive-deficit
+            color: cyan
+        hold: 0.8
+  - id: proof
+    title: Where does the rejected probability go?
+    visual: Target marks stay fixed across three word rows. Excess leaves dog and cat as the missing share fills
+      on bird. A new draft gives cat's rejected probability two destinations and tests the conditional chance
+      of one.
+    beats:
+      - say: Return to the original draft. Each division is a tenth of the probability. Dog has two tenths beyond
+          its target mark. Cat has one extra tenth. The portions inside the marks can already reach the reader
+          through acceptance. Where should the three extra tenths go?
+        hold: 2
+        visual_cues:
+          - id: accepted-path
+            phrase: the portions inside the marks
+            targets:
+              - mass-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: find-space
+            phrase: Where should the three extra tenths go
+            targets:
+              - mass-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: They all go to bird. Follow the two tenths from dog and the tenth from cat into the open space. Bird
+          gets two tenths from accepted proposals and three tenths from corrections. Together they make five
+          tenths.
+        hold: 0.8
+        visual_cues:
+          - id: correction-path
+            phrase: Follow the two tenths from dog and the tenth from cat into the open space
+            targets:
+              - mass-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: add-contributions
+            phrase: Together they make five tenths
+            targets:
+              - mass-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: For each word, acceptance supplies the smaller of its two probabilities. Correction supplies whatever
+          the target still needs. Even a word the draft never proposes can receive its entire share through
+          correction. With the actual conditional laws and exact arithmetic, those two paths add up to the
+          target at every prefix.
+        hold: 0.55
+        visual_cues:
+          - id: target-law-identity
+            phrase: those two paths add up to the target at every prefix
+            targets:
+              - mass-identity
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Keep the same target marks and deal a new draft. Cat now has five tenths. Look at the two gaps. When
+          cat is rejected, how often should the correction be dog?
+        hold: 2.4
+        visual_cues:
+          - id: new-shares
+            phrase: deal a new draft
+            targets:
+              - mass-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: two-gaps
+            phrase: When cat is rejected, how often should the correction be dog
+            targets:
+              - mass-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: One time in three. Dog still needs one tenth of all outputs, and the rejected draws account for three tenths.
+          Dividing the gap by the rejection probability gives one third. The other two thirds go to bird. This
+          is the difference between a word's share of corrections and its share of all outputs.
+        hold: 0.85
+        visual_cues:
+          - id: dog-third
+            phrase: One time in three
+            targets:
+              - mass-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: split-correction
+            phrase: The other two thirds go to bird
+            targets:
+              - mass-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: wrong-correction
+    title: What if we redraw from the whole target?
+    visual: Fixed target marks for noon, dawn and dusk let the same rejection share flow through two different
+      replacement rules. The excess on noon and dusk then moves to the gap on dawn.
+    beats:
+      - say: Try the timetable example. Noon already gets the target's full forty percent from accepted proposals.
+          Dawn still needs twenty percentage points. Suppose we use an ordinary target draw whenever a
+          proposal fails. Will noon stay at forty percent?
+        hold: 2
+        visual_cues:
+          - id: train-overlap
+            phrase: the target's full forty percent from accepted proposals
+            targets:
+              - train-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: redraw-question
+            phrase: Will noon stay at forty percent
+            targets:
+              - train-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Noon rises to forty-eight percent. One fifth of all draws need a correction. If forty percent of those
+          corrections go to noon, that adds eight percentage points to a word that was already full. Dusk goes
+          over its mark too. Dawn gets only half of the missing twenty points.
+        hold: 1
+        visual_cues:
+          - id: wrong-allocation
+            phrase: Noon rises to forty-eight percent
+            targets:
+              - train-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: wrong-dawn
+            phrase: Dawn gets only half of the missing twenty points
+            targets:
+              - train-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Keep the accepted shares fixed. Change only the replacement rule. Send the rejected share to the gap at
+          dawn. Noon returns to forty percent, dawn reaches fifty, and dusk drops back to ten. That repairs
+          the sampling probabilities. The target can still give a wrong train time.
+        hold: 0.8
+        visual_cues:
+          - id: repair-rule
+            phrase: Change only the replacement rule
+            targets:
+              - train-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: repair-flow
+            phrase: Send the rejected share to the gap at dawn
+            targets:
+              - train-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: repair-result
+            phrase: dusk drops back to ten
+            targets:
+              - train-ledger
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: serving-laws
+    title: Which odds does the target use?
+    visual: The proposal probabilities stay fixed. Filtering dusk out of the target leaves 0.85 to
+      normalize across noon and dawn. Labels on dawn and dusk compare their raw and served acceptance
+      factors.
+    beats:
+      - say: Keep the three train times and start a new round with the probabilities shown. Here the target
+          keeps only its two most likely words. Dusk drops
+          out. The target probabilities left on noon and dawn add to eighty-five percent, so divide each by
+          point eight five. Noon gets eleven seventeenths, dawn six seventeenths, and dusk gets zero. The
+          draft keeps its original probabilities.
+        hold: 0.7
+        visual_cues:
+          - id: sd-serving-laws-b0
+            phrase: the target keeps only its two most likely words
+            targets:
+              - sd-serving-laws-mechanism
+            color: cyan
+            linger: 0.45
+          - id: drop-dusk
+            phrase: Dusk drops out
+            targets: [sd-serving-laws-mechanism]
+            color: pink
+          - id: sd-target-law
+            phrase: Noon gets eleven seventeenths, dawn six seventeenths, and dusk gets zero
+            targets:
+              - sd-serving-laws-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Look at dawn, token one. With the raw target score, you'd keep only about eighty-six percent of its
+          proposals. After filtering, dawn's target probability is just above its draft probability, so keep
+          every dawn. For dusk the raw ratio would let sixty percent through. The target removed dusk, so its
+          acceptance must be zero. Apply each model's own temperature, filters and penalties before comparing
+          the two normalized distributions.
+        hold: 0.7
+        visual_cues:
+          - id: sd-serving-laws-b1
+            phrase: Look at dawn, token one
+            targets:
+              - sd-serving-laws-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-policy-one
+            phrase: keep every dawn
+            targets:
+              - sd-serving-laws-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-policy-zero
+            phrase: its acceptance must be zero
+            targets:
+              - sd-serving-laws-mechanism
+            color: cyan
+            linger: 0.45
+  - id: event-mapping
+    title: Map common token events before comparing probabilities
+    visual: Two token strings share numeric ID 4012 across vocabularies. A translation maps shared events
+      while split and merged segments remain unresolved.
+    beats:
+      - say: Before you divide, check what each token ID names. Both models might use ID four thousand twelve,
+          with different strings attached to it. Using the same tokenizer solves that problem directly. If two
+          tokenizers split a word into different pieces, matching a few IDs by name leaves a real alignment
+          problem.
+        hold: 0.7
+        visual_cues:
+          - id: sd-event-mapping-b0
+            phrase: check what each token ID names
+            targets:
+              - sd-event-mapping-mechanism
+            color: cyan
+            linger: 0.45
+      - say: The vLLM guide the article checked in September twenty twenty-six describes one narrower solution.
+          Normalize the token strings, keep the shared set, restrict the draft to those tokens, and translate
+          its chosen ID for the target. This Token-Level Intersection path documents greedy drafting. A
+          stochastic draft would need the probabilities of the actual translated events.
+        hold: 0.7
+        visual_cues:
+          - id: sd-event-mapping-b1
+            phrase: keep the shared set
+            targets:
+              - sd-event-mapping-mechanism
+            color: cyan
+            linger: 0.45
+  - id: chain
+    title: One target pass, three conditional scores
+    visual: Three probability rows sit under the proposed words. Each row names the last token the target read.
+      A separate reader line advances through sang, stops, then takes the correction. The computed row for
+      today remains inspectable even when its test is skipped.
+    beats:
+      - say: Back at The bird, follow the three guesses. The draft sampled sang, then used sang to propose softly.
+          It used softly to propose today. It saved the proposal distribution for each of those prefixes. The
+          target can read the draft in one causal pass. Each score below a word comes from the input
+          immediately before that word.
+        hold: 0.6
+        visual_cues:
+          - id: conditional-prefixes
+            phrase: the three guesses
+            targets:
+              - chain-draft
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: target-rows
+            phrase: The target can read the draft in one causal pass
+            targets:
+              - chain-rows
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Start at sang. The target gives it more probability than the draft does, so keep sang. Now check softly
+          after sang. Its cutoff is one half and the draw is point eight. Stop at softly. Look at the score
+          for today. The target has already computed it. Should the sampler test it?
+        hold: 2.15
+        visual_cues:
+          - id: accept-first
+            phrase: keep sang
+            targets:
+              - chain-reader
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: reject-second
+            phrase: Stop at softly
+            targets:
+              - chain-draft
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: look-at-today
+            phrase: Should the sampler test it
+            targets:
+              - chain-rows
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Skip that test. Today's score was computed after softly. That prefix is gone. Use the target and draft
+          distributions from just after sang to sample the correction. Here the missing mass is all on nearby.
+          The reader gets The bird sang nearby. From here, both models need the corrected history. Check that
+          their masks, positions, scoring rows and saved state all refer to that history.
+        hold: 0.8
+        visual_cues:
+          - id: discard-suffix
+            phrase: Skip that test
+            targets:
+              - chain-rows
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: dependent-suffix
+            phrase: Today's score was computed after softly
+            targets:
+              - chain-draft
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: residual-correction
+            phrase: the missing mass is all on nearby
+            targets:
+              - chain-reader
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: corrected-prefix
+            phrase: both models need the corrected history
+            targets:
+              - chain-reader
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: row-alignment
+    title: Attach every distribution to its preceding input
+    visual: The target processes pending input u after cached prefix C. Its output scores x1. After x2
+      fails, the target retains state through x1 and commits the correction with its state pending.
+    beats:
+      - say: Align the actual causal rows. Cached prefix C already has state; committed token u is pending. Inputs u,
+          x one, x two and x three produce rows p one through p four. The row emitted by u scores x one. The
+          row emitted by x one scores x two. The row after x three supplies the bonus. A token’s own logits
+          predict what follows it.
+        hold: 0.7
+        visual_cues:
+          - id: sd-row-alignment-b0
+            phrase: Align the actual causal rows.
+            targets:
+              - sd-row-alignment-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-row-u
+            phrase: The row emitted by u scores x one
+            targets:
+              - sd-row-alignment-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-row-x1
+            phrase: The row emitted by x one scores x two
+            targets:
+              - sd-row-alignment-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-row-bonus
+            phrase: The row after x three supplies the bonus
+            targets:
+              - sd-row-alignment-mechanism
+            color: cyan
+            linger: 0.45
+      - say: If x one survives and x two is rejected, retain target state for C, u and x one. Discard state for x two
+          and its dependent x three. Emit the correction at the x-two position, with its own KV still pending.
+          Draft and target computed lengths can differ; ordinary drafting may leave its last sampled proposal
+          unprocessed.
+        hold: 0.7
+        visual_cues:
+          - id: sd-row-alignment-b1
+            phrase: If x one survives and x two is rejected, retain target state for C, u and x one.
+            targets:
+              - sd-row-alignment-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-row-trim
+            phrase: Discard state for x two and its dependent x three
+            targets:
+              - sd-row-alignment-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-row-pending
+            phrase: with its own KV still pending
+            targets:
+              - sd-row-alignment-mechanism
+            color: cyan
+            linger: 0.45
+      - say: To see what the cache remembers, write one digit for every token it processes. Read one, two,
+          three. The state now reads one hundred twenty-three. Keep the first two tokens and replace the
+          third with four. The reader has three tokens, but the reusable state is still twelve. Processing
+          the correction gives one hundred twenty-four.
+        hold: 0.7
+        visual_cues:
+          - id: sd-row-alignment-b2
+            phrase: write one digit for every token it processes
+            targets:
+              - sd-row-alignment-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-row-124
+            phrase: Processing the correction gives one hundred twenty-four
+            targets:
+              - sd-row-alignment-mechanism
+            color: cyan
+            linger: 0.45
+  - id: commit
+    title: Committed text and computed state advance separately
+    visual: On rejection, the target trims the rejected suffix. On full acceptance, the final target row
+      supplies a bonus. The correction and the bonus each need a forward pass before their state exists.
+    beats:
+      - say: The target’s verification pass may have computed attention state for the entire proposed chain. Keep only
+          state corresponding to the committed prefix and remove the rejected suffix. The replacement token
+          has been sampled, but its own model state still needs computation before later decoding uses it.
+        visual_cues:
+          - id: computed-chain
+            phrase: computed attention state for the entire proposed chain
+            targets:
+              - verified-kv-positions
+            color: blue
+          - id: trim-state
+            phrase: remove the rejected suffix
+            targets:
+              - verified-kv-positions
+            color: pink
+          - id: pending-correction
+            phrase: replacement token has been sampled
+            targets:
+              - commit-pending-state-nearby
+            color: yellow
+        hold: 0.6
+      - say: If every draft token survives, sample one bonus token from the target’s next conditional distribution.
+          The verification pass has already supplied that row. The bonus is also newly committed text whose
+          state must be incorporated by the appropriate following model computation.
+        visual_cues:
+          - id: target-bonus
+            phrase: sample one bonus token
+            targets:
+              - commit-bonus-eos-sampled-from-target-row-4
+            color: yellow
+          - id: pending-bonus-state
+            phrase: state must be incorporated
+            targets:
+              - commit-computed-kv-sang-softly-today-bonus-eos-is-pending
+            color: blue
+        hold: 0.6
+      - say: Apply ending tokens, stop sequences, and output limits in emitted order. A verified block can contain
+          material after the first stopping event, which should never be delivered. Catch-up work for the
+          proposer and state compaction are real parts of the execution cost.
+        visual_cues:
+          - id: ordered-stopping
+            phrase: emitted order
+            targets:
+              - verified-emitted-block
+            color: blue
+          - id: stop-at-eos
+            phrase: first stopping event
+            targets:
+              - commit-readout-3
+            color: pink
+        hold: 0.8
+  - id: round-cpu
+    title: Follow the complete probability-level round
+    visual: Three runs of the noon, dawn and dusk sampler take different branches. Scripted draws reject
+      at the first or second position or accept both proposals and add a bonus.
+    beats:
+      - say: The actual CPU program uses noon, dawn and dusk. Its target table changes with the last token, while the
+          proposer also changes after dusk. It first samples and records every proposal law, then obtains one
+          target row per proposed prefix plus the bonus row. Its target calls are serial Python table lookups;
+          the diagram represents where a transformer would score known positions together.
+        hold: 0.7
+        visual_cues:
+          - id: sd-round-cpu-b0
+            phrase: The actual CPU program uses noon, dawn and dusk.
+            targets:
+              - sd-round-cpu-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Fix the draws so the draft proposes noon twice. One case rejects at position one and emits dawn.
+          Another accepts the first noon, rejects the second and emits noon followed by dusk. A full-accept
+          case emits noon, noon, then target bonus dawn.
+        hold: 0.7
+        visual_cues:
+          - id: sd-round-cpu-b1
+            phrase: the draft proposes noon twice
+            targets:
+              - sd-round-cpu-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-round-first
+            phrase: One case rejects at position one and emits dawn
+            targets:
+              - sd-round-cpu-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-round-second
+            phrase: Another accepts the first noon, rejects the second and emits noon followed by dusk
+            targets:
+              - sd-round-cpu-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-round-bonus
+            phrase: A full-accept case emits noon, noon, then target bonus dawn
+            targets:
+              - sd-round-cpu-mechanism
+            color: cyan
+            linger: 0.45
+      - say: The implementation requires finite normalized distributions over exactly three events and rejects Boolean
+          probability values. It renormalizes tolerated rounding drift. Depth zero produces an ordinary target
+          sample; identical laws never enter zero-residual normalization, while disjoint laws correct at the
+          first position. Generation applies EOS and the remaining output cap in emitted order, including EOS
+          internally and discarding the rest of that block.
+        hold: 0.7
+        visual_cues:
+          - id: sd-round-cpu-b2
+            phrase: The implementation requires finite normalized distributions over exactly three events and rejects
+              Boolean probability values.
+            targets:
+              - sd-round-cpu-mechanism
+            color: cyan
+            linger: 0.45
+  - id: sequence-check
+    title: Test the joint output after the corrected prefix
+    visual: Nine ordered token pairs have exact joint probabilities. Counts from 60,000 fixed-seed runs
+      give a frequency to compare with each probability.
+    beats:
+      - say: Now check two words at a time. Sixty thousand runs give us nine possible ordered pairs. For noon
+          followed by dawn, multiply the chance of noon by the chance of dawn after noon. Compare each pair's
+          target probability with its observed frequency. The largest absolute difference is about point zero
+          zero three seven, inside the test's tolerance of point zero zero six.
+        hold: 0.7
+        visual_cues:
+          - id: sd-sequence-check-b0
+            phrase: check two words at a time
+            targets:
+              - sd-sequence-check-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-sequence-error
+            phrase: largest absolute difference is about point zero zero three seven
+            targets:
+              - sd-sequence-check-mechanism
+            color: cyan
+            linger: 0.45
+      - say: A stale prefix could get the first word right and the second word wrong. Those nine comparisons can
+          catch that mistake on these tables. The general argument uses the conditional identity at every
+          prefix and the same stopping rule. Two correct samplers can consume their random draws in different
+          orders, so matching seeds can still give different sentences.
+        hold: 0.7
+        visual_cues:
+          - id: sd-sequence-check-b1
+            phrase: A stale prefix could get the first word right and the second word wrong
+            targets:
+              - sd-sequence-check-mechanism
+            color: cyan
+            linger: 0.45
+  - id: weight-roofline
+    title: Derive a weight-traffic floor before predicting speed
+    visual: Compare the weight-transfer and compute floors for 30 billion active BF16 matrix weights. The
+      worksheet reads 60 GB and performs 60 GFLOPs per position.
+    beats:
+      - say: We know which words can reach the reader. Why might checking them together save time? Suppose a single
+          forward pass reads thirty billion active matrix weights. Each weight occupies two bytes in
+          brain-float sixteen. One multiply and add count as two operations. That's sixty decimal gigabytes
+          read for sixty billion operations at one position. We'll count just the matrix weights here.
+          Attention, cache traffic and communication add costs of their own.
+        hold: 0.7
+        visual_cues:
+          - id: sd-weight-roofline-b0
+            phrase: thirty billion active matrix weights
+            targets:
+              - sd-weight-roofline-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-weight-bytes
+            phrase: sixty decimal gigabytes read for sixty billion operations
+            targets:
+              - sd-weight-roofline-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Use the H one hundred SXM's peak memory bandwidth of three point three five terabytes per second. For
+          compute, use its dense brain-float sixteen rate. The higher advertised rate includes structured
+          sparsity. Divide the bytes and operations by their respective peak rates. Moving the weights takes
+          at least seventeen point nine one milliseconds. The compute floor is about point zero six one
+          milliseconds. Memory and arithmetic can overlap, so the larger floor sets this bound.
+        hold: 0.7
+        visual_cues:
+          - id: sd-weight-roofline-b1
+            phrase: peak memory bandwidth of three point three five terabytes per second
+            targets:
+              - sd-weight-roofline-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-roof-floor
+            phrase: The compute floor is about point zero six one milliseconds
+            targets:
+              - sd-weight-roofline-mechanism
+            color: cyan
+            linger: 0.45
+      - say: One operation per byte puts this example on the sloping part of the roofline. The bend is near two
+          hundred ninety-five FLOPs per byte. At our intensity, peak bandwidth could feed about point three
+          four percent of peak dense arithmetic. To learn how much time the GPU actually spends idle, measure
+          it. Also leave memory for state and workspace alongside those sixty gigabytes of weights.
+        hold: 0.7
+        visual_cues:
+          - id: sd-weight-roofline-b2
+            phrase: One operation per byte
+            targets:
+              - sd-weight-roofline-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-roof-ridge
+            phrase: two hundred ninety-five FLOPs per byte
+            targets:
+              - sd-weight-roofline-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-roof-fraction
+            phrase: about point three four percent of peak dense arithmetic
+            targets:
+              - sd-weight-roofline-mechanism
+            color: cyan
+            linger: 0.45
+  - id: weight-reuse
+    title: What can one weight read buy?
+    visual: One pending position and six known positions each use the same assumed 60 GB weight stream.
+      The arithmetic grows with position count. The draft incurs its own sequential reads.
+    beats:
+      - say: Start with one token the reader has received but the target still needs to process. Now add five
+          draft tokens. The target can use each weight for all six positions as it reads it. The same sixty
+          gigabytes now buy six times the arithmetic. That's six FLOPs per byte. The compute floor rises to
+          about point three six four milliseconds. The weight transfer floor stays at seventeen point nine
+          one.
+        hold: 0.7
+        visual_cues:
+          - id: sd-weight-reuse-b0
+            phrase: one token the reader has received
+            targets:
+              - sd-weight-reuse-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-reuse-six
+            phrase: Now add five draft tokens
+            targets:
+              - sd-weight-reuse-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-reuse-compute
+            phrase: about point three six four milliseconds
+            targets:
+              - sd-weight-reuse-mechanism
+            color: cyan
+            linger: 0.45
+      - say: The draft pays for its guesses one at a time. Suppose it reads two gigabytes for the first
+          guess. At peak bandwidth that takes about point six milliseconds. Five reads take about three
+          milliseconds at that peak rate. To time the whole round, include repeated weight reads, masks,
+          logits, activations, cache traffic, communication and any work the draft needs to catch up.
+        hold: 0.7
+        visual_cues:
+          - id: sd-weight-reuse-b1
+            phrase: reads two gigabytes for the first guess
+            targets:
+              - sd-weight-reuse-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-draft-cost
+            phrase: Five reads take about three milliseconds at that peak rate
+            targets:
+              - sd-weight-reuse-mechanism
+            color: cyan
+            linger: 0.45
+  - id: cost
+    title: What do five guesses buy?
+    visual: Two timing bars hold yield fixed while target verification takes longer. A second comparison
+      changes depth from five guesses to ten under the same cost rule.
+    beats:
+      - say: Fix the depth at five guesses. Suppose each guess that reaches its test has an eighty percent chance of
+          passing. Every round ends with one correction or bonus, before stopping limits. Add the chances of
+          keeping the first word, the first two, and so on. That's about three point six nine emitted tokens
+          per round.
+        hold: 0.7
+        visual_cues:
+          - id: yield-terms
+            phrase: Add the chances of keeping the first word, the first two, and so on
+            targets:
+              - cost-yield
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: yield-value
+            phrase: three point six nine emitted tokens per round
+            targets:
+              - cost-yield
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Use one ordinary target step as the unit of time. Suppose each draft step takes a tenth of that unit.
+          Five draft steps cost half a unit. If the target can check the block in one unit, the round takes
+          one and a half. Divide the expected output by that time. The modeled speedup is about two point four
+          six.
+        hold: 0.75
+        visual_cues:
+          - id: draft-time
+            phrase: Five draft steps cost half a unit
+            targets:
+              - timing-runs
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: flat-time
+            phrase: the round takes one and a half
+            targets:
+              - timing-runs
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: flat-speed
+            phrase: two point four six
+            targets:
+              - timing-runs
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Now let verification take a quarter of a step longer. The draft, the acceptance rates and the output
+          yield all stay the same. With that longer target pass, what speedup do we get?
+        hold: 2.2
+        visual_cues:
+          - id: longer-verify
+            phrase: verification take a quarter of a step longer
+            targets:
+              - timing-runs
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: speed-question
+            phrase: what speedup do we get
+            targets:
+              - timing-runs
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: About two point one one. Divide the same three point six nine tokens by one and three quarter target
+          steps. These are modeled long-run speeds. For a serving decision, time drafting, verification, cache
+          repair and scheduling at the intended load. Count what reaches the reader, including the effect of
+          stopping early.
+        hold: 0.9
+        visual_cues:
+          - id: slow-speed
+            phrase: About two point one one
+            targets:
+              - timing-runs
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: measure-round
+            phrase: time drafting, verification, cache repair and scheduling
+            targets:
+              - timing-runs
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Now try ten guesses under the same cost rule. Each extra guess adds a tenth of a target step for
+          drafting and five hundredths for verification. Expected output climbs to four point five seven tokens,
+          but the round now costs two and a half steps. Speedup falls to one point eight three. In these two
+          cases, five guesses make better use of the target.
+        hold: 0.85
+        visual_cues:
+          - id: depth-ten
+            phrase: try ten guesses
+            targets: [timing-runs]
+            color: blue
+          - id: longer-yield
+            phrase: Expected output climbs to four point five seven tokens
+            targets: [timing-runs]
+            color: cyan
+          - id: depth-result
+            phrase: Speedup falls to one point eight three
+            targets: [timing-runs]
+            color: yellow
+            caption_boundary: true
+  - id: position-yield
+    title: How far does the sampler get?
+    visual: Three depth-two policies start with 100 rounds. First-position survivors become the second-position
+      denominator. The second filter has equal survivors at the extremes, while the number of first-position
+      emissions differs.
+    beats:
+      - say: Suppose we start a hundred rounds, with two guesses in each and no early stop. In the top row, ninety
+          of the first guesses pass. Only those ninety rounds get to test a second guess. If one in ten of
+          those passes, how many rounds keep both words?
+        hold: 2.05
+        visual_cues:
+          - id: yield-first
+            phrase: ninety of the first guesses pass
+            targets:
+              - yield-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: yield-reached
+            phrase: Only those ninety rounds get to test a second guess
+            targets:
+              - yield-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Nine rounds keep both. Reverse the two acceptance rates in the bottom row. Ten get through the first
+          test and nine of those keep both. Both rows end with nine, but look at all the words that made it
+          through the first test. Add those words, the second words and one correction or bonus per round. The
+          top row averages one point nine nine emitted words. The bottom row averages one point one nine. Two
+          half-rate tests land in between, at one point seven five.
+        hold: 0.8
+        visual_cues:
+          - id: yield-both
+            phrase: Nine rounds keep both
+            targets:
+              - yield-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: yield-reverse
+            phrase: Reverse the two acceptance rates in the bottom row
+            targets:
+              - yield-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: yield-totals
+            phrase: one correction or bonus per round
+            targets:
+              - yield-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: yield-middle
+            phrase: Two half-rate tests land in between
+            targets:
+              - yield-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: For real traffic, divide the number accepted at each position by the number that reached its test.
+          Multiply those conditional rates along the prefix. At a constant eighty percent, five guesses give
+          about three point six nine emitted tokens per round. Each extra guess costs work, while the expected
+          yield approaches five. If every guess passes, you get all K guesses and a bonus before any stopping
+          limit.
+        hold: 0.7
+        visual_cues:
+          - id: yield-rate
+            phrase: divide the number accepted at each position by the number that reached its test
+            targets:
+              - yield-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: yield-geometric
+            phrase: five guesses give about three point six nine emitted tokens per round
+            targets:
+              - yield-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: load-cost
+    title: What changes at batch 64?
+    visual: Place 64 streams below the dense intensity ridge. Then switch to an equal-cost,
+      compute-limited model and contrast its assumptions with the historical EAGLE batch-64 measurements.
+    beats:
+      - say: Put sixty-four ordinary decode streams in one batch. If they share one weight read, we get
+          sixty-four FLOPs per byte. That's still on the bandwidth slope, well below the bend near two
+          hundred ninety-five. For a running server, count the streams the scheduler actually batched.
+          Attention, cache traffic, communication and kernel efficiency also affect where it spends its time.
+        hold: 0.7
+        visual_cues:
+          - id: sd-load-cost-b0
+            phrase: sixty-four FLOPs per byte
+            targets:
+              - sd-load-cost-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Now suppose compute sets the pace and every position costs a full target step. With two guesses,
+          the target processes three positions. At best we get three tokens, and we still have to pay for
+          drafting. At eighty percent acceptance and a tenth of a step per guess, we get two point four four
+          tokens on average in three point two steps. Ordinary decoding wins here.
+        hold: 0.7
+        visual_cues:
+          - id: sd-load-cost-b1
+            phrase: every position costs a full target step
+            targets:
+              - sd-load-cost-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-compute-bound
+            phrase: Ordinary decoding wins here
+            targets:
+              - sd-load-cost-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Here's what the EAGLE-three paper measured with sixty-four streams on one H one hundred. It ran
+          Llama three point one Instruct eight billion on MT-Bench with SGLang zero point four point four. A
+          three-token chain, with no tree, delivered one point three eight times baseline throughput.
+          Original EAGLE gave point nine nine on the same workload.
+        hold: 0.7
+        visual_cues:
+          - id: sd-load-cost-b2
+            phrase: what the EAGLE-three paper measured
+            targets:
+              - sd-load-cost-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-historical-throughput
+            phrase: one point three eight times baseline throughput
+            targets:
+              - sd-load-cost-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-original-throughput
+            phrase: Original EAGLE gave point nine nine
+            targets:
+              - sd-load-cost-mechanism
+            color: cyan
+            linger: 0.45
+  - id: verification-budget
+    title: Can sixteen streams fit in this step?
+    visual: Sixteen streams request 80 input positions at depth four. A fixed limit of 64 lies between
+      that request and the 48 positions at depth two. Expected output has its own column.
+    beats:
+      - say: How much work must the scheduler reserve before it knows which guesses survive? Each stream brings one
+          pending token. Give it four proposals as well. Sixteen streams now need eighty input positions. The
+          step has room for sixty-four, so this batch won't fit. Even perfect acceptance would need all eighty
+          slots.
+        hold: 0.7
+        visual_cues:
+          - id: sd-verification-budget-b0
+            phrase: one pending token
+            targets:
+              - sd-verification-budget-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-budget-eighty
+            phrase: Sixteen streams now need eighty input positions
+            targets:
+              - sd-verification-budget-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-budget-deny
+            phrase: this batch won't fit
+            targets:
+              - sd-verification-budget-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Keep all sixteen streams and shorten the draft to two guesses. The batch now fits in forty-eight
+          positions. With eighty percent conditional acceptance, it produces about thirty-nine tokens on
+          average before stopping limits. One count decides admission. The other estimates output. Rejecting a
+          late guess can't give back a position the target already evaluated. Check whether the installed
+          scheduler reserves a fixed window or adapts it.
+        hold: 0.7
+        visual_cues:
+          - id: sd-verification-budget-b1
+            phrase: shorten the draft to two guesses
+            targets:
+              - sd-verification-budget-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-budget-depths
+            phrase: forty-eight positions
+            targets:
+              - sd-verification-budget-mechanism
+            color: cyan
+            linger: 0.45
+  - id: tree-mask
+    title: Construct tree visibility and equal-depth positions
+    visual: Two roots and their two children produce a four-by-four candidate visibility matrix. A query
+      sees itself and its ancestors. The roots share position 10 and the children share position 11.
+    beats:
+      - say: An early chain rejection wastes its descendants. A speculative tree can spend work on competing
+          continuations, but each target query must see only the appropriate shared prefix, its candidate
+          ancestors and itself. Flattening nodes into an array does not make siblings part of the same causal
+          history.
+        hold: 0.7
+        visual_cues:
+          - id: sd-tree-mask-b0
+            phrase: An early chain rejection wastes its descendants.
+            targets:
+              - sd-tree-mask-mechanism
+            color: cyan
+            linger: 0.45
+      - say: "The article’s four candidate parents are none, none, zero and one. Node two sees candidate zero and
+          itself: row one, zero, one, zero. Node three sees candidate one and itself: zero, one, zero, one.
+          Disallowed attention scores are negative infinity before softmax, giving zero weight.
+          Committed-prefix columns remain visible and are omitted from this candidate-only matrix."
+        hold: 0.7
+        visual_cues:
+          - id: sd-tree-mask-b1
+            phrase: The article’s four candidate parents are none, none, zero and one.
+            targets:
+              - sd-tree-mask-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-tree-row2
+            phrase: row one, zero, one, zero
+            targets:
+              - sd-tree-mask-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-tree-row3
+            phrase: zero, one, zero, one
+            targets:
+              - sd-tree-mask-mechanism
+            color: cyan
+            linger: 0.45
+      - say: With cached positions zero through nine and no pending input in this particular forest, the two roots
+          have position ten and their children position eleven. Equal depth shares a position; flattened index
+          is not the position. A layout with an additional pending token needs the corresponding offset. RoPE,
+          other position rules and recurrent hybrid state need compatible branch handling.
+        hold: 0.7
+        visual_cues:
+          - id: sd-tree-mask-b2
+            phrase: With cached positions zero through nine and no pending input in this particular forest, the two roots
+              have position ten and their children position eleven.
+            targets:
+              - sd-tree-mask-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-tree-position
+            phrase: the two roots have position ten and their children position eleven
+            targets:
+              - sd-tree-mask-mechanism
+            color: cyan
+            linger: 0.45
+  - id: tree-leak
+    title: Change an off-branch value to test isolation
+    visual: Raise an off-branch value from 100 to 10,000. The tree-masked result for node 2 stays at 1.731
+      while the flattened causal result changes.
+    beats:
+      - say: Use the article’s weighted-value test for node two. Its permitted scores are minus one and zero, with
+          values one and two. After stable softmax, the correct tree result is about one point seven three
+          one. A flattened lower-triangular mask also admits the high-scoring off-branch node one and gives
+          about ninety-seven point five nine eight.
+        hold: 0.7
+        visual_cues:
+          - id: sd-tree-leak-b0
+            phrase: Use the article’s weighted-value test for node two.
+            targets:
+              - sd-tree-leak-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-tree-correct
+            phrase: the correct tree result is about one point seven three one
+            targets:
+              - sd-tree-leak-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-tree-flat
+            phrase: gives about ninety-seven point five nine eight
+            targets:
+              - sd-tree-leak-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-tree-weights
+            phrase: After stable softmax
+            targets:
+              - sd-tree-leak-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-flat-weights
+            phrase: also admits the high-scoring off-branch node one
+            targets:
+              - sd-tree-leak-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Change only that off-branch value from one hundred to ten thousand. The tree result stays at one
+          point seven three one. The flat mask lets the other branch dominate, pushing the result above nine
+          thousand seven hundred. This checks which branches the model can see. Choosing which tokens to keep
+          takes another rule. Greedy decoding follows matching target choices. Stochastic decoding has to
+          preserve their probabilities.
+        hold: 0.7
+        visual_cues:
+          - id: sd-tree-leak-b1
+            phrase: Change only that off-branch value
+            targets:
+              - sd-tree-leak-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-tree-perturb
+            phrase: one hundred to ten thousand
+            targets:
+              - sd-tree-leak-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-tree-perturbed-result
+            phrase: above nine thousand seven hundred
+            targets:
+              - sd-tree-leak-mechanism
+            color: cyan
+            linger: 0.45
+  - id: medusa-contract
+    title: Separate extra prediction heads from target preservation
+    visual: Target features feed future-token heads and a candidate tree. Changing the backbone and
+      changing the acceptance rule have separate effects on what distribution the method can preserve.
+    beats:
+      - say: Medusa adds future-position heads to target hidden features, builds candidate continuations and verifies
+          them with tree attention. Medusa-one freezes the backbone while training heads. Medusa-two trains
+          backbone and heads together, so the target being accelerated can itself change. Preserve the actual
+          target checkpoint identity in comparisons.
+        hold: 0.7
+        visual_cues:
+          - id: sd-medusa-contract-b0
+            phrase: Medusa adds future-position heads to target hidden features, builds candidate continuations and
+              verifies them with tree attention.
+            targets:
+              - sd-medusa-contract-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Follow the frozen target across the top row. An exact sampler preserves that checkpoint's
+          probabilities. Medusa's typical acceptance rule can favor plausible branches and change how often
+          they appear. Now move down to the jointly trained model. Even an exact sampler there preserves the
+          probabilities of the new checkpoint.
+        hold: 0.7
+        visual_cues:
+          - id: sd-medusa-contract-b1
+            phrase: Medusa's typical acceptance rule
+            targets:
+              - sd-medusa-contract-mechanism
+            color: cyan
+            linger: 0.45
+  - id: eagle-family
+    title: Follow the actual feature and training objectives
+    visual: Trace original EAGLE's pre-head feature prediction, EAGLE-2's confidence-guided tree and
+      EAGLE-3's direct token training on features from several layers.
+    beats:
+      - say: Original EAGLE predicts the features that feed the target's language model head. The head turns
+          those features into probabilities for the next token. After a token is sampled, the draft takes
+          that token as input for its next prediction.
+        hold: 0.7
+        visual_cues:
+          - id: sd-eagle-family-b0
+            phrase: features that feed the target's language model head
+            targets:
+              - sd-eagle-family-mechanism
+            color: cyan
+            linger: 0.45
+      - say: EAGLE-two grows a tree using draft confidence. Multiply the scores along each path. The right
+          path gets point four two, enough to edge past point four on the left. EAGLE-three trains the draft
+          to predict tokens directly. It combines features from low, middle and high layers of the target and
+          practices several drafting steps during training.
+        hold: 0.7
+        visual_cues:
+          - id: sd-eagle-family-b1
+            phrase: Multiply the scores along each path
+            targets:
+              - sd-eagle-family-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-eagle3-objective
+            phrase: EAGLE-three trains the draft to predict tokens directly
+            targets:
+              - sd-eagle-family-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Those features occupy memory alongside the draft weights and the tree. On a serving system, use
+          compatible checkpoints, quantization, kernels, graphs, parallel layout and sampler settings.
+          Measure how many requests fit and how long their answers take.
+        hold: 0.7
+        visual_cues:
+          - id: sd-eagle-family-b2
+            phrase: Those features occupy memory
+            targets:
+              - sd-eagle-family-mechanism
+            color: cyan
+            linger: 0.45
+  - id: lookup-methods
+    title: The train arrives at …
+    visual: A repeated prompt suffix supplies the following span as deterministic proposals. Rejection
+      removes the proposed word from the target law and normalizes the remaining words.
+    beats:
+      - say: The prompt ends with “The train.” Find those words earlier in the prompt. The earlier occurrence
+          continues with “arrives at.” Prompt lookup copies that span as a guess. Some engines also search
+          previously generated text. Here the lookup always proposes the same next token, so its draft
+          probability is one. Its chance of acceptance is exactly the target probability. On rejection,
+          remove that token and divide up the remaining target mass.
+        hold: 0.7
+        visual_cues:
+          - id: sd-lookup-methods-b0
+            phrase: Find those words earlier in the prompt
+            targets:
+              - sd-lookup-methods-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-lookup-copy
+            phrase: continues with “arrives at.”
+            targets: [sd-lookup-methods-mechanism]
+            color: cyan
+            caption_boundary: true
+      - say: For target point two, point three and point five, a deterministic third-token proposal survives with
+          chance point five. On rejection the residual is point four, point six and zero. No extra neural
+          weights are required for this lookup, but searching, index maintenance, buffers and target
+          verification still cost work.
+        hold: 0.7
+        visual_cues:
+          - id: sd-lookup-methods-b1
+            phrase: For target point two, point three and point five, a deterministic third-token proposal survives with
+              chance point five.
+            targets:
+              - sd-lookup-methods-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-lookup-residual
+            phrase: the residual is point four, point six and zero
+            targets:
+              - sd-lookup-methods-mechanism
+            color: cyan
+            linger: 0.45
+      - say: The article's October twenty twenty-six engine guides describe other ways to propose several
+          tokens. Native multi-token prediction uses modules built for a model family. Other families use a
+          separate assistant checkpoint. A trained parallel draft such as PARD produces several positions
+          together. To budget that pass, count its own weights and buffers and time the positions it produces
+          together.
+        hold: 0.7
+        visual_cues:
+          - id: sd-lookup-methods-b2
+            phrase: other ways to propose several tokens
+            targets:
+              - sd-lookup-methods-mechanism
+            color: cyan
+            linger: 0.45
+  - id: block-contract
+    title: Which prefix passed?
+    visual: A token-wise test stops at its first rejection. A separate block-verification example tests
+      whole prefixes under its own correction rule.
+    beats:
+      - say: Follow the top row. Token A passes. B fails, so token-wise verification stops and corrects at B.
+          The bottom row shows a different run with block verification. Here each test covers a whole prefix.
+          A fails its test, but the pair A B passes. The full three-token prefix fails. The block sampler
+          keeps A B and draws from its own correction distribution.
+        hold: 0.7
+        visual_cues:
+          - id: sd-block-contract-b0
+            phrase: Token A passes
+            targets:
+              - sd-block-contract-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-block-reject
+            phrase: B fails
+            targets: [sd-block-contract-mechanism]
+            color: pink
+          - id: sd-block-fail-a
+            phrase: A fails its test
+            targets: [sd-block-contract-mechanism]
+            color: pink
+          - id: sd-block-pair
+            phrase: the pair A B passes
+            targets: [sd-block-contract-mechanism]
+            color: cyan
+            caption_boundary: true
+          - id: sd-block-full
+            phrase: The full three-token prefix fails
+            targets: [sd-block-contract-mechanism]
+            color: pink
+            caption_boundary: true
+      - say: SGLang documents block verification for supported stochastic drafts. Now switch to a greedy
+          draft, which puts all its probability on one choice at each step. In this example both methods keep
+          just A. To trace a round, check what the engine tested and which correction rule goes with that
+          test.
+        hold: 0.7
+        visual_cues:
+          - id: sd-block-contract-b1
+            phrase: SGLang documents block verification
+            targets:
+              - sd-block-contract-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-block-greedy
+            phrase: both methods keep just A
+            targets:
+              - sd-block-contract-mechanism
+            color: cyan
+            linger: 0.45
+  - id: paired-service
+    title: Which offered load can we serve?
+    visual: Two trials use matched requests. A client timeline reveals a 198 ms gap. A 95% attainment
+      threshold separates the two offered loads in a pair of twenty-second examples.
+    beats:
+      - say: Send the same prompts at the same offered load in both runs. Keep target weights, quantization,
+          sampling and hardware matched. Repeat the pairs to estimate uncertainty. For fixed-length timing,
+          record the output cap and how you handle end tokens. For real tasks, keep their completion lengths.
+          Faster decoding may still leave someone waiting longer for the first word if drafting or queueing
+          delays it.
+        hold: 0.7
+        visual_cues:
+          - id: sd-paired-service-b0
+            phrase: Send the same prompts at the same offered load
+            targets:
+              - sd-paired-service-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Read this stream as the client saw it. The first token arrived at three hundred milliseconds. Two more
+          arrived almost together. The fourth arrived at five hundred. The gaps were one, one and one hundred
+          ninety-eight milliseconds. The average is about sixty-seven milliseconds. The user still waited
+          almost two tenths of a second for the last token. If several tokens arrive in one network event, you
+          only know when the bundle arrived.
+        hold: 0.7
+        visual_cues:
+          - id: sd-paired-service-b1
+            phrase: Read this stream as the client saw it
+            targets:
+              - sd-paired-service-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-service-gaps
+            phrase: one, one and one hundred ninety-eight milliseconds
+            targets:
+              - sd-paired-service-mechanism
+            color: cyan
+            linger: 0.45
+          - id: sd-service-average
+            phrase: average is about sixty-seven milliseconds
+            targets:
+              - sd-paired-service-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Here are two twenty-second trials. At least ninety-five percent of all offered requests must qualify.
+          Trial B completed more qualifying requests per second. Which trial met the service requirement?
+        hold: 2.2
+        visual_cues:
+          - id: sd-paired-service-b2
+            phrase: At least ninety-five percent of all offered requests must qualify
+            targets:
+              - sd-paired-service-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Trial A. It qualified a hundred seventy-four of a hundred eighty offered requests, nearly ninety-seven
+          percent. Trial B qualified only about ninety-three percent. Keep failed, rejected and canceled
+          requests in that denominator. A is the highest passing load we tested, at nine offered requests per
+          second. Its qualified throughput is eight point seven per second over the full twenty seconds.
+          Record that alongside draft work, verification positions, acceptance by reached position, memory
+          peaks and cost per completed task.
+        hold: 0.8
+        visual_cues:
+          - id: sd-service-verdict
+            phrase: Trial A
+            targets:
+              - sd-paired-service-mechanism
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: sd-service-capacity
+            phrase: eight point seven per second
+            targets:
+              - sd-paired-service-mechanism
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: diagnose
+    title: Isolate the sampler before blaming model kernels
+    visual: Fixed probability tables isolate the sampler. A separate comparison checks serial and
+      verification logits on matching model inputs and prefix states.
+    beats:
+      - say: Suppose an implementation gives a different distribution. First feed the sampler fixed probability
+          tables. Try identical laws, disjoint laws and a forced rejection at each position. Check two-token
+          sequences and stopping. If the tables pass, compare serial and verification logits for exactly the
+          same model inputs, using a stated numerical tolerance.
+        hold: 0.7
+        visual_cues:
+          - id: sd-diagnose-b0
+            phrase: feed the sampler fixed probability tables
+            targets:
+              - sd-diagnose-mechanism
+            color: cyan
+            linger: 0.45
+      - say: If those logits differ, trace the first difference back to its input. Was the preceding word the same?
+          Did the mask, position and cache represent the same history? Then check preprocessing, quantization
+          and reduction order. Even deterministic kernels can round differently across batch shapes. That
+          comparison narrows the search. Agreement on a few seeds or greedy outputs leaves rare stochastic
+          events untested.
+        hold: 0.7
+        visual_cues:
+          - id: sd-diagnose-b1
+            phrase: trace the first difference back to its input
+            targets:
+              - sd-diagnose-mechanism
+            color: cyan
+            linger: 0.45
+  - id: transfer
+    title: The space after “sang”
+    visual: Each candidate word has its target and draft probabilities together. The acceptance draw sits
+      below softly. The retained cache and pending correction stay separate until the target processes
+      nearby.
+    beats:
+      - say: The draft already had sang accepted. Its next candidate is softly. The target assigns it probability
+          0.30, the draft assigns 0.60, and the acceptance draw is 0.80. Predict whether softly is committed,
+          then find the word with positive target-minus-draft mass.
+        visual_cues:
+          - id: same-prefix
+            phrase: draft already had sang accepted
+            targets:
+              - transfer-prefix
+              - transfer-proposal
+            color: blue
+          - id: candidate-distribution
+            phrase: target assigns it probability
+            targets:
+              - transfer-candidate
+            color: cyan
+          - id: transfer-draw
+            phrase: the acceptance draw is 0.80
+            targets: [transfer-uniform]
+            color: yellow
+          - id: candidate-prediction
+            phrase: Predict whether softly is committed
+            targets:
+              - transfer-prediction
+              - transfer-candidate
+            color: yellow
+        hold: 2.3
+      - say: The ratio is min of one and 0.30 divided by 0.60, which is 0.50. Since 0.80 is larger, reject softly and
+          discard the dependent proposal today. The positive deficit is 0.00, 0.30, 0.00, so its total is
+          0.30. Normalizing leaves all correction mass on nearby.
+        caption_starts:
+          - Since 0.80 is larger
+          - reject softly
+          - The positive deficit
+          - Normalizing leaves all correction mass
+          - on nearby
+        visual_cues:
+          - id: rejection-ratio
+            phrase: The ratio is min of one
+            targets:
+              - transfer-ratio
+            color: pink
+          - id: ratio-answer
+            phrase: which is 0.50
+            targets: [transfer-ratio]
+            color: yellow
+            caption_boundary: true
+          - id: discard-dependent
+            phrase: discard the dependent proposal today
+            targets:
+              - transfer-proposal
+              - transfer-rejection-result
+            color: pink
+          - id: positive-deficit
+            phrase: The positive deficit
+            targets:
+              - transfer-deficit-label
+              - transfer-deficit-bars
+            color: yellow
+          - id: normalize-residual
+            phrase: Normalizing leaves all correction mass
+            targets:
+              - transfer-residual-label
+              - transfer-residual-bars
+            color: green
+          - id: sample-correction
+            phrase: on nearby
+            targets:
+              - transfer-correction
+            color: green
+        hold: 0.7
+      - say: The verifier computed state for sang, softly, and today. Keep sang and remove provisional state for the
+          rejected suffix. Then forward the correction nearby on the committed prefix. That forward adds
+          nearby's key and value; the next decode can use them.
+        visual_cues:
+          - id: trim-provisional-kv
+            phrase: remove provisional state for the rejected suffix
+            targets:
+              - transfer-verified-kv
+              - transfer-retained-kv
+            color: pink
+          - id: retain-accepted-kv
+            phrase: Keep sang
+            targets:
+              - transfer-retained-kv
+            color: blue
+          - id: forward-nearby
+            phrase: forward the correction nearby
+            targets:
+              - transfer-pending-nearby
+              - transfer-forward-nearby
+            color: yellow
+          - id: cache-nearby
+            phrase: adds nearby's key and value
+            targets:
+              - transfer-pending-nearby
+              - transfer-forward-nearby
+            color: yellow
+        hold: 0.85
+  - id: fresh-state
+    title: The last two guesses
+    visual: The same sentence now has different next-word probabilities. Two printed copies of today sit on
+      different paths out of sang. A decimal history records the rejected path as 823 and the corrected path
+      as 83.
+    beats:
+      - say: Keep the reader at “The bird sang.” Start a fresh round with the new probabilities on
+          screen. The draft again proposes softly, then today. The acceptance draw for softly is point eight.
+          Which word goes in the space immediately after sang?
+        hold: 2.5
+        visual_cues:
+          - id: sd-fresh-inputs
+            phrase: the new probabilities on screen
+            targets:
+              - fresh-laws
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: sd-fresh-draw
+            phrase: The acceptance draw for softly is point eight
+            targets:
+              - fresh-laws
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: sd-fresh-question
+            phrase: Which word goes in the space immediately after sang
+            targets:
+              - fresh-sentence
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Softly survives five sevenths of the time. Point eight is higher, so we drop softly and its dependent
+          today. Only today has a shortfall. The target wants sixty percent and the draft supplies twenty. The
+          correction is today. We already computed a cache entry for that word after softly. Can we use that
+          entry after sang?
+        hold: 2.3
+        caption_starts:
+          - Only today has a shortfall
+        visual_cues:
+          - id: sd-fresh-reject
+            phrase: we drop softly and its dependent today
+            targets:
+              - fresh-sentence
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: sd-fresh-correction
+            phrase: The correction is today
+            targets:
+              - fresh-sentence
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: sd-fresh-reuse
+            phrase: Can we use that entry after sang
+            targets:
+              - fresh-sentence
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Trace the two paths. Use eight for the history through sang. In our toy cache, processing a token
+          appends its digit. Softly is two, so the first state is eighty-two. Today is three, so the next
+          state is eight hundred twenty-three. That middle two records a word the reader never received. Roll
+          back to eight. Commit today with its cache entry pending. Process three directly on eight and the
+          new state is eighty-three. For the next word, use the entry built from the sentence the reader
+          actually has.
+        hold: 1.2
+        caption_starts:
+          - and the new state is eighty-three
+          - For the next word, use the entry
+        visual_cues:
+          - id: sd-fresh-82
+            phrase: the first state is eighty-two
+            targets:
+              - fresh-draft-path
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: sd-fresh-provisional
+            phrase: the next state is eight hundred twenty-three
+            targets:
+              - fresh-draft-path
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: sd-fresh-rollback
+            phrase: Roll back to eight
+            targets:
+              - fresh-root
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: sd-fresh-pending
+            phrase: Commit today with its cache entry pending
+            targets:
+              - fresh-reader-path
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: sd-fresh-process
+            phrase: Process three directly on eight and the new state is eighty-three
+            targets:
+              - fresh-reader-path
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: On a longer prompt, those saved keys and values have to fit alongside the answer you still want to
+          generate. That's the next question in long-context management.
+        hold: 0.9
+        visual_cues:
+          - id: sd-fresh-next
+            phrase: those saved keys and values
+            targets:
+              - fresh-reader-path
+            color: cyan
+            linger: 0.18
+            caption_boundary: true

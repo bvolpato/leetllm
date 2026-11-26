@@ -328,7 +328,7 @@ Daily billed: $23.906 -> 30-day bill: $717.18 (headroom vs $750: $32.82)
 ```
 <!-- leetllm: output:end -->
 
-A 4.4% monthly cushion fails immediately under realistic drift: +10% interactive traffic (`+10%`), a batch outage falling back to interactive (`ColdEval`), or a dynamic header breaking prefix reuse (`ColdAll`) each breach \$750. Applying the 70/30 `Orders` cascade drops the 30-day bill from \$717.18 to \$520.96, reclaiming \$229.04 of headroom.
+A 4.4% monthly cushion fails immediately under realistic drift: +10% interactive traffic (`+10%`), a batch outage falling back to interactive (`ColdEval`), or a dynamic header breaking prefix reuse (`ColdAll`) each breach \$750. Applying the 70/30 `Orders` cascade drops the 30-day bill from \$717.18 to \$520.96, saving \$196.22/month and expanding headroom against the \$750 cap to \$229.04.
 
 Before promoting a prompt compression or fast-tier cascade, size your zero-defect evaluation set with the Rule of Three at 95% confidence:
 
@@ -348,7 +348,7 @@ Zero errors across $n = 100$ cases still leaves a `3.0%` latent defect ceiling; 
 inter_daily = sum(daily_costs[k]["daily"] for k in ("Orders", "Docs", "Review"))
 eval_daily = daily_costs["Eval"]["daily"]
 plus10_mo = (1.10 * inter_daily + eval_daily) * 30.0
-cold_eval_mo = (inter_daily + 2.0 * eval_daily + 2_000 * 16.0 * FRONTIER_CARD.cache_write_rate / MILLION) * 30.0
+cold_eval_mo = (inter_daily + 2.0 * eval_daily + 2_000 * 16.0 * FRONTIER_CARD.cache_write_rate / MILLION) * 30.0  # +16 tok/call amortized interactive prefix warmup writes
 inter_reads = 3_000 * 400 + 1_800 * 830 + 500 * 1_400
 cold_all_mo = (
     total_daily
@@ -378,64 +378,64 @@ Gateway cap: max_output=300, ceiling=$0.01, max_fresh_prompt=3200 tokens
 ```
 <!-- leetllm: output:end -->
 
-Monthly invoices arrive too late to catch a runaway retry loop or a mutated prefix header. Enforce the resulting economics in the model gateway via `max_output_tokens = 300` and a **\$0.01 cumulative request ceiling** spanning both fast and escalated hops alongside one shared wall-clock deadline.[^jiang2024]
+Monthly invoices arrive too late to catch a runaway retry loop or a mutated prefix header. Enforce the resulting economics in the model gateway via `max_output_tokens = 300` and a **\$0.01 cumulative request ceiling** spanning both fast and escalated hops alongside one shared wall-clock deadline.
 
 ```mastery-quiz
 [
   {
-    "question": "An OpenAI usage payload reports prompt_tokens=2,200, cached_tokens=1,200, completion_tokens=420, and reasoning_tokens=160. What are the disjoint fresh input and billable output counts?",
+    "question": "An OpenAI usage payload reports prompt_tokens=3,400, cached_tokens=1,900, completion_tokens=640, and reasoning_tokens=240. What are the disjoint fresh input and billable output counts?",
     "options": [
-      "Fresh input = 2,200; output = 580.",
-      "Fresh input = 1,000; output = 420.",
-      "Fresh input = 2,200; output = 260.",
-      "Fresh input = 1,200; output = 160."
+      "Fresh input = 3,400; output = 880.",
+      "Fresh input = 1,500; output = 640.",
+      "Fresh input = 3,400; output = 400.",
+      "Fresh input = 1,500; output = 400."
     ],
-    "answer": "Fresh input = 1,000; output = 420.",
-    "explanation": "cached_tokens is nested inside prompt_tokens (2,200 - 1,200 = 1,000 fresh input) and reasoning_tokens is already counted inside completion_tokens (420 total billable output)."
+    "answer": "Fresh input = 1,500; output = 640.",
+    "explanation": "cached_tokens is nested inside prompt_tokens (3,400 - 1,900 = 1,500 fresh input) and reasoning_tokens is already counted inside completion_tokens (640 total billable output)."
   },
   {
-    "question": "Why can a semantic cache misfire on 'enable TLS' versus 'disable TLS', whereas KV prefix caching cannot?",
+    "question": "Why can a semantic cache misfire on 'allow webhook retries' versus 'block webhook retries', whereas KV prefix caching cannot?",
     "options": [
-      "Embeddings capture topical overlap rather than logical equivalence, while KV prefix caching hashes exact token IDs from token 0.",
-      "KV prefix caching runs a secondary LLM judge on every cache lookup.",
-      "Semantic caches match only output tokens, while KV prefix caching matches JSON schemas.",
-      "KV prefix caching uses a fixed 0.99 cosine threshold."
+      "Embeddings score high topical overlap across antonyms, while KV prefix caching hashes exact token IDs from token 0.",
+      "KV prefix caching invokes a secondary LLM judge to verify intent polarity on every incoming request.",
+      "Semantic caches compare generated output tokens only, while KV prefix caching validates JSON response schemas.",
+      "KV prefix caching enforces a fixed 0.99 cosine threshold over sentence embeddings before returning cached keys."
     ],
-    "answer": "Embeddings capture topical overlap rather than logical equivalence, while KV prefix caching hashes exact token IDs from token 0.",
-    "explanation": "Antonyms and negations share nearly identical vocabulary and score high cosine similarity. KV prefix caching matches exact token prefixes deterministically, splitting cleanly at 'enable' vs 'disable'."
+    "answer": "Embeddings score high topical overlap across antonyms, while KV prefix caching hashes exact token IDs from token 0.",
+    "explanation": "Antonyms and negations share nearly identical vocabulary and score high cosine similarity under dense encoders. KV prefix caching matches exact token prefixes deterministically from token 0, splitting cleanly at 'allow' versus 'block'."
   },
   {
-    "question": "With a 1.25x explicit cache-write surcharge and 0.10x cached reads, when does prefix caching beat 1.00x uncached prefill, and what breaks it?",
+    "question": "Under a 2.00x explicit cache-write surcharge (1-hour TTL) and 0.10x cached reads, on which call does prefix caching first beat 1.00x uncached prefill, and what keeps spend stuck above uncached?",
     "options": [
-      "Call 1 (n = 1); long outputs break amortization.",
-      "Call 2 (n = 2, costing 1.35x vs 2.00x); a dynamic timestamp at the front of the prompt keeps every call at n = 1.",
-      "Call 10 (n = 10); batch lanes disable prefix reads.",
-      "Never, because the 1.25x write surcharge exceeds all read savings."
+      "Call 2 (costing 2.10x vs 2.00x); long output generations disable cached prefix reads.",
+      "Call 3 (costing 2.20x vs 3.00x); a dynamic timestamp at the prompt start resets every call to n = 1.",
+      "Call 4 (costing 2.30x vs 4.00x); asynchronous batch queues reject warm prefix reads automatically.",
+      "Call 2 (costing 1.90x vs 2.00x); adding static system instructions at the top forces a write each turn."
     ],
-    "answer": "Call 2 (n = 2, costing 1.35x vs 2.00x); a dynamic timestamp at the front of the prompt keeps every call at n = 1.",
-    "explanation": "Cached cost 1.25 + 0.10*(n - 1) beats n starting at n = 2. Mutating the prompt header forces a 1.25x cold write on every request."
+    "answer": "Call 3 (costing 2.20x vs 3.00x); a dynamic timestamp at the prompt start resets every call to n = 1.",
+    "explanation": "Cached cost 2.00 + 0.10*(n - 1) < n solves to 1.90 < 0.90*n, so n >= 3 (at n = 2 it is 2.10x vs 2.00x; at n = 3 it is 2.20x vs 3.00x). Mutating the prompt header forces a 2.00x cold write on every request."
   },
   {
-    "question": "A cascade tries fast-8b first and escalates to frontier-70b on schema failure. Which invariants must the gateway enforce?",
+    "question": "A gateway tries fast-8b first and escalates to a frontier tier on schema failure. Which invariants must the gateway enforce across hops?",
     "options": [
-      "Reset the caller timeout and drop JSON citation fields on the backup.",
-      "Preserve the output schema and privacy scope while deducting first-hop time and spend from one shared budget.",
-      "Stream fast-8b tokens first, then splice frontier-70b tokens on validation error.",
-      "Route escalated calls to the 24-hour batch queue."
+      "Reset the caller timeout on escalation and relax JSON citation fields so the backup succeeds cleanly.",
+      "Preserve output schema and privacy scope while deducting first-hop time and spend from one shared budget.",
+      "Stream fast-8b tokens to the caller immediately, then splice frontier tokens once validation fails.",
+      "Route failed interactive hops to the 24-hour batch queue while holding the caller socket open."
     ],
-    "answer": "Preserve the output schema and privacy scope while deducting first-hop time and spend from one shared budget.",
-    "explanation": "Buffer pre-output responses, keep identical schema and data-residency constraints across tiers, and enforce one cumulative deadline and dollar ceiling."
+    "answer": "Preserve output schema and privacy scope while deducting first-hop time and spend from one shared budget.",
+    "explanation": "Safe failover buffers output before streaming, preserves identical schema and data-residency constraints across tiers, and enforces one cumulative deadline and dollar ceiling across both hops."
   },
   {
-    "question": "Zero schema defects occur across n = 100 independent tests. What does the Rule of Three (3/n) say against a 0.5% defect cap?",
+    "question": "Zero schema defects occur across n = 150 independent evaluation cases. What does the Rule of Three (3/n) imply against a 0.25% defect ceiling?",
     "options": [
-      "True failure rate is below 0.3% at 95% confidence.",
-      "Up to 3.0% defect rates remain plausible; clearing 0.5% needs at least 600 independent zero-defect checks.",
-      "Structured JSON eliminates binomial sampling uncertainty.",
-      "Replaying the same 100 prompts six times establishes the n = 600 bound."
+      "The 95% upper defect bound is already 0.20%, clearing the 0.25% cap with margin to spare.",
+      "Defect rates up to 2.0% remain plausible; clearing 0.25% needs at least 1,200 independent checks.",
+      "Strict JSON schema decoding eliminates sampling uncertainty, making n = 150 sufficient for 0.25%.",
+      "Replaying the same 150 prompts eight times establishes the n = 1,200 zero-defect confidence bound."
     ],
-    "answer": "Up to 3.0% defect rates remain plausible; clearing 0.5% needs at least 600 independent zero-defect checks.",
-    "explanation": "For zero failures across n independent checks, p_max is roughly 3/n (3.0% at n = 100), so p_max <= 0.5% requires n >= 600 independent cases."
+    "answer": "Defect rates up to 2.0% remain plausible; clearing 0.25% needs at least 1,200 independent checks.",
+    "explanation": "For zero failures across n independent checks, p_max is approximately 3/n (3/150 = 2.0% at n = 150), so p_max <= 0.25% requires n >= 3 / 0.0025 = 1,200 independent cases; repeating the same 150 prompts does not increase independent sample size."
   }
 ]
 ```

@@ -325,7 +325,7 @@ In production, benchmark against **cuBLAS** or **CUTLASS/CuTe** (`cutlass_profil
   {
     "question": "In a 16x16 tiled GEMM with M=18, N=8, K=32, the thread for out-of-bounds C[19, 2] also maps to in-bounds B[3, 2]. How must it handle panel loads and barriers?",
     "options": [
-      "Zero-fill both A and B; hit both barriers.",
+      "Zero-fill both A and B; hit both load and compute barriers.",
       "Zero-fill A, load B; hit only the post-load barrier.",
       "Zero-fill both A and B; hit only the post-load barrier.",
       "Zero-fill A, load B; hit both load and compute barriers."

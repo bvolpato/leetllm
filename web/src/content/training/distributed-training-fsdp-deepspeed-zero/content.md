@@ -407,7 +407,7 @@ When distributed runs fail, turn symptoms into profiler checks:[^pytorchNcclEnvi
 ```mastery-quiz
 [
   {
-    "question": "A 2B-parameter model uses 2B compute weights, 4B FP32 gradient accumulation (grad_accum_dtype='fp32'), and 12B/param for FP32 master weights plus Adam moments. Across 8 data ranks, what are persistent per-rank totals under ZeRO-2 and ZeRO-3?",
+    "question": "A 2B-parameter model uses 2 B/param compute weights, 4 B/param FP32 gradient accumulation (grad_accum_dtype='fp32'), and 12 B/param for FP32 master weights plus Adam moments. Across 8 data ranks, what are persistent per-rank totals under ZeRO-2 and ZeRO-3?",
     "options": [
       "ZeRO-2: 4.5 GB; ZeRO-3: 4.5 GB.",
       "ZeRO-2: 8.0 GB; ZeRO-3: 4.5 GB.",

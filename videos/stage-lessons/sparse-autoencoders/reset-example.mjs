@@ -1,7 +1,7 @@
-// Both requests share the credential component. Only the second has the urgency component.
-import { beside, dot, dynamic, line, rect, row, text } from 'vizmatic/stage';
-import { area, label, mono } from '../kit-narrated.mjs';
-import { COLOR, code, dictionary, vec } from './parts.mjs';
+// Pure Cinema dual-request meters for "Reset my password" vs "Reset my password now".
+// Zero legacy chrome, zero boxed cards, >= 26 px floating typography.
+import { dynamic, group, line } from 'vizmatic/stage';
+import { COSMOS, ROLE, code, dictionary, glowDot, lumBar, rule, txt, vec } from './parts.mjs';
 
 export const credential = vec.scale(dictionary[0], code[0]);
 export const urgency = vec.scale(dictionary[1], code[1]);
@@ -13,90 +13,159 @@ export function resetState(request, { blue = 1, pink = 1, error = 0 } = {}) {
 
 const pairText = (v) => `[${v.map((n) => n.toFixed(2)).join(', ')}]`;
 
-// The two meters share a zero and a scale. Each colored length is that component's dot
-// product with the readout. Outlined marks can retain the original score through an edit.
-export function requestMeters({ read, weights, max, quantity, original }) {
-  const [head, first, second, comparison, footer] = area.rows([1, 1.65, 1.65, 0.9, 1], 'normal');
-  const [names, scale] = area.inset('normal', 'none').columns([4, 7], 'wide');
-  const rail = scale.inset('loose', 'none');
-  const x = (value) => rail.left + (value / max) * (rail.width - 112);
-  const colors = [COLOR.first, COLOR.second, COLOR.residual];
+/**
+ * Dual glowing meters sharing one zero and scale. Each colored segment shows that component's
+ * dot product with `weights`, and dashed original markers stay visible through ablations.
+ */
+export function cinemaRequestMeters({ read, weights, max, quantity, original }) {
+  const leftText = -840;
+  const railLeft = -210;
+  const railRight = 740;
+  const railW = railRight - railLeft;
+  const x = (value) => railLeft + (value / max) * railW;
+  const colors = [ROLE.first, ROLE.second, ROLE.residual];
   const parts = (i) => read(i).components.map((v) => vec.dot(v, weights));
   const total = (i) => vec.dot(read(i).activation, weights);
-  const headText = label(quantity, { size: 52 }).at(area.cx, head.cy);
-  const rows = [first, second].map((band, i) => {
-    const y = band.cy;
-    const prompt = text('Reset my password', { size: 46, anchor: 'left' });
-    const now = text('now', { size: 46, color: COLOR.second, anchor: 'left' });
-    const phrase = row(i ? [prompt, now] : [prompt], { gap: 11 });
-    beside(phrase, [names.left, y - 22], 'right', 0);
+
+  const headText = txt(quantity, 0, -280, 42, COSMOS.ink, 'mono', 'center').glow(6, ROLE.other);
+
+  const rowYs = [-115, 75];
+  const rows = rowYs.map((y, i) => {
+    const promptParts = [
+      txt('Reset my password', leftText, y - 16, 40, COSMOS.ink, 'sans', 'left'),
+    ];
+    if (i === 1) {
+      promptParts.push(
+        txt('now', leftText + 396, y - 16, 40, ROLE.second, 'sans', 'left').glow(8, ROLE.second),
+      );
+    }
+
     const input =
       original &&
       dynamic(() =>
-        text(`x = ${pairText(read(i).activation)}`, {
-          size: 35,
-          font: 'mono',
-          color: 'dim',
-          anchor: 'left',
-        }).at(names.left, y + 43),
+        txt(
+          `x = ${pairText(read(i).activation)}`,
+          leftText,
+          y + 36,
+          30,
+          COSMOS.muted,
+          'mono',
+          'left',
+        ),
       );
-    const track = line([x(0), y], [x(max), y], { stroke: 'faint', width: 4 });
+
+    const track = rule(railLeft, y, railRight, y, '#36466b', 4);
     const ticks = Array.from({ length: max + 1 }, (_, n) => [
-      line([x(n), y + 19], [x(n), y + 29], { stroke: 'dim', width: 3 }),
-      mono(String(n), { size: 28, color: 'dim' }).at(x(n), y + 52),
+      line([x(n), y + 18], [x(n), y + 30], { stroke: '#4d608e', width: 2.5 }),
+      txt(String(n), x(n), y + 54, 26, COSMOS.dim, 'mono', 'center'),
     ]).flat();
-    const end = dynamic(() => [
-      dot(10, COLOR.mark).at(x(total(i)), y),
-      text(total(i).toFixed(2), { size: 44, color: COLOR.mark, font: 'mono', anchor: 'left' }).at(
-        x(total(i)) + 24,
-        y - 49,
-      ),
-    ]);
-    const plain = dynamic(() =>
-      line([x(0), y], [x(total(i)), y], { stroke: COLOR.mark, width: 12 }),
-    );
+
+    const end = dynamic(() => {
+      const val = total(i);
+      const px = x(val);
+      return [
+        glowDot(px, y, { radius: 9, color: ROLE.mark, glow: 12 }),
+        txt(val.toFixed(2), px + 22, y - 50, 36, ROLE.mark, 'mono', 'left').glow(6, ROLE.mark),
+      ];
+    });
+
+    const plain = dynamic(() => {
+      const w = x(total(i)) - railLeft;
+      if (w < 3) return [];
+      return [
+        lumBar(railLeft + w / 2, y, w, 24, {
+          color: ROLE.mark,
+          fillOpacity: 0.4,
+          strokeWidth: 2.4,
+          glow: 9,
+          radius: 5,
+        }),
+      ];
+    });
+
     const stack = dynamic(() => {
-      let left = x(0);
-      return parts(i).flatMap((value, k) => {
-        const width = x(value) - x(0);
-        if (width < 0.1) return [];
-        const bar = rect(width, 26, { fill: colors[k], stroke: null }).at(left + width / 2, y);
-        left += width;
+      let cursor = railLeft;
+      return parts(i).flatMap((val, k) => {
+        const w = x(val) - railLeft;
+        if (w < 1.5) return [];
+        const bar = lumBar(cursor + w / 2, y, w, 28, {
+          color: colors[k],
+          fillOpacity: 0.48,
+          strokeWidth: 2.2,
+          glow: 8,
+          radius: 5,
+        });
+        cursor += w;
         return [bar];
       });
     });
+
     const previous =
       original &&
-      line([x(original[i]), y - 24], [x(original[i]), y + 20], {
-        stroke: 'ink',
-        width: 4,
-        dash: [6, 5],
-      });
-    return { base: [...phrase.nodes, track, ...ticks], plain, stack, end, input, previous };
+      line([x(original[i]), y - 18], [x(original[i]), y + 20], {
+        stroke: COSMOS.ink,
+        width: 3.5,
+        dash: [7, 5],
+      }).opacity(0.85);
+
+    return {
+      base: [...promptParts, track, ...ticks],
+      plain,
+      stack,
+      end,
+      input,
+      previous,
+    };
   });
+
   const gap = dynamic(() => {
     const a = x(total(0));
     const b = x(total(1));
-    const y = comparison.cy - 18;
+    const gy = 212;
+    const mid = (a + b) / 2;
+    const diff = total(1) - total(0);
     return [
-      ...(Math.abs(a - b) > 1 ? [line([a, y], [b, y], { stroke: COLOR.mark, width: 4 })] : []),
-      ...[a, b].map((p) => line([p, y - 12], [p, y + 12], { stroke: COLOR.mark, width: 4 })),
-      text(`urgent − plain = ${(total(1) - total(0)).toFixed(2)}`, {
-        size: 36,
-        color: COLOR.mark,
-        font: 'mono',
-      }).at((a + b) / 2, y + 46),
+      ...(Math.abs(a - b) > 2
+        ? [line([a, gy], [b, gy], { stroke: ROLE.mark, width: 4 }).glow(8, ROLE.mark)]
+        : []),
+      line([a, gy - 12], [a, gy + 12], { stroke: ROLE.mark, width: 3.5 }),
+      line([b, gy - 12], [b, gy + 12], { stroke: ROLE.mark, width: 3.5 }),
+      txt(
+        `urgent − plain = ${diff.toFixed(2)}`,
+        mid,
+        gy + 44,
+        34,
+        ROLE.mark,
+        'mono',
+        'center',
+      ).glow(6, ROLE.mark),
     ];
   });
-  const caption = (words, color = 'ink') =>
-    label(words, { color, size: 44 }).at(area.cx, footer.cy);
+
+  const caption = (words, color = COSMOS.ink) =>
+    txt(words, 0, 385, 38, color, 'sans', 'center').glow(color === ROLE.mark ? 6 : 0, color);
+
   const legend = (includeError) => {
     const items = [
-      label('credential', { size: 36, color: colors[0] }),
-      label('urgency', { size: 36, color: colors[1] }),
+      group(
+        glowDot(leftText + 10, 212, { radius: 8, color: colors[0], glow: 9 }),
+        txt('credential', leftText + 30, 212, 30, colors[0], 'sans', 'left'),
+      ),
+      group(
+        glowDot(leftText + 220, 212, { radius: 8, color: colors[1], glow: 9 }),
+        txt('urgency', leftText + 240, 212, 30, colors[1], 'sans', 'left'),
+      ),
     ];
-    if (includeError) items.push(label('residual', { size: 36, color: colors[2] }));
-    return beside(row(items, { gap: 'wide' }), [names.left, comparison.cy], 'right', 0).nodes;
+    if (includeError) {
+      items.push(
+        group(
+          glowDot(leftText + 405, 212, { radius: 8, color: colors[2], glow: 9 }),
+          txt('residual', leftText + 425, 212, 30, colors[2], 'sans', 'left'),
+        ),
+      );
+    }
+    return items;
   };
-  return { headText, rows, gap, caption, legend, footer };
+
+  return { headText, rows, gap, caption, legend, footerY: 385 };
 }

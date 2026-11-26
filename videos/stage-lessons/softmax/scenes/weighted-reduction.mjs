@@ -1,176 +1,209 @@
-// The same weighted numerator splits into six equal shares or two equal shares.
+// Scene 19 (weighted-reduction): "Carry the denominator with a weighted loss"
+// Same predictions & weighted numerator 6*ln(2), yet integer target divides by sum(w)=6 -> ln(2), while float one-hot divides by N=2 -> 3*ln(2)!
 import {
-  assertEqual,
-  barChart,
-  boxOf,
-  column,
-  dynamic,
-  fade,
-  fitted,
-  place,
-  rect,
-  row,
-  tex,
-  to,
-} from 'vizmatic/stage';
-import { completeModel } from '../../../films/softmax/model.mjs';
-import { area, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { MARK_COLOR } from '../parts.mjs';
-
-const WEIGHTS = [2, 4];
-const COLORS = ['blue', 'pink'];
+  COSMOS,
+  DANGER_COLOR,
+  MARK_COLOR,
+  MODEL,
+  TARGET_COLOR,
+  WORD_COLOR,
+  aura,
+  glowTex,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  rule,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
 
 export default function weightedReduction(s, c) {
-  const model = completeModel();
-  const positions = WEIGHTS.length;
-  const weightSum = WEIGHTS.reduce((sum, weight) => sum + weight, 0);
-  const ordinaryLoss = -Math.log(1 / 2); // Each binary prediction is uniform.
-  assertEqual(weightSum * ordinaryLoss, model.weightNumerator, 'weighted numerator');
-  assertEqual(model.weightNumerator / weightSum, model.integerWeighted, 'class-index mean');
-  assertEqual(model.weightNumerator / positions, model.floatWeighted, 'one-hot mean');
+  const phase = s.value(0);
+  const showIntRule = s.value(0);
+  const showFloatRule = s.value(0);
+  const showUniform = s.value(0);
+  const showWeights = s.value(0);
+  const showNum = s.value(0);
+  const showIntMean = s.value(0);
+  const showFloatMean = s.value(0);
+  const showCombine = s.value(0);
 
-  const [inputs, ...lanes] = area.rows([1.2, 1, 1, 1], 'normal');
-  // Every length below uses this common scale, including the moving partitions.
-  const regions = lanes.map((lane) => lane.columns([2.6, 6.5, 2.4], 'normal'));
-  const barWidth = regions[0][1].width * 0.88;
-  const height = 64;
-  const names = ['Weighted sum', 'Integer target', 'Float one-hot'].map((name, i) =>
-    place(label(name, { size: 45 }), regions[i][0], 'left'),
-  );
-  const [predictions, contributions] = inputs.columns([2, 3], 'loose');
-  const predictionSlots = predictions.columns(2, 'wide');
-  const binary = predictionSlots.map((slot, i) =>
-    place(
-      fitted(slot, (width) =>
-        barChart(
-          [
-            { label: 'class 0', value: 0.5, color: 'blue' },
-            { label: 'class 1', value: 0.5, color: 'pink' },
-          ],
-          { width, height: slot.height * 0.35, max: 1, labelSize: 34, showValues: false },
-        ),
-      ),
-      slot,
-    ),
-  );
-  const rowNames = binary.map((chart, i) =>
-    place(note(i === 0 ? 'row A' : 'row B'), predictionSlots[i], 'top'),
-  );
-  const halves = binary.map((chart, i) =>
-    place(mono('½     ½', { size: 34 }), predictionSlots[i], 'bottom'),
-  );
-  const laneFrames = regions.map((cells) =>
-    rect(barWidth + 48, height + 24, { stroke: 'dim', width: 2, fill: null, opacity: 0.3 }).moveTo([
-      cells[1].left + barWidth / 2,
-      cells[1].cy,
-    ]),
-  );
-  const sourceTitle = place(note('Loss at each observed class'), contributions, 'top left');
-  const pair = (values) =>
-    place(
-      row(
-        values.map((value, i) => mono(value, { size: 46, color: COLORS[i] })),
-        { gap: 'loose' },
-      ),
-      contributions,
-    );
-  const symbolic = pair(['A   weight × loss', 'B   weight × loss']);
-  const uniform = pair(['A   weight × ln 2', 'B   weight × ln 2']);
-  const weighted = pair(WEIGHTS.map((w, i) => `${i === 0 ? 'A' : 'B'}   ${w} × ln 2`));
-
-  const rule = (words, i) => place(label(words, { size: 44, color: 'dim' }), regions[i][1], 'left');
-  const sumRule = rule('Add both weighted losses', 0);
-  const pending = [1, 2].map((i) => rule('Divide by …', i));
-  const divisors = [rule('Sum of target-class weights', 1), rule('Number of positions', 2)];
-  const example = place(note('Uniform binary predictions'), contributions, 'top left');
-  s.add(heading(c.title), laneFrames, sourceTitle, names, pending, binary, rowNames);
-  c.onBeat(0, () => s.play(...binary.map((chart) => fade(chart, 0.35)), { duration: 0.1 }));
-  c.show('weighted-reduction-0', [symbolic, sumRule]);
-  c.swap('weighted-contract', pending[0], divisors[0]);
-  c.swap('weighted-count', pending[1], divisors[1]);
-  c.swap('weighted-reduction-1', sourceTitle, example);
-  c.on('weighted-uniform', () =>
-    s.play(...binary.map((chart) => fade(chart, 1)), { duration: 0.5 }),
-  );
-  c.show('weighted-uniform', halves, { after: true });
-  c.swap('weighted-uniform', symbolic, uniform, { after: true });
-  c.swap('weighted-weights', uniform, weighted, { after: true });
-
-  const segments = WEIGHTS.map((w, i) =>
-    rect((barWidth * w) / weightSum, height, { fill: COLORS[i], stroke: null }),
-  );
-  place(row(segments, { gap: 'none' }), regions[0][1], 'left');
-  const sum = place(
-    mono(`${weightSum} ln 2`, { size: 53, color: MARK_COLOR }),
-    regions[0][2],
-    'left',
-  );
-  const destinations = segments.map((segment) => boxOf(segment).point('center'));
-  segments.forEach((segment, i) => {
-    const source = boxOf(weighted.nodes[i]).point('bottom');
-    segment.moveTo([source[0], source[1] + height]);
+  const bgAura = aura(0, 20, 620, '#14384430', '#2b1b4a18');
+  const title = heroTitle(['Carry the Denominator', 'in Weighted Losses'], {
+    x: -855,
+    y: -430,
+    size: 54,
+    lineHeight: 62,
+    accent: MARK_COLOR,
+    eyebrow: 'CLASS-WEIGHTED REDUCTION CONTRACT',
   });
-  c.hide('weighted-numerator', sumRule, { fade: 0.15 });
-  c.show('weighted-numerator', segments, { lead: -0.2, fade: 0.1 });
-  c.on(
-    'weighted-numerator',
-    () =>
-      s.play(
-        ...segments.map((segment, i) =>
-          to(segment, (n) => n.moveTo(destinations[i]), { duration: 1.4 }),
-        ),
-      ),
-    0.2,
-  );
-  c.show('weighted-numerator', sum, { after: true });
 
-  // Open seams in a copy of the full bar. Each piece keeps its width throughout the cut.
-  const divide = (cue, i, count, color, answer) => {
-    const part = barWidth / count;
-    const gap = (regions[i][1].width - barWidth) / (weightSum - 1);
-    const spread = s.value(0);
-    const strip = dynamic(() =>
-      Array.from({ length: count }, (_, piece) =>
-        rect(part, height, {
-          fill: piece === 0 ? color : 'dim',
-          stroke: null,
-          opacity: piece === 0 ? 1 : 0.55,
-        }).at(
-          regions[i][1].left + part / 2 + piece * (part + spread.value * gap),
-          regions[i][1].cy,
+  const eqCombine = glowTex(
+    'L_{\\text{global}} = \\frac{\\sum_{\\text{shards}} N_s}{\\sum_{\\text{shards}} D_s}',
+    { x: 525, y: 375, size: 40, color: TARGET_COLOR, glow: 8 },
+  );
+
+  const live = guardedDynamic(s.value(1), () => {
+    const nodes = [
+      txt('TWO UNIFORM PREDICTIONS (2 CLASSES EACH)', -855, -245, 26, COSMOS.cyan, 'mono', 'left'),
+    ];
+
+    // Two example rows
+    const ex = [
+      {
+        y: -165,
+        label: 'Ex 1:  p = [0.5, 0.5]',
+        loss: 'L₁ = ln 2 ≈ 0.693',
+        w: 'w₁ = 2',
+        prod: '2 · ln 2',
+        col: WORD_COLOR[0],
+      },
+      {
+        y: -95,
+        label: 'Ex 2:  p = [0.5, 0.5]',
+        loss: 'L₂ = ln 2 ≈ 0.693',
+        w: 'w₂ = 4',
+        prod: '4 · ln 2',
+        col: WORD_COLOR[2],
+      },
+    ];
+    ex.forEach((e) => {
+      nodes.push(
+        txt(e.label, -855, e.y, 28, COSMOS.ink, 'mono', 'left').opacity(
+          0.4 + 0.6 * showUniform.value,
         ),
+        txt(e.loss, -415, e.y, 28, e.col, 'mono', 'left').opacity(showUniform.value),
+        txt(e.w, -45, e.y, 28, MARK_COLOR, 'mono', 'left').opacity(showWeights.value),
+        txt(`⇒  ${e.prod}`, 185, e.y, 28, TARGET_COLOR, 'mono', 'left').opacity(showWeights.value),
+      );
+    });
+
+    // Shared numerator bar
+    if (showNum.value > 0.02) {
+      nodes.push(
+        rule(-855, -35, 855, -35, COSMOS.rule, 2).opacity(showNum.value),
+        txt(
+          `IDENTICAL WEIGHTED NUMERATOR:   2 ln 2 + 4 ln 2 = 6 ln 2 ≈ ${MODEL.weightNumerator.toFixed(3)}`,
+          -855,
+          18,
+          30,
+          MARK_COLOR,
+          'mono',
+          'left',
+        )
+          .glow(7, MARK_COLOR)
+          .opacity(showNum.value),
+      );
+    }
+
+    // Side-by-side divisor contrast (quiet skeleton visible from t=0, brightening on cue!)
+    const intOp = 0.55 + 0.45 * Math.max(showIntRule.value, showIntMean.value);
+    nodes.push(
+      txt('INTEGER CLASS INDICES (Long)', -855, 112, 26, TARGET_COLOR, 'mono', 'left').opacity(
+        intOp,
+      ),
+      txt(
+        'Divisor = sum of target weights = 2 + 4 = 6',
+        -855,
+        158,
+        26,
+        COSMOS.muted,
+        'sans',
+        'left',
+      ).opacity(intOp),
+    );
+    if (showIntMean.value > 0.02) {
+      const bw = 180;
+      nodes.push(
+        lumBar(-855 + bw / 2, 214, bw, 42, {
+          color: TARGET_COLOR,
+          fillOpacity: 0.78,
+          glow: 9,
+          opacity: showIntMean.value,
+        }),
+        txt(
+          `6 ln 2 ÷ 6 = ln 2 ≈ ${MODEL.integerWeighted.toFixed(3)}`,
+          -855,
+          274,
+          30,
+          TARGET_COLOR,
+          'mono',
+          'left',
+        )
+          .glow(7, TARGET_COLOR)
+          .opacity(showIntMean.value),
+      );
+    }
+
+    const fltOp = 0.55 + 0.45 * Math.max(showFloatRule.value, showFloatMean.value);
+    nodes.push(
+      rule(20, 95, 20, 295, COSMOS.cyan, 2.2).opacity(fltOp * 0.7),
+      txt('FLOAT ONE-HOT TARGETS (Float)', 70, 112, 26, DANGER_COLOR, 'mono', 'left').opacity(
+        fltOp,
+      ),
+      txt('Divisor = position count N = 2', 70, 158, 26, COSMOS.muted, 'sans', 'left').opacity(
+        fltOp,
       ),
     );
-    const caption = place(note(`÷ ${count} equal parts`), regions[i][1], 'bottom left');
-    const exact = weightSum / count === 1 ? 'ln 2' : `${weightSum / count} ln 2`;
-    const result = place(
-      column(
-        [
-          mono(exact, { size: 52, color }),
-          mono(`≈ ${answer.toFixed(3)}`, { size: 35, color: 'dim' }),
-        ],
-        { gap: 'tight', align: 'left' },
-      ),
-      regions[i][2],
-      'left',
-    );
-    c.swap(cue, divisors[i - 1], [strip, caption], { after: true });
-    c.after(cue, () => s.play(spread.to(1, { duration: 0.9 })), 0.25);
-    c.show(cue, result, { after: true, lead: -0.9 });
-  };
-  c.hide('weighted-integer', laneFrames[1], { after: true, fade: 0.15 });
-  c.hide('weighted-float', laneFrames[2], { after: true, fade: 0.15 });
-  divide('weighted-integer', 1, weightSum, 'ink', model.integerWeighted);
-  divide('weighted-float', 2, positions, 'cyan', model.floatWeighted);
+    if (showFloatMean.value > 0.02) {
+      const bw = 540;
+      nodes.push(
+        lumBar(70 + bw / 2, 214, bw, 42, {
+          color: DANGER_COLOR,
+          fillOpacity: 0.78,
+          glow: 9,
+          opacity: showFloatMean.value,
+        }),
+        txt(
+          `6 ln 2 ÷ 2 = 3 ln 2 ≈ ${MODEL.floatWeighted.toFixed(3)} (3× larger!)`,
+          70,
+          274,
+          28,
+          DANGER_COLOR,
+          'mono',
+          'left',
+        )
+          .glow(7, DANGER_COLOR)
+          .opacity(showFloatMean.value),
+      );
+    }
 
-  const keep = place(
-    label('Combine weighted sums and denominators across shards.', { size: 47 }),
-    inputs,
-  );
-  const combine = place(
-    tex('L = \\frac{S_1 + S_2}{D_1 + D_2}', { size: 56, color: MARK_COLOR }),
-    inputs,
-  );
-  c.swap('weighted-reduction-2', [example, weighted, binary, rowNames, halves], keep);
-  c.swap('weighted-combine', keep, combine);
+    nodes.push(
+      rule(-855, 322, 180, 322, COSMOS.cyan, 2.2).opacity(0.6),
+      txt(
+        'Shards / microbatches: sum numerators & denominators, divide ONCE',
+        -855,
+        365,
+        28,
+        COSMOS.cyan,
+        'sans',
+        'left',
+      ).opacity(0.55 + 0.45 * showCombine.value),
+    );
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  c.on('weighted-reduction-0', () => {
+    s.play(showIntRule.to(0.4, { duration: 0.3 }));
+  });
+  tweenCue(s, c, 'weighted-contract', showIntRule, 1, { duration: 0.45 });
+  tweenCue(s, c, 'weighted-count', showFloatRule, 1, { duration: 0.45 });
+
+  c.on('weighted-reduction-1', () => {
+    s.play(showUniform.to(0.4, { duration: 0.3 }));
+  });
+  tweenCue(s, c, 'weighted-uniform', showUniform, 1, { duration: 0.45 });
+  tweenCue(s, c, 'weighted-weights', showWeights, 1, { duration: 0.45 });
+  tweenCue(s, c, 'weighted-numerator', showNum, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'weighted-integer', showIntMean, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'weighted-float', showFloatMean, 1, { duration: 0.45, after: true });
+
+  tweenCue(s, c, 'weighted-reduction-2', showCombine, 0.5, { duration: 0.35 });
+  tweenCue(s, c, 'weighted-combine', showCombine, 1, { duration: 0.45 });
+  c.show('weighted-combine', eqCombine);
 }

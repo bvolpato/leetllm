@@ -1,165 +1,272 @@
+// Scene 5: url-policy - "Which links share a fetch?"
+// Luminous URL normalization funnel: two raw aliases converge to one canonical claim identity
+// after lowercasing host and stripping fragments/default port, while ?q=2 forks a distinct key,
+// paired with admission policy gates and separate network authorization checks.
+import { line } from 'vizmatic/stage';
 import {
-  appear,
-  arrow,
-  assertEqual,
-  boxOf,
-  codeBlock,
-  column,
-  dot,
-  draw,
-  dynamic,
-  fade,
-  fadeOut,
-  graph,
-  grid,
-  indicate,
-  lanes,
-  line,
-  morphCode,
-  place,
-  recolor,
-  rect,
-  row,
-  seq,
-  table,
-  to,
-} from 'vizmatic/stage';
-import { chip, display, heading, label, mono, namedBox, note, tint } from '../../kit-narrated.mjs';
-import {
-  BOARD,
-  COLOR,
-  context,
-  racePicture,
-  storePicture,
-  schedulePicture,
-  bucketPicture,
-  ledgerPicture,
-  workloadPicture,
-  CRAWL,
-  LEDGER,
-  BUCKET,
-  SCHEDULE_RETRY,
-  SCHEDULE_BLOCKED,
-  expiryState,
-  parserTrace,
-  mixedWorkSchedule,
+  COSMOS,
+  ROLE,
+  ambientClock,
+  cinemaAtmosphere,
+  glowArcArrow,
+  glowDot,
+  glowPill,
+  guardedDynamic,
+  hexAlpha,
+  lowerFooter,
+  playCue,
+  sceneHeading,
+  txt,
 } from '../parts.mjs';
 
-export default function scene(s, c) {
-  context(s, c);
-  const [left, right] = BOARD.columns([8, 5], 'wide');
-  const [candidatesArea, transferArea, claimsArea] = left.rows([4, 1, 3], 'normal');
-  const [startArea, aliasesArea, changedArea] = candidatesArea.rows([1, 2, 1], 'normal');
-  const start = place(note('Start: https://repo.example/start'), startArea);
-  const aliases = ['https://REPO.example:443/api?q=1#auth', 'https://repo.example/api?q=1#usage'];
-  const urls = aliases.map((url) => mono(url, { size: 34, color: 'cyan' }));
-  place(column(urls, { gap: 'wide' }), aliasesArea);
-  const planned = place(note('Changed query: another identity?'), changedArea);
-  const changed = place(
-    mono('https://repo.example/api?q=2', { size: 34, color: 'cyan' }),
-    changedArea,
+export default function urlPolicy(s, c) {
+  const title = sceneHeading(['Which links share a fetch?'], { accent: ROLE.workerB });
+
+  const amb = ambientClock(s, c);
+  const originFocus = s.value(0);
+  const hostLowered = s.value(0);
+  const stripped = s.value(0);
+  const queryFocus = s.value(0);
+  const queryTwo = s.value(0);
+  const policyFocus = s.value(0);
+  const badPort = s.value(0);
+  const foreignSkip = s.value(0);
+  const netFocus = s.value(0);
+  const netCheck = s.value(0);
+
+  const layer = guardedDynamic(
+    () => 1,
+    (alpha) => {
+      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
+      const lowHost = hostLowered.value > 0.5;
+      const isStripped = stripped.value > 0.5;
+      const hasQ2 = queryTwo.value > 0.5;
+      const nodes = [];
+
+      // Left hemisphere: Normalization Funnel (x = -850 .. 110)
+      const lx = -380;
+      nodes.push(
+        txt(
+          'START ORIGIN:  https://repo.example (port 443)',
+          lx,
+          -288,
+          26,
+          COSMOS.muted,
+          'mono',
+          'center',
+        ).opacity(alpha),
+        // Two raw link aliases
+        glowPill(
+          'https://REPO.example:443/api?q=1#auth',
+          lx,
+          -185,
+          isStripped ? COSMOS.dim : ROLE.workerB,
+          {
+            size: 26,
+            fixedW: 850,
+            alpha: isStripped ? 0.65 * alpha : alpha,
+            glow: isStripped ? 0 : 8,
+          },
+        ),
+        glowPill(
+          'https://repo.example/api?q=1#usage',
+          lx,
+          -100,
+          isStripped ? COSMOS.dim : ROLE.workerA,
+          {
+            size: 26,
+            fixedW: 850,
+            alpha: isStripped ? 0.65 * alpha : alpha,
+            glow: isStripped ? 0 : 8,
+          },
+        ),
+      );
+
+      // Converging glowing arcs down into canonical claim identity #1
+      if (isStripped) {
+        nodes.push(
+          glowArcArrow([lx - 260, -64], [lx - 210, 32], 14, {
+            color: ROLE.ok,
+            width: 3.4,
+            alpha,
+            photonT: (amb.value * 4) % 1,
+          }),
+          glowArcArrow([lx + 260, -64], [lx + 210, 32], 14, {
+            color: ROLE.ok,
+            width: 3.4,
+            alpha,
+            photonT: (amb.value * 4 + 0.5) % 1,
+          }),
+        );
+      }
+
+      // Claim identity 1 (shared)
+      nodes.push(
+        txt('CLAIM IDENTITIES', lx, -18, 26, ROLE.focus, 'mono', 'center').opacity(alpha),
+        glowPill(
+          isStripped ? 'https://repo.example/api?q=1' : 'normalizing...',
+          lx,
+          82,
+          isStripped ? (queryFocus.value > 0.5 ? ROLE.focus : ROLE.ok) : COSMOS.dim,
+          {
+            size: 28,
+            fixedW: 760,
+            alpha: isStripped ? alpha : 0.55 * alpha,
+            glow: queryFocus.value > 0.5 ? 14 : isStripped ? 10 : 0,
+          },
+        ),
+      );
+
+      // Claim identity 2 (?q=2 distinct)
+      nodes.push(
+        glowPill(
+          hasQ2 ? 'https://repo.example/api?q=2   (distinct!)' : 'Change ?q=1 -> ?q=2 ?',
+          lx,
+          190,
+          hasQ2 ? ROLE.workerB : COSMOS.dim,
+          {
+            size: 27,
+            fixedW: 760,
+            alpha: hasQ2 ? alpha : 0.6 * alpha,
+            glow: hasQ2 ? 11 : 0,
+          },
+        ),
+      );
+
+      // Subtle vertical divider between funnel and right-hand policy ledger
+      nodes.push(
+        line([115, -280], [115, 275], { stroke: hexAlpha('#2b3b60', 0.7 * alpha), width: 2 }),
+      );
+
+      // Right hemisphere: Origin check + Admission & Network Safety Gates (x = 165 .. 855)
+      const rxLabel = 170;
+      const rxVal = 665;
+      nodes.push(
+        txt('ORIGIN & POLICY GATES', 505, -288, 26, ROLE.focus, 'mono', 'center').opacity(
+          Math.max(0.75, originFocus.value) * alpha,
+        ),
+      );
+
+      const gates = [
+        {
+          y: -195,
+          name: 'host case',
+          val: lowHost ? 'repo.example == match' : 'REPO.example vs repo',
+          col: lowHost ? ROLE.ok : ROLE.focus,
+          active: originFocus.value > 0.2,
+        },
+        {
+          y: -102,
+          name: 'bad port / auth',
+          val: badPort.value > 0.5 ? 'REJECT' : 'pending',
+          col: badPort.value > 0.5 ? ROLE.fail : COSMOS.dim,
+          active: policyFocus.value > 0.2,
+        },
+        {
+          y: -9,
+          name: 'other origin',
+          val: foreignSkip.value > 0.5 ? 'SKIP' : 'pending',
+          col: foreignSkip.value > 0.5 ? ROLE.warn : COSMOS.dim,
+          active: policyFocus.value > 0.2,
+        },
+        {
+          y: 96,
+          name: 'DNS & redirects',
+          val: netCheck.value > 0.5 ? 'CHECK BEFORE FETCH' : 'separate layer',
+          col: netCheck.value > 0.5 ? ROLE.record : COSMOS.dim,
+          active: netFocus.value > 0.2,
+        },
+        {
+          y: 190,
+          name: 'request limits',
+          val: netCheck.value > 0.5 ? 'TIMEOUT + MAX BYTES' : 'separate layer',
+          col: netCheck.value > 0.5 ? ROLE.record : COSMOS.dim,
+          active: netFocus.value > 0.2,
+        },
+      ];
+
+      gates.forEach((g) => {
+        nodes.push(
+          txt(
+            g.name,
+            rxLabel,
+            g.y,
+            26,
+            g.active ? COSMOS.ink : COSMOS.muted,
+            'mono',
+            'left',
+          ).opacity(alpha),
+          glowPill(g.val, rxVal, g.y, g.col, {
+            size: 26,
+            fixedW: 365,
+            alpha: g.col === COSMOS.dim ? 0.6 * alpha : alpha,
+            glow: g.col === COSMOS.dim ? 0 : 8,
+          }),
+        );
+      });
+
+      // Bottom takeaway
+      const capY = 345;
+      const capText =
+        netCheck.value > 0.5
+          ? 'URL normalization owns claim keys; destination checks guard the network fetch.'
+          : foreignSkip.value > 0.5
+            ? 'Reject credentials, control chars, backslashes, and bad ports; skip foreign origins.'
+            : 'Drop #fragments and default ports; keep path percent-encoding and ?query.';
+      nodes.push(
+        txt(
+          capText,
+          0,
+          capY,
+          27,
+          netCheck.value > 0.5 ? ROLE.record : COSMOS.ink,
+          'sans',
+          'center',
+        ).opacity(alpha),
+        glowDot(-380 + 220 * Math.cos(amb.value * Math.PI * 6), 275, {
+          radius: 5 + 2 * pulse,
+          color: ROLE.workerB,
+          glow: 9,
+          opacity: 0.7 * alpha,
+        }),
+        lowerFooter(
+          'SCHEME + LOWER(HOST) + PORT + PATH + QUERY',
+          netCheck.value > 0.5
+            ? 'SEPARATE PARSING FROM NETWORK AUTH'
+            : 'KEEP QUERY  ·  DROP FRAGMENT',
+          { accent: netCheck.value > 0.5 ? ROLE.record : ROLE.workerB, alpha },
+        ),
+      );
+
+      return nodes;
+    },
   );
-  const claims = place(
-    table(
-      [{ key: 'identity', label: 'claim identity', sample: 'https://repo.example/api?q=1' }],
-      [
-        { id: 'shared', identity: null },
-        { id: 'query', identity: null },
-      ],
-      {
-        width: claimsArea.width,
-        size: 34,
-        maxRows: 2,
-        leading: 2.4,
-      },
-    ),
-    claimsArea,
-  );
-  const aliasDots = [-1, 1].map((side) =>
-    dot(10, 'cyan').moveTo([transferArea.cx + (side * transferArea.width) / 4, transferArea.top]),
-  );
-  const queryDot = dot(10, 'cyan').moveTo(transferArea.point('top'));
-  const join = [claimsArea.cx, boxOf(claims).top - 22];
-  const [originArea, policyArea] = right.rows([1, 1], 'wide');
-  const origin = place(
-    table(
-      [
-        { key: 'start', label: 'start origin', sample: 'repo.example' },
-        { key: 'candidate', sample: 'REPO.example' },
-      ],
-      [
-        { id: 'scheme', start: 'https', candidate: 'https' },
-        { id: 'host', start: 'repo.example', candidate: 'REPO.example' },
-        { id: 'port', start: '443', candidate: '443' },
-      ],
-      { width: originArea.width, size: 34, maxRows: 3, leading: 2.2 },
-    ),
-    originArea,
-  );
-  const policy = place(
-    table(
-      [
-        { key: 'input', sample: 'DNS / redirect' },
-        { key: 'result', sample: 'outside scope', marks: true },
-      ],
-      [
-        { id: 'origin', input: 'origin', result: null },
-        { id: 'invalid', input: 'bad port', result: null },
-        { id: 'foreign', input: 'other origin', result: null },
-        { id: 'network', input: 'DNS / redirect', result: null },
-      ],
-      { width: policyArea.width, size: 34, maxRows: 4, leading: 2.0 },
-    ),
-    policyArea,
-  );
-  s.add(start, urls, planned, claims, origin, policy);
-  c.on('ci-url-policy-0-build', () => s.play(indicate(origin, { scale: 1, duration: 0.35 })));
-  c.on('url-origin', () =>
-    s.play(origin.setCell('host', 'candidate', 'repo.example', { duration: 0.4 })),
-  );
-  c.after('url-origin', () =>
-    s.play(
-      policy.setCell('origin', 'result', { value: 'match', state: 'pass' }, { duration: 0.35 }),
-    ),
-  );
-  c.on('url-strip', () => s.play(...urls.map((node) => recolor(node, 'dim', { duration: 0.3 }))));
-  c.show('url-strip', aliasDots);
-  c.on(
-    'url-strip',
-    () => s.play(...aliasDots.map((node) => to(node, (n) => n.moveTo(join), { duration: 0.9 }))),
-    0.35,
-  );
-  c.on('url-strip', () => s.play(fadeOut(aliasDots, { duration: 0.15 })), 1.3);
-  c.after('url-strip', () =>
-    s.play(
-      claims.setCell('shared', 'identity', 'https://repo.example/api?q=1', { duration: 0.35 }),
-    ),
-  );
-  c.on('url-query', () => s.play(claims.light('shared', undefined, { duration: 0.4 })));
-  c.swap('url-changed-query', planned, changed);
-  c.show('url-changed-query', queryDot);
-  c.on(
-    'url-changed-query',
-    () => s.play(to(queryDot, (n) => n.moveTo(join), { duration: 0.7 })),
-    0.35,
-  );
-  c.on('url-changed-query', () => s.play(fadeOut(queryDot, { duration: 0.15 })), 1.1);
-  c.after('url-changed-query', () =>
-    s.play(claims.setCell('query', 'identity', 'https://repo.example/api?q=2', { duration: 0.35 })),
-  );
-  c.on('ci-url-policy-1-build', () => s.play(indicate(policy, { scale: 1, duration: 0.35 })));
-  c.on('url-invalid', () =>
-    s.play(
-      policy.setCell('invalid', 'result', { value: 'reject', state: 'fail' }, { duration: 0.4 }),
-    ),
-  );
-  c.after('url-foreign', () =>
-    s.play(
-      policy.setCell('foreign', 'result', 'skip', { duration: 0.4 }),
-    ),
-  );
-  c.on('ci-url-policy-2-build', () => s.play(indicate(policy, { scale: 1, duration: 0.35 })));
-  c.on('url-network', () =>
-    s.play(policy.setCell('network', 'result', 'check address', { duration: 0.4 })),
-  );
+
+  s.add(cinemaAtmosphere(ROLE.workerB, ROLE.record), title, layer);
+
+  playCue(s, c, 'ci-url-policy-0-build', (d) => s.play(originFocus.to(1, { duration: d })), {
+    dur: 0.35,
+  });
+  playCue(s, c, 'url-origin', (d) => s.play(hostLowered.to(1, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'url-strip', (d) => s.play(stripped.to(1, { duration: d })), {
+    after: true,
+    dur: 0.4,
+  });
+  playCue(s, c, 'url-query', (d) => s.play(queryFocus.to(1, { duration: d })), { dur: 0.35 });
+  playCue(s, c, 'url-changed-query', (d) => s.play(queryTwo.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(s, c, 'ci-url-policy-1-build', (d) => s.play(policyFocus.to(1, { duration: d })), {
+    dur: 0.35,
+  });
+  playCue(s, c, 'url-invalid', (d) => s.play(badPort.to(1, { duration: d })), { dur: 0.35 });
+  playCue(s, c, 'url-foreign', (d) => s.play(foreignSkip.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(s, c, 'ci-url-policy-2-build', (d) => s.play(netFocus.to(1, { duration: d })), {
+    dur: 0.35,
+  });
+  playCue(s, c, 'url-network', (d) => s.play(netCheck.to(1, { duration: d })), { dur: 0.4 });
 }

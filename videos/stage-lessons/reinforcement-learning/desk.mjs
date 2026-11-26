@@ -1,187 +1,220 @@
-import { column, dot, dynamic, line, place, rect } from 'vizmatic/stage';
-import { area, label, mono, namedBox, note } from '../kit-narrated.mjs';
-import { evidenceValue, gamma, REWARD, returns } from './parts.mjs';
+// Pure-cinema risk constellation (100 luminous probability-mass orbs) and
+// glowing return ruler shared by `uncertain-transition` and `reward-design`.
+import { circle, line } from 'vizmatic/stage';
+import { COSMOS, ROLE, evidenceValue, glowDot, glowingTrail, returns, txt } from './parts.mjs';
 
 export function sign(value) {
-  return value < 0 ? '−' + Math.abs(value) : '+' + value;
-}
-
-// Keep the same two rows under the request as rewards arrive and are discounted.
-export function routeSlip() {
-  const [header, assumptions, columns, ask, review, rule, foot] = area.rows(
-    [1.05, 0.8, 0.7, 1.6, 1.6, 0.9, 0.9],
-    15,
-  );
-  const [identity, status] = header.columns([1, 1], 'wide');
-  const id = place(mono('09:00   REQ-10234', { color: 'cyan' }), identity, 'left');
-  const field = place(
-    namedBox('Verified evidence  [ empty ]', {
-      width: 655,
-      height: 92,
-      color: 'yellow',
-    }),
-    status,
-    'right',
-  );
-  const headings = ['First move', 'Cost now', 'One step later', 'Return at the desk'];
-  const cells = (region) => region.columns([1.1, 0.85, 1.25, 1.45], 'normal');
-  const headers = cells(columns).map((cell, i) => place(note(headings[i]), cell));
-  const rows = [ask, review].map((region, i) => {
-    const [action, now, later, total] = cells(region);
-    const cost = [REWARD.ask, REWARD.reviewCost][i];
-    const next = [REWARD.evidence, REWARD.review][i];
-    const color = i ? 'blue' : 'green';
-    const divider = line([region.left, region.top], [region.right, region.top], {
-      stroke: 'faint',
-      width: 2,
-    });
-    const name = place(label(['Ask for proof', 'Human review'][i], { color }), action);
-    const paid = place(mono(sign(cost), { size: 60, color }), now);
-    const reward = place(
-      column(
-        [mono(sign(next), { size: 60, color }), note(['Verified proof', 'Reviewer verifies'][i])],
-        { gap: 'tight' },
-      ),
-      later,
-    );
-    const open = place(mono('?', { size: 58, color: 'dim' }), total);
-    return { divider, name, paid, reward, open, later, total, color, cost, next };
-  });
-  const certain = place(
-    label('Every requester supplies valid proof when asked.', { color: 'green' }),
-    assumptions,
-  );
-  const discount = place(
-    mono('One step later × ' + gamma + '     ·     Synthetic reward points'),
-    rule,
-  );
-  const question = place(
-    label('Which first move earns the larger return?', { color: 'yellow' }),
-    foot,
-  );
-  const skeleton = [id, field, ...headers, ...rows.map((row) => row.divider)];
-  const filled = [
-    certain,
-    discount,
-    ...rows.flatMap((row) => [row.name, row.paid, row.reward, row.open]),
-  ];
-  return {
-    skeleton,
-    filled,
-    id,
-    field,
-    rows,
-    certain,
-    discount,
-    question,
-    assumptions,
-    rule,
-    foot,
-  };
-}
-
-// The array represents probability mass, not observed tickets. A partial mark
-// at the exact break-even probability is the corresponding fraction of one percent.
-export function probabilityTray(region) {
-  const cells = region.rows(10, 9).flatMap((row) => row.columns(10, 10));
-  const slips = cells.map((cell) =>
-    place(
-      rect(cell.width, cell.height, {
-        radius: 5,
-        fill: 'green',
-        stroke: null,
-      }),
-      cell,
-    ),
-  );
-  function lostMass(percent) {
-    return cells.slice(0, Math.ceil(percent)).map((cell, i) => {
-      const width = cell.width * Math.min(1, percent - i);
-      return rect(width, cell.height, { radius: 5, fill: 'pink', stroke: null }).moveTo([
-        cell.left + width / 2,
-        cell.cy,
-      ]);
-    });
-  }
-  return { slips, cells, lostMass };
+  return value < 0 ? `-${Math.abs(value)}` : `+${value}`;
 }
 
 export function modelMix(percent) {
   const replyShare = (100 - percent) / 100;
   const leaveShare = percent / 100;
-  return `${Number(replyShare.toFixed(4))} × ${returns.evidence} + ${Number(leaveShare.toFixed(4))} × (−54)`;
+  return `${Number(replyShare.toFixed(4))} × ${returns.evidence} + ${Number(leaveShare.toFixed(4))} × (-54)`;
 }
 
-// The review tick spans the two lanes. A verdict or a question can change
-// without moving that benchmark. The evidence mark always has its own lane.
-export function returnRuler(region, min, max, ticks) {
-  const left = region.left + 82;
-  const right = region.right - 82;
-  const x = (value) => left + ((right - left) * (value - min)) / (max - min);
-  const y = region.cy;
-  const axis = line([left, y], [right, y], { stroke: 'faint', width: 5 });
-  const ticksAndLabels = ticks.flatMap((value) => [
-    line([x(value), y], [x(value), y + 10], { stroke: 'dim', width: 3 }),
-    mono(String(value), { size: 30, color: 'dim' }).moveTo([x(value), y + 36]),
-  ]);
-  const boundary = line([x(returns.review), y - 65], [x(returns.review), y + 9], {
-    stroke: 'blue',
-    width: 4,
-    dash: [9, 6],
-  });
-  const review = label('Review  ' + returns.review, { color: 'blue', size: 37 }).moveTo([
-    x(returns.review),
-    y + 86,
-  ]);
-  return {
-    nodes: [axis, ...ticksAndLabels],
-    fixed: [boundary, review],
-    point: (value) => [x(value), y - 17],
-  };
-}
+/**
+ * Draw the 10x10 luminous probability-mass constellation (100 glowing orbs = 1% each).
+ * Supports fractional break-even percentage (e.g. 4.42%) and an optional gold halo on a cell.
+ */
+export function drawRiskConstellation(
+  percent,
+  { cx = -465, cy = 40, spacing = 54, orbRadius = 15, highlightIndex = -1, alpha = 1 } = {},
+) {
+  const nodes = [];
+  const startX = cx - 4.5 * spacing;
+  const startY = cy - 4.5 * spacing;
 
-export function riskDesk(s, { initial, min, max, ticks }) {
-  const [body, foot] = area.rows([7, 1], 'wide');
-  const [traySide, scores] = body.columns([4, 5], 'loose');
-  const [trayTitle, trayArea, legend] = traySide.rows([1, 5.7, 1.2], 'normal');
-  const [scaleTitle, arithmetic, scaleArea] = scores.rows([1, 2.6, 3.9], 'normal');
-  const tray = probabilityTray(trayArea.inset(16));
-  const p = s.value(initial);
-  const lost = dynamic(() => tray.lostMass(p.value));
-  const formatShare = (value) => Number(value.toFixed(2)) + '%';
-  const shares = dynamic(
-    () =>
-      place(
-        column(
-          [
-            label(formatShare(100 - p.value) + ' verified reply', { color: 'green', size: 38 }),
-            label(formatShare(p.value) + ' leave', { color: 'pink', size: 38 }),
-          ],
-          { gap: 'tight' },
-        ),
-        legend,
-      ).nodes,
+  for (let i = 0; i < 100; i++) {
+    const r = Math.floor(i / 10);
+    const col = i % 10;
+    const x = startX + col * spacing;
+    const y = startY + r * spacing;
+    const leaveFrac = Math.max(0, Math.min(1, percent - i));
+
+    if (leaveFrac >= 0.99) {
+      nodes.push(
+        glowDot(x, y, {
+          radius: orbRadius,
+          color: ROLE.approve,
+          glow: 9,
+          opacity: 0.92 * alpha,
+        }),
+      );
+    } else if (leaveFrac <= 0.01) {
+      nodes.push(
+        glowDot(x, y, {
+          radius: orbRadius,
+          color: ROLE.evidence,
+          glow: 7,
+          opacity: 0.85 * alpha,
+        }),
+      );
+    } else {
+      // Partial orb at exact break-even 4.42%
+      nodes.push(
+        glowDot(x, y, {
+          radius: orbRadius,
+          color: ROLE.evidence,
+          glow: 7,
+          opacity: 0.72 * alpha,
+        }),
+        glowDot(x, y, {
+          radius: Math.max(5, orbRadius * Math.sqrt(leaveFrac)),
+          color: ROLE.gold,
+          glow: 12,
+          opacity: alpha,
+        }),
+      );
+    }
+
+    if (i === highlightIndex) {
+      nodes.push(
+        circle(orbRadius + 8, {
+          fill: null,
+          stroke: ROLE.gold,
+          width: 3.4,
+        })
+          .at(x, y)
+          .glow(10, ROLE.gold)
+          .opacity(alpha),
+      );
+    }
+  }
+
+  const fmtPct = (v) => `${Number(v.toFixed(2))}%`;
+  nodes.push(
+    txt(
+      `${fmtPct(100 - percent)} verified reply`,
+      cx - 140,
+      startY + 9 * spacing + 64,
+      28,
+      ROLE.evidence,
+      'mono',
+      'center',
+    ).opacity(alpha),
+    txt(
+      `${fmtPct(percent)} leave`,
+      cx + 175,
+      startY + 9 * spacing + 64,
+      28,
+      ROLE.approve,
+      'mono',
+      'center',
+    ).opacity(alpha),
   );
-  const trayLabel = place(label('Chance after asking for proof'), trayTitle);
-  const scaleLabel = place(label('Expected return at the desk'), scaleTitle);
-  const ruler = returnRuler(scaleArea, min, max, ticks);
-  const marker = dynamic(() => {
-    const value = evidenceValue(p.value / 100);
-    const [x, y] = ruler.point(value);
-    return [
-      dot(14, 'green').moveTo([x, y]),
-      mono('Ask  ' + Number(value.toFixed(2)), { color: 'green', size: 40 }).moveTo([x, y - 80]),
-    ];
-  });
-  return {
-    p,
-    tray,
-    arithmetic,
-    foot,
-    marker,
-    ruler,
-    fixed: ruler.fixed,
-    shares,
-    nodes: [tray.slips, lost, shares, trayLabel, scaleLabel, ruler.nodes],
-  };
+
+  return nodes;
+}
+
+/**
+ * Draw the glowing horizontal Expected Return Ruler with Review 54 benchmark beam,
+ * optional ghost tick, and live Ask photon marker (strictly hidden when showMarker is false).
+ */
+export function drawReturnRuler(
+  percent,
+  {
+    x0 = 40,
+    x1 = 830,
+    y = 145,
+    min = 27,
+    max = 63,
+    ticks = [30, 40, 50, 60],
+    showReview = true,
+    showMarker = false,
+    showRegions = false,
+    prevValue = null,
+    prevLabel = '',
+    alpha = 1,
+  } = {},
+) {
+  const xOf = (val) => x0 + ((x1 - x0) * (val - min)) / (max - min);
+  const nodes = [];
+
+  // Base glowing rail
+  nodes.push(line([x0, y], [x1, y], { stroke: '#3a4a70', width: 4.5 }).opacity(alpha));
+
+  // Optional decision-region highlight beams on the ruler
+  const revX = xOf(returns.review);
+  if (showRegions) {
+    nodes.push(
+      glowingTrail(
+        [
+          [x0, y],
+          [revX, y],
+        ],
+        { color: ROLE.review, width: 6, glow: 8, opacity: 0.72 * alpha, core: false },
+      ),
+      glowingTrail(
+        [
+          [revX, y],
+          [x1, y],
+        ],
+        { color: ROLE.evidence, width: 6, glow: 8, opacity: 0.72 * alpha, core: false },
+      ),
+    );
+  }
+
+  // Axis ticks (skip plain dim tick label on 54 when Review 54 benchmark beam occupies that x!)
+  for (const t of ticks) {
+    const tx = xOf(t);
+    nodes.push(
+      line([tx, y], [tx, y + 14], { stroke: COSMOS.muted, width: 2.5 }).opacity(0.8 * alpha),
+    );
+    if (!(showReview && t === returns.review)) {
+      nodes.push(
+        txt(String(t), tx, y + 44, 26, COSMOS.muted, 'mono', 'center').opacity(0.85 * alpha),
+      );
+    }
+  }
+
+  // Review 54 vertical benchmark beam (strictly below the rail so Ask labels above never cross it!)
+  if (showReview) {
+    nodes.push(
+      line([revX, y - 14], [revX, y + 64], {
+        stroke: ROLE.review,
+        width: 3.8,
+        dash: [9, 6],
+      })
+        .glow(8, ROLE.review)
+        .opacity(alpha),
+      txt(`Review ${returns.review}`, revX, y + 98, 30, ROLE.review, 'mono', 'center')
+        .glow(5, ROLE.review)
+        .opacity(alpha),
+    );
+  }
+
+  // Optional faint ghost marker from previous abandonment rate (e.g. 4% -> 54.48)
+  if (prevValue !== null) {
+    const px = xOf(prevValue);
+    nodes.push(
+      line([px, y - 22], [px, y + 12], { stroke: COSMOS.dim, width: 3.2 }).opacity(alpha),
+      txt(prevLabel, px, y - 148, 26, COSMOS.muted, 'mono', 'center').opacity(alpha),
+    );
+  }
+
+  // Live Ask photon marker & readout
+  if (showMarker) {
+    const val = evidenceValue(percent / 100);
+    const ax = xOf(Math.max(min, Math.min(max, val)));
+    const isTie = Math.abs(val - returns.review) < 0.08;
+    const mColor = isTie ? ROLE.gold : ROLE.evidence;
+    nodes.push(
+      line([ax, y - 50], [ax, y], { stroke: mColor, width: 3.2 }).opacity(0.85 * alpha),
+      glowDot(ax, y, { radius: 13, color: mColor, glow: 14, opacity: alpha }),
+      txt(
+        `Ask ${Number(val.toFixed(2))}`,
+        Math.max(x0 + 100, Math.min(x1 - 100, ax)),
+        y - 84,
+        34,
+        mColor,
+        'mono',
+        'center',
+      )
+        .glow(7, mColor)
+        .opacity(alpha),
+    );
+  }
+
+  return nodes;
 }

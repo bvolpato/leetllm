@@ -1,125 +1,406 @@
-import { assertEqual, boxOf, line, place, row, segmentedBar, shift } from 'vizmatic/stage';
-import { area, heading, label, mono, note } from '../../kit-narrated.mjs';
+// Scene 25: shortlist-budget - "Which passages reach the reranker?"
+// Pure Cinema: View 1 is a two-stage bi-encoder -> cross-encoder rank-swap slopegraph with a sliding
+// gold cutoff gate (K=3 -> K=1 strict prediction hold -> only KMS returns). View 2 renders the
+// 8.33-hour full-corpus cost and the live 200 ms sequential latency timeline (10 + 150 + 40 ms).
+import { line } from 'vizmatic/stage';
+import {
+  COSMOS,
+  ROLE,
+  cinemaAtmosphere,
+  glowArc,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  playAfter,
+  playOn,
+  rule,
+  swapVis,
+  txt,
+  verifyInvariant,
+} from '../parts.mjs';
 
 export default function shortlistBudget(s, c) {
-  const documents = [
-    { name: 'KMS rotation', bi: 0.84, cross: 0.21, color: 'pink' },
-    { name: 'API rotation', bi: 0.81, cross: 0.96, color: 'green' },
-    { name: 'Token replacement', bi: 0.78, cross: 0.91, color: 'green' },
-    { name: 'GPU notes', bi: 0.1, cross: 0.05, color: 'dim' },
+  const docs = [
+    { name: 'KMS rotation', bi: 0.84, cross: 0.21, col: ROLE.competitor },
+    { name: 'API rotation', bi: 0.81, cross: 0.96, col: ROLE.positive },
+    { name: 'Token replacement', bi: 0.78, cross: 0.91, col: ROLE.positive },
+    { name: 'GPU notes', bi: 0.1, cross: 0.05, col: COSMOS.dim },
   ];
-  const ordered = documents.toSorted((a, b) => b.bi - a.bi);
-  const returned = (k) =>
-    ordered
-      .slice(0, k)
-      .sort((a, b) => b.cross - a.cross)
-      .slice(0, 2);
-  const [question, table, foot] = area.rows([1, 5, 1.4], 'normal');
-  const query = place(label('How do I rotate an API key?', { color: 'cyan' }), question);
-  const [left, right] = table.columns(2, 'wide');
-  const list = (region, title, docs, score) => {
-    const lines = region.rows([1, 1, 1, 1, 1], 'normal');
-    return [
-      place(note(title, { size: 36 }), lines[0], 'left'),
-      ...docs.map((doc, i) =>
-        place(
-          row(
-            [
-              mono(String(i + 1), { size: 36, color: 'dim' }),
-              label(doc.name, { size: 42, color: doc.color }),
-              mono(doc[score].toFixed(2), { size: 38 }),
-            ],
-            { gap: 'normal' },
-          ),
-          lines[i + 1],
-          'left',
-        ),
+  const deadline = 200;
+  const queryMs = 10;
+  const perPair = 15;
+  const pairs = 10;
+  const pairMs = pairs * perPair;
+  const remainMs = deadline - queryMs - pairMs;
+  verifyInvariant(remainMs === 40, '40 ms remaining for lookup and overhead');
+
+  const vSlope = s.value(1);
+  const vTime = s.value(0);
+  const showStage2 = s.value(0);
+  const showRot = s.value(0);
+  const showRep = s.value(0);
+  const cutK = s.value(3); // animates smoothly 3 -> 1!
+  const showKmsOnly = s.value(0);
+
+  const showBar = s.value(0);
+  const pairFill = s.value(0);
+  const showRem = s.value(0);
+  const showRecallNote = s.value(0);
+
+  const title = heroTitle(['Which passages reach', 'the Stage 2 reranker?'], {
+    x: -860,
+    y: -450,
+    size: 46,
+    lineHeight: 54,
+    accent: ROLE.focus,
+  });
+
+  // View 1: Two-stage rank-swap slopegraph
+  const slopeLayer = guardedDynamic(vSlope, (alpha) => {
+    const s2 = showStage2.value;
+    const rot = showRot.value;
+    const rep = showRep.value;
+    const k = cutK.value;
+    const kms = showKmsOnly.value;
+    const isOne = k < 1.5;
+    const rowYs = [-140, -30, 80, 190];
+    const leftX = -820;
+    const rightX = 185;
+    const nodes = [
+      txt('Query: "How do I rotate an API key?"', -850, -310, 32, ROLE.anchor, 'sans', 'left')
+        .glow(5, ROLE.anchor)
+        .opacity(alpha),
+      txt('STAGE 1 · BI-ENCODER SCORE', leftX, -225, 26, COSMOS.muted, 'mono', 'left').opacity(
+        alpha,
       ),
     ];
-  };
-  const corpus = list(left, 'First stage · bi-encoder score', ordered, 'bi');
-  const boundaryY = (k) => (boxOf(corpus[k]).bottom + boxOf(corpus[k + 1]).top) / 2;
-  const boundary = line([left.left, boundaryY(3)], [left.right, boundaryY(3)], {
-    stroke: 'yellow',
-    width: 4,
-    dash: [9, 8],
+
+    // Left ranked list
+    docs.forEach((d, i) => {
+      const y = rowYs[i];
+      const admitted = i < Math.round(k);
+      nodes.push(
+        txt(String(i + 1), leftX, y, 30, COSMOS.dim, 'mono', 'left').opacity(alpha),
+        txt(d.name, leftX + 46, y, 34, admitted ? d.col : COSMOS.dim, 'sans', 'left').opacity(
+          alpha,
+        ),
+        txt(
+          d.bi.toFixed(2),
+          leftX + 490,
+          y,
+          32,
+          admitted ? COSMOS.ink : COSMOS.dim,
+          'mono',
+          'right',
+        ).opacity(alpha),
+      );
+    });
+
+    // Clean gold cutoff line: fades out at K=3 (y=135) and fades in at K=1 (y=-85) without crossing text!
+    const cutY = k >= 2 ? 135 : -85;
+    const cutOp = k >= 2 ? Math.min(1, (k - 2) / 0.6) : Math.min(1, (2 - k) / 0.6);
+    if (cutOp > 0.05) {
+      nodes.push(
+        line([leftX - 15, cutY], [leftX + 520, cutY], {
+          stroke: ROLE.focus,
+          width: 4,
+          dash: [10, 8],
+        })
+          .glow(8, ROLE.focus)
+          .opacity(cutOp * alpha),
+        txt(
+          `cutoff K = ${k >= 2 ? 3 : 1}`,
+          leftX + 535,
+          cutY,
+          26,
+          ROLE.focus,
+          'mono',
+          'left',
+        ).opacity(cutOp * alpha),
+      );
+    }
+
+    // Right Stage 2 reranked list
+    if (s2 > 0.05) {
+      nodes.push(
+        txt(
+          'STAGE 2 · CROSS-ENCODER TOP 2',
+          rightX,
+          -225,
+          26,
+          ROLE.positive,
+          'mono',
+          'left',
+        ).opacity(s2 * alpha),
+      );
+    }
+
+    if (!isOne) {
+      // K=3: API rotation promoted to #1, Token replacement to #2
+      if (rot > 0.05) {
+        nodes.push(
+          glowArc([leftX + 510, rowYs[1]], [rightX - 24, rowYs[0]], -35, {
+            color: ROLE.positive,
+            width: 3.4,
+            glow: 8,
+            opacity: rot * alpha,
+          }),
+          txt('1', rightX, rowYs[0], 30, ROLE.positive, 'mono', 'left').opacity(rot * alpha),
+          txt('API rotation', rightX + 46, rowYs[0], 34, ROLE.positive, 'sans', 'left')
+            .glow(6, ROLE.positive)
+            .opacity(rot * alpha),
+          txt('0.96', rightX + 520, rowYs[0], 32, ROLE.positive, 'mono', 'right').opacity(
+            rot * alpha,
+          ),
+        );
+      }
+      if (rep > 0.05) {
+        nodes.push(
+          glowArc([leftX + 510, rowYs[2]], [rightX - 24, rowYs[1]], 20, {
+            color: ROLE.positive,
+            width: 3.4,
+            glow: 8,
+            opacity: rep * alpha,
+          }),
+          txt('2', rightX, rowYs[1], 30, ROLE.positive, 'mono', 'left').opacity(rep * alpha),
+          txt('Token replacement', rightX + 46, rowYs[1], 34, ROLE.positive, 'sans', 'left')
+            .glow(6, ROLE.positive)
+            .opacity(rep * alpha),
+          txt('0.91', rightX + 520, rowYs[1], 32, ROLE.positive, 'mono', 'right').opacity(
+            rep * alpha,
+          ),
+        );
+      }
+    } else if (kms > 0.05) {
+      // K=1 post-reveal: ONLY KMS rotation can return!
+      nodes.push(
+        glowArc([leftX + 510, rowYs[0]], [rightX - 24, rowYs[0]], -25, {
+          color: ROLE.competitor,
+          width: 3.8,
+          glow: 9,
+          opacity: kms * alpha,
+        }),
+        txt('1', rightX, rowYs[0], 30, ROLE.competitor, 'mono', 'left').opacity(kms * alpha),
+        txt('KMS rotation', rightX + 46, rowYs[0], 34, ROLE.competitor, 'sans', 'left')
+          .glow(7, ROLE.competitor)
+          .opacity(kms * alpha),
+        txt('0.21', rightX + 520, rowYs[0], 32, ROLE.competitor, 'mono', 'right').opacity(
+          kms * alpha,
+        ),
+        txt(
+          '(only admitted passage)',
+          rightX + 46,
+          rowYs[0] + 46,
+          26,
+          COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(kms * alpha),
+      );
+    }
+
+    // Bottom status prompt (strictly accurate for current K & reveal state)
+    nodes.push(rule(-850, 295, 850, 295, COSMOS.rule, 1.6).opacity(0.55 * alpha));
+    if (isOne && kms < 0.3) {
+      nodes.push(
+        txt(
+          'Cutoff K = 1: only the top passage reaches the reranker. Which guide can it return?',
+          0,
+          365,
+          34,
+          ROLE.focus,
+          'serif',
+          'center',
+        )
+          .glow(7, ROLE.focus)
+          .opacity(alpha),
+      );
+    } else if (isOne && kms >= 0.3) {
+      nodes.push(
+        txt(
+          'Neither approved API guide crossed the cutoff · even a perfect reranker cannot rescue them',
+          0,
+          365,
+          30,
+          ROLE.competitor,
+          'sans',
+          'center',
+        ).opacity(kms * alpha),
+      );
+    } else {
+      nodes.push(
+        txt(
+          'With K = 3 admitted, the cross-encoder promotes both API guides above KMS (0.21)',
+          0,
+          365,
+          30,
+          COSMOS.muted,
+          'sans',
+          'center',
+        ).opacity(alpha),
+      );
+    }
+
+    return nodes;
   });
-  const shortlist = (k) => list(right, 'Returned · joint score · up to 2', returned(k), 'cross');
-  const three = shortlist(3),
-    one = shortlist(1);
-  const cut = (k) =>
-    place(
-      label(
-        k === 1
-          ? 'Reranker receives only the first passage'
-          : 'Reranker receives the first ' + k + ' passages',
-        { color: 'yellow', size: 38 },
-      ),
-      foot,
+
+  // View 2: Full-corpus sequential cost & 200 ms Request Latency Timeline Ribbon
+  const timeLayer = guardedDynamic(vTime, (alpha) => {
+    const sb = showBar.value;
+    const pf = pairFill.value;
+    const sr = showRem.value;
+    const rc = showRecallNote.value;
+    const barLeft = -780;
+    const barW = 1560;
+    const barY = 30;
+    const qW = (queryMs / deadline) * barW;
+    const pW = ((pairMs * pf) / deadline) * barW;
+    const rW = (remainMs / deadline) * barW;
+    const nodes = [
+      txt(
+        'FULL-CORPUS SEQUENTIAL CROSS-ENCODER',
+        0,
+        -270,
+        26,
+        COSMOS.muted,
+        'mono',
+        'center',
+      ).opacity(alpha),
+      txt(
+        '2,000,000 passages × 15 ms  =  8.33 hours',
+        0,
+        -205,
+        46,
+        ROLE.competitor,
+        'mono',
+        'center',
+      )
+        .glow(9, ROLE.competitor)
+        .opacity(alpha),
+      rule(-850, -135, 850, -135, COSMOS.rule, 1.6).opacity(0.55 * alpha),
+    ];
+
+    // Always show the 200 ms sequential deadline track frame cleanly from t0 of View 2!
+    nodes.push(
+      txt(
+        'SEQUENTIAL REQUEST DEADLINE:  200 ms',
+        barLeft,
+        barY - 76,
+        30,
+        ROLE.anchor,
+        'mono',
+        'left',
+      ).opacity(alpha),
+      lumBar(0, barY, barW, 84, {
+        color: '#3c5080',
+        fillAlpha: 0.16,
+        strokeWidth: 2.2,
+        glow: 0,
+        radius: 10,
+        opacity: alpha,
+      }),
+      txt('0 ms', barLeft, barY + 78, 26, COSMOS.dim, 'mono', 'left').opacity(sb < 0.2 ? alpha : 0),
+      txt('100 ms', 0, barY + 78, 26, COSMOS.dim, 'mono', 'center').opacity(alpha),
+      txt('200 ms', barLeft + barW, barY + 78, 26, COSMOS.dim, 'mono', 'right').opacity(alpha),
     );
-  const cutThree = cut(3),
-    cutOne = cut(1);
-  const deadline = 200,
-    queryMs = 10,
-    perPair = 15,
-    count = 10;
-  const pairMs = count * perPair,
-    remaining = deadline - queryMs - pairMs;
-  const [scale, timing, reading] = table.rows([1, 3, 1], 'normal');
-  const large = place(
-    mono('2,000,000 × 15 ms = ' + ((2_000_000 * perPair) / 3_600_000).toFixed(2) + ' hours', {
-      size: 48,
-    }),
-    scale,
-  );
-  const bar = place(
-    segmentedBar([{ name: 'encode query', value: queryMs, color: 'cyan' }], {
-      capacity: deadline,
-      width: timing.width - 80,
-      height: 84,
-      title: 'Sequential deadline · 200 ms',
-      readout: false,
-      format: (v) => Math.round(v) + ' ms',
-      size: 38,
-    }),
-    timing,
-  );
-  const reserve = place(
-    label(remaining + ' ms available for lookup and overhead', { color: 'yellow' }),
-    reading,
-  );
-  const hold = place(
-    note('At an affordable cutoff, measure how often the required passages are present.', {
-      size: 34,
-    }),
-    foot,
-  );
-  assertEqual(
-    returned(3)
-      .map((d) => d.name)
-      .join(', '),
-    'API rotation, Token replacement',
-    'three admitted passages',
-  );
-  assertEqual(returned(1)[0].name, 'KMS rotation', 'one admitted passage');
-  assertEqual(remaining, 40, 'time remaining for lookup and overhead');
-  s.add(heading(c.title), query, corpus, cutThree, boundary);
-  c.show('budget-rerank', three[0]);
-  c.show('budget-rotation', three[1], { after: true });
-  c.show('budget-replacement', three[2], { after: true });
-  c.swap('budget-one', cutThree, cutOne);
-  c.on('budget-one', () =>
-    s.play(shift(boundary, 0, boundaryY(1) - boundaryY(3), { duration: 0.75 })),
-  );
-  c.hide('budget-one', three.slice(1));
-  c.show('budget-kms', one[1], { after: true });
-  c.swap('budget-time', [query, corpus, cutOne, boundary, three[0], one[1]], large, {
-    after: true,
+
+    if (sb > 0.05) {
+      nodes.push(
+        // 10 ms query encode segment
+        lumBar(barLeft + qW / 2, barY, qW - 2, 78, {
+          color: ROLE.anchor,
+          fillAlpha: 0.52,
+          glow: 9,
+          radius: 8,
+          opacity: sb * alpha,
+        }),
+        txt('query 10ms', barLeft + qW / 2, barY + 78, 26, ROLE.anchor, 'mono', 'left').opacity(
+          sb * alpha,
+        ),
+      );
+
+      if (pf > 0.02) {
+        nodes.push(
+          lumBar(barLeft + qW + pW / 2, barY, Math.max(8, pW - 4), 78, {
+            color: ROLE.unrelated,
+            fillAlpha: 0.45,
+            glow: 9,
+            radius: 8,
+            opacity: sb * alpha,
+          }),
+        );
+        if (pf > 0.68) {
+          const tOp = Math.min(1, (pf - 0.68) / 0.25);
+          nodes.push(
+            txt(
+              '10 reranked pairs: 150 ms',
+              barLeft + qW + pW / 2,
+              barY,
+              32,
+              COSMOS.ink,
+              'mono',
+              'center',
+            ).opacity(tOp * sb * alpha),
+          );
+        }
+      }
+
+      if (sr > 0.05) {
+        const remX = barLeft + qW + (pairMs / deadline) * barW;
+        nodes.push(
+          lumBar(remX + rW / 2, barY, rW - 4, 78, {
+            color: ROLE.focus,
+            fillAlpha: 0.36,
+            glow: 9,
+            radius: 8,
+            opacity: sr * alpha,
+          }),
+          txt('40 ms', remX + rW / 2, barY, 30, ROLE.focus, 'mono', 'center').opacity(sr * alpha),
+          txt('40 ms left for ANN lookup and overhead', 0, 195, 36, ROLE.focus, 'sans', 'center')
+            .glow(6, ROLE.focus)
+            .opacity(sr * alpha),
+        );
+      }
+    }
+
+    if (rc > 0.05) {
+      nodes.push(
+        txt(
+          'Measure Recall@K at the affordable cutoff · if recall falls short, improve Stage 1 or batch reranking',
+          0,
+          335,
+          28,
+          ROLE.positive,
+          'sans',
+          'center',
+        ).opacity(rc * alpha),
+      );
+    }
+
+    return nodes;
   });
-  c.show('budget-query', bar);
-  c.after('budget-pairs', () =>
-    s.play(bar.insert({ name: '10 pairs', value: pairMs, color: 'blue' }, { duration: 0.65 })),
+
+  s.add(cinemaAtmosphere(ROLE.focus, ROLE.positive), title, slopeLayer, timeLayer);
+
+  playOn(s, c, 'budget-rerank', (d) => showStage2.to(1, { duration: d }), 0.45);
+  playAfter(s, c, 'budget-rotation', (d) => showRot.to(1, { duration: d }), 0.45);
+  playAfter(s, c, 'budget-replacement', (d) => showRep.to(1, { duration: d }), 0.45);
+  playOn(
+    s,
+    c,
+    'budget-one',
+    (d) => [
+      showRot.to(0, { duration: 0.25 }),
+      showRep.to(0, { duration: 0.25 }),
+      cutK.to(1, { duration: d }),
+    ],
+    0.75,
   );
-  c.show('budget-remaining', reserve, { after: true });
-  c.show('budget-recall', hold);
+  playAfter(s, c, 'budget-kms', (d) => showKmsOnly.to(1, { duration: d }), 0.45);
+
+  playAfter(s, c, 'budget-time', (d) => swapVis(vSlope, vTime, d), 0.65);
+  playOn(s, c, 'budget-query', (d) => showBar.to(1, { duration: d }), 0.5);
+  playAfter(s, c, 'budget-pairs', (d) => pairFill.to(1, { duration: d }), 0.65);
+  playAfter(s, c, 'budget-remaining', (d) => showRem.to(1, { duration: d }), 0.45);
+  playOn(s, c, 'budget-recall', (d) => showRecallNote.to(1, { duration: d }), 0.5);
 }

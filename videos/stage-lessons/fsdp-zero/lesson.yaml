@@ -1,0 +1,1061 @@
+version: 1
+id: fsdp-zero
+title: "Distributed Training: Bytes, Collectives, and Parallel Axes"
+source: training/distributed-training-fsdp-deepspeed-zero/content.md
+sources:
+  - title: "Rajbhandari et al. ZeRO: Memory Optimizations Toward Training Trillion Parameter Models"
+    url: https://arxiv.org/abs/1910.02054
+  - title: PyTorch FullyShardedDataParallel documentation
+    url: https://docs.pytorch.org/docs/stable/fsdp.html
+  - title: "Zhao et al. PyTorch FSDP: Experiences on Scaling Fully Sharded Data Parallel"
+    url: https://arxiv.org/abs/2304.11277
+  - title: PyTorch fully_shard API
+    url: https://docs.pytorch.org/docs/2.15/distributed.fsdp.fully_shard.html
+  - title: NCCL collective operations
+    url: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html
+  - title: Megatron-LM tensor parallelism
+    url: https://arxiv.org/abs/1909.08053
+  - title: Megatron pipeline parallelism
+    url: https://arxiv.org/abs/2104.04473
+  - title: Ring Attention
+    url: https://arxiv.org/abs/2310.01889
+  - title: DeepSpeed configuration
+    url: https://www.deepspeed.ai/docs/config-json/
+scenes:
+  - id: intro
+    title: "How far do the weights stick out?"
+    visual: >-
+      Slide a strip of BF16 weights into alignment with one GPU's memory. Try a second full copy,
+      then cut one strip into sixteen pieces and deal them to sixteen GPUs.
+    beats:
+      - say: >-
+          Slide these weights up against one GPU. The card has eighty gigabytes free. At two bytes each,
+          seventy billion weights take one hundred forty gigabytes. How much sticks out past the card?
+        hold: 2.3
+        caption_starts:
+          - "At two bytes each"
+          - "How much sticks out"
+        visual_cues:
+          - id: weight-request
+            phrase: "one hundred forty gigabytes"
+            targets: [request]
+            linger: 0.25
+      - say: >-
+          Sixty gigabytes stick out. Try the next GPU. It needs the same full copy. That's how
+          Distributed Data Parallel, or DDP, stores weights. Each process, called a rank, trains on
+          different examples with the same weights.
+        hold: 0.9
+        caption_starts:
+          - "That's how Distributed Data Parallel"
+        visual_cues:
+          - id: first-copy
+            phrase: "Sixty gigabytes stick out"
+            targets: [first-rank]
+            linger: 0.25
+            caption_boundary: true
+          - id: second-copy
+            phrase: "Try the next GPU"
+            targets: [next-rank]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Cut that weight tensor into sixteen equal pieces. Give one piece to each rank. The first card now
+          owns eight point seven five gigabytes of weights. That's a shard. ZeRO, short for Zero
+          Redundancy Optimizer, uses this idea for training state. To size a step, we also need to count
+          the gradients and what the optimizer keeps between updates.
+        hold: 0.9
+        caption_starts:
+          - "The first card now owns"
+          - "ZeRO, short for"
+        visual_cues:
+          - id: cut-replica
+            phrase: "sixteen equal pieces"
+            targets: [request]
+            linger: 0.25
+          - id: deal-weights
+            phrase: "Give one piece to each rank"
+            targets: [shard-distribution]
+            linger: 0.25
+            caption_boundary: true
+          - id: owned-weights
+            phrase: "eight point seven five gigabytes"
+            targets: [owned-shard]
+            linger: 0.25
+  - id: real-ledger
+    title: "What occupies one training step?"
+    visual: >-
+      Build the 16-byte AdamW inventory beneath a single parameter, expand it to 70B, and locate the
+      model-state share against the original card limit. Apply two independent decrements to the master
+      weight.
+    beats:
+      - say: >-
+          Start with one of those two-byte weights. Backward produces a two-byte gradient that tells the
+          optimizer which way the loss changes. In this AdamW recipe the optimizer updates a four-byte master
+          weight. It keeps two more four-byte numbers, a moving average of gradients and a moving average of
+          squared gradients. Count all five pieces and you get sixteen bytes for one parameter.
+        hold: 0.8
+        visual_cues:
+          - id: add-gradient
+            phrase: "a two-byte gradient"
+            targets: [gradient-bytes]
+            linger: 0.25
+          - id: add-master
+            phrase: "a four-byte master weight"
+            targets: [master-bytes]
+            linger: 0.25
+          - id: add-moments
+            phrase: "two more four-byte numbers"
+            targets: [moment-bytes]
+            linger: 0.25
+      - say: >-
+          Scale each piece to seventy billion parameters. The weights and gradients take one hundred forty
+          gigabytes each. The master weights and the two averages take eight hundred forty between them.
+          That's three quarters of the entire inventory. Together the five pieces take one thousand one
+          hundred twenty decimal gigabytes.
+        hold: 0.9
+        visual_cues:
+          - id: sum-inventory
+            phrase: "Together the five pieces"
+            targets: [inventory-total]
+            linger: 0.25
+      - say: >-
+          Share that inventory evenly across sixteen GPUs and each holds seventy gigabytes. Look at the gap
+          to the eighty-gigabyte mark. Only ten remain for everything else live at that instant. When you
+          measure a run, include the first optimizer update. Adam commonly allocates its moving averages
+          then.
+        hold: 0.9
+        visual_cues:
+          - id: state-share
+            phrase: "each holds seventy gigabytes"
+            targets: [state-share]
+            linger: 0.25
+      - say: >-
+          What do we buy with a four-byte master weight? Start at one. Subtract one hundred-millionth in
+          FP32. Round to the nearest stored value. Even FP32 lands back on one, because the change is less
+          than half the gap to the next lower number.
+        hold: 0.8
+        visual_cues:
+          - id: tiny-store
+            phrase: "Even FP32 lands back on one"
+            targets: [stored-update]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Start again at one, this time subtracting one ten-thousandth. The FP32 result moves to the left.
+          Store that result in FP16 or BF16 and it rounds back to one. Their gaps below one are wider. The
+          master can carry this second update into the next step even when the compute weight still reads
+          one.
+        hold: 1
+        visual_cues:
+          - id: larger-store
+            phrase: "The FP32 result moves to the left"
+            targets: [stored-update]
+            linger: 0.25
+            caption_boundary: true
+  - id: weighted-ddp
+    title: Give every valid target the intended weight
+    visual: One rank gets one target with value 1. The other gets three targets with value 3. Compare the average across ranks with the average across targets.
+    beats:
+      - say: Give one rank a single target and the other rank three. The input pipeline makes that assignment.
+          DDP averages the gradients from the two ranks. If both ranks have the same number of valid
+          targets, averaging their means gives every target the same weight. Let's see what happens here.
+          Count only the valid targets and leave out padding.
+        hold: 0.7
+      - say: At a scalar prediction of zero with squared loss, rank zero has one target of one and mean gradient
+          minus two. Rank one has three targets of three and mean gradient minus six. Averaging those two
+          means gives minus four. Pool the four actual targets instead, and their mean gradient is minus
+          five.
+        hold: 0.7
+      - say: With two ranks and four total targets, multiply the local means by one half and three halves before
+          the default rank average. The answer becomes minus five. In general the factor is rank count
+          times local valid count divided by global valid count. Count across every accumulated
+          microbatch in the update. A rank with no valid targets contributes a zero loss sum and still
+          joins collective counts; a globally empty update needs a coordinated skip.
+        hold: 0.7
+        visual_cues:
+          - id: weighted-average
+            phrase: answer becomes minus five
+            targets:
+              - weighted-result
+            linger: 0.55
+  - id: ledger
+    title: Count the replicated state
+    visual: A four-rank memory ledger separates weight, gradient, and optimizer slots; equal replicas
+      illuminate in each rank.
+    beats:
+      - say: Now take four ranks so we can follow each owner. Give each rank two units for weights, two for
+          gradients, and four for optimizer state. These are example sizes. The larger optimizer block
+          stands for the history that an optimizer like Adam keeps for its updates.
+        hold: 0.55
+        visual_cues:
+          - id: ledger-weights
+            phrase: two units for weights
+            targets:
+              - state-weights
+            linger: 0.45
+          - id: ledger-gradients
+            phrase: two for gradients
+            targets:
+              - state-gradients
+            linger: 0.45
+          - id: ledger-optimizer
+            phrase: four for optimizer state
+            targets:
+              - state-optimizer
+            linger: 0.45
+      - say: With all three categories replicated, one rank holds eight state units. Four ranks together hold
+          thirty-two, much of it repeated copies of the same training state.
+        hold: 0.55
+        visual_cues:
+          - id: ledger-b2-1
+            phrase: eight state units
+            targets:
+              - ledger-total
+            linger: 0.45
+      - say: Keep activations and temporary buffers outside this ledger for now. We'll put them back at
+          the instant a block needs them. Communication workspaces and allocator overhead also use
+          memory on the real device.
+        hold: 0.75
+        visual_cues:
+          - id: ledger-b3-1
+            phrase: outside this ledger
+            targets:
+              - state-ledger
+            linger: 0.45
+  - id: zero1
+    title: Shard optimizer state first
+    visual: Optimizer slots are divided across four ranks while weights and gradients remain replicated; one
+      rank's count changes from eight to five units.
+    beats:
+      - say: ZeRO stage one partitions optimizer state among data-parallel ranks. Every rank keeps the same
+          weights and gradients, then updates its assigned optimizer-state partition. The logical
+          optimizer still sees a complete state set; each rank owns only its assigned physical shard.
+        hold: 0.55
+        visual_cues:
+          - id: zero1-b1-1
+            phrase: optimizer state among
+            targets:
+              - state-optimizer
+            linger: 0.45
+      - say: Divide the four optimizer units across four devices. Each rank now holds two weight units, two
+          gradient units, and one optimizer unit, for a total of five.
+        hold: 0.55
+        visual_cues:
+          - id: zero1-b2-1
+            phrase: one optimizer unit
+            targets:
+              - state-optimizer
+            linger: 0.45
+          - id: zero1-b2-2
+            phrase: total of five
+            targets:
+              - rank-total
+            linger: 0.45
+      - say: This saves memory when optimizer state dominates the ledger. The model parameters still occupy a
+          complete replica on every rank.
+        hold: 0.75
+        visual_cues:
+          - id: zero1-b3-1
+            phrase: complete replica
+            targets:
+              - state-weights
+            linger: 0.45
+  - id: zero2
+    title: Shard gradients as well
+    visual: Gradient pieces join optimizer shards and are reduce-scattered to their owners; the per-rank
+      ledger falls to three and a half units.
+    beats:
+      - say: Stage two adds gradients to the sharded categories. Each rank keeps the full parameter set while
+          gradient and optimizer state are partitioned.
+        hold: 0.55
+        visual_cues:
+          - id: zero2-b1-1
+            phrase: gradients to the sharded categories
+            targets:
+              - state-gradients
+            linger: 0.45
+      - say: The ledger now keeps full weights and one quarter of each other category per rank. State memory
+          falls further while model parameters remain replicated.
+        hold: 0.55
+        visual_cues:
+          - id: zero2-b2-1
+            phrase: one quarter of each other category
+            targets:
+              - state-weights
+              - state-gradients
+              - state-optimizer
+            linger: 0.45
+      - say: Gradient communication now has a sharded output contract. An all-reduce returns the full gradient to
+          every rank, while reduce-scatter sums contributions and leaves each rank its portion. After
+          local optimizer-partition updates, updated parameter slices are shared, for example by
+          all-gather, so every rank again has complete compute weights. Stage one also has to synchronize
+          updated slices; its storage policy alone does not fix the exact runtime collective schedule.
+        hold: 0.75
+        visual_cues:
+          - id: zero2-b3-1
+            phrase: sums contributions
+            targets:
+              - gradient-contributions
+            linger: 0.45
+          - id: zero2-b3-2
+            phrase: each rank its portion
+            targets:
+              - owned-sums
+            linger: 0.45
+          - id: zero2-parameter-sync
+            phrase: updated parameter slices are shared
+            targets:
+              - parameter-sync
+            linger: 0.6
+  - id: zero3
+    title: Shard model parameters too
+    visual: Weight pieces move to separate ranks between compute windows; selected parameters all-gather into
+      a full wrapped layer and then reshard.
+    beats:
+      - say: Stage three partitions parameters along with gradients and optimizer state. Under this even-shard
+          teaching ledger, each rank owns one quarter of every category.
+        hold: 0.55
+        visual_cues:
+          - id: zero3-b1-1
+            phrase: parameters along with gradients and optimizer state
+            targets:
+              - state-weights
+              - state-gradients
+              - state-optimizer
+            linger: 0.45
+      - say: A layer still needs its parameters to compute. The ranks all-gather the relevant parameter shards
+          before the wrapped unit runs, then release the gathered copy after it finishes. A rank
+          materializes the wrapped unit it needs; smaller units can lower peak memory while increasing
+          collective frequency.
+        hold: 0.55
+        visual_cues:
+          - id: zero3-b2-1
+            phrase: all-gather
+            targets:
+              - owned-parameter-shards
+            linger: 0.45
+          - id: zero3-b2-2
+            phrase: release the gathered copy
+            targets:
+              - gathered-shards
+            linger: 0.45
+      - say: During backward, gradients are reduced and scattered to their owners. The optimizer updates its
+          local state and parameter shards, preparing the next step.
+        hold: 0.75
+        visual_cues:
+          - id: zero3-b3-1
+            phrase: local state and parameter shards
+            targets:
+              - state-ledger
+            linger: 0.45
+  - id: collective-cost
+    title: "Where does the sum go?"
+    visual: >-
+      Change rank 3's C contribution from 6 to 9. Follow the new sum to rank 2, then copy the four owned
+      results into every row. Use the ring model to price the two operations.
+    beats:
+      - say: >-
+          Look down column C. Last time it summed to eighteen. Now rank three gets a different example.
+          Its contribution changes from six to nine. The other three stay put. Rank two owns C.
+          After reduce-scatter, what number should its optimizer receive?
+        hold: 2.2
+        visual_cues:
+          - id: change-c
+            phrase: "from six to nine"
+            targets: [changed-contribution]
+            linger: 0.25
+      - say: >-
+          Add three, four, five and nine. Twenty-one goes to rank two. Each other column goes through the same
+          addition and its sum goes to its own rank. Now suppose everybody needs the full vector. All-gather
+          copies the four owned sums into every row. Together the two operations give the mathematical result
+          of an all-reduce. Floating-point addition can round differently if the order changes. All ranks
+          must enter matching collectives with matching types and counts.
+        hold: 0.9
+        visual_cues:
+          - id: fold-column
+            phrase: "Add three, four, five and nine"
+            targets: [column-c]
+            linger: 0.25
+            caption_boundary: true
+          - id: owned-coordinate
+            phrase: "Twenty-one goes to rank two"
+            targets: [rank-two-output]
+            linger: 0.25
+            caption_boundary: true
+          - id: gather-results
+            phrase: "All-gather copies the four owned sums into every row"
+            targets: [output-grid]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          How many bytes did one rank send? In this ring model, S is the size of the complete tensor. With
+          two ranks, one phase sends half of S. With N ranks, each sends N minus one chunks of size S divided
+          by N. Reduce-scatter and all-gather each cost one phase. All-reduce costs two. These counts leave
+          out received bytes and protocol overhead.
+        hold: 0.7
+        caption_starts:
+          - "With two ranks"
+          - "sends half of S"
+          - "With N ranks"
+          - "All-reduce costs two"
+        visual_cues:
+          - id: half-tensor
+            phrase: "sends half of S"
+            targets: [sent-chunk]
+          - id: ring-size
+            phrase: "With N ranks"
+            targets: [ring-group]
+            linger: 0.25
+          - id: two-phases
+            phrase: "All-reduce costs two"
+            targets: [sent-total]
+      - say: >-
+          For a large group, one phase sends about a full tensor per rank. Suppose weights and gradients each
+          take one hundred forty gigabytes. DDP uses two gradient phases, about two hundred eighty gigabytes
+          sent. Full sharding gathers weights for forward, gathers them again for backward if the forward
+          copy was freed, then reduce-scatters gradients. That's about four hundred twenty gigabytes per
+          rank. The ratio is one and a half. Step time depends on when the network makes compute wait.
+          Retaining parameters, accumulating gradients or changing their dtype can also change the bytes.
+        hold: 0.7
+  - id: lifecycle
+    title: Follow one FSDP unit through a training step
+    visual: Eight animated states show parameter shards gathering before forward, resharding while
+      activations remain, gathering again for backward, then returning gradient shards for local updates.
+    beats:
+      - say: Fully Sharded Data Parallel applies this idea to model modules. A communication boundary defines
+          which parameters belong to a unit and when that unit needs its full state. This forward and
+          backward cycle controls memory residency, since gradient computation needs the corresponding
+          weights again.
+        hold: 0.55
+        visual_cues:
+          - id: lifecycle-b1-1
+            phrase: memory residency
+            targets:
+              - resident-parameter-shards
+            linger: 0.45
+      - say: Under FULL_SHARD, full parameters return to their shards after forward while saved activations
+          remain for gradient computation. Backward gathers this unit again.
+        hold: 0.55
+        visual_cues:
+          - id: lifecycle-b2-1
+            phrase: saved activations remain
+            targets:
+              - residency-meters
+            linger: 0.45
+          - id: lifecycle-b2-2
+            phrase: gathers this unit again
+            targets:
+              - resident-parameter-shards
+            linger: 0.45
+      - say: Backward produces parameter gradients, and reduce-scatter sends each rank its shard. The optimizer
+          updates those local shards before the next forward pass.
+        hold: 0.75
+        visual_cues:
+          - id: lifecycle-b3-1
+            phrase: each rank its shard
+            targets:
+              - residency-meters
+            linger: 0.45
+          - id: lifecycle-b3-2
+            phrase: updates those local shards
+            targets:
+              - local-optimizer
+            linger: 0.45
+  - id: dtype-lifecycle
+    title: What lives through the optimizer step?
+    visual: Hold the FP32 parameter shard and its two moments in place. Materialize a BF16 unit for backward, reduce the local gradient onto its owner, update the weight, then clear the gradient.
+    beats:
+      - say: This FSDP2 run also budgets sixteen bytes per parameter, but look at what the optimizer
+          updates. The stored weight is already FP32. It takes four bytes. Its FP32 gradient takes four
+          more when present, and two FP32 Adam moments take eight. The stored weight does the job of the
+          master copy. The BF16 weights gathered for compute are a temporary allocation on top.
+        hold: 0.8
+      - say: Watch rank zero in a four-rank group. This unit has a billion parameters, so its local FP32
+          weight shard takes one gigabyte. For backward, gather the full BF16 unit. That's two gigabytes
+          of compute weights. Now form the local gradient of that whole unit in FP32. Four gigabytes
+          have to fit before the reduction.
+        hold: 1
+        visual_cues:
+          - id: full-weights
+            phrase: "gather the full BF16 unit"
+            targets: [compute-copy]
+          - id: full-gradient
+            phrase: "form the local gradient of that whole unit in FP32"
+            targets: [local-gradient]
+      - say: Once backward has finished with the weights, release the compute copy. Reduce-scatter leaves
+          one gigabyte of reduced gradient on this rank. Adam uses that shard and its moments to update
+          the local weight. The gradient is still there after the update. Clear it with zero-grad set to
+          none when its last use is finished. Activations and allocator reservations have their own
+          lifetimes. Pure full sharding needs no parameter exchange for the local update, though
+          gradient clipping or synchronizing replicas can still require communication.
+        hold: 0.9
+        visual_cues:
+          - id: free-weights
+            phrase: "release the compute copy"
+            targets: [compute-copy]
+          - id: reduce-gradient
+            phrase: "Reduce-scatter leaves one gigabyte of reduced gradient"
+            targets: [local-gradient]
+          - id: update-shard
+            phrase: "update the local weight"
+            targets: [owned-weight]
+          - id: clear-gradient
+            phrase: "Clear it with zero-grad set to none"
+            targets: [local-gradient]
+  - id: fsdp2-contract
+    title: Build the parameter ownership before the optimizer
+    visual: Construct bottom-up block communication boundaries, then bind an optimizer to the resulting
+      parameter identities; compare retained-residency intervals.
+    beats:
+      - say: For new PyTorch code, fully-shard applies hooks to original modules and represents stored parameters
+          with DTensor shards. FSDP1 uses a wrapper and flat-parameter groups; its tutorial is
+          deprecated. Apply fully-shard to individual transformer blocks first, then the root for
+          remaining parameters. Build the optimizer afterwards, so it references the sharded
+          representation.
+        hold: 0.7
+      - say: With reshard-after-forward true, free the full unit after forward and gather it again for backward.
+          False retains it through backward, spending memory to avoid that gather. The default selects
+          true for non-root units and false for the root. A supported integer divisor can retain larger
+          partial shards after forward and use a smaller backward gather group. That changes residency;
+          it does not create independent sequence replicas.
+        hold: 0.7
+      - say: The mixed-precision policy separately chooses compute-parameter and gradient-reduction dtypes.
+          Original parameter shards remain the optimizer parameters. Disabling gradient synchronization
+          during accumulation retains unsharded accumulated gradients. Keeping reductions enabled can
+          accumulate sharded results but communicates each time. Retaining full parameters after backward
+          is a different control that avoids later parameter gathers.
+        hold: 0.7
+      - say: FSDP2 composes with DeviceMesh and tensor parallelism and supports ordinary gradient clipping on
+          DTensor parameters. FSDP1 sharded code instead uses its wrapper's clip-grad-norm method, and
+          compilation needs original parameters enabled. Compile a high-level train step or module first,
+          falling back inside a troublesome wrapper. Frozen base weights can still need gathers for
+          compute or input gradients. An adapter does not remove those dependencies.
+        hold: 0.7
+  - id: tradeoff
+    title: Trade memory for communication
+    visual: Persistent state bars shrink across ZeRO stages; a one-step schedule separates all-gather from
+      reduce-scatter and shows next-unit prefetch overlapping current-unit compute.
+    beats:
+      - say: Sharding reduces replicated memory and adds collectives. More aggressive sharding can require more
+          parameter gathers during the step.
+        hold: 0.55
+        visual_cues:
+          - id: tradeoff-b1-1
+            phrase: adds collectives
+            targets:
+              - collective-schedule
+            linger: 0.45
+      - say: Prefetching can start communication for the next unit while the current unit computes. Fast
+          interconnects and sensible wrapping help hide some transfer time.
+        hold: 0.55
+        visual_cues:
+          - id: tradeoff-b2-1
+            phrase: communication for the next unit
+            targets:
+              - collective-schedule
+            linger: 0.45
+      - say: Small units create frequent communication boundaries; very large units can raise peak materialized
+          memory. Measure throughput and peak memory together while changing wrap size. Record step time
+          and device utilization with memory, since a run that fits can still use hardware inefficiently.
+        hold: 0.75
+        visual_cues:
+          - id: tradeoff-b3-1
+            phrase: peak memory together
+            targets:
+              - state-memory
+            linger: 0.45
+  - id: granularity
+    title: "When does the next block get its weights?"
+    visual: >-
+      Gather four 3.5 GB blocks into one scratch allocation. Replay with one block per group, then move
+      the next block’s gather against a fixed compute deadline and count both elapsed wait and
+      overlapping buffers.
+    beats:
+      - say: >-
+          Here are four blocks, three and a half gigabytes of weights apiece. Put them in one communication
+          group. The first block needs its weights, so the rank gathers all four blocks together. Fourteen
+          gigabytes become live for that one request.
+        hold: 0.9
+        visual_cues:
+          - id: root-gather
+            phrase: "gathers all four blocks together"
+            targets: [gather-buffer]
+            linger: 0.25
+      - say: >-
+          Now give each block its own group. Gather the first block, use it, then release its compute copy.
+          The second block can use that space. We still run all four blocks, but one gather now materializes
+          three and a half gigabytes. Smaller groups mean more launches. That matters if a block is ready to
+          compute before its weights arrive.
+        hold: 0.8
+        visual_cues:
+          - id: one-block
+            phrase: "Gather the first block"
+            targets: [gather-buffer]
+            linger: 0.25
+            caption_boundary: true
+          - id: reuse-buffer
+            phrase: "The second block can use that space"
+            targets: [gather-buffer]
+            linger: 0.25
+      - say: >-
+          Keep your eye on millisecond six. That's when block two needs its weights. The transfer takes four
+          milliseconds. Launch at the start of block one's compute and the weights arrive by millisecond
+          four. Now move the launch to millisecond five. How long does block two have to wait?
+        hold: 2.1
+        caption_starts:
+          - "Now move the launch"
+          - "How long does block two have to wait"
+        visual_cues:
+          - id: late-gather
+            phrase: "move the launch to millisecond five"
+            targets: [prefetch-interval]
+            linger: 0.25
+      - say: >-
+          Until millisecond nine. Only one millisecond of that transfer overlapped compute. Three were
+          exposed. Launching early can hide the transfer, but watch what lives together. With the current
+          block and the prefetched block both resident, the gathered weights alone take seven gigabytes.
+        hold: 1
+        caption_starts:
+          - "Three were exposed"
+          - "With the current block"
+          - "the gathered weights alone"
+        visual_cues:
+          - id: exposed-wait
+            phrase: "Until millisecond nine"
+            targets: [exposed-wait]
+            linger: 0.25
+            caption_boundary: true
+          - id: prefetch-residency
+            phrase: "both resident"
+            targets: [prefetch-live]
+            linger: 0.25
+          - id: prefetch-total
+            phrase: "take seven gigabytes"
+            targets: [prefetch-live]
+            linger: 0.25
+      - say: >-
+          Check the profiler to see when the transfer actually ran and what else was live. FSDP2 starts with
+          implicit prefetching. If the next gather launches late, try explicit module prefetch and measure
+          again. In FSDP1, backward prefetch schedules the work. Its all-gather rate limiter caps how much
+          can be in flight. A long sequence can fill memory with activations, and accumulating without
+          gradient synchronization can keep full gradients alive.
+        hold: 0.8
+  - id: topology-links
+    title: Measure the boundary each byte crosses
+    visual: One persistent shard moves across GPU peer, NIC and host/storage paths; direction and aggregation
+      labels stay attached to bandwidth rulers.
+    beats:
+      - say: Place rank groups using the actual link topology. An NVLink domain can be a server or, in systems
+          such as an NVL72 rack, span many GPUs across a rack. Other machines have PCIe peer paths.
+          Frequent within-layer exchanges usually benefit from a fast domain, but tensor and context
+          parallelism can span nodes if their exposed exchange cost is acceptable.
+        hold: 0.7
+      - say: A port rated at four hundred gigabits per second carries up to fifty gigabytes per second in
+          one direction. Divide by eight to convert bits to bytes. An eight-hundred-gigabit port gives
+          you one hundred gigabytes per second. Compare links in the same direction and count the ports
+          your GPUs share. Contention, message size and the collective affect the rate you get.
+        hold: 0.7
+        caption_starts:
+          - "An eight-hundred-gigabit port"
+      - say: Follow one shard to a GPU on another server. With GPUDirect RDMA, the network adapter
+          reads directly from GPU memory. The shard crosses the network, and the other adapter writes
+          it into the receiving GPU's memory. To budget an offload to the CPU or disk, time the
+          GPU-to-host link, host memory and storage separately.
+        hold: 0.7
+        caption_starts:
+          - "With GPUDirect RDMA"
+          - "The shard crosses the network"
+          - "To budget an offload"
+        visual_cues:
+          - id: rdma-read
+            phrase: "reads directly from GPU memory"
+            targets: [shard-path]
+          - id: rdma-network
+            phrase: "The shard crosses the network"
+            targets: [shard-path]
+          - id: rdma-write
+            phrase: "writes it into the receiving GPU's memory"
+            targets: [shard-path]
+  - id: hybrid
+    title: Which ranks share one copy?
+    visual: Give each of 32 ranks a different shard. Replay with eight shard IDs repeated on four nodes and compare rank zero's memory requests on the same 80 GB scale.
+    beats:
+      - say: Keep the seventy-billion-parameter model. We have four nodes with eight GPUs each.
+          Give all thirty-two ranks different shards. Each owns thirty-five gigabytes of model state.
+          A layer gather now has to reach across nodes.
+        hold: 0.8
+      - say: Now keep each gather inside one node. Each node needs its own complete set of eight shards.
+          Look at the first rank on each node. All four now own shard zero. What divides the inventory
+          for one rank here, eight or thirty-two?
+        hold: 2
+        visual_cues:
+          - id: local-groups
+            phrase: "its own complete set of eight shards"
+            targets: [node-shards]
+      - say: Eight. Each rank would need one hundred forty gigabytes of persistent state, before a single
+          activation. This is hybrid sharding. The model is sharded within a node and replicated across
+          nodes. The gathers stay on the local links, but this layout already exceeds our eighty-gigabyte
+          cards. Use the size of the group that shares one copy when you divide the bytes.
+        hold: 1
+        visual_cues:
+          - id: local-memory
+            phrase: "Each rank would need one hundred forty gigabytes"
+            targets: [local-request]
+  - id: checkpoint
+    title: Will Adam take the same next step?
+    visual: A tiny scalar Adam trace branches at a completed step into complete and weights-only checkpoints;
+      same next loss then diverging next updates reveal the missing moment state.
+    beats:
+      - say: A resumable checkpoint preserves model and optimizer shards, scheduler and scaler when used,
+          consumed steps or tokens, data position and needed random state. Save at a completed
+          optimizer-step boundary for the simplest contract. A mid-accumulation snapshot also needs
+          accumulated gradients and the microstep.
+        hold: 0.7
+      - say: Consider a scalar Adam illustration with beta-one one half, beta-two one half, zero epsilon,
+          learning rate one tenth and weight decay zero. Two previous gradients were plus one, then the
+          next gradient is minus one. The saved moments and step counter make the next update about plus
+          zero point zero one four two nine. Resetting Adam from the same saved weight makes it plus zero
+          point one. The pre-update prediction and loss can match while the update differs.
+        hold: 0.7
+        caption_starts:
+          - "The saved moments and step counter"
+          - "plus zero point zero one four two nine"
+          - "Resetting Adam"
+          - "plus zero point one"
+        visual_cues:
+          - id: resume-update
+            phrase: next update about plus zero point zero one four two nine
+            targets:
+              - resume-delta
+            linger: 0.55
+          - id: reset-update
+            phrase: Resetting Adam from the same saved weight
+            targets:
+              - reset-delta
+            linger: 0.55
+      - say: "Test resume against an uninterrupted run: compare the next batch, loss, gradients, updated
+          parameters and optimizer counters with appropriate numerical tolerances. Exercise every rank's
+          loading and random state. Sharded checkpoints avoid gathering the whole model onto rank zero.
+          Topology changes may need explicit resharding or DeepSpeed's conversion to its universal
+          checkpoint format; successful tensor loading alone does not promise identical data grouping or
+          reduction order."
+        hold: 0.7
+  - id: offload
+    title: Follow the state through the memory hierarchy
+    visual: Follow state shards into host memory and storage. Bring four gigabytes back to the GPU,
+      then compare the ZeRO stages that AutoTP and PipelineModule support.
+    beats:
+      - say: If native GPU sharding is sufficient and you want PyTorch tooling, FSDP is a direct choice. FSDP2
+          CPU offload can put parameters, gradients and optimizer state on host memory and run the
+          optimizer there. DeepSpeed ZeRO-Infinity adds a CPU and NVMe hierarchy when storage capacity is
+          needed. Moving state makes room while adding transfer and optimizer-placement costs.
+        hold: 0.7
+      - say: Bring four gigabytes back from host memory. At twenty gigabytes per second, moving those
+          bytes alone takes two hundred milliseconds. Start the copy while the GPU is busy. If compute
+          finishes first, the GPU waits for the remaining bytes. Storage reads, host memory and the
+          link to the GPU each take time. Trace the transfer to find where the wait begins.
+        hold: 0.7
+        caption_starts:
+          - "At twenty gigabytes per second"
+          - "Start the copy"
+          - "Storage reads"
+        visual_cues:
+          - id: host-transfer
+            phrase: "moving those bytes alone takes two hundred milliseconds"
+            targets: [host-copy]
+      - say: Suppose you want to use ZeRO stage three in DeepSpeed. AutoTP supports stages zero through
+          three. PipelineModule supports stages zero and one. Try one training step with the combination
+          your installed version supports. In stage three, all ranks must gather modules in the same order.
+          If expert routing sends ranks to different experts, marking their common parent as a leaf module
+          lets the ranks gather all its experts together. Size communication buckets in elements. Five
+          hundred million BF16 elements take one gigabyte. When DeepSpeed manages accumulation, let it
+          scale the loss and decide when to step.
+        hold: 0.7
+        caption_starts:
+          - "AutoTP supports stages"
+          - "PipelineModule supports"
+          - "Try one training step"
+          - "Five hundred million BF16 elements"
+        visual_cues:
+          - id: autotp-stages
+            phrase: "AutoTP supports stages zero through three"
+            targets: [autotp]
+          - id: pipeline-stages
+            phrase: "PipelineModule supports stages zero and one"
+            targets: [pipeline-module]
+          - id: expert-parent
+            phrase: "marking their common parent as a leaf module"
+            targets: [integration-detail]
+          - id: bucket-bytes
+            phrase: "Five hundred million BF16 elements take one gigabyte"
+            targets: [integration-detail]
+          - id: managed-step
+            phrase: "When DeepSpeed manages accumulation"
+            targets: [integration-detail]
+  - id: mesh
+    title: Count devices separately from independent sequences
+    visual: Build one TP-by-CP stage, connect PP depth, then copy complete replicas along DP; sequence IDs
+      and token slices retain their identities.
+    beats:
+      - say: Use a regular mesh with no expert axis. World size is DP times TP times PP times CP. Data
+          parallelism counts independent sequence replicas here. Tensor parallelism divides work inside a
+          layer, pipeline parallelism divides depth, and context parallelism divides positions of one
+          sequence.
+        hold: 0.7
+      - say: "DP eight, TP four, PP two and CP two require one hundred twenty-eight ranks. With one sequence per
+          local microbatch and four accumulated microbatches, the global sequence batch is thirty-two:
+          one times four times eight. TP, PP and CP cooperate on those sequences; summing token counters
+          across every rank would count shared work repeatedly. Pure data parallelism also imposes a
+          batch-budget constraint when every replica receives at least one sequence."
+        hold: 0.7
+  - id: tensor-parallel
+    title: Split the matrix multiply itself
+    visual: A supplied positive input and two matching column/row matrix partitions form separate hidden
+      features and partial output vectors; add partials after local activation.
+    beats:
+      - say: Tensor parallelism changes layer computation. Split the first MLP weight along output columns. Each
+          rank receives the same input and produces different hidden coordinates. An elementwise
+          activation stays local. Split the next weight along matching rows, so each rank produces a
+          partial output in the same output coordinates. Sum those partial vectors with all-reduce.
+        hold: 0.7
+      - say: Here a supplied positive hidden pair is two and three. Using ReLU for this tiny arithmetic
+          demonstration leaves both unchanged. Their corresponding output rows are one, four and two,
+          minus one. The partial outputs are two, eight and six, minus three. Add them to get eight,
+          five. This illustrates the partition contract; the transformer recipe uses its chosen
+          activation such as GeLU.
+        hold: 0.7
+        visual_cues:
+          - id: tp-sum
+            phrase: Add them to get eight, five
+            targets:
+              - tp-output
+            linger: 0.55
+      - say: In the classic replicated-input/output Megatron layout, attention assigns complete heads to ranks
+          and sums the output-projection partials. Attention and the MLP together use two forward and two
+          backward all-reduces per layer. Sequence parallelism can replace these with other collective
+          patterns. This division can shrink a gathered matrix that state sharding alone still needs
+          whole; it is a different intervention from ZeRO.
+        hold: 0.7
+  - id: pipeline
+    title: Trade activation retention without erasing the bubble
+    visual: Four stages and eight colored microbatch identities move through actual forward/backward slots;
+      compare outstanding activation counters and a separate elapsed-time model.
+    beats:
+      - say: Pipeline parallelism assigns consecutive layer ranges to stages. Forward sends activations to the
+          next stage; backward returns their gradients. GPipe completes all microbatch forwards before
+          their backwards. Plain non-interleaved one-forward-one-backward flush instead warms up,
+          alternates, then drains before the batch optimizer update.
+        hold: 0.7
+      - say: For four stages and eight microbatches, stage warmups are three, two, one and zero forwards. The
+          maximum outstanding forward activation sets are four, three, two and one, including the forward
+          before its paired backward. GPipe can retain eight on every stage. Recomputation changes bytes
+          per saved set. Plain one-forward-one-backward reduces retention but keeps the same ideal fill
+          and drain bubble.
+        hold: 0.7
+      - say: "With balanced stages and ignored transfer and optimizer costs, bubble overhead relative to useful
+          work is stages minus one divided by microbatches. Idle fraction of total elapsed time has
+          microbatches plus stages minus one in the denominator. At eight stages and thirty-two
+          microbatches those are seven over thirty-two and seven over thirty-nine: about twenty-one point
+          eight eight and seventeen point nine five percent. Interleaved chunks can reduce the ideal
+          bubble at a transfer cost; stage imbalance still needs a trace."
+        hold: 0.7
+  - id: context-parallel
+    title: Keep queries still while KV blocks travel
+    visual: Four sequence blocks rotate around stationary query owners; online max, normalizer and
+      weighted-sum accumulators merge each visited block.
+    beats:
+      - say: Context parallelism partitions one sequence's positions. Each owner keeps its local query positions
+          but global attention still needs keys and values from other blocks. Ring Attention rotates KV
+          blocks through the owners and uses online softmax statistics to combine them without
+          constructing the full attention matrix.
+        hold: 0.7
+      - say: For one query with two supplied block scores zero and log three and values two and ten, the
+          unnormalized masses are one and three. The normalized output is eight. A correct online merge
+          keeps a running maximum, rescales old mass and weighted sum, then adds the next block; it is
+          not an unweighted mean of block outputs. Causal masks must remain attached to position
+          identities. KV exchange can overlap block compute only when timing allows. Tiling removes the
+          full score matrix, but dense attention arithmetic and other saved tensors still grow with
+          sequence length.
+        hold: 0.7
+        visual_cues:
+          - id: online-output
+            phrase: normalized output is eight
+            targets:
+              - attention-merged
+            linger: 0.55
+  - id: profile-contract
+    title: Diagnose the first failing lifetime boundary
+    visual: Stop two example attempts at their first failing allocation. Then compare collective calls across ranks and measure the elapsed time of an overlapping schedule.
+    beats:
+      - say: Look at two out-of-memory failures. In the first attempt, initialization requests ninety-five
+          gigabytes on an eighty-gigabyte card. The job never reaches forward. Check whether the model
+          materialized before sharding. Try sharded initialization or build on the meta device first.
+          In the second attempt, initialization and forward both fit. Backward requests eighty-eight.
+          Inspect the gathered weights, activations and full gradients live at that instant, including
+          gradients retained across microbatches. If memory is low and compute waits before every block,
+          time the next gather instead.
+        hold: 0.7
+        visual_cues:
+          - id: second-attempt
+            phrase: "In the second attempt"
+            targets: [attempt-two]
+      - say: Both ranks gather block zero and run it. Look at their next calls. One rank gathers block
+          one while the other asks for block two. Read the first error across the rank logs. A rank
+          that exited can also leave its peers waiting. For a PyTorch timeout dump, enable
+          dump-on-timeout and set a positive trace-buffer size. Trace the smallest group that still hangs.
+        hold: 0.7
+        caption_starts:
+          - "One rank gathers block one"
+          - "Read the first error"
+        visual_cues:
+          - id: mismatched-blocks
+            phrase: "One rank gathers block one while the other asks for block two"
+            targets: [next-gathers]
+      - say: Follow the clock across this trace. One millisecond goes to data, six to compute and
+          two to the checkpoint. The collective runs for three milliseconds inside the compute bar.
+          The clock stops at nine. Adding every bar gives twelve because you'd count those three
+          milliseconds twice. When you compare layouts, record the GPUs and links, workload shape,
+          microbatch, accumulation, dtypes and prefetch settings. After warmup, time forward, backward
+          and the optimizer. Count useful tokens once per independent replica, record how you handle
+          padding, and compare peak allocated and reserved memory and training quality with the baseline.
+        hold: 0.7
+        caption_starts:
+          - "The collective runs"
+          - "The clock stops at nine"
+          - "Adding every bar gives twelve"
+          - "When you compare layouts"
+          - "After warmup"
+        visual_cues:
+          - id: trace-clock
+            phrase: "One millisecond goes to data, six to compute and two to the checkpoint"
+            targets: [step-clock]
+          - id: elapsed-step
+            phrase: "The clock stops at nine"
+            targets: [elapsed-time]
+          - id: double-count
+            phrase: "Adding every bar gives twelve"
+            targets: [elapsed-time]
+  - id: choose
+    title: "Which allocation changed the peak?"
+    visual: >-
+      On one rank, hold persistent state, gathered weights, workspace and the six-unit capacity mark
+      still. Replace only the saved activation allocation across three workload cases.
+    beats:
+      - say: >-
+          Come back to our four-rank example. This card holds two units of sharded model state. At one
+          instant it also needs one and a half units for gathered weights and half a unit of workspace. Save
+          three units of activations and the seven-unit request crosses our six-unit limit.
+        hold: 0.8
+        visual_cues:
+          - id: joint-allocations
+            phrase: "Save three units of activations"
+            targets: [activation-lane]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Try saving fewer activations and recomputing the rest during backward. In this example that cuts
+          the saved activations in half. All the other allocations stay put. Five and a half units fit, at
+          the cost of repeating some arithmetic.
+        hold: 0.8
+        visual_cues:
+          - id: checkpoint-savings
+            phrase: "cuts the saved activations in half"
+            targets: [activation-lane]
+            linger: 0.25
+      - say: >-
+          Keep recomputation on and switch to a longer sequence. Now its saved activations need four and a
+          half units. Does the same card still have room?
+        hold: 2
+      - say: >-
+          It would need eight and a half. The model shards never changed size. To test a repair, keep the
+          target sequence length, reduce the microbatch and measure the joint peak again. For layouts that
+          complete the step, compare time per update at the same effective batch and check that training and
+          checkpoint recovery agree.
+        hold: 1
+        visual_cues:
+          - id: long-sequence
+            phrase: "It would need eight and a half"
+            targets: [activation-lane]
+            linger: 0.25
+            caption_boundary: true
+  - id: sizing-transfer
+    title: "What has to fit on one GPU?"
+    visual: >-
+      Return to the opening card's capacity mark. Compare 16, 24 and 32 ranks under the same 18 GB extra
+      peak. On a fresh 30B model, leave both stage choices open before testing which one earns a workload
+      trial.
+    beats:
+      - say: >-
+          Back to the seventy-billion-parameter job. Fourteen eighty-gigabyte cards would hold its model
+          state exactly if it were evenly sharded. On sixteen cards, the state takes seventy gigabytes each.
+          For this exercise, assume eighteen more gigabytes are live at the same instant on each card. Will
+          sixteen cards carry that step?
+        hold: 2.2
+      - say: >-
+          Put the eighteen next to the seventy. The request ends at eighty-eight, eight gigabytes past the
+          limit. Try twenty-four cards instead. The state falls to about forty-six point seven per card. The
+          same eighteen brings the peak to sixty-four point seven. Thirty-two cards bring it to fifty-three.
+          Of those three layouts, twenty-four is the smallest worth testing under this assumption.
+        hold: 1.1
+        visual_cues:
+          - id: price-sixteen
+            phrase: "Put the eighteen next to the seventy"
+            targets: [candidate-16]
+            linger: 0.25
+            caption_boundary: true
+          - id: try-twenty-four
+            phrase: "Try twenty-four cards instead"
+            targets: [candidate-24]
+            linger: 0.25
+            caption_boundary: true
+          - id: try-thirty-two
+            phrase: "Thirty-two cards bring it to fifty-three"
+            targets: [candidate-32]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Your turn. A smaller model has thirty billion parameters. Same recipe, sixteen cards, same eighteen
+          extra gigabytes. Stage two leaves every weight on every card. Stage three shares the weights as
+          well. Which stage would you take to a trial on these eighty-gigabyte cards?
+        hold: 3
+      - say: >-
+          Stage two keeps sixty gigabytes of weights on each card. Even after you share the gradients and
+          optimizer state, that card needs over eighty-six gigabytes for model state alone. Stage three
+          divides the whole inventory by sixteen. That's thirty gigabytes per card. Add the eighteen and the
+          request stops at forty-eight.
+        hold: 0.9
+        visual_cues:
+          - id: try-stage-two
+            phrase: "Stage two keeps sixty gigabytes of weights"
+            targets: [stage-two-case]
+            linger: 0.25
+            caption_boundary: true
+          - id: try-stage-three
+            phrase: "Stage three divides the whole inventory by sixteen"
+            targets: [stage-three-case]
+            linger: 0.25
+            caption_boundary: true
+          - id: price-stage-three
+            phrase: "Add the eighteen"
+            targets: [stage-three-case]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Take stage three to the profiler. Run the intended sequence and microbatch on that mesh, through
+          backward and the optimizer update. Find the highest memory peak across ranks. Did the gathered
+          weights and activations stay inside the space we budgeted? Then compare useful tokens per second
+          and verify the next update after a restore. In the next lesson, LoRA changes the inventory itself by training a small adapter
+          while the base weights stay frozen.
+        hold: 1.1
+        caption_starts:
+          - "In the next lesson"
+        visual_cues:
+          - id: profile-trial
+            phrase: "Run the intended sequence and microbatch"
+            targets: [observed-peak]
+            linger: 0.25
+            caption_boundary: true
+          - id: lora-inventory
+            phrase: "LoRA changes the inventory itself"
+            targets: [lora-weights]
+            linger: 0.25

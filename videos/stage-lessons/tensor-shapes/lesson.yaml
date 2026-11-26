@@ -1,0 +1,798 @@
+version: 1
+id: tensor-shapes
+title: Keep Tensor Values Attached to Their Words
+source: foundations/numpy-and-tensor-shapes/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "NumPy: Array creation"
+    url: https://numpy.org/doc/stable/user/basics.creation.html
+  - title: "NumPy: Broadcasting"
+    url: https://numpy.org/doc/stable/user/basics.broadcasting.html
+  - title: "NumPy: Transpose"
+    url: https://numpy.org/doc/stable/reference/generated/numpy.transpose.html
+  - title: "NumPy: Reshape"
+    url: https://numpy.org/doc/stable/reference/generated/numpy.reshape.html
+  - title: "NumPy: Array strides"
+    url: https://numpy.org/doc/stable/reference/generated/numpy.ndarray.strides.html
+  - title: "NumPy: Matrix multiplication"
+    url: https://numpy.org/doc/stable/reference/generated/numpy.matmul.html
+  - title: "NumPy: Copies and views"
+    url: https://numpy.org/doc/stable/user/basics.copies.html
+  - title: "NumPy: Mean accumulation"
+    url: https://numpy.org/doc/stable/reference/generated/numpy.mean.html
+scenes:
+  - id: intro
+    title: Which word did the code read?
+    visual: Migrate's first pair is outlined in the input. Matching underlines connect those values
+      to the request above the returned pair. After the viewer has time to find the match, a line
+      traces the returned numbers back to Birds.
+    beats:
+      - say: We asked for the first two features of migrate. Four and five. The code gave us two
+          and three. Which word did it read?
+        hold: 2.4
+        visual_cues:
+          - id: request-first-pair
+            phrase: Four and five
+            targets: [intro-features, intro-request, intro-readout]
+            color: cyan
+          - id: open-readout
+            phrase: The code gave us two and three
+            targets: [intro-request, intro-readout]
+            color: yellow
+      - say: Trace that pair back to its row. Two and three belong to Birds. How did they end up
+          under migrate?
+        hold: 1.2
+        visual_cues:
+          - id: locate-returned-pair
+            phrase: Trace that pair back to its row
+            targets:
+              - intro-features
+              - intro-readout
+            color: yellow
+          - id: opening-owner-question
+            phrase: How did they end up under migrate
+            targets:
+              - opening-question
+            color: yellow
+        caption_starts:
+          - Two and three belong to Birds
+  - id: shape
+    title: Where is migrate in the batch?
+    visual: The grid from the opening gains a second sentence. Three brackets count the choices in its
+      address. The shape and storage checks operate separately.
+    beats:
+      - say: Put a second sentence beside the first. Together they make one batch. Here each word
+          is one token. The batch index picks a sentence, the token index picks a word, and the feature
+          index picks one number. Each part of that address uses one axis of the array. Three axes
+          give this tensor rank three. Counting backward, the feature axis is also axis minus one.
+        hold: 0.8
+        visual_cues:
+          - id: add-second-sentence
+            phrase: Put a second sentence beside the first
+            targets: [second-sentence]
+            color: pink
+          - id: name-batch-axis
+            phrase: The batch index picks a sentence
+            targets:
+              - batch-axis
+            color: blue
+          - id: name-token-axis
+            phrase: the token index picks a word
+            targets:
+              - token-axis
+            color: cyan
+          - id: name-feature-axis
+            phrase: the feature index picks one number
+            targets:
+              - feature-axis
+            color: yellow
+      - say: Suppose the loader stored our numbers as integers. The storage type is called the dtype. This
+          input passes the shape gate and stops at a float32 boundary. Converting its dtype keeps
+          the coordinates. Migrate is still in the middle row of sentence zero.
+        hold: 1
+        visual_cues:
+          - id: reject-integer-storage
+            phrase: passes the shape gate and stops at a float32 boundary
+            targets:
+              - dtype-boundary
+            color: pink
+            caption_boundary: true
+          - id: convert-storage-type
+            phrase: Converting its dtype keeps the coordinates
+            targets:
+              - dtype-boundary
+            color: green
+  - id: index
+    title: What survives the brackets?
+    visual: The second sentence supplies one vector. An integer and a one-item slice keep the same
+      four numbers. A batch colon then selects the middle word from both sentences.
+    beats:
+      - say: Count from zero. Choose batch index one for the second sentence, then token index one for its
+          middle word, enjoy. A colon retains every feature. We spent two indices choosing the word.
+          Only the feature axis remains.
+        hold: 0.7
+        visual_cues:
+          - id: choose-index-batch
+            phrase: batch index one
+            targets:
+              - index-source-1
+            color: pink
+          - id: choose-index-token
+            phrase: token index one
+            targets:
+              - index-selected-row
+            color: yellow
+          - id: retain-index-features
+            phrase: A colon retains every feature
+            targets:
+              - index-result
+            color: green
+      - say: A caller expects a table, even for a single word. Try a slice from one up to two. What
+          happens to enjoy's four numbers?
+        hold: 2
+      - say: The values stay the same, while the slice keeps one token row. The integer gave us a vector.
+          With only one axis, transposing that vector does nothing. The extra axis gives this row
+          its orientation.
+        hold: 0.9
+        visual_cues:
+          - id: keep-singleton-token
+            phrase: The values stay the same, while the slice keeps one token row
+            targets:
+              - index-result
+              - index-slice
+            color: yellow
+            caption_boundary: true
+      - say: Now take the middle word from both sentences in the batch. The first colon keeps them in their original order.
+          The token index removes the word axis. Read down the result and you get migrate, then
+          enjoy, with all four features in each row.
+        hold: 0.85
+        visual_cues:
+          - id: keep-both-sentences
+            phrase: middle word from both sentences
+            targets:
+              - index-all-middle
+            color: cyan
+  - id: broadcast
+    title: Which way do the offsets run?
+    visual: A feature bias visits both sentences. A token bias first hits the wrong axis. In the
+      square case both additions run, and their offset markers travel in different directions over
+      the same values.
+    beats:
+      - say: Give each feature its own offset. Follow migrate as every feature adds its matching offset.
+          The same offsets serve every word in both sentences. NumPy calls this broadcasting. It
+          reuses the four offsets. The new sum still needs space for all twenty-four values.
+        hold: 0.9
+        visual_cues:
+          - id: add-feature-offsets
+            phrase: Follow migrate as every feature adds its matching offset. The same offsets serve every
+              word in both sentences
+            targets:
+              - feature-bias
+              - broadcast-output
+            color: yellow
+      - say: Now give each word position one offset. Broadcasting aligns dimensions from the right. Three offsets
+          for three words sounds right, until the three collides with the four-feature axis.
+          There's no offset for the fourth column. Give it
+          a trailing singleton axis. Size one can stretch across the features. The missing batch
+          axis also counts as one.
+        hold: 1
+        visual_cues:
+          - id: align-broadcast-dimensions
+            phrase: aligns dimensions from the right
+            targets:
+              - broadcast-alignment
+            color: cyan
+          - id: reject-token-vector
+            phrase: collides with the four-feature axis
+            targets:
+              - broadcast-alignment
+            color: pink
+            caption_boundary: true
+          - id: insert-feature-singleton
+            phrase: Give it a trailing singleton axis
+            targets:
+              - broadcast-alignment
+              - token-offset-example
+            color: green
+            caption_boundary: true
+      - say: Drop the fourth feature of each word in the first sentence. Now there are three rows and
+          three columns. Both additions fit. We want to add ten to each feature of Birds. Predict the
+          first word under each line. What should happen to its middle value?
+        hold: 2.5
+        visual_cues:
+          - id: predict-square-broadcast
+            phrase: Predict the first word
+            targets:
+              - square-broadcast
+            color: yellow
+      - say: Start them together. The first additions agree. Now follow the one in the middle of Birds.
+          The bare vector changes columns. It moves on to twenty. The other line keeps Birds on ten
+          until the row ends. If you checked only the first cell, both lines would have passed.
+        hold: 1.3
+        visual_cues:
+          - id: deal-square-offsets
+            phrase: The first additions agree. Now follow the one in the middle of Birds
+            targets:
+              - square-broadcast
+            color: yellow
+          - id: resolve-square-broadcast
+            phrase: The bare vector changes columns
+            targets:
+              - square-broadcast
+            color: pink
+            caption_boundary: true
+          - id: finish-square-rows
+            phrase: until the row ends. If you checked only the first cell
+            targets: [square-broadcast]
+            color: cyan
+        caption_starts:
+          - It moves on to twenty
+  - id: contracts
+    title: Which inputs can this function accept?
+    visual: RGB means apply at the same channel positions in every pixel. At a text-model boundary, a
+      missing fourth feature offset stays visibly unmatched before the guard rejects it.
+    beats:
+      - say: This white pixel starts at one in all three channels. Subtract each channel's training
+          mean. Red loses point five two and keeps point four eight. Blue loses less, so it keeps
+          point five six. The same three means apply to every pixel in every tile.
+          If color moves to axis one, give height and
+          width their own size-one slots in the mean.
+        hold: 0.9
+        visual_cues:
+          - id: image-transfer
+            phrase: This white pixel starts at one in all three channels
+            targets:
+              - image-channels
+              - image-result
+            color: cyan
+          - id: image-subtract
+            phrase: Subtract each channel's training mean
+            targets:
+              - image-result
+            color: green
+          - id: move-color-axis
+            phrase: If color moves to axis one
+            targets: [image-channels]
+            color: cyan
+      - say: Back at migrate, a caller promises one offset per feature. We reject inputs unless the tensor
+          has rank three and the bias is a vector of exactly the feature width. Check dtype
+          separately if the model requires float32. This caller sent three offsets. Where will the
+          addition stop?
+        hold: 1.8
+        visual_cues:
+          - id: boundary-contract
+            phrase: reject inputs unless the tensor has rank three
+            targets:
+              - boundary-guard
+            color: yellow
+      - say: The fourth feature has no partner. Raise a value error at the boundary, before doing
+          arithmetic. Python can remove assertions when it runs with optimization. With a four-entry
+          bias, all four partners are there. Now an internal assertion can check that the output
+          kept the input shape.
+        hold: 1
+        visual_cues:
+          - id: reject-short-bias
+            phrase: The fourth feature has no partner
+            targets:
+              - boundary-guard
+            color: pink
+          - id: contract-repair
+            phrase: With a four-entry bias
+            targets:
+              - guard-repair
+            color: green
+            caption_boundary: true
+  - id: reduce
+    title: Which direction gives one vector per sentence?
+    visual: The same cells are reduced down columns and across rows. When subtracting back into the
+      source, the missing token slot makes the batch size collide with the word count before
+      keepdims repairs the alignment.
+    beats:
+      - say: Return to the original numbers. We want one feature vector for each sentence. Look at the first column. Its three words contribute zero, four, and eight. Average down
+          the token axis, one feature column at a time. Follow the highlighted column into its sum,
+          then its mean. The four in the first output slot now describes a whole sentence.
+        hold: 0.9
+        visual_cues:
+          - id: pool-token-column
+            phrase: Average down the token axis, one feature column at a time. Follow the highlighted column
+              into its sum, then its mean
+            targets:
+              - reduction-input
+              - reduction-output
+            color: yellow
+      - say: Suppose we average across features. Now each word gets one scalar. The output keeps batch and
+          token positions. The arithmetic follows the highlighted row. You can still ask for
+          migrate's mean, but its four separate features are gone.
+        hold: 0.8
+        visual_cues:
+          - id: pool-feature-row
+            phrase: average across features. Now each word gets one scalar. The output keeps batch and token
+              positions. The arithmetic follows the highlighted row
+            targets:
+              - reduction-input
+              - reduction-output
+            color: cyan
+      - say: What if we want to subtract each sentence's mean from all its words? Read the two shapes from
+          the right. Four matches four. Then two meets three. To keep the batch aligned, keep the
+          collapsed token slot. Its size is one. Watch the subtraction while the original values
+          stay faintly visible. The first feature is now equally far below and above zero, with
+          migrate right in the middle.
+        hold: 1
+        visual_cues:
+          - id: retain-mean-token-slot
+            phrase: keep the collapsed token slot
+            targets:
+              - mean-singleton-slot
+            color: yellow
+            caption_boundary: true
+          - id: subtract-kept-mean
+            phrase: Watch the subtraction while the original values stay faintly visible
+            targets:
+              - centered-values
+            color: green
+  - id: precision
+    title: What happened to the extra one?
+    visual: Two rulers share a scale and the same float32 inputs. A ring pauses between two float32
+      ticks. Their last bits appear before the ring moves to the even neighbor. Each lane then shows
+      the sum after cancellation and the value and dtype NumPy returns.
+    beats:
+      - say: Take one feature across three tokens. The first and last values cancel, and all three fit
+          exactly in float32. Start at two to the twenty-fourth and add one. The ring marks the exact
+          sum. Look at the blue ticks on either side. Can float32 store the value at the ring?
+        hold: 2.2
+        visual_cues:
+          - id: exact-halfway
+            phrase: Start at two to the twenty-fourth and add one
+            targets:
+              - precision-narrow
+            color: yellow
+      - say: It lands halfway between two float32 values. With the default rounding mode, an exact tie
+          goes to the neighbor whose significand ends in a zero bit. Here that's the left tick.
+          Subtracting the large value then leaves zero. Divide that by three and the mean comes back
+          as a float32 zero.
+        hold: 1
+        visual_cues:
+          - id: compare-last-bits
+            phrase: With the default rounding mode
+            targets: [precision-narrow]
+            color: blue
+          - id: narrow-accumulator
+            phrase: Here that's the left tick
+            targets:
+              - precision-narrow
+            color: pink
+            caption_boundary: true
+          - id: narrow-cancel
+            phrase: Subtracting the large value then leaves zero
+            targets:
+              - precision-narrow
+            color: pink
+            caption_boundary: true
+          - id: narrow-mean
+            phrase: the mean comes back as a float32 zero
+            targets: [precision-narrow]
+            color: blue
+      - say: Keep the inputs in float32. Ask NumPy to use float64 for the sum and the returned mean.
+          Watch the lower marker. It can stay at the middle tick. Subtract the large value again.
+          This time the sum is exactly one. Divide by three and you get the nearest float64 value
+          to one third. The wider calculation helped because the extra one was still in the input.
+        hold: 1.5
+        visual_cues:
+          - id: wide-accumulator
+            phrase: Watch the lower marker. It can stay at the middle tick
+            targets:
+              - precision-wide
+            color: green
+            caption_boundary: true
+          - id: wide-cancel
+            phrase: Subtract the large value again
+            targets: [precision-wide]
+            color: green
+          - id: wide-mean
+            phrase: Divide by three
+            targets:
+              - precision-wide
+            color: green
+            caption_boundary: true
+  - id: reshape-transpose
+    title: Which row holds each word's last feature?
+    visual: A reshape fills a row of three, then starts a row that crosses from Birds to migrate.
+      The transpose keeps each word's last feature in one row. An arrow below the stored values
+      measures the sixteen-byte stride from three to seven.
+    beats:
+      - say: We want the last feature of each word in one row. Try a reshape with three places per row.
+          Zero, one, two fill the first row. Three starts the next row. It's the last feature of Birds.
+          Four and five come from migrate. Reshape follows the same flat order through the rest of the
+          sentence. Across both sentences we still have twenty-four values. Ask for four per row and
+          give NumPy minus one for the row count. Twenty-four divided by four gives six rows.
+        hold: 1
+        visual_cues:
+          - id: fill-first-row
+            phrase: Zero, one, two fill the first row
+            targets: [reshaped-layout, memory-stream]
+            color: blue
+          - id: start-mixed-row
+            phrase: Three starts the next row
+            targets: [reshaped-layout, memory-stream]
+            color: blue
+          - id: cross-word-boundary
+            phrase: Four and five come from migrate
+            targets: [reshaped-layout, memory-stream]
+            color: yellow
+          - id: reshape-flat-stream
+            phrase: Reshape follows the same flat order through the rest of the sentence
+            targets: [reshaped-layout, memory-stream]
+            color: yellow
+          - id: infer-row-count
+            phrase: Ask for four per row and give NumPy minus one for the row count
+            targets: [row-count]
+            color: blue
+          - id: show-row-count
+            phrase: Twenty-four divided by four gives six rows
+            targets: [row-count]
+            color: blue
+      - say: "Keep the first layout. For the second, transpose the axes. The stored buffer stays still
+          while the view reads different positions. Track feature three: each value stays attached
+          to its original word. From three to seven, we pass over three values. The two addresses
+          are four float32 positions apart. At four bytes each, that's a stride of sixteen bytes.
+          Which row would you hand to someone who asked for the last feature of every word?"
+        hold: 2.3
+        visual_cues:
+          - id: transpose-axis-swap
+            phrase: "transpose the axes. The stored buffer stays still while the view reads different
+              positions. Track feature three: each value stays attached to its original word"
+            targets:
+              - original-layout
+              - transposed-layout
+              - memory-stream
+            color: green
+          - id: read-word-stride
+            phrase: From three to seven, we pass over three values
+            targets: [memory-stream]
+            color: yellow
+          - id: measure-word-stride
+            phrase: At four bytes each, that's a stride of sixteen bytes
+            targets: [memory-stream]
+            color: yellow
+      - say: Compare where seven lands. In the reshape its neighbors are six and eight. Read across
+          the bottom row of the transpose. Three from Birds, seven from migrate, eleven from south.
+          That's the last feature of each word.
+        hold: 1.2
+        visual_cues:
+          - id: compare-layout-owners
+            phrase: Compare where seven lands
+            targets:
+              - reshaped-layout
+              - transposed-layout
+            color: yellow
+        caption_starts:
+          - In the reshape
+  - id: views
+    title: Which array gets the write?
+    visual: Two windows point to one buffer slot. Then two rows begin with the same zero. A write to
+      the retrieved row and a replay through the source indices change different copies. After the
+      values reset, a reshape reads the transposed rows into contiguous storage.
+    beats:
+      - say: Keep this buffer and take the middle word from each sentence. A basic slice is another window
+          into that buffer. We'll write ninety-nine into the slice, on top of migrate's first
+          feature. Where else should ninety-nine appear?
+        hold: 2.1
+        visual_cues:
+          - id: shared-slice-address
+            phrase: another window into that buffer
+            targets:
+              - shared-memory
+            color: blue
+      - say: The source changes at the same address. Both windows reach that one stored number. An array
+          keeps a shape, dtype, and byte strides so it can find its values in memory.
+        hold: 0.8
+        visual_cues:
+          - id: edit-shared-value
+            phrase: The source changes at the same address
+            targets:
+              - shared-memory
+            color: yellow
+            caption_boundary: true
+      - say: Now retrieve both sentences using a list of integer indices. Call the result picked.
+          Look at Birds this time. Its first feature is zero in both arrays. We're about to write
+          minus one into picked. Will Birds change in the source too?
+        hold: 2.2
+        visual_cues:
+          - id: select-copy-address
+            phrase: Look at Birds this time
+            targets: [independent-memory]
+            color: cyan
+      - say: Write to the retrieved row. The zero in the source survives. Selecting the two sentences
+          with a list of indices made a copy. Birds now has a different first feature in each array.
+        hold: 1
+        visual_cues:
+          - id: edit-independent-copy
+            phrase: Write to the retrieved row
+            targets: [picked-address]
+            color: green
+            caption_boundary: true
+        caption_starts:
+          - The zero in the source survives
+      - say: Rewind that write. Keep the same word, feature, and value. Put the batch index on the source
+          itself this time. Where will the minus one land?
+        hold: 2.2
+        visual_cues:
+          - id: rewind-indexed-write
+            phrase: Rewind that write
+            targets: [picked-address]
+            color: cyan
+          - id: address-source
+            phrase: Put the batch index on the source itself
+            targets: [write-expression]
+            color: yellow
+      - say: Write through the source indices. This time Birds changes in the source. The copy still
+          holds the zero it read earlier. If you want to edit a basic slice independently, call
+          copy on the slice first.
+        hold: 1
+        visual_cues:
+          - id: write-indexed-source
+            phrase: Write through the source indices
+            targets: [source-address]
+            color: blue
+        caption_starts:
+          - This time Birds changes in the source
+      - say: Reset the values and return to the transpose. Read across its first row and you visit zero,
+          four, eight. The original storage starts zero, one, two. Here, flattening the transposed
+          index order needs a copy. The new buffer follows the transposed rows, so the order
+          survives the copy.
+        hold: 1.1
+        visual_cues:
+          - id: flatten-transposed-view
+            phrase: flattening the transposed index order needs a copy
+            targets:
+              - flatten-memory
+            color: cyan
+  - id: attention
+    title: Which words can migrate compare with?
+    visual: Migrate's four features contribute to three scores. Each total travels to its key column
+      in migrate's row. Birds and south fill the other rows before the output shape appears. The
+      second matrix opens beside the first with its own words on both axes.
+    beats:
+      - say: Select the vector for migrate as our query. The same snippet supplies three key vectors, one
+          for each token. Every vector keeps the same four feature positions, so we can compare
+          matching positions directly. Models usually learn the projections that produce queries
+          and keys. Here we use identity matrices so the numbered values stay unchanged.
+        hold: 0.55
+        visual_cues:
+          - id: query-migrate-b1-1
+            phrase: vector for migrate as our query
+            targets:
+              - query-migrate
+            color: blue
+            linger: 0.6
+      - say: A dot product multiplies matching feature positions, then adds those products. Watch the same
+          migrate query build a running score against Birds, migrate, and south. Each completed
+          total belongs in that key’s column.
+        hold: 0.6
+        visual_cues:
+          - id: query-products-b2-1
+            phrase: multiplies matching feature positions
+            targets:
+              - component-products
+            color: cyan
+            linger: 0.6
+          - id: query-running-sum-b2-2
+            phrase: build a running score
+            targets:
+              - running-score
+            color: yellow
+            linger: 0.6
+      - say: The three totals fill the migrate row first. Birds and south each get a turn as the query.
+          Each row holds three scores, one for each key. We need a grid like this for each sentence.
+          The full output shape is two by three by three.
+        hold: 0.75
+        visual_cues:
+          - id: migrate-score-row-b3-1
+            phrase: three totals fill the migrate row
+            targets:
+              - pair-scores
+              - running-score
+            color: yellow
+            linger: 0.6
+          - id: fill-other-query-rows
+            phrase: Birds and south each get a turn as the query. Each row holds three scores, one
+              for each key. We need a grid like this for each sentence
+            targets: [pair-scores]
+            color: blue
+          - id: pair-grid-shape-b3-2
+            phrase: full output shape is two by three by three
+            targets: [attention-shape]
+            color: cyan
+            linger: 0.6
+      - say: Keep the first grid on the left. Build the second grid with Children, enjoy, and stories.
+          Both sentences share one batch. Can you find a score for migrate against stories in either grid?
+        hold: 2.4
+        visual_cues:
+          - id: make-room-for-sentence
+            phrase: Keep the first grid on the left
+            targets: [first-sentence-scores]
+            color: blue
+          - id: score-second-sentence
+            phrase: Build the second grid with Children, enjoy, and stories
+            targets: [second-sentence-scores]
+            color: pink
+      - say: Follow migrate's row. Its keys end at south. Stories is in the other sentence.
+          To compute both grids, swap the last two axes of the keys before multiplying. That puts
+          each key in a column. Matrix multiplication sums over the four matching features.
+          Elementwise multiplication of the original arrays pairs only tokens in the same position.
+        hold: 1
+        visual_cues:
+          - id: inspect-migrate-keys
+            phrase: Follow migrate's row
+            targets: [first-sentence-scores]
+            color: yellow
+          - id: swap-key-axes
+            phrase: swap the last two axes of the keys
+            targets: [score-operation]
+            color: cyan
+  - id: takeaway
+    title: What reaches the caller?
+    visual: The first sentence's grid stays on the left. A slice replaces the second grid on the
+      right and gathers one complete query row. Its shape appears after all three keys arrive.
+    beats:
+      - say: A caller asks for just migrate's comparisons in the first sentence. Find the cell where
+          migrate meets south. Now look at the request beside the grid. The batch index is an
+          integer. The query index is a slice. Predict the result shape.
+        hold: 2.4
+        visual_cues:
+          - id: carry-score-grid
+            phrase: A caller asks for just migrate's comparisons
+            targets: [takeaway-matrix]
+            color: blue
+          - id: predict-score-slice
+            phrase: Predict the result shape
+            targets:
+              - takeaway-prompt
+            color: yellow
+      - say: The slice keeps one query row and all three keys. Read its last cell. Two hundred fourteen is
+          a raw comparison with south. The batch index selected sentence zero. The slice left a
+          length-one query axis in place for the next operation.
+        hold: 1.1
+        visual_cues:
+          - id: reveal-score-slice
+            phrase: The slice keeps one query row and all three keys
+            targets:
+              - takeaway-matrix
+              - takeaway-row
+            color: cyan
+            caption_boundary: true
+  - id: heads
+    title: Which pair belongs in this slot?
+    visual: Two candidate lines share a target shape. Their reads cross different word boundaries.
+      A second-sentence probe tests the other head. The same probe runs on zeros and then on the
+      original numbered features, with both source rows in the same positions for comparison.
+    beats:
+      - say: Back to the missing pair. Each attention head will compare words using its own group of
+          features. For equal groups, the feature width must divide evenly by the head count.
+          Four features and two heads give us two numbers per slot. Both lines make that shape.
+          Choose the one that gives migrate its own first pair.
+        hold: 2.5
+        visual_cues:
+          - id: choose-head-construction
+            phrase: Choose the one that gives migrate its own first pair
+            targets:
+              - head-choice
+            color: yellow
+      - say: Try the direct reshape. Fill two places for Birds, then two for migrate. The destination
+          has moved down a word, but the reader is still on Birds. Now rewind to the words.
+          Reshape first to expose the pair axis inside each word. Move that new axis beside batch.
+          Follow migrate straight across. Its two pairs are in different heads, both on the middle row.
+        hold: 1.2
+        visual_cues:
+          - id: walk-direct-pairs
+            phrase: Fill two places for Birds, then two for migrate
+            targets:
+              - head-layout
+            color: yellow
+          - id: rewind-heads
+            phrase: Now rewind to the words
+            targets:
+              - head-split
+            color: yellow
+            caption_boundary: true
+          - id: expose-feature-pairs
+            phrase: Reshape first to expose the pair axis inside each word
+            targets:
+              - head-split
+            color: yellow
+            linger: 0
+            caption_boundary: true
+          - id: move-head-axis
+            phrase: Move that new axis beside batch
+            targets:
+              - head-layout
+            color: cyan
+            caption_boundary: true
+      - say: Read head zero at the middle word in both outputs. The direct reshape places another word's
+          features there. Those are the last two numbers from Birds. Exposing the groups before
+          moving the axis preserves the owner. Migrate gets its first two features back.
+        hold: 1.1
+        visual_cues:
+          - id: reveal-head-mismatch
+            phrase: The direct reshape places another word's features there
+            targets:
+              - head-choice
+            color: pink
+            caption_boundary: true
+          - id: resolve-head-construction
+            phrase: Exposing the groups before moving the axis preserves the owner
+            targets:
+              - head-choice
+            color: green
+            caption_boundary: true
+        caption_starts:
+          - Those are the last two numbers
+      - say: Try your test in the other sentence. Take Children, the first word, and ask for head one this
+          time. Which two input values should the test require?
+        hold: 2.5
+        visual_cues:
+          - id: choose-second-probe
+            phrase: ask for head one this time
+            targets:
+              - probe-input
+              - probe-output
+            color: yellow
+      - say: Take the second half of Children. Fourteen and fifteen. Now read the same slot in each
+          output. Eighteen and nineteen came from enjoy. That would make Children compare words
+          using another word's features. Call each candidate heads in turn. Check the output
+          against the slice of the original word. Only the split followed by the transpose passes.
+        hold: 1.3
+        visual_cues:
+          - id: select-probe-pair
+            phrase: Fourteen and fifteen
+            targets:
+              - probe-input
+            color: yellow
+          - id: read-second-probe
+            phrase: Now read the same slot in each output
+            targets:
+              - probe-input
+              - probe-output
+            color: yellow
+          - id: trace-foreign-probe
+            phrase: Eighteen and nineteen
+            targets: [probe-input, probe-output]
+            color: pink
+            caption_boundary: true
+          - id: write-owner-check
+            phrase: Check the output against the slice of the original word
+            targets:
+              - probe-assertion
+            color: green
+        caption_starts:
+          - Fourteen and fifteen
+          - Check the output
+      - say: Suppose someone simplifies the test. Fill the input with zeros. The words and their
+          positions stay the same. Would this check still catch the direct reshape?
+        hold: 2.5
+        visual_cues:
+          - id: try-zero-input
+            phrase: Fill the input with zeros
+            targets: [probe-input, probe-output]
+            color: cyan
+      - say: Both lines pass. Even the two features taken from enjoy look exactly like the ones
+          Children should get. Put the numbered features back. Now the direct reshape fails again.
+          To catch a swap like this, choose a slot where the two layouts read different pairs.
+          Give the features distinct values so you can trace the pair back to its word.
+        hold: 2
+        visual_cues:
+          - id: zero-test-result
+            phrase: Both lines pass
+            targets: [probe-output]
+            color: yellow
+            caption_boundary: true
+          - id: restore-word-features
+            phrase: Put the numbered features back
+            targets: [probe-input, probe-output]
+            color: cyan
+          - id: recheck-numbered-pairs
+            phrase: Now the direct reshape fails again
+            targets: [probe-output, probe-assertion]
+            color: yellow
+            caption_boundary: true

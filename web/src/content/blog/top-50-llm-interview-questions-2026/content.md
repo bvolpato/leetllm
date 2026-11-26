@@ -173,7 +173,7 @@ The helper accepts positive integer geometry and whole-byte cache values; zero t
 
 > **Checkpoint:** Suppose the deployment has 60 decimal GB left for KV storage after reserving weights and workspace. Four of these independent GQA sequences require 52.4 GB; a fifth requires 65.5 GB, so it exceeds that budget. For a device reporting GiB, convert the budget before comparing: 1 GiB is $2^{30}$ bytes, while this program uses $10^9$. Confirm safe concurrency by measuring runtime allocations and workspace on the target deployment.
 
-> **⚠️ Common mistake:** Don't treat weight <span data-glossary="vram">VRAM</span> as the out-of-memory story when decode dies. Count KV bytes for live tokens and concurrency first.
+> **Common mistake:** Don't treat weight <span data-glossary="vram">VRAM</span> as the out-of-memory story when decode dies. Count KV bytes for live tokens and concurrency first.
 
 ### 10. Throughput is low and memory is fragmented. What problem does PagedAttention solve?
 

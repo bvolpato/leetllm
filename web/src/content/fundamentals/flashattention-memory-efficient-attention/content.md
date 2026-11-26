@@ -68,8 +68,8 @@ one FP16 score matrix: 32.00 GiB | 4-pass traffic: 128.00 GiB
 GPUs separate tiny on-chip SRAM from off-die HBM: on **H100 SXM**, each SM has 228 KiB shared memory (max 227 KiB/block) plus a 256 KiB register file, while HBM holds 80 GB at 3.35 TB/s.[^nvidia2026hopperTuning][^nvidia2026h100] Low-intensity elementwise ops like softmax sit pinned to the HBM bandwidth ceiling whenever they bounce $n \times n$ matrices off chip.
 
 <figure>
-  <img src="illustrations/_generated/tile_working_set_dark.png" alt="Memory hierarchy map showing CPU DRAM, H100 HBM (80 GB, 3.35 TB/s), and SM-local SRAM (228 KiB shared memory + 256 KiB registers), with a 144 KiB working set for a 128x64 tile." />
-  <figcaption>A 128x64 attention tile needs 144 KiB across shared memory and registers (48 KiB FP16 Q/K/V, 32 KiB FP32 output accumulator, 64 KiB FP32 score tile), fitting on chip instead of bouncing 128 GiB through HBM.</figcaption>
+  <img src="illustrations/_generated/tile_working_set_dark.png" alt="Memory hierarchy map showing CPU DRAM, H100 HBM (80 GB, 3.35 TB/s), and SM-local SRAM (228 KiB shared memory + 256 KiB registers), with a 144 KiB working set for a 128x128 token tile at head dimension d=64." />
+  <figcaption>A $B_r = B_c = 128$, $d = 64$ attention tile needs 144 KiB across shared memory and registers (three $128 \times 64$ FP16 Q/K/V tiles = 48 KiB, one $128 \times 64$ FP32 output accumulator = 32 KiB, and one $128 \times 128$ FP32 score tile = 64 KiB), fitting on chip instead of bouncing 128 GiB through HBM.</figcaption>
 </figure>
 
 ## Tiling and online softmax

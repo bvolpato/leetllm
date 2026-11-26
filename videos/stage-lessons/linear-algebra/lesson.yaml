@@ -1,0 +1,819 @@
+version: 1
+id: linear-algebra
+title: Which Direction Can We Afford to Lose?
+source: foundations/linear-algebra-machine-learning-deeper/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "Deep Learning: Linear Algebra"
+    url: https://www.deeplearningbook.org/contents/linear_algebra.html
+  - title: NumPy singular value decomposition
+    url: https://numpy.org/doc/stable/reference/generated/numpy.linalg.svd.html
+  - title: Principal component analysis
+    url: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
+scenes:
+  - id: intro
+    title: Can a flag count tell these tickets apart?
+    visual: A stalled page carries its blue dot toward the count scale. A rollback ticket slides in below the scale and waits. On the answer, it carries its pink ring onto the blue dot at one. Filing both tickets leaves their shared count.
+    beats:
+      - say: This page is stuck loading. Count the flags on its ticket. The blue dot lands on one.
+        hold: 0.5
+        caption_starts:
+          - The blue dot lands on one
+        visual_cues:
+          - id: ticket-first
+            phrase: The blue dot lands on one
+            targets:
+              - opening-ticket-0
+            color: blue
+      - say: The pink ticket asks for a rollback. Where will its mark land on the same scale?
+        hold: 2.1
+        caption_starts:
+          - Where will its mark land
+        visual_cues:
+          - id: opening-question
+            phrase: The pink ticket asks for a rollback
+            targets:
+              - opening-ticket-1
+            color: pink
+      - say: One again. The tickets need different teams. Save just the count and the router sees a one for either ticket. What else could we measure?
+        hold: 1
+        caption_starts:
+          - Save just the count
+        visual_cues:
+          - id: count-flags
+            phrase: One again
+            targets:
+              - opening-ticket-0
+              - opening-ticket-1
+            color: pink
+            caption_boundary: true
+          - id: file-opening-notes
+            phrase: Save just the count
+            targets:
+              - opening-ticket-0
+              - opening-ticket-1
+            color: yellow
+  - id: tickets
+    title: Give the tickets two coordinates
+    visual: Three compact ticket rows move into a large feature plane while their identities stay attached.
+    beats:
+      - say: Write each ticket as a row. The first flag records slow pages. The second records a request to roll back. A third customer reported both. Watch each row become a point. Now we can lay a ruler across all three.
+        hold: 0.6
+        visual_cues:
+          - id: ticket-coordinates
+            phrase: Watch each row become a point
+            targets:
+              - ticket-coordinates
+            color: cyan
+  - id: basis
+    title: Build a point from two directions
+    visual: A large plane normalizes two perpendicular diagonals, builds a row head-to-tail, then removes its perpendicular contribution. Only the current equation remains.
+    beats:
+      - say: Blue adds an equal amount to both features. Pink takes from slow pages and adds to rollback. Shrink both arrows to unit length so we can compare a step in either direction. They meet at a right angle. By combining them we can reach any point in this plane. That makes them an orthonormal basis.
+        hold: 0.4
+        visual_cues:
+          - id: unit-directions
+            phrase: Shrink both arrows to unit length
+            targets:
+              - unit-directions
+            color: yellow
+      - say: For this example, count mentions. Three mentions of slow pages and one of rollback give the row three, one. The dot product with each unit arrow tells us how far to travel along it. Build the common contribution, then add the contrast at its tip. If you could save only the common part, where would the ticket land?
+        hold: 1.8
+        visual_cues:
+          - id: common-component
+            phrase: Build the common contribution
+            targets:
+              - common-component
+            color: blue
+          - id: contrast-component
+            phrase: add the contrast at its tip
+            targets:
+              - contrast-component
+            color: pink
+      - say: Let the pink part fall away. The ticket lands at two and two. The missing part meets the blue line at a right angle. Sliding to either side would take us farther from the original ticket. The nearest point on that line is its orthogonal projection.
+        hold: 0.8
+        visual_cues:
+          - id: projection-residual
+            phrase: Let the pink part fall away
+            targets:
+              - projection-residual
+            color: yellow
+        caption_starts:
+          - The ticket lands at two and two
+  - id: common-output
+    title: Measure what one direction produces
+    visual: A single large row-dot-product feeds three ticket-colored bars. Squared contributions accumulate only after their scores arrive.
+    beats:
+      - say: Go back to the three rows of yes-or-no flags. Which direction would rebuild that table most faithfully? Start with the opening count. Divide the sum of the flags by the square root of two, so the common ruler has unit length. Each ticket contributes one dot product. Square the three scores and add. The joint ticket alone supplies two of the three units of squared length.
+        hold: 0.5
+        visual_cues:
+          - id: common-scores
+            phrase: Each ticket contributes one dot product
+            targets:
+              - common-scores
+            color: cyan
+          - id: common-energy
+            phrase: Square the three scores and add
+            targets:
+              - common-strength
+            color: yellow
+  - id: contrast-output
+    title: Apply the contrast direction
+    visual: The same bars rebuild with opposite signs and a zero joint score. The accumulated squared length is compared with the previous result.
+    beats:
+      - say: Try contrast. The slow-only ticket scores below zero. The rollback-only ticket scores just as far above zero. The joint ticket contains one of each. Where should its mark go?
+        hold: 2
+        visual_cues:
+          - id: contrast-scores
+            phrase: The slow-only ticket scores below zero
+            targets:
+              - contrast-scores
+            color: pink
+          - id: rollback-score
+            phrase: The rollback-only ticket scores just as far above zero
+            targets:
+              - contrast-scores
+            color: pink
+      - say: Its two contributions cancel. Only the single-issue tickets add anything to the squared length. The squared total is one. Taking square roots gives the lengths of our two output vectors. These lengths are the singular values for the common and contrast directions.
+        hold: 0.7
+        visual_cues:
+          - id: contrast-joint
+            phrase: Its two contributions cancel
+            targets:
+              - contrast-scores
+            color: green
+            caption_boundary: true
+          - id: contrast-length
+            phrase: The squared total is one. Taking square roots
+            targets:
+              - contrast-strength
+            color: yellow
+            caption_boundary: true
+  - id: gram
+    title: Let the columns reveal their directions
+    visual: The highlighted cell follows the two flag columns being multiplied. Each dot product fills that cell, and earlier entries stay visible.
+    beats:
+      - say: Where did those diagonals come from? Look down the original slow and rollback columns. Each column pair contributes one entry. Take the slow column twice. Two tickets have the slow flag. Now compare slow with rollback. Only the joint ticket has both. Reverse the two columns. The same ticket still counts. Finally compare rollback with itself. Count the rollback-only ticket and the joint ticket. That makes two. The finished table of column dot products is the Gram matrix, A transpose A.
+        hold: 0.5
+        visual_cues:
+          - id: gram-column-products
+            phrase: >-
+              Take the slow column twice. Two tickets have the slow flag.
+              Now compare slow with rollback. Only the joint ticket has both.
+              Reverse the two columns. The same ticket still counts.
+              Finally compare rollback with itself. Count the rollback-only ticket and the joint ticket. That makes two.
+            targets:
+              - gram-column-product
+              - gram-matrix
+            color: yellow
+          - id: gram-slow
+            phrase: Take the slow column twice. Two tickets have the slow flag
+            targets:
+              - gram-column-product
+              - gram-matrix
+            color: yellow
+          - id: gram-overlap
+            phrase: slow with rollback. Only the joint ticket has both
+            targets:
+              - gram-column-product
+              - gram-matrix
+            color: yellow
+          - id: gram-mirror
+            phrase: two columns. The same ticket still counts
+            targets:
+              - gram-column-product
+              - gram-matrix
+            color: yellow
+          - id: gram-rollback
+            phrase: rollback with itself. Count the rollback-only ticket and the joint ticket. That makes two
+            targets:
+              - gram-column-product
+              - gram-matrix
+            color: yellow
+  - id: gram-action
+    title: What does the Gram matrix do to each arrow?
+    visual: A full-width plane shows the common direction stretch while the contrast remains fixed. The squared-strength relation follows the constructed action.
+    beats:
+      - say: Apply that Gram matrix to our two unit arrows. Common stretches along its own line. Contrast stays where it is. A nonzero vector that the matrix scales along its own line is an eigenvector. Its scale factor is its eigenvalue. For a Gram matrix and a unit eigenvector, that factor equals the squared length of the original table's output. Square roots recover the singular strengths.
+        hold: 0.6
+        visual_cues:
+          - id: gram-eigen-directions
+            phrase: Common stretches along its own line
+            targets:
+              - gram-common-action
+              - gram-contrast-action
+            color: cyan
+          - id: common-strength-b3-1
+            phrase: Square roots recover the singular strengths
+            targets:
+              - common-strength
+              - contrast-strength
+            color: yellow
+  - id: svd-rotate
+    title: "SVD, first move: change coordinates"
+    visual: One large grid and a fixed input arrow rotate into common/contrast coordinates. Output geometry waits for its own construction.
+    beats:
+      - say: We can now describe what the table does to any input. The name for these three moves is singular value decomposition, or SVD. Start with the slow-page input, one, zero. Turn its coordinates into our common and contrast basis. V transpose takes the dot product with each of those feature directions.
+        hold: 0.5
+        visual_cues:
+          - id: svd-input-basis
+            phrase: Turn its coordinates into our common and contrast basis
+            targets:
+              - svd-input-basis
+            color: green
+  - id: svd-stretch
+    title: "Second move: stretch the coordinates"
+    visual: The same full-width grid stretches along its first coordinate and the unit circle becomes an ellipse.
+    beats:
+      - say: Now stretch the common coordinate by its singular strength, square root of three. Leave contrast unchanged. Sigma turns the circle into an ellipse. The grid changes shape, and the same green input changes with it.
+        hold: 0.5
+        visual_cues:
+          - id: singular-strengths
+            phrase: stretch the common coordinate
+            targets:
+              - singular-strengths
+            color: yellow
+  - id: svd-embed
+    title: "Third move: build the three-ticket output"
+    visual: The stretched coordinates enter a large labeled output-plane view. Two contributions build the actual three-entry output, including the middle cancellation.
+    beats:
+      - say: "We have two stretched coordinates and need one output per ticket. Each column of U is a unit direction in that three-ticket space. Build the common contribution first. Then add contrast. Watch the middle ticket: the second contribution erases its first contribution. The final scores pick out exactly the tickets with the slow-page flag."
+        hold: 0.6
+        visual_cues:
+          - id: svd-common-output
+            phrase: Build the common contribution first
+            targets:
+              - svd-output
+            color: yellow
+          - id: svd-output
+            phrase: "Then add contrast. Watch the middle ticket: the second contribution erases its first contribution"
+            targets:
+              - svd-output
+            color: green
+          - id: svd-middle-cancel
+            phrase: Watch the middle ticket
+            targets:
+              - svd-ticket-1
+            color: pink
+  - id: svd-sign
+    title: Two sign flips leave the answer fixed
+    visual: The input and output singular directions switch together between their two valid signed orientations. Their exact first contribution and the full three-ticket output stay fixed.
+    beats:
+      - say: Reverse one input direction and its matching output direction. Its coordinate changes sign too. The two reversals cancel, so every reconstructed ticket stays the same. This explains why two correct SVD implementations can print different signs. Check the reconstruction.
+        hold: 0.5
+        visual_cues:
+          - id: signed-right
+            phrase: Reverse one input direction and its matching output direction
+            targets:
+              - signed-right
+              - signed-left
+              - signed-coordinate
+            color: yellow
+  - id: truncate
+    title: Spend the one-number budget
+    visual: Three rings project onto the common diagonal. The two single-issue rows meet and four reconstructed flag entries differ from their originals by half.
+    beats:
+      - say: Go back to the router. Keep the common score for each ticket and shrink contrast to zero. The slow ticket slides in from one side. The rollback ticket comes from the other. Hand those features to a routing rule. Can it still send the two tickets to different teams?
+        hold: 2
+        visual_cues:
+          - id: discard-contrast
+            phrase: shrink contrast to zero
+            targets:
+              - discard-contrast
+            color: pink
+          - id: collapsed-route
+            phrase: Hand those features to a routing rule
+            targets:
+              - collapsed-route
+            color: yellow
+      - say: The rule gets the same number twice. To see what the loss cost, rebuild each row from its common score and the saved direction. Four entries miss by a half. Square those misses, add them and take the square root. The Frobenius reconstruction error is one. That is the smallest error possible at rank one. The router still needs to distinguish the first two tickets.
+        hold: 0.8
+        visual_cues:
+          - id: reconstruction-error
+            phrase: The Frobenius reconstruction error is one
+            targets:
+              - reconstruction-error
+            color: yellow
+            caption_boundary: true
+  - id: retrieval-check
+    title: Who gets the second search result?
+    visual: A slow-page query and two relevant tickets stay fixed. Cosine scores converge when contrast disappears. A deterministic tie break changes which ticket occupies the second result.
+    beats:
+      - say: Search for slow pages. Two tickets match that description. The slow ticket comes first and the ticket with both issues comes second. Cosine measures how closely two nonzero vectors point in the same direction. Remove contrast from the tickets and the query. All three now point the same way. With ties broken in ticket order, which two will search return?
+        hold: 2
+        visual_cues:
+          - id: retrieval-ties
+            phrase: Remove contrast from the tickets and the query
+            targets:
+              - retrieval-ties
+            color: yellow
+        caption_starts:
+          - All three now point the same way
+      - say: Take the first two in ticket order. Rollback gets the slot the joint ticket used to have. We found one of the two relevant tickets. Recall at two has fallen from one to one half. You can make this same comparison on held-out searches with known relevant results.
+        hold: 0.9
+        caption_starts:
+          - Rollback gets the slot
+          - Recall at two has fallen
+        visual_cues:
+          - id: break-tie
+            phrase: Take the first two in ticket order
+            targets:
+              - ranking
+            color: yellow
+  - id: pca-center
+    title: Move the origin to the average ticket
+    visual: The large point cloud and its centroid translate together until the centroid reaches the origin, preserving all pairwise distances.
+    beats:
+      - say: Count mentions across these three training tickets. Slow pages come up twice. So does rollback. That's two thirds of a mention per ticket in each column. The yellow cross marks that average. Move that average to the origin by subtracting it from every row. The triangle keeps its shape. Each point now shows how a ticket differs from the average. This is centering in principal component analysis, or PCA.
+        hold: 0.5
+        visual_cues:
+          - id: centering-rule
+            phrase: Move that average to the origin
+            targets:
+              - centering-rule
+            color: yellow
+  - id: pca-spread
+    title: Which direction varies most around the average?
+    visual: Two rings meet on the common ruler and separate on contrast. The bars keep both squared spreads in view while each ticket's pair of scores supplies a signed product to the centered Gram matrix.
+    beats:
+      - say: Project the centered points onto common. The two single-issue tickets land on exactly the same mark. Square the distances from zero and add them. Now turn the measuring stick toward contrast and repeat. The single-issue marks separate. Could a direction between these two give us even more spread?
+        hold: 2
+        visual_cues:
+          - id: common-spread
+            phrase: Project the centered points onto common
+            targets:
+              - common-spread
+            color: blue
+          - id: contrast-spread
+            phrase: turn the measuring stick toward contrast and repeat
+            targets:
+              - contrast-spread
+            color: pink
+      - say: Look at the two scores for each ticket. Multiply each pair and add the products. The single-issue tickets contribute equal amounts with opposite signs. The joint ticket contributes zero. The sum is zero, so the centered Gram matrix has zero off the diagonal in this basis. Both rulers are eigenvectors. Contrast has three times the squared spread of common. That's why SVD on this centered table picks contrast as its first principal direction.
+        hold: 0.8
+        visual_cues:
+          - id: paired-products
+            phrase: Multiply each pair and add the products
+            targets:
+              - paired-products
+            color: yellow
+          - id: cross-sum
+            phrase: The sum is zero
+            targets:
+              - cross-sum
+            color: yellow
+            caption_boundary: true
+          - id: leading-direction
+            phrase: Contrast has three times the squared spread of common
+            targets:
+              - pca-contrast-energy
+            color: pink
+        caption_starts:
+          - Contrast has three times the squared spread of common
+          - That's why SVD on this centered table
+  - id: pca-new
+    title: A new ticket uses the fitted coordinate system
+    visual: A slow-only training ticket and a new ticket use the same mention counts and training mean. Their centered points start apart. Their projections land on the same contrast mark.
+    beats:
+      - say: Keep counting mentions, just as we did for training. The slow-only ticket had one slow mention and no rollback. A new ticket mentions slow pages twice and rollback once. Subtract the saved training mean from that new row. Each count went up by one compared with the slow-only ticket. Where will its mark land on the fitted ruler?
+        hold: 2
+        visual_cues:
+          - id: new-mentions
+            phrase: A new ticket mentions slow pages twice and rollback once
+            targets:
+              - incoming-counts
+            color: yellow
+          - id: center-new-row
+            phrase: Subtract the saved training mean
+            targets:
+              - center-new-row
+            color: yellow
+      - say: Now read the new ticket along the pink direction. The two marks meet. Both scores are minus one over the square root of two. Adding one mention of each issue leaves the difference unchanged. To project future rows, use the training units and mean, then take a dot product with each saved row of V transpose. Rescaling a feature before fitting can change which direction wins.
+        hold: 0.7
+        caption_starts:
+          - The two marks meet
+          - Both scores are minus one
+        visual_cues:
+          - id: read-new-score
+            phrase: Now read the new ticket along the pink direction
+            targets:
+              - new-score
+            color: pink
+  - id: pca-sparse
+    title: Centering changes the storage story, too
+    visual: A six-by-six sparse word-count sign pattern becomes dense when a nonzero column mean is explicitly subtracted. The original matrix remains beside it.
+    beats:
+      - say: A word-count table may contain mostly zeros. Subtract a nonzero column mean and those empty cells fill. Explicit centering can overwhelm memory. A sparse-aware PCA method can center implicitly. Uncentered truncated SVD works directly with sparse input and measures energy around the original origin. Choose the question along with the implementation.
+        hold: 0.6
+        visual_cues:
+          - id: sparse-center
+            phrase: Subtract a nonzero column mean and those empty cells fill
+            targets:
+              - sparse-center
+            color: pink
+  - id: fit-projection
+    title: Can two weights fit three severity scores?
+    visual: Two green predictions hit their observed rings. The third rail waits for the sum of the two weights. Its dot lands one unit past the ring. After the fit, each rail shows its signed gap. The two tickets affected by each weight light up together.
+    beats:
+      - say: Try one point for slow pages and two for rollback. The yellow rings show the observed severities. Our weights hit the first two rings exactly. What severity will they predict for the ticket with both flags?
+        hold: 1.8
+        visual_cues:
+          - id: fit-span
+            phrase: Try one point for slow pages and two for rollback
+            targets:
+              - fit-span
+            color: blue
+      - say: One plus two gives three. The observed severity is two. Each point in the plane is a prediction we can make by changing the two weights. Move the prediction to the closest point in the plane. Both weights come down by a third, to two thirds and five thirds. Now each prediction misses by just a third. Squaring those three misses and adding gives one third. This is the least-squares fit.
+        hold: 0.8
+        visual_cues:
+          - id: joint-prediction
+            phrase: One plus two gives three
+            targets:
+              - joint-prediction
+            color: green
+          - id: fit-projection
+            phrase: Move the prediction to the closest point in the plane
+            targets:
+              - fit-projection
+            color: green
+        caption_starts:
+          - The observed severity is two
+          - Move the prediction to the closest point in the plane
+          - Both weights come down by a third
+          - Squaring those three misses
+      - say: The pink residual runs from the fitted prediction to the target. Follow the slow column. Increasing its weight helps the first ticket but hurts the joint ticket by just as much at first. The rollback column makes the same trade. The residual is perpendicular to both columns. Any further move in the plane increases squared error.
+        hold: 0.6
+        caption_starts:
+          - Follow the slow column
+          - The rollback column makes the same trade
+          - The residual is perpendicular to both columns
+        visual_cues:
+          - id: fit-residual
+            phrase: The pink residual runs from the fitted prediction to the target
+            targets:
+              - fit-residual
+            color: pink
+          - id: slow-residuals
+            phrase: Increasing its weight helps the first ticket but hurts the joint ticket by just as much at first
+            targets: [row-residual-0, row-residual-2]
+            color: blue
+          - id: rollback-residuals
+            phrase: The rollback column makes the same trade
+            targets: [row-residual-1, row-residual-2]
+            color: pink
+  - id: rank-collapse
+    title: Two columns can carry one direction
+    visual: The output grid occupies the full scene and visibly collapses when the second column duplicates the first.
+    beats:
+      - say: Make the second feature a copy of the first. Try moving the two weights separately. Both now move the prediction along the same line. The table still has two columns. Only one singular value is nonzero. Counting those surviving directions gives the rank.
+        hold: 0.5
+        visual_cues:
+          - id: duplicate-columns
+            phrase: Make the second feature a copy of the first
+            targets:
+              - duplicate-columns
+            color: blue
+  - id: rank-fit
+    title: Fit the same target after the plane collapses
+    visual: The same severity target is projected onto the duplicate-feature output line in an orthonormal cross-section. The least-squares expression leads to a fitted shared score of one and a half.
+    beats:
+      - say: Fit the same severity target with the duplicate columns. The middle prediction is stuck at zero. The first and third tickets now share one prediction, the sum of the two weights. Move to the closest point. Halfway between their targets of one and two gives the best fit for both. What does that tell us about the individual weights?
+        hold: 0.7
+        visual_cues:
+          - id: duplicate-fit
+            phrase: Move to the closest point
+            targets:
+              - duplicate-fit
+            color: green
+  - id: rank-null
+    title: Different weights, identical predictions
+    visual: A large coefficient-space line lets weights travel while a small fixed three-ticket prediction stays unchanged; the minimum-norm point is selected afterward.
+    beats:
+      - say: "Keep that fitted weight sum. Increase one weight and decrease the other equally. The predictions and their squared error stay fixed. This motion lies in the nullspace: multiplying that weight change by the matrix gives zero. Predict how many equally good weight pairs we can choose."
+        hold: 0.8
+        visual_cues:
+          - id: nullspace-rule
+            phrase: Increase one weight and decrease the other equally
+            targets:
+              - nullspace-rule
+            color: yellow
+      - say: "There is a whole line of equally good fits. A minimum-norm least-squares solver chooses the pair nearest the origin. Follow it back to the green reference: three quarters each. Every prediction still agrees. The data determine a fitted prediction while separate feature effects remain ambiguous."
+        hold: 0.5
+        visual_cues:
+          - id: minimum-weight
+            phrase: Follow it back to the green reference
+            targets:
+              - nullspace-rule
+            color: green
+  - id: conditioning-map
+    title: What happens when we reverse this map?
+    visual: A full-width unit circle continuously compresses into a very thin ellipse. Its two scale factors establish the condition number afterward.
+    beats:
+      - say: Keep the horizontal axis and shrink the other a hundredfold. A circle becomes a thin ellipse. Imagine trying to recover the circle from that measurement. You would have to stretch the short axis back. The ratio of the strongest stretch to the weakest is the condition number.
+        hold: 0.5
+        visual_cues:
+          - id: condition-map
+            phrase: shrink the other a hundredfold
+            targets:
+              - condition-map
+            color: cyan
+          - id: condition-number
+            phrase: is the condition number
+            targets:
+              - condition-number
+            color: yellow
+  - id: conditioning-noise
+    title: A small output wobble becomes a large input error
+    visual: A large horizontal output ruler receives one small disturbance, then the inverse expands the displacement onto a separate input ruler with a clear triangular arrow.
+    beats:
+      - say: Start with the clean reading on the enlarged ruler. Add a small output disturbance along the weak direction. Now reverse the map. The original coordinate was two tenths. The estimate lands at three tenths. Dividing by the small stretch turned a thousandth of measurement noise into a tenth of input error.
+        hold: 0.8
+        visual_cues:
+          - id: conditioning-noise-b2-1
+            phrase: Add a small output disturbance
+            targets:
+              - conditioning-noise
+            color: yellow
+          - id: conditioning-inverse-b2-2
+            phrase: Now reverse the map
+            targets:
+              - conditioning-recovered
+            color: red
+  - id: conditioning-solve
+    title: What survives rounding before a solve?
+    visual: The original measurement columns pair with the same two readings to build the right-hand side. Eliminating the first weight exposes two tiny remainders on one scale. Rounding the equations changes the ratio of those remainders.
+    beats:
+      - say: Take two almost identical measurements. Send the same noisy measurements down both routes. The second reading picked up one extra thousandth. The direct least-squares path keeps the original table. Subtract the first row from the second. Only four hundredths of the second weight survive. That is enough to fit both readings, including their noise.
+        hold: 0.9
+        visual_cues:
+          - id: solve-inputs
+            phrase: Send the same noisy measurements down both routes
+            targets:
+              - solve-inputs
+            color: yellow
+          - id: stable-solver
+            phrase: Subtract the first row from the second
+            targets:
+              - stable-solver
+            color: green
+      - say: The other route forms the Gram matrix from the two columns. For the right-hand side, take the dot product of each original column with the observed readings. The first column counts both readings once. The second gives the second reading a little more weight. Carry those two sums into the equations.
+        hold: 0.6
+        visual_cues:
+          - id: first-column-rhs
+            phrase: The first column counts both readings once
+            targets:
+              - rhs-first
+            color: blue
+          - id: second-column-rhs
+            phrase: The second gives the second reading a little more weight
+            targets:
+              - rhs-second
+            color: pink
+      - say: Multiply the first equation by one point zero two and subtract it from the second. The first weight drops out. The second weight is a ratio of two tiny leftovers. Suppose we store each equation to only three decimal places. Which fit will change?
+        hold: 2
+        visual_cues:
+          - id: normal-equation-condition
+            phrase: Multiply the first equation by one point zero two and subtract it from the second
+            targets:
+              - normal-equation-condition
+            color: blue
+      - say: Introduce the storage rounding. The original table and the observed readings already fit in three decimal places. Round the normal equations before subtracting. The blue remainder gets longer. The yellow one gets shorter. Dividing yellow by blue now gives a much smaller second weight.
+        hold: 0.9
+        caption_starts:
+          - The blue remainder gets longer
+        visual_cues:
+          - id: rounded-solve
+            phrase: Round the normal equations before subtracting
+            targets:
+              - rounded-solve
+            color: pink
+      - say: Look where the two weights went. One rose as the other fell, even while their predictions stay close to the measurements. For independent columns, forming the Gram matrix squares the two-norm condition number. More stored digits help with this rounding. A direct QR or SVD fit avoids that extra step. The original measurement noise still affects the direct fit.
+        hold: 0.8
+        visual_cues:
+          - id: rounded-results
+            phrase: even while their predictions stay close to the measurements
+            targets:
+              - rounded-results
+            color: pink
+  - id: energy-cutoff
+    title: Square the strengths before choosing a cutoff
+    visual: Singular-axis segments become square areas 36,9,1 on a conserved energy strip; the retained area crosses a95% line only after the second component.
+    beats:
+      - say: "Suppose another table has singular values six, three and one. Each square shows how much that direction contributes to reconstruction. Count their areas: thirty-six plus nine plus one, or forty-six. Predict the smallest retained rank that reaches ninety-five percent."
+        hold: 2.1
+        visual_cues:
+          - id: predict-rank
+            phrase: Predict the smallest retained rank
+            targets:
+              - energy-receipt
+            color: yellow
+            linger: 0.8
+          - id: square-areas
+            phrase: thirty-six plus nine plus one, or forty-six
+            targets:
+              - energy-receipt
+            color: yellow
+      - say: The first strength retains thirty-six over forty-six, about seventy-eight percent. The first two retain forty-five over forty-six, about ninety-eight percent. So two is the smallest rank that passes. For the Frobenius error, add the discarded squares and take the square root. That last square has area one. On centered data the retained fraction measures variation around the mean. On the original table it measures energy around zero.
+        hold: 1.2
+        visual_cues:
+          - id: retain-second
+            phrase: The first two retain forty-five over forty-six, about ninety-eight percent
+            targets:
+              - energy-receipt
+            color: green
+            linger: 0.8
+            caption_boundary: true
+          - id: retain-first
+            phrase: The first strength retains thirty-six over forty-six, about seventy-eight percent
+            targets:
+              - energy-receipt
+            color: yellow
+            caption_boundary: true
+          - id: rank-answer
+            phrase: two is the smallest rank that passes
+            targets:
+              - energy-receipt
+            color: yellow
+            caption_boundary: true
+      - say: The last square barely moves the fraction. Think of the two tickets the router mixed up. A small discarded direction can still decide which team gets called. Before accepting a smaller search index, check the projected tickets and queries against the relevance judgments.
+        hold: 1.2
+        visual_cues:
+          - id: task-relevance
+            phrase: A small discarded direction
+            targets:
+              - energy-receipt
+            color: pink
+            linger: 0.8
+  - id: low-rank-update
+    title: Two thin factors restrict the update’s directions
+    visual: A two-dimensional input drives a rank-one line through one scalar. Two thin factors replace a square update. One trainable weight from a factor opens into its two Adam moment slots.
+    beats:
+      - say: Consider a model update that passes through a single number. Turn the input arrow all the way around. The output travels back and forth along one line. Low-rank adaptation, or LoRA, learns the two thin factors of an update directly. The width between them limits how many independent output directions it can use. The input and output widths also bound its rank.
+        hold: 1.2
+        visual_cues:
+          - id: low-rank-map
+            phrase: Turn the input arrow all the way around
+            targets:
+              - rank-one-latent
+            color: green
+            linger: 0.8
+      - say: Now let eight numbers pass between the factors. The full layer has four thousand ninety-six inputs and just as many outputs. Each factor has eight weights for each of those four thousand ninety-six positions. Counting both factors gives sixty-five thousand five hundred thirty-six in total. The full square has over sixteen million weights. Those counts cover the update weights for one layer.
+        hold: 1.2
+        visual_cues:
+          - id: count-factors
+            phrase: Each factor has eight weights for each of those four thousand ninety-six positions
+            targets:
+              - factor-weights
+            color: green
+            linger: 0.8
+          - id: factor-count
+            phrase: sixty-five thousand five hundred thirty-six in total
+            targets:
+              - factor-weights
+            color: yellow
+          - id: full-update-count
+            phrase: full square has over sixteen million weights
+            targets:
+              - factor-weights
+            color: yellow
+      - say: Pick one of those trainable weights. If we train it with Adam, it also needs two moment estimates. One tracks its gradient and the other tracks its squared gradient. Both are moving averages that give recent steps more weight. Each weight in the two factors gets its own pair. Choose the rank by measuring how well the adapted model does its job.
+        hold: 0.8
+        visual_cues:
+          - id: adam-moments
+            phrase: One tracks its gradient and the other tracks its squared gradient
+            targets:
+              - weight-state
+            color: yellow
+  - id: new-routing-objective
+    title: Which measurement belongs in the field?
+    visual: The same ruler measures two count rows. It turns for routing, stays fixed when a counter reads two new rows, then turns back to recover their totals.
+    beats:
+      - say: Try two new tickets. One mentions slow pages four times. The other asks for a rollback four times. The yellow ruler measures their common score. You have one field to save. How would you set the ruler so the router can tell these tickets apart?
+        hold: 2.2
+      - say: Turn it through a right angle. Watch the two marks on the score scale. They started together. Now contrast gives opposite signs, enough to separate these two issue types.
+        hold: 0.8
+        caption_starts:
+          - Now contrast gives opposite signs
+        visual_cues:
+          - id: choose-contrast
+            phrase: Turn it through a right angle
+            targets:
+              - task-direction
+            color: pink
+      - say: Leave the ruler there. A counter needs the total number of mentions in each ticket. Try zero, zero and four, four. Read the two stored scores. Could the counter recover both totals?
+        hold: 2
+        visual_cues:
+          - id: count-counterexample
+            phrase: Try zero, zero and four, four
+            targets:
+              - projected-scores
+            color: blue
+          - id: counter-contrast
+            phrase: Read the two stored scores
+            targets:
+              - projected-scores
+            color: yellow
+      - say: Both have contrast coordinate zero. Turn back to the common direction. Now the marks separate. Multiply each common score by the square root of two to recover the totals zero and eight. This is true for any pair of counts, because common adds the two entries before dividing by the square root of two.
+        hold: 0.9
+        visual_cues:
+          - id: recover-total
+            phrase: Turn back to the common direction
+            targets:
+              - task-direction
+            color: yellow
+          - id: counter-totals
+            phrase: totals zero and eight
+            targets:
+              - task-test
+            color: yellow
+            caption_boundary: true
+  - id: decision
+    title: Which tickets can one score route?
+    visual: Filing the three notes leaves only their signed scores for dispatch. An invoice request shares the joint ticket's zero. Weighting rollback by two produces four distinct codes. Two bit columns show which flags each code preserves.
+    beats:
+      - say: Back at the support desk, pull up the original flags. They are yes or no, and every ticket has at least one. Restore contrast by turning the measuring direction. Save that score and file the notes. The router can read one number per ticket. If it reads zero, who should take the call?
+        hold: 2.2
+        visual_cues:
+          - id: restore-contrast
+            phrase: Restore contrast by turning the measuring direction
+            targets:
+              - restore-contrast
+            color: yellow
+          - id: file-notes
+            phrase: Save that score and file the notes
+            targets:
+              - source-notes
+            color: blue
+      - say: Now apply the routing rule. Negative goes to performance. Positive goes to release repair. Zero goes to both teams. Zero means the two flags agree. Since every ticket here has a flag, both must be set.
+        hold: 1.1
+        visual_cues:
+          - id: route-tickets
+            phrase: Negative goes to performance
+            targets:
+              - route-tickets
+            color: blue
+            caption_boundary: true
+          - id: route-release
+            phrase: Positive goes to release repair
+            targets:
+              - route-release
+            color: pink
+            caption_boundary: true
+          - id: route-both
+            phrase: Zero goes to both teams
+            targets:
+              - route-both
+            color: green
+            caption_boundary: true
+      - say: Now the desk starts taking billing questions. A customer asks for an invoice. Neither flag is set. Compare its contrast score with the joint ticket's score. Could the router send one to billing and the other to both teams?
+        hold: 2.2
+        visual_cues:
+          - id: invoice-ticket
+            phrase: A customer asks for an invoice
+            targets:
+              - invoice-ticket
+            color: yellow
+          - id: invoice-contrast
+            phrase: Compare its contrast score with the joint ticket's score
+            targets:
+              - zero-pair
+            color: yellow
+      - say: Both read zero. Give the slow flag one point and the rollback flag two points. Add the points for each ticket. Billing gets zero, and both teams get three.
+        hold: 1
+        caption_starts:
+          - Give the slow flag one point
+          - Add the points for each ticket
+        visual_cues:
+          - id: weight-flags
+            phrase: Give the slow flag one point and the rollback flag two points
+            targets:
+              - flag-weights
+            color: yellow
+          - id: encode-pairs
+            phrase: Add the points for each ticket
+            targets:
+              - four-codes
+            color: green
+          - id: dispatch-four
+            phrase: Billing gets zero, and both teams get three
+            targets:
+              - four-codes
+            color: yellow
+            caption_boundary: true
+      - say: Four codes take two bits, just like the original flags. Read the left bit for rollback and the right bit for slow pages. With both bits set, both teams get the ticket.
+        hold: 1.5
+        caption_starts:
+          - Read the left bit for rollback
+          - With both bits set
+        visual_cues:
+          - id: code-bits
+            phrase: Read the left bit for rollback and the right bit for slow pages
+            targets:
+              - code-bits
+            color: yellow
+          - id: both-bits
+            phrase: With both bits set
+            targets:
+              - both-bits
+            color: green

@@ -249,7 +249,7 @@ Ordinary AMP does **not** halve total memory: weights (4 B), gradients (4 B), an
 |---|---:|---:|---:|
 | Weights + Gradients | 8 B ($8N$) | 8 B ($8N$, FP32) | 4 B 16-bit + 4 B FP32 master |
 | AdamW moments ($m, v$) | 8 B ($8N$) | 8 B ($8N$, FP32) | 8 B ($8N$, FP32) |
-| **Static model state** | **16 B / param** | **16 B / param** | **16 B / param** (+4 B if FP32 grad) |
+| **Static model state** | **16 B / param** | **16 B / param** | **16 B / param** (+2 B if FP32 grad replaces 16-bit grad) |
 | Eligible saved activations | 4 B / value | 2 B / value | 2 B / value |
 
 With 100M parameters (1.49 GiB static) and 800M saved activation values, halving activation bytes from 2.98 GiB to 1.49 GiB lowers total memory from `4.47 GiB` to `2.98 GiB`, a **33.3%** reduction (`(4.47 - 2.98) / 4.47`), not 50%. Profile peak allocated memory on real steps,[^korthikanti2022][^micikevicius2018] and shard persistent FP32 state with <span data-glossary="zero">ZeRO</span> or FSDP.[^rajbhandari2020][^zhao2023]

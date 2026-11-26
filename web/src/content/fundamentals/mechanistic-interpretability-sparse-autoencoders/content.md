@@ -310,7 +310,7 @@ Before naming a latent "the refusal feature" or using it for safety monitoring, 
       "z=1.5; magnitude shrinks while the one-entry support remains active."
     ],
     "answer": "z=1.5; magnitude shrinks while the one-entry support remains active.",
-    "explanation": "For z>0, derivative 2(z-2)+1=0 gives 1.5. Support stays one. The loss convention determines the shrinkage coefficient; TopK instead caps support without this main-path L 1 magnitude term."
+    "explanation": "For z>0, derivative 2(z-2)+1=0 gives 1.5. Support stays one. The loss convention determines the shrinkage coefficient; TopK instead caps support without this main-path L1 magnitude term."
   },
   {
     "question": "Clean downstream loss is 3, SAE-substitution loss 3.5 and specified ablation loss 8. What is Loss Recovered, and what raw damage must remain visible?",
@@ -324,7 +324,7 @@ Before naming a latent "the refusal feature" or using it for safety monitoring, 
     "explanation": "1-(3.5-3)/(8-3)=0.9. The ratio depends on the chosen ablation baseline; raw substitution damage is 0.5. It does not identify semantic features."
   },
   {
-    "question": "An activation is[3,0.06], reconstruction[3,0], and removed feature contribution[3,0]. The score is 50 times coordinate 2. What does error-preserving ablation produce?",
+    "question": "An activation is [3, 0.06], reconstruction is [3, 0], and the removed feature contribution is [3, 0]. The score is 50 times coordinate 2. What does error-preserving ablation produce?",
     "options": [
       "[0,0] and score 0; preserving error means discarding the unexplained coordinates.",
       "[0,0.06] and score 3; editing the reconstruction would also discard the residual.",
@@ -332,7 +332,7 @@ Before naming a latent "the refusal feature" or using it for safety monitoring, 
       "[0,0.06] and score 3; preserving error means making no activation edit."
     ],
     "answer": "[0,0.06] and score 3; editing the reconstruction would also discard the residual.",
-    "explanation": "Subtract only[3,0] from the original activation to obtain[0,0.06]. Its score remains 3. Subtracting from the reconstruction instead gives[0,0], confounding the feature edit with residual loss."
+    "explanation": "Subtract only [3, 0] from the original activation to obtain [0, 0.06]. Its score remains 3. Subtracting from the reconstruction instead gives [0, 0], confounding the feature edit with residual loss."
   },
   {
     "question": "A specialized sparrow latent reconstructs both bird and sparrow coordinates while the generic bird detector stays silent. Reconstruction remains exact with fewer active entries. What diagnosis fits?",

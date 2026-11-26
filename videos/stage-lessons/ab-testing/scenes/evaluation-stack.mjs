@@ -1,104 +1,222 @@
-import { assertEqual, place } from 'vizmatic/stage';
-import { area, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { receiptMismatches } from '../../../films/ab-testing/model.mjs';
+// Scene 17 (evaluation-stack): "Would the judge catch the opening error?"
+// Human vs LLM-judge rubric labels on 2 rollback answers (prediction hold -> 1 of 2 agree, judge misses "alone"!) -> Config receipt diff catching decoder schema v3 drift!
+import {
+  BAD_COLOR,
+  CONTROL_RECEIPT,
+  COSMOS,
+  CTRL_COLOR,
+  GOOD_COLOR,
+  TREATMENT_RECEIPT_DRIFT,
+  WARN_COLOR,
+  aura,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
 
-export default function evaluation(s, c) {
-  const [columns, first, second, score, foot] = area.rows([1, 1.5, 1.5, 1.1, 1], 'normal');
-  function calibrationRow(region, words, color = 'ink') {
-    const slots = region.columns([2.15, 1, 1, 0.85], 'normal');
-    return words.map((word, i) =>
-      place(label(word, { size: 37, color: i === 3 ? color : 'ink' }), slots[i]),
-    );
-  }
-  const heads = calibrationRow(columns, [
-    'Practice answer',
-    'Human label',
-    'Judge label',
-    'Agreement',
-  ]);
-  const samples = [
-    { answer: '“Acknowledgement is required.”', human: 'Supported', judge: 'Supported' },
-    { answer: '“Acknowledgement alone is enough.”', human: 'Unsupported', judge: 'Supported' },
-  ];
-  const matches = samples.map((r) => r.human === r.judge);
-  const rows = samples.map((r, i) =>
-    calibrationRow(
-      i ? second : first,
-      [r.answer, r.human, r.judge, matches[i] ? 'Match' : 'Disagree'],
-      matches[i] ? 'green' : 'yellow',
-    ),
-  );
-  const agreement = place(
-    mono(matches.filter(Boolean).length + ' of 2 labels agree', { size: 53 }),
-    score,
-  );
-  const question = place(
-    label('How many judge labels agree with the human reviewer?', { color: 'yellow' }),
-    score,
-  );
-  const runbook = place(note('Cited runbook   ·   rollback requires owner acknowledgement'), foot);
-  s.add(
-    heading(c.title),
-    heads,
-    runbook,
-    rows.map((r) => r[0]),
-  );
-  c.show(
-    'human',
-    rows.map((r) => r[1]),
-  );
-  c.show(
-    'judge',
-    rows.map((r) => r[2]),
-  );
-  c.show('ask', question);
-  c.swap('compare', question, [rows.map((r) => r[3]), agreement], { after: true });
+export default function evaluationStack(s, c) {
+  const phase = s.value(0);
+  const showHuman = s.value(0);
+  const showJudge = s.value(0);
+  const showAsk = s.value(0);
+  const showCompare = s.value(0);
+  const toReceipt = s.value(0);
+  const showSchema = s.value(0);
+  const showReject = s.value(0);
 
-  const control = {
-    index: 'runbooks-2026-05-01',
-    generator: 'incident-generator-v7',
-    prompt: 'incident-generator-prompt-v3',
-    decoder: { selection: 'greedy', schema: 'incident-answer-v2' },
-  };
-  const changed = { ...control, decoder: { ...control.decoder, schema: 'incident-answer-v3' } };
-  assertEqual(receiptMismatches(control, { ...control }).length, 0, 'matched receipt');
-  const mismatch = receiptMismatches(control, changed);
-  assertEqual(mismatch.join(', '), 'decoder', 'changed decoder receipt');
-  const [table, result] = area.rows([5, 1], 'wide');
-  const lines = table.rows(5, 'normal');
-  function receiptLine(region, texts, header = false) {
-    const cols = region.columns([0.75, 1.7, 1.7], 'normal');
-    return texts.map((txt, i) =>
-      place(
-        header || !i
-          ? label(txt, { size: 37 })
-          : mono(txt, { size: 34, color: i === 1 ? 'cyan' : 'blue' }),
-        cols[i],
-      ),
-    );
-  }
-  const keys = Object.keys(control);
-  const receipts = [
-    receiptLine(lines[0], ['Pinned field', 'Control', 'Rewrite'], true),
-    ...keys.map((key, i) => {
-      const value =
-        key === 'decoder'
-          ? control.decoder.selection + ' / ' + control.decoder.schema
-          : control[key];
-      return receiptLine(lines[i + 1], [key, value, value]);
-    }),
-  ];
-  const bad = place(
-    mono('greedy / ' + changed.decoder.schema, { size: 34, color: 'yellow' }),
-    lines[4].columns([0.75, 1.7, 1.7], 'normal')[2],
-  );
-  const ok = place(label('Declared fields match', { color: 'cyan' }), result);
-  const reject = place(
-    mono("ValueError: unplanned changes: ['" + mismatch[0] + "']", { size: 43, color: 'yellow' }),
-    result,
-  );
-  c.swapAll('config', [heading('Did both arms get the promised system?'), receipts, ok]);
-  c.hide('schema', ok);
-  c.swap('schema', receipts[4][2], bad);
-  c.show('reject', reject, { after: true });
+  const bgAura = aura(0, 20, 620, '#3a183b2a', '#133a4a24');
+  const title = heroTitle(['LLM Judge Calibration', '& Configuration Receipts'], {
+    x: -855,
+    y: -430,
+    size: 52,
+    lineHeight: 60,
+    accent: WARN_COLOR,
+    eyebrow: 'OFFLINE-TO-ONLINE EVALUATION STACK',
+  });
+
+  const live = guardedDynamic(s.value(1), () => {
+    const nodes = [];
+
+    // Part 1: Human vs Judge on the 2 rollback answers
+    const p1Op = Math.max(0, 1 - toReceipt.value * 2.6);
+    if (p1Op > 0.02) {
+      nodes.push(
+        txt(
+          'OFFLINE CALIBRATION CHECK (RUNBOOK: ACKNOWLEDGEMENT REQUIRED)',
+          -855,
+          -245,
+          26,
+          CTRL_COLOR,
+          'mono',
+          'left',
+        ).opacity(p1Op),
+        txt('CANDIDATE ANSWER', -855, -172, 26, COSMOS.muted, 'mono', 'left').opacity(p1Op),
+        txt('HUMAN LABEL', 135, -172, 26, CTRL_COLOR, 'mono', 'left').opacity(p1Op),
+        txt('MODEL JUDGE', 515, -172, 26, WARN_COLOR, 'mono', 'left').opacity(p1Op),
+
+        // Row 1: Requirement claim (both agree: Supported)
+        lumBar(0, -85, 1710, 102, { color: GOOD_COLOR, fillOpacity: 0.12, glow: 5, opacity: p1Op }),
+        txt(
+          '1. “Rollback requires owner acknowledgement.”',
+          -830,
+          -85,
+          28,
+          COSMOS.ink,
+          'serif',
+          'left',
+        ).opacity(p1Op),
+        txt('SUPPORTED', 135, -85, 28, GOOD_COLOR, 'mono', 'left').opacity(
+          (0.45 + 0.55 * showHuman.value) * p1Op,
+        ),
+        txt('SUPPORTED', 515, -85, 28, GOOD_COLOR, 'mono', 'left').opacity(
+          (0.35 + 0.65 * showJudge.value) * p1Op,
+        ),
+
+        // Row 2: Permission claim ("alone"): Human = UNSUPPORTED, Judge = SUPPORTED (MISS!)
+        lumBar(0, 52, 1710, 102, {
+          color: showCompare.value > 0.5 ? BAD_COLOR : WARN_COLOR,
+          fillOpacity: 0.14,
+          glow: 7,
+          opacity: p1Op,
+        }),
+        txt(
+          '2. “Acknowledgement alone authorizes rollback.”',
+          -830,
+          52,
+          28,
+          COSMOS.ink,
+          'serif',
+          'left',
+        ).opacity(p1Op),
+        txt('UNSUPPORTED', 135, 52, 28, BAD_COLOR, 'mono', 'left').opacity(
+          (0.45 + 0.55 * showHuman.value) * p1Op,
+        ),
+        txt('SUPPORTED', 515, 52, 28, WARN_COLOR, 'mono', 'left').opacity(
+          (0.35 + 0.65 * showJudge.value) * p1Op,
+        ),
+      );
+
+      // Strict prediction withholding on agreement count
+      const qOp = showAsk.value * Math.max(0, 1 - showCompare.value * 2.6) * p1Op;
+      if (qOp > 0.02) {
+        nodes.push(
+          txt(
+            'How many of the judge’s labels agree with the human reviewer?',
+            -855,
+            225,
+            34,
+            WARN_COLOR,
+            'serif',
+            'left',
+          )
+            .glow(7, WARN_COLOR)
+            .opacity(qOp),
+        );
+      }
+      const cOp = Math.max(0, (showCompare.value - 0.45) / 0.55) * p1Op;
+      if (cOp > 0.02) {
+        nodes.push(
+          txt(
+            'Only 1 of 2! The judge missed “alone.” Always calibrate judges on retained human sets.',
+            -855,
+            225,
+            30,
+            BAD_COLOR,
+            'mono',
+            'left',
+          )
+            .glow(7, BAD_COLOR)
+            .opacity(cOp),
+        );
+      }
+    }
+
+    // Part 2: Configuration receipt validator catching silent decoder schema v3 drift
+    const p2Op = Math.max(0, (toReceipt.value - 0.45) / 0.55);
+    if (p2Op > 0.02) {
+      const drifted = showSchema.value > 0.5;
+      const fields = [
+        { k: 'index', c: CONTROL_RECEIPT.index, t: TREATMENT_RECEIPT_DRIFT.index, diff: false },
+        {
+          k: 'generator',
+          c: CONTROL_RECEIPT.generator,
+          t: TREATMENT_RECEIPT_DRIFT.generator,
+          diff: false,
+        },
+        { k: 'prompt', c: CONTROL_RECEIPT.prompt, t: TREATMENT_RECEIPT_DRIFT.prompt, diff: false },
+        {
+          k: 'decoder',
+          c: CONTROL_RECEIPT.decoder,
+          t: drifted ? TREATMENT_RECEIPT_DRIFT.decoder : CONTROL_RECEIPT.decoder,
+          diff: drifted,
+        },
+      ];
+
+      nodes.push(
+        txt(
+          'CONFIGURATION RECEIPT CHECK (ONLY QUERY POLICY MAY DIFFER)',
+          -855,
+          -245,
+          26,
+          CTRL_COLOR,
+          'mono',
+          'left',
+        ).opacity(p2Op),
+        txt('FIELD', -855, -172, 26, COSMOS.muted, 'mono', 'left').opacity(p2Op),
+        txt('CONTROL RECEIPT', -420, -172, 26, CTRL_COLOR, 'mono', 'left').opacity(p2Op),
+        txt('TREATMENT RECEIPT', 165, -172, 26, WARN_COLOR, 'mono', 'left').opacity(p2Op),
+        txt('STATUS', 665, -172, 26, COSMOS.muted, 'mono', 'left').opacity(p2Op),
+      );
+
+      fields.forEach((f, idx) => {
+        const y = -95 + idx * 88;
+        const col = f.diff ? BAD_COLOR : GOOD_COLOR;
+        nodes.push(
+          lumBar(0, y, 1710, 68, {
+            color: col,
+            fillOpacity: f.diff ? 0.2 : 0.1,
+            glow: f.diff ? 9 : 4,
+            opacity: p2Op,
+          }),
+          txt(f.k, -825, y, 28, COSMOS.ink, 'mono', 'left').opacity(p2Op),
+          txt(f.c, -420, y, 28, CTRL_COLOR, 'mono', 'left').opacity(p2Op),
+          txt(f.t, 165, y, 28, f.diff ? BAD_COLOR : GOOD_COLOR, 'mono', 'left').opacity(p2Op),
+          txt(f.diff ? 'MISMATCH!' : 'MATCH', 665, y, 28, col, 'mono', 'left').opacity(p2Op),
+        );
+      });
+
+      if (showReject.value > 0.02) {
+        nodes.push(
+          txt(
+            'REJECTED BEFORE LIFT: decoder schema v3 confounds rewrite effect with schema change!',
+            -855,
+            295,
+            28,
+            BAD_COLOR,
+            'mono',
+            'left',
+          )
+            .glow(7, BAD_COLOR)
+            .opacity(showReject.value * p2Op),
+        );
+      }
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  tweenCue(s, c, 'human', showHuman, 1, { duration: 0.45 });
+  tweenCue(s, c, 'judge', showJudge, 1, { duration: 0.45 });
+  tweenCue(s, c, 'ask', showAsk, 1, { duration: 0.45 });
+  tweenCue(s, c, 'compare', showCompare, 1, { duration: 0.45, after: true });
+
+  tweenCue(s, c, 'config', toReceipt, 1, { duration: 0.55 });
+  tweenCue(s, c, 'schema', showSchema, 1, { duration: 0.45 });
+  tweenCue(s, c, 'reject', showReject, 1, { duration: 0.45 });
 }

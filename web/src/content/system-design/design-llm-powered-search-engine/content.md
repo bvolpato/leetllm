@@ -536,7 +536,7 @@ Always compute end-to-end percentiles from complete request traces (including ti
 
 By Little's Law ($L = \lambda W$), mean concurrency equals arrival rate times residence time. Crucially, a search request only occupies GPU KV cache during the **model-resident** portion of its life, not while waiting on retrieval or post-generation CPU checks.
 
-At 1,000 peak QPS with 60% synthesis traffic (600 synthesis requests/s), suppose each synthesis request spends 0.37 s in retrieval/packing, 1.93 s holding GPU KV cache, and 0.20 s in final checks (2.50 s total). For a 32-layer GQA decoder with 8 KV heads, head dimension 128, and 2-byte FP16/BF16 entries, each cached position takes $2 \times 32 \times 8 \times 128 \times 2 = 131{,}072$ bytes (128 KiB). Let's size both KV memory and decode throughput lower bounds with a 12 GiB net KV budget and 6,000 output tokens/s per GPU:
+At 1,000 peak QPS with 60% synthesis traffic (600 synthesis requests/s), suppose each synthesis request spends 0.37 s in retrieval/packing, 1.93 s holding GPU KV cache, and 0.20 s in final checks (2.50 s total), with 120 mean output tokens and 1,560 mean cached positions. For a 32-layer GQA decoder with 8 KV heads, head dimension 128, and 2-byte FP16/BF16 entries, each cached position takes $2 \times 32 \times 8 \times 128 \times 2 = 131{,}072$ bytes (128 KiB). Let's size both KV memory and decode throughput lower bounds with a 12 GiB net KV budget and 6,000 output tokens/s per GPU:
 
 <!-- leetllm: test, output=show -->
 ```python title="search-capacity.py"
@@ -606,7 +606,7 @@ weighted mean: $0.00601
 
 <figure>
   <img src="illustrations/_generated/cost_quality_dark.png" alt="Route serving economics across full synthesis ($0.0097), semantic cache ($0.0003), and structured lookup ($0.0010). A 60/30/10 split yields a $0.00601 weighted mean per query ($360.60/min at 1,000 QPS)." />
-  <figcaption>Offloading 40% of traffic to validated cache and structured routes trims mean cost from $0.0097 to $0.00601 per query ($360.60/min at 1,000 QPS).</figcaption>
+  <figcaption>Offloading 40% of traffic to validated cache and structured routes trims mean cost from \$0.0097 to \$0.00601 per query (\$360.60/min at 1,000 QPS).</figcaption>
 </figure>
 
 A semantic cache match is only a candidate lookup. Before returning a cached answer, revalidate the caller's tenant scope, prompt/model version, and every cited document revision against the live registry. If freshness or access cannot be verified, take the miss path instead of serving stale private text.

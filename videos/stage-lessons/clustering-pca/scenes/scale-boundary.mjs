@@ -1,195 +1,145 @@
+// Scene 12 (scale-boundary): "Apply the same fitted transform to the query"
+// Stored corpus μ=505, σ=326.6 maps 300-char query to z = -0.63; refitting on query alone snaps it to 0 (broken origin!).
 import {
-  place,
-  column,
-  row,
-  grid,
-  beside,
-  boxOf,
-  line,
-  arrow,
-  circle,
-  dot,
-  rect,
-  group,
-  dynamic,
-  to,
-  draw,
-  indicate,
-  recolor,
-  fade,
-  matrix,
-  tex,
-  stateGrid,
-  appear,
-  decimal,
-  barChart,
-  scatter,
-  assertEqual,
-} from 'vizmatic/stage';
-import {
-  area,
-  heading,
-  label,
-  note,
-  mono,
-  para,
-  namedBox,
-  chip,
-  tint,
-} from '../../kit-narrated.mjs';
-import {
-  IDS,
-  COLORS,
-  STATE,
-  left,
-  right,
-  ribbon,
-  body,
-  foot,
-  cloud,
-  identity,
-  messageKey,
-  rings,
-  links,
-  scoreBars,
-  liveNumber,
-  xy,
-  messages,
-  labels,
-  seeds,
-  centroids,
-  pca,
-  query,
-  clusterTrials,
-  transferDocuments,
-  transferQuery,
-  scaleFixture,
+  COSMOS,
+  DANGER_COLOR,
+  QUERY_COLOR,
+  aura,
+  glowDot,
+  glowTex,
+  guardedDynamic,
+  heroTitle,
   means,
+  rule,
+  runAmbientPhase,
   stds,
-  inertia,
-  initialInertia,
-  updatedInertia,
-  coarseDistances,
-  distance,
-  mix,
-  silhouette,
-  lloyd,
-  seedMass,
-  emptyCenterRepair,
-  energyRows,
-  scaleCalculation,
-  cosine,
-  validateModel,
+  tweenCue,
+  txt,
 } from '../parts.mjs';
 
-export default function scene(s, c) {
-  const model = scaleCalculation();
-  const m = cloud(left, {
-    coords: model.rows.map((r) => r.standardized),
-    names: model.rows.map((r) => r.id),
-    equal: true,
-    heightRatio: 0.79,
-    x: [-2, 2],
-    y: [-2, 2],
-    autoNames: true,
-    xLabel: 'standardized topic',
-    yLabel: 'standardized length',
+const LEN_MEAN = means[1]; // 505
+const LEN_STD = stds[1]; // ~326.64
+const Q_LEN = 300;
+const Q_Z_STORED = (Q_LEN - LEN_MEAN) / LEN_STD; // -0.6276
+
+export default function scaleBoundary(s, c) {
+  const phase = s.value(0);
+  const showFit = s.value(0);
+  const showQuery = s.value(0);
+  const badRefit = s.value(0); // 0 = stored (-0.63), 1 = broken refit (0.00)
+  const showWeights = s.value(0);
+  const showHeld = s.value(0);
+
+  const bgAura = aura(0, 20, 620, '#133a4a30', '#3a183b18');
+  const title = heroTitle(['Apply the Same Fitted', 'Transform to Queries'], {
+    x: -855,
+    y: -430,
+    size: 52,
+    lineHeight: 60,
+    accent: COSMOS.emerald,
+    eyebrow: 'TRAIN / SERVE SCALING BOUNDARY',
   });
-  const [a, b, d] = right.rows([2, 2, 1], 'normal');
-  const fitted = place(
-    column(
-      [
-        label('Stored transform revision', { size: 34 }),
-        mono('μ = (' + means.map((v) => v.toFixed(1)).join(', ') + ')', { size: 32 }),
-        mono('σ = (' + stds.map((v) => v.toFixed(3)).join(', ') + ')', { size: 32 }),
-        tex('z=(x-\\mu)/\\sigma', { size: 38 }),
-      ],
-      { gap: 'normal' },
-    ),
-    a,
+
+  const eqScale = glowTex(
+    `z_{\\text{query}} = \\frac{300 - ${LEN_MEAN.toFixed(0)}}{${LEN_STD.toFixed(1)}} = ${Q_Z_STORED.toFixed(2)}`,
+    { x: 420, y: -265, size: 38, color: COSMOS.cyan, glow: 7 },
   );
-  const qRaw = [-3.1, 300],
-    q = qRaw.map((v, j) => (v - means[j]) / stds[j]);
-  const wrongMean = [means[0], qRaw[1]],
-    wrong = qRaw.map((v, j) => (v - wrongMean[j]) / stds[j]);
-  const incoming = place(
-    column(
-      [
-        label('Raw query Q', { size: 34, color: 'yellow' }),
-        mono('(' + qRaw.join(', ') + ')', { size: 36, color: 'yellow' }),
-      ],
-      { gap: 'normal' },
-    ),
-    b,
-  );
-  const arithmetic = place(
-    column(
-      [
-        mono(`(−3.1 − ${means[0]}) / ${stds[0].toFixed(3)}`, { size: 32 }),
-        mono(`(300 − ${means[1]}) / ${stds[1].toFixed(3)}`, { size: 32 }),
-        mono('Q → (' + q.map((v) => v.toFixed(3)).join(', ') + ')', { size: 32, color: 'yellow' }),
-      ],
-      { gap: 'normal' },
-    ),
-    b,
-  );
-  const alternative = place(
-    column(
-      [
-        label('Different μ′ = (0, 300)', { size: 34, color: 'red' }),
-        mono(`(300 − 300) / ${stds[1].toFixed(3)} = 0`, { size: 30, color: 'red' }),
-        mono('Q′ → (' + wrong.map((v) => v.toFixed(3)).join(', ') + ')', {
-          size: 32,
-          color: 'red',
-        }),
-      ],
-      { gap: 'normal' },
-    ),
-    b,
-  );
-  const invalid = place(label('Different origin: reject', { size: 34, color: 'red' }), d);
-  const repaired = place(label('Use the stored transform', { size: 34, color: 'yellow' }), d);
-  const boundary = place(
-    row(
-      [
-        chip('corpus / development', { color: 'cyan' }),
-        chip('unseen queries', { color: 'yellow', dash: true }),
-      ],
-      { gap: 'wide' },
-    ),
-    foot,
-  );
-  s.add(
-    heading(c.title),
-    place(note('Six metadata rows. One fitted coordinate system.'), ribbon),
-    m.chart,
-    fitted,
-  );
-  c.on('fit', () => s.play(indicate(fitted, { scale: 1 })));
-  c.on('formula', () => s.play(indicate(m.chart.point('B100'), { scale: 1 })));
-  c.show('query', incoming);
-  c.swap('query', incoming, arithmetic, { after: true });
-  c.after(
-    'query',
-    () =>
-      s.play(
-        m.chart.insert(
-          { name: 'Q', x: q[0], y: q[1], query: true, color: 'yellow', side: 'left' },
-          { from: boxOf(incoming).point('center'), duration: 1.2 },
-        ),
-      ),
-    0.5,
-  );
-  c.swap('bad', arithmetic, alternative, { after: true });
-  c.after('bad', () =>
-    s.play(m.chart.move('Q', wrong, { duration: 1.2 }), recolor(m.chart.point('Q'), 'red')),
-  );
-  c.show('bad', invalid, { after: true });
-  c.after('restore', () =>
-    s.play(m.chart.move('Q', q, { duration: 1.2 }), recolor(m.chart.point('Q'), 'yellow')),
-  );
-  c.swap('restore', alternative, arithmetic, { after: true });
-  c.swap('restore', invalid, repaired, { after: true });
-  c.on('weights', () => s.play(indicate(fitted, { scale: 1 })));
-  c.show('held', boundary);
+
+  const live = guardedDynamic(s.value(1), () => {
+    const isBad = badRefit.value > 0.5;
+    const curZ = Q_Z_STORED * (1 - badRefit.value);
+
+    const axLeft = -780;
+    const axRight = 780;
+    const axY = 20;
+    const xOf = (z) => axLeft + ((z + 1.6) / 3.2) * (axRight - axLeft);
+
+    const nodes = [
+      txt(
+        `STORED CORPUS FIT:  μ_len = ${LEN_MEAN.toFixed(0)} chars,  σ_len = ${LEN_STD.toFixed(1)}`,
+        -855,
+        -245,
+        28,
+        COSMOS.cyan,
+        'mono',
+        'left',
+      ).opacity(0.45 + 0.55 * showFit.value),
+      txt('STANDARDIZED LENGTH AXIS (z)', -855, -148, 26, COSMOS.muted, 'mono', 'left'),
+      rule(axLeft, axY, axRight, axY, COSMOS.muted, 3),
+      txt('−1.5', xOf(-1.5), axY + 42, 26, COSMOS.muted, 'mono'),
+      txt('0.0 (corpus mean 505)', xOf(0), axY + 42, 26, COSMOS.muted, 'mono'),
+      txt('+1.5', xOf(1.5), axY + 42, 26, COSMOS.muted, 'mono'),
+    ];
+
+    // Corpus message dots along z-axis
+    const corpusLens = [100, 500, 900];
+    corpusLens.forEach((len) => {
+      const zv = (len - LEN_MEAN) / LEN_STD;
+      nodes.push(
+        glowDot(xOf(zv), axY, { radius: 8, color: COSMOS.cyan, glow: 9 }),
+        txt(`${len} ch`, xOf(zv), axY - 36, 26, COSMOS.cyan, 'mono'),
+      );
+    });
+
+    // Live query marker (300 chars -> -0.63 stored vs 0.00 refit bug!)
+    if (showQuery.value > 0.02) {
+      const qx = xOf(curZ);
+      const qCol = isBad ? DANGER_COLOR : QUERY_COLOR;
+      nodes.push(
+        glowDot(qx, axY, { radius: 11, color: qCol, glow: 14, opacity: showQuery.value }),
+        txt(
+          isBad ? 'Query refit to 0.00 (WRONG ORIGIN!)' : `Query (300 ch): z = ${curZ.toFixed(2)}`,
+          qx,
+          axY - 88,
+          28,
+          qCol,
+          'mono',
+        )
+          .glow(7, qCol)
+          .opacity(showQuery.value),
+      );
+    }
+
+    if (showWeights.value > 0.02) {
+      nodes.push(
+        txt(
+          'For embeddings, follow the model’s exact metric & normalization spec',
+          -855,
+          205,
+          28,
+          COSMOS.ink,
+          'sans',
+          'left',
+        ).opacity(showWeights.value),
+      );
+    }
+    if (showHeld.value > 0.02) {
+      nodes.push(
+        txt(
+          'Save fitted transform for unseen queries; refitting on test queries is transductive evaluation',
+          -855,
+          285,
+          28,
+          COSMOS.emerald,
+          'sans',
+          'left',
+        )
+          .glow(6, COSMOS.emerald)
+          .opacity(showHeld.value),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.0);
+
+  tweenCue(s, c, 'fit', showFit, 1, { duration: 0.45 });
+  c.show('formula', eqScale);
+  tweenCue(s, c, 'query', showQuery, 1, { duration: 0.45 });
+  tweenCue(s, c, 'bad', badRefit, 1, { duration: 0.7 });
+  tweenCue(s, c, 'restore', badRefit, 0, { duration: 0.7 });
+  tweenCue(s, c, 'weights', showWeights, 1, { duration: 0.45 });
+  tweenCue(s, c, 'held', showHeld, 1, { duration: 0.45 });
 }

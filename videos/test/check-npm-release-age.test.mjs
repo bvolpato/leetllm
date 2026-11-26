@@ -48,14 +48,14 @@ test('accepts the exact first-party Vizmatic release inside the seven-day window
       '': {},
       'node_modules/vizmatic': {
         name: 'vizmatic',
-        version: '0.8.3',
-        resolved: 'https://registry.npmjs.org/vizmatic/-/vizmatic-0.8.3.tgz',
+        version: '0.10.0',
+        resolved: 'https://registry.npmjs.org/vizmatic/-/vizmatic-0.10.0.tgz',
       },
     },
   };
   const result = await checkLockfile(freshVizmatic, {
     now,
-    lookup: async () => new Map([['vizmatic@0.8.3', new Date(cutoff + 1).toISOString()]]),
+    lookup: async () => new Map([['vizmatic@0.10.0', new Date(cutoff + 1).toISOString()]]),
   });
   assert.deepEqual(result, { checked: 0, exempted: 1, local: 0 });
 });
@@ -66,8 +66,8 @@ test('still requires a valid registry timestamp for the exact first-party Vizmat
       '': {},
       'node_modules/vizmatic': {
         name: 'vizmatic',
-        version: '0.8.3',
-        resolved: 'https://registry.npmjs.org/vizmatic/-/vizmatic-0.8.3.tgz',
+        version: '0.10.0',
+        resolved: 'https://registry.npmjs.org/vizmatic/-/vizmatic-0.10.0.tgz',
       },
     },
   };
@@ -81,7 +81,7 @@ test('still requires a valid registry timestamp for the exact first-party Vizmat
 });
 
 test('requires every other Vizmatic version to age for seven days', async () => {
-  for (const version of ['0.8.1', '0.8.2', '0.8.4']) {
+  for (const version of ['0.8.3', '0.9.0', '0.10.1']) {
     const freshVizmatic = structuredClone(lock);
     freshVizmatic.packages['node_modules/example'].name = 'vizmatic';
     freshVizmatic.packages['node_modules/example'].version = version;

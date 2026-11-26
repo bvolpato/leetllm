@@ -105,7 +105,7 @@ for i, chunk in enumerate(fixed_windows(spec, size=6, overlap=2)):
     print(f"win[{i}]: {chunk}")
 
 full_rule = ("streaming timeout", "90 seconds", "heartbeat frames")
-short_fact = ("90 seconds without heartbeat",)
+short_fact = ("connections after 90 seconds",)
 
 for overlap in (0, 2, 4):
     chunks = fixed_windows(spec, size=7, overlap=overlap)
@@ -123,13 +123,13 @@ win[1]: SSE connections after 90 seconds without
 win[2]: seconds without heartbeat frames. Batch retention:
 win[3]: Batch retention: expire JSONL outputs after
 win[4]: outputs after 14 days.
-size=7 overlap=0: chunks=3 words=20 full_rule=0 short_fact=1
+size=7 overlap=0: chunks=3 words=20 full_rule=0 short_fact=0
 size=7 overlap=2: chunks=4 words=26 full_rule=0 short_fact=1
 size=7 overlap=4: chunks=6 words=40 full_rule=0 short_fact=1
 ```
 <!-- leetllm: output:end -->
 
-Look at `win[4]` (`outputs after 14 days.`): a trailing fragment drops its subject (`Batch retention: expire JSONL`) so the 14-day window floats without context. Meanwhile, overlap 2 rescues the 4-word phrase `"90 seconds without heartbeat"` at the cost of 6 extra words, yet no amount of overlap can ever fit a 12-word rule inside a 7-word window.
+Look at `win[4]` (`outputs after 14 days.`): a trailing fragment drops its subject (`Batch retention: expire JSONL`) so the 14-day window floats without context. Meanwhile, overlap 2 rescues the 4-word phrase `"connections after 90 seconds"` (`short_fact=0 -> 1`) at the cost of 6 extra words, yet no amount of overlap can ever fit a 12-word rule inside a 7-word window.
 
 <figure>
   <img src="illustrations/_generated/chunking_comparison_dark.png" alt="Three interval maps compare size-7 windows across overlaps 0, 2, and 4. Higher overlap duplicates more tokens across chunks, darkening the repeated coverage bands, yet a multi-word rule longer than the window never fits inside any single window." />
@@ -143,7 +143,7 @@ Bennani and Moslonka found no measurable answer-quality gain from up to 20% over
 ```checkpoint
 You split a 10,000-token API manual into 200-token windows with 40 tokens of overlap. Roughly how many tokens do you embed, and how long can a fact be and still be sure to land unbroken in one window?
 ---
-Overlap fraction is $40 / 200 = 0.2$, so you embed about $10{,}000 / 0.8 = 12{,}500$ tokens. Because adjacent windows overlap by 40 tokens, any fact of up to 40 tokens always lands intact inside at least one window; facts between 41 and 200 tokens depend on alignment, and anything past 200 tokens never fits.
+Overlap fraction is $40 / 200 = 0.2$, so you embed about $10{,}000 / 0.8 = 12{,}500$ tokens. Because adjacent windows share 40 overlapping tokens (stride 160), any discrete fact of up to $O + 1 = 41$ tokens always lands intact inside at least one window (a 41-token span starting at index 159 ends at index 199 inside window 0, and starting at index 160 begins inside window 1); facts of 42 to 200 tokens depend on alignment, and anything past 200 tokens never fits.
 ```
 
 ## Split on document structure first
@@ -386,7 +386,7 @@ for name, chunks in configs.items():
 # Semantic similarity drop between topic-coherent vs topic-shifted sentences
 sentences = [
     "Rotary position embeddings rotate query and key pairs by token index.",
-    "The rotary matrix preserves relative position inside dot-product attention.",
+    "Rotary position embeddings preserve relative position inside query-key dot-product attention.",
     "KV cache paging allocates fixed blocks to eliminate external memory fragmentation.",
 ]
 s_vec = TfidfVectorizer(stop_words="english").fit_transform(sentences).toarray()
@@ -403,7 +403,7 @@ assert all(p in configs["heading_aware"][0].lower() for p in required_phrases)
 ```text title="Output" output compact
 broken_fixed   | answerable=False | hit=Streaming timeout: close idle SSE connections after
 heading_aware  | answerable=True | hit=Streaming timeout
-boundary 0->1: cosine=0.14 -> split
+boundary 0->1: cosine=0.41 -> keep
 boundary 1->2: cosine=0.00 -> split
 ```
 <!-- leetllm: output:end -->

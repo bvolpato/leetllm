@@ -1,143 +1,199 @@
-// Scene `steering`: an edit along one column moves every readout that overlaps it.
-//
-// The picture: a dot, and three rulers through the origin. The edit lifts the dot along the
-// vertical column. Its shadow on the horizontal ruler stays, and its shadow on the tilted ruler
-// slides: the collateral change is the overlap of that ruler with the column, times the edit.
+// Scene 9: steering - "An edit moves overlapping readouts too"
+// Left: Glowing 2D activation plane with baseline x = [0.2, 0.1], steering edit arrow along [0, 1],
+//       and three luminous rulers (vertical cyan, horizontal blue, tilted pink) with live shadows.
+// Right: Glowing MathJax x' = x + alpha d_f, sleek alpha slider, three luminous readout bars
+//        showing collateral drift Delta = alpha (r . d_f), then Beat 2 dashed gold encoder ruler
+//        [1, 2] contrasting requested coefficient (1.10) vs re-encoded coefficient (1.80).
 import { dotProduct } from 'vizmatic';
-import { angleMark, assertEqual, column, decimal, place, tex } from 'vizmatic/stage';
+import { angleMark } from 'vizmatic/stage';
 import {
+  COSMOS,
+  ROLE,
+  cinemaAtmosphere,
+  cinemaPlane,
+  glowReadoutBars,
+  glowSlider,
+  glowTex,
+  heroTitle,
+  playCue,
   steeringBaseline,
   steeringDirection,
   steeringReadouts,
-} from '../../../films/sparse-autoencoders/fixtures.mjs';
-import { chipRow, heading, label, note } from '../../kit-narrated.mjs';
-import { COLOR, SIDE, board, readoutBars, slider, vec } from '../parts.mjs';
+  txt,
+  vec,
+} from '../parts.mjs';
 
-/** The largest edit of the scene. */
 const ALPHA = 1;
-/** The row of the encoder that the next scene uses: it reads x1 + 2 x2. */
 const READER = [1, 2];
 
 export default function steering(s, c) {
-  const b = board();
   const [candidate, orthogonal, overlapping] = steeringReadouts;
-  const cached = dotProduct(READER, steeringBaseline);
-  assertEqual(Number(cached.toFixed(2)), 0.4, 'cached coefficient');
-  assertEqual(Number((cached + 0.7).toFixed(2)), 1.1, 'requested coefficient');
-  assertEqual(
-    Number(
-      dotProduct(vec.add(steeringBaseline, vec.scale(steeringDirection, 0.7)), READER).toFixed(2),
-    ),
-    1.8,
-    're-encoded coefficient',
-  );
+  const cached = dotProduct(READER, steeringBaseline); // 0.4
+
+  const atmo = cinemaAtmosphere(ROLE.other, ROLE.second);
+  const title = heroTitle(['An edit moves overlapping', 'readouts too'], {
+    x: -855,
+    y: -435,
+    size: 48,
+    lineHeight: 56,
+    accent: ROLE.other,
+  });
+
+  const b = cinemaPlane(s, {
+    cx: -365,
+    cy: 95,
+    width: 960,
+    height: 700,
+    x: [-1.3, 2.9],
+    y: [-1.4, 1.8],
+  });
+
   const alpha = s.value(0);
   const edited = () => vec.add(steeringBaseline, vec.scale(steeringDirection, alpha.value));
-  const readout = (direction) => () => dotProduct(edited(), direction);
-  // The readouts of the model of the lesson: one follows the edit, one stays, one moves by the overlap.
-  assertEqual(
-    dotProduct(orthogonal, steeringDirection),
-    0,
-    'the horizontal readout is orthogonal to the edit',
-  );
-  assertEqual(
-    dotProduct(overlapping, steeringDirection),
-    0.8,
-    'the overlap of the tilted readout with the edit',
-  );
+  const readOf = (dir) => () => dotProduct(edited(), dir);
 
-  const [formulaBand, sliderBand, barsBand, noteBand] = SIDE.rows([2, 1.2, 5, 2], 'normal');
-  const formula = place(tex("x' = x + \\alpha\\,d_f", { size: 54 }), formulaBand);
-  formula.part('\\alpha\\,d_f').forEach((glyph) => glyph.color(COLOR.other));
-  const [railBand, alphaBand] = sliderBand.inset('normal', 'none').columns(2, 'wide');
-  const knob = slider(railBand, alpha, { min: 0, max: ALPHA, color: COLOR.other });
-  const reading = place(
-    decimal(() => alpha.value, { digits: 2, size: 44, prefix: 'α = ', color: COLOR.other }),
-    alphaBand,
-    'left',
-  );
+  const rx = 515;
+  const steerEq = glowTex("x' = x + \\alpha\\,d_f", {
+    x: rx,
+    y: -310,
+    size: 48,
+    color: COSMOS.ink,
+    glow: 6,
+  });
+  steerEq.part('\\alpha\\,d_f').forEach((g) => g.color(ROLE.other));
 
-  const base = b.ringOf(steeringBaseline, 'faint', 15);
-  const point = b.dotOf(edited, COLOR.activation);
-  const edit = b.arrowOf(steeringBaseline, edited, COLOR.other);
-  s.add(heading(c.title), b.plane, base, edit, point, formula, knob.rail, knob.knob, reading);
-  const move =
-    (to, duration = 1.6) =>
-    () =>
-      s.play(alpha.to(to, { duration }));
+  const knob = glowSlider({
+    x: 410,
+    y: -190,
+    width: 350,
+    value: alpha,
+    min: 0,
+    max: ALPHA,
+    color: ROLE.other,
+    prefix: 'α = ',
+    digits: 2,
+    labelX: 620,
+  });
 
-  // The three rulers, and the shadow of the dot on each one.
+  const baseRing = b.ringOf(steeringBaseline, ROLE.dim, 14, 3);
+  const dotEd = b.dotOf(edited, ROLE.activation, 10, 14);
+  const editArrow = b.arrowOf(steeringBaseline, edited, ROLE.other, { width: 7.5 });
+
   const rulers = {
     candidate: [
-      b.rulerOf(candidate, COLOR.other, -0.3, 1.8, { width: 4 }),
-      b.shadowOf(edited, candidate, COLOR.other),
+      b.rulerOf(candidate, ROLE.other, -0.3, 1.8, { width: 3.5 }),
+      b.shadowOf(edited, candidate, ROLE.other, 8),
     ],
     orthogonal: [
-      b.rulerOf(orthogonal, COLOR.first, -0.3, 1.8, { width: 5 }),
-      b.shadowOf(edited, orthogonal, COLOR.first),
+      b.rulerOf(orthogonal, ROLE.first, -0.3, 1.8, { width: 4.5 }),
+      b.shadowOf(edited, orthogonal, ROLE.first, 8),
     ],
     overlapping: [
-      b.rulerOf(overlapping, COLOR.second, -0.3, 1.9, { width: 4 }),
-      b.shadowOf(edited, overlapping, COLOR.second),
+      b.rulerOf(overlapping, ROLE.second, -0.3, 1.9, { width: 3.5 }),
+      b.shadowOf(edited, overlapping, ROLE.second, 8),
     ],
   };
-  s.add(rulers.candidate, rulers.orthogonal, rulers.overlapping);
 
-  // Beat 1. The three readouts as bars. The edit grows, and two of them grow with it.
-  const bars = readoutBars(
-    barsBand,
-    [
-      { name: 'Vertical ruler', color: COLOR.other, read: readout(candidate) },
-      { name: 'Horizontal ruler', color: COLOR.first, read: readout(orthogonal) },
-      { name: 'Tilted ruler', color: COLOR.second, read: readout(overlapping) },
+  const bars = glowReadoutBars({
+    left: 205,
+    top: -100,
+    width: 610,
+    rowGap: 112,
+    items: [
+      { name: 'Vertical ruler  [0, 1]', color: ROLE.other, read: readOf(candidate) },
+      { name: 'Horizontal ruler  [1, 0]', color: ROLE.first, read: readOf(orthogonal) },
+      { name: 'Tilted ruler  [0.6, 0.8]', color: ROLE.second, read: readOf(overlapping) },
     ],
-    dotProduct(vec.add(steeringBaseline, vec.scale(steeringDirection, ALPHA)), candidate),
-  );
-  s.add(bars.names, bars.bars);
-  c.on('steer-add', move(ALPHA, 2.4));
-  c.on('steer-rewind', move(0, 1));
-  c.on('steer-grow', move(ALPHA, 2.6));
-  const angle = angleMark(b.P([0, 0]), b.P(candidate), b.P(overlapping), {
-    radius: 120,
-    color: COLOR.mark,
-    width: 5,
+    max: dotProduct(vec.add(steeringBaseline, vec.scale(steeringDirection, ALPHA)), candidate),
   });
-  const collateral = place(
-    tex('\\Delta\\,\\text{readout} = \\alpha\\,(r \\cdot d_f)', { size: 44 }),
-    noteBand,
+
+  s.add(
+    atmo,
+    title,
+    b.node,
+    baseRing,
+    editArrow,
+    dotEd,
+    ...rulers.candidate,
+    ...rulers.orthogonal,
+    ...rulers.overlapping,
+    steerEq,
+    knob.rail,
+    knob.activeTrack,
+    knob.knob,
+    knob.readout,
+    ...bars.names,
+    bars.bars,
   );
-  c.show('steer-collateral', [angle, collateral]);
-  const tests = [
-    note('measure on held-out prompts'),
-    chipRow(['the target behavior', 'what else moved'], { color: COLOR.mark, stroke: COLOR.mark }),
-  ];
-  place(column(tests, { gap: 'tight', align: 'center' }), noteBand);
-  c.swap('steer-heldout', collateral, tests);
-  // Beat 2. A clamp: what the edit asks for, and what the encoder reads back.
-  const reader = b.rulerOf(READER, COLOR.mark, -0.3, 2.1, { width: 4, dash: [14, 10] });
-  const reread = b.shadowOf(edited, READER, COLOR.mark);
-  const cachedLabel = place(
-    note(`Starting coefficient  ${cached.toFixed(2)}`),
-    formulaBand,
-    'bottom',
+
+  const moveA =
+    (to, dur = 1.6) =>
+    (d) =>
+      s.play(alpha.to(to, { duration: Math.min(dur, d) }));
+  playCue(s, c, 'steer-add', moveA(ALPHA, 2.2), { dur: 2.2 });
+  playCue(s, c, 'steer-rewind', moveA(0, 1.0), { dur: 1.0 });
+  playCue(s, c, 'steer-grow', moveA(ALPHA, 2.4), { dur: 2.4 });
+
+  const angle = angleMark(b.P([0, 0]), b.P(candidate), b.P(overlapping), {
+    radius: 115,
+    stroke: ROLE.mark,
+    width: 4.5,
+  });
+  const collateralEq = glowTex('\\Delta\\,\\text{readout} = \\alpha\\,(r \\cdot d_f)', {
+    x: rx,
+    y: 315,
+    size: 40,
+    color: ROLE.mark,
+    glow: 6,
+  });
+  c.show('steer-collateral', [angle, collateralEq]);
+
+  const heldHead = txt('Measure on held-out prompts:', rx, 295, 28, COSMOS.muted, 'sans', 'center');
+  const heldRow = txt(
+    'target behavior  +  collateral behavior',
+    rx,
+    348,
+    30,
+    ROLE.mark,
+    'sans',
+    'center',
+  ).glow(6, ROLE.mark);
+  c.swap('steer-heldout', collateralEq, [heldHead, heldRow]);
+
+  // --- Beat 2: Cached decomposition edit vs untied encoder readback ---
+  const readerRuler = b.rulerOf(READER, ROLE.mark, -0.3, 2.0, { width: 3.5, dash: [13, 9] });
+  const rereadShadow = b.shadowOf(edited, READER, ROLE.mark, 9);
+  const cachedNote = txt(
+    `Starting cached coefficient: ${cached.toFixed(2)}`,
+    rx,
+    -248,
+    28,
+    COSMOS.muted,
+    'mono',
+    'center',
   );
-  c.show('steer-clamp', cachedLabel);
-  const asked = readoutBars(
-    barsBand,
-    [
+  c.show('steer-clamp', cachedNote);
+
+  const clampBars = glowReadoutBars({
+    left: 205,
+    top: -85,
+    width: 610,
+    rowGap: 135,
+    items: [
       {
-        name: 'requested coefficient',
-        color: COLOR.other,
-        read: () => dotProduct(READER, steeringBaseline) + alpha.value,
+        name: 'Saved decomposition (0.4 + α)',
+        color: ROLE.other,
+        read: () => cached + alpha.value,
       },
       {
-        name: 're-encoded coefficient',
-        color: COLOR.mark,
-        read: readout(READER),
+        name: 'Re-encoded by encoder [1, 2]',
+        color: ROLE.mark,
+        read: readOf(READER),
       },
     ],
-    cached + ALPHA * dotProduct(READER, steeringDirection),
-  );
+    max: cached + ALPHA * dotProduct(READER, steeringDirection),
+  });
+
   c.swap(
     'steer-clamp',
     [
@@ -145,25 +201,34 @@ export default function steering(s, c) {
       ...rulers.overlapping,
       ...rulers.candidate,
       angle,
-      tests,
-      bars.names,
+      heldHead,
+      heldRow,
+      ...bars.names,
       bars.bars,
     ],
-    [reader, reread, asked.names, asked.bars],
+    [readerRuler, rereadShadow, ...clampBars.names, clampBars.bars],
   );
-  c.on('steer-clamp', move(0, 0.8));
-  c.on('steer-smaller', move(0.7, 1.5));
-  const gap = angleMark(b.P([0, 0]), b.P(steeringDirection), b.P(READER), {
-    radius: 150,
-    color: COLOR.mark,
-    width: 5,
+  playCue(s, c, 'steer-clamp', moveA(0, 0.8), { dur: 0.8 });
+  playCue(s, c, 'steer-smaller', moveA(0.7, 1.5), { dur: 1.5 });
+
+  const encGap = angleMark(b.P([0, 0]), b.P(steeringDirection), b.P(READER), {
+    radius: 145,
+    stroke: ROLE.mark,
+    width: 4.5,
   });
-  const differ = place(
-    label('Encoder reads x₁ + 2x₂', { size: 43 }),
-    noteBand,
+  const encRule = txt('Encoder reads x₁ + 2x₂', rx, 275, 36, ROLE.mark, 'mono', 'center').glow(
+    6,
+    ROLE.mark,
   );
-  c.show('steer-differ', [gap, differ]);
-  const switches = place(note('a threshold can switch a slot on or off'), noteBand, 'bottom');
-  c.show('steer-switch', switches);
-  c.keep(b.plane);
+  const switchNote = txt(
+    'With thresholds, an edit can flip another slot on/off',
+    rx,
+    340,
+    26,
+    COSMOS.muted,
+    'sans',
+    'center',
+  );
+  c.show('steer-differ', [encGap, encRule]);
+  c.show('steer-switch', switchNote);
 }

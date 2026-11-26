@@ -654,7 +654,7 @@ Both principals must hold identical permissions over every document embedded in 
     "explanation": "18:9 is 2:1 work, while 6:9 is 2:3 chunks. Synthetic units differ from raw chunk counts, and aggregate totals alone do not cap tail wait time."
   },
   {
-    "question": "A request pins adapter revision r 8. Its alias advances to r 9 while every cache slot remains referenced. What can the platform do safely?",
+    "question": "A request pins adapter revision r8. Its alias advances to r9 while every cache slot remains referenced. What can the platform do safely?",
     "options": [
       "Retain r8 for the active batch; wait or reroute the new load",
       "Retain r8 KV for the active batch; load r9 into its adapter slot",

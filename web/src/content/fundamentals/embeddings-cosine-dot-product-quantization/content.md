@@ -39,7 +39,7 @@
 
 A developer asks, "How does FlashAttention fuse softmax into tiled SRAM passes?" Your retriever embeds that query and scans stored passages. One similarity rule puts `flash-attention-v2` first; another favors a longer embedding from a draft note; compressing vectors to fit RAM shuffles the shortlist again. Separating similarity geometry from dimensionality reduction and quantization isolates which step changed the rank.
 
-[Sentence embeddings](/learn/sentence-embeddings-contrastive-learning) showed how contrastive training organizes meaning in vector space. Here the encoder stays fixed while we dissect searching it at scale: similarity metrics, Matryoshka prefixes, <span data-glossary="pca">PCA</span>, Johnson-Lindenstrauss projections, the 2D-map trap, and INT8/1-bit quantization.
+Contrastive training pulls semantically similar passages together in vector space and pushes unrelated passages apart (covered in [Sentence Embeddings & Contrastive Loss](/learn/sentence-embeddings-contrastive-learning)). Here the encoder stays fixed while we dissect searching that vector space at scale: similarity metrics, Matryoshka prefixes, <span data-glossary="pca">PCA</span>, Johnson-Lindenstrauss projections, the 2D-map trap, and INT8/1-bit quantization.
 
 ## Three ways to measure closeness
 
@@ -137,7 +137,7 @@ mrl_names = ["sparse-attn", "flash-attn", "rope-enc"]
 pick = lambda w: mrl_names[int(np.argmax(np.vstack([l2_normalize(r[:w]) for r in mrl_docs]) @ l2_normalize(mrl_q[:w])))]
 print(f"MRL 4d winner={pick(4)} | 2d prefix tie winner={pick(2)}")
 
-# 2. PCA sweep: Recall@3 hits 1.000 at k=8 with only 0.715 explained variance.
+# 2. PCA sweep: Recall@3 hits 1.000 at k=8 with only 0.716 explained variance.
 rng = np.random.default_rng(21)
 norm_rows = lambda x: x / np.linalg.norm(x, axis=1, keepdims=True)
 topics = norm_rows(rng.normal(0, 1, size=(20, 24)))

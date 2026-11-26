@@ -186,7 +186,7 @@ t=4 | m=[1.11, 0.333] s=[2048.4, 0.3] | rms=[-0.01326, 0.01657] adam=[0.00041, 0
 ```
 <!-- leetllm: output:end -->
 
-By step 4, alternating slopes cancel `a`'s Adam numerator while squared magnitudes keep its denominator near `78.902`, cutting `a`'s step to `0.00041` while `b` strides along at `0.00997`. Notice two behaviors:
+By step 4, alternating slopes cancel `a`'s Adam numerator while squared magnitudes keep its denominator near `78.882`, cutting `a`'s step to `0.00041` while `b` strides along at `0.00997`. Notice two behaviors:
 
 - **Momentum can oppose the latest slope:** On steps 2 and 4, `a`'s gradient is negative yet Adam still subtracts a positive step because $\hat{m}_t$ stays positive.
 - **Scale invariance breaks near $\epsilon$:** Scaling the entire gradient history by $c > 0$ cancels between $\hat{m}_t$ and $\sqrt{\hat{v}_t}$ when $|g| \gg \epsilon$,[^kingma2015] whereas at $|g| = \epsilon$ on step 1 the update drops to $\eta / 2$.

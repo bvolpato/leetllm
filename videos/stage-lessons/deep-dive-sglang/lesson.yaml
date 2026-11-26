@@ -1,0 +1,2080 @@
+version: 1
+id: deep-dive-sglang
+title: SGLang and the Life of a Structured Generation
+source: projects/deep-dive-sglang/content.md
+sources:
+  - title: Original SGLang paper, program units and RadixAttention
+    url: https://arxiv.org/html/2312.07104v2
+  - title: Exact inspected SGLang commit
+    url: https://github.com/sgl-project/sglang/tree/f8e62a9224815cc9c6fc56b940eb7fde791a8870
+  - title: SGLang structured output guide
+    url: https://docs.sglang.io/docs/advanced_features/structured_outputs
+  - title: SGLang speculative decoding guide, checked 2026-11-06
+    url: https://docs.sglang.io/docs/advanced_features/speculative_decoding
+  - title: SGLang P/D guide, checked 2026-11-06
+    url: https://docs.sglang.io/docs/advanced_features/pd_disaggregation
+  - title: SGLang source license
+    url: https://github.com/sgl-project/sglang/blob/f8e62a9224815cc9c6fc56b940eb7fde791a8870/LICENSE
+  - title: DistServe SLO-constrained serving definition
+    url: https://arxiv.org/abs/2401.09670
+  - title: Official DP and attention DP distinction
+    url: https://github.com/sgl-project/sglang/blob/main/docs/docs/advanced_features/dp_dpa_smg_guide.mdx
+  - title: LMSYS incubated projects
+    url: https://www.lmsys.org/projects
+scenes:
+  - id: intro
+    title: Which ticket can SGLang explain?
+    visual: A bug label lands on the login ticket. Its explanation prompt stays empty until the program copies
+      the label into it. The dark-mode ticket waits for its own label.
+    beats:
+      - say: The login ticket just got the label bug. The dark-mode ticket is still waiting for a label. Which
+          explanation can start?
+        hold: 2.6
+        visual_cues:
+          - id: ticket-bug
+            phrase: The login ticket just got the label bug
+            targets:
+              - ticket-return
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: ticket-dark
+            phrase: The dark-mode ticket is still waiting for a label
+            targets:
+              - ticket-r42
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: ticket-ask
+            phrase: Which explanation can start
+            targets:
+              - ticket-pending
+              - ticket-return
+            color: yellow
+            linger: 0.32
+            caption_boundary: true
+      - say: The login ticket’s explanation can start. Copy bug into that ticket’s prompt. Now submit its
+          explanation. The dark-mode prompt stays empty until its own label arrives.
+        hold: 0.8
+        visual_cues:
+          - id: ticket-bind
+            phrase: Copy bug into that ticket’s prompt
+            targets:
+              - ticket-slot-r43
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: ticket-submit
+            phrase: Now submit its explanation
+            targets:
+              - ticket-slot-r43
+            color: green
+            linger: 0.32
+            caption_boundary: true
+          - id: ticket-wait
+            phrase: until its own label arrives
+            targets:
+              - ticket-pending
+            color: yellow
+            linger: 0.32
+            caption_boundary: true
+      - say: SGLang’s Python program keeps each answer under a name. When the next prompt has the values it
+          needs, the program sends it to the serving runtime. An HTTP client can also call that runtime
+          directly. Let’s open the dark-mode ticket’s prompt.
+        hold: 0.6
+        visual_cues:
+          - id: intro-return
+            phrase: open the dark-mode ticket’s prompt
+            targets:
+              - ticket-r42
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+  - id: frontend-program
+    title: What goes into R42’s prompt?
+    visual: The pending ticket fills its named label slot with feature. The same value moves into the assembled
+      assistant text before the interpreter submits the bounded explanation.
+    beats:
+      - say: Here’s the prompt for the dark-mode ticket, R forty-two. The system instruction comes first, then the
+          user’s words, then the assistant’s label field. The program calls select with three choices. It can
+          return bug, feature, or question. It keeps the result under the name label. Reading that name while
+          the call is unfinished makes the program wait.
+        hold: 0.6
+        visual_cues:
+          - id: program-roles
+            phrase: the user’s words, then the assistant’s label field
+            targets:
+              - program-prompt
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: program-choices
+            phrase: The program calls select with three choices
+            targets:
+              - program-choice
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+      - say: The selection comes back as feature. Put that value after Label in the assistant’s text. Now the
+          interpreter can submit the explanation. It can generate up to sixty-four tokens and stops at a
+          newline if it reaches one first. If the label is missing or a role starts in the wrong place,
+          inspect the assembled prompt before tracing the GPU call.
+        hold: 0.8
+        visual_cues:
+          - id: program-feature
+            phrase: The selection comes back as feature
+            targets:
+              - program-choice
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: program-append
+            phrase: Put that value after Label in the assistant’s text
+            targets:
+              - program-prompt
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: program-submit
+            phrase: Now the interpreter can submit the explanation
+            targets:
+              - program-explanation
+            color: green
+            linger: 0.32
+            caption_boundary: true
+  - id: program-branches
+    title: Copy a shared prefix while preserving branch outputs
+    visual: Fork one retained prompt into two named candidates, then join their results. Compare one completed
+      program with its multiple model calls.
+    beats:
+      - say: Fork creates independent prompt-state branches from a common prefix; join brings their results back to
+          the program. The shared instructions can reuse model context, while each branch still owns its
+          generated values and stopping state. Independent branches may run together. A branch that needs a
+          previous answer must wait for it. Flattening both into one unresolved prompt changes that execution
+          problem.
+        hold: 0.65
+        visual_cues:
+          - id: sg-program-branches-beat-0
+            phrase: Fork creates independent prompt-state branches from a common prefix; join brings their results back to
+              the program
+            targets:
+              - program-branches-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-fork
+            phrase: Fork creates independent prompt-state branches
+            targets:
+              - program-branches-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-join
+            phrase: join brings their results back to the program
+            targets:
+              - program-branches-mechanism
+            color: cyan
+            linger: 0.55
+      - say: A plain HTTP request and an offline Engine call can enter the runtime without this frontend. The
+          same tokens sent to the same warm worker can get the same prefix hit through HTTP. The original
+          paper counts completed programs per second. A program that makes three model calls still counts
+          once. The paper measures the latency of a single program separately.
+        hold: 0.65
+        visual_cues:
+          - id: sg-program-branches-beat-1
+            phrase: A plain HTTP request and an offline Engine call can enter the runtime without this frontend
+            targets:
+              - program-branches-mechanism
+            color: yellow
+            linger: 0.55
+  - id: runtime-owners
+    title: Assign each handoff its actual state owner
+    visual: Carry the same request record through input preparation, scheduler, runner, grammar and detokenizer;
+      return generated IDs separately from output text.
+    beats:
+      - say: Inside the runtime, entrypoints parse the request. The tokenizer manager prepares model inputs and tracks
+          request and output state. In the usual multiprocess path, a separate detokenizer manager turns
+          generated IDs into text. The scheduler owns runnable work and cache locations; the model runner
+          builds the forward batch, selects a supported attention path and executes the loaded model.
+        hold: 0.65
+        visual_cues:
+          - id: sg-runtime-owners-beat-0
+            phrase: Inside the runtime, entrypoints parse the request
+            targets:
+              - runtime-owners-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-runtime-scheduler
+            phrase: The scheduler owns runnable work and cache locations
+            targets:
+              - runtime-owners-mechanism
+            color: cyan
+            linger: 0.55
+      - say: Grammar and sampling constrain or select the next token before output state advances. Process boundaries
+          vary with server mode and parallelism, so trace these responsibilities rather than memorizing one
+          process diagram. Preserve the same request identity across queues, model execution and delivery. A
+          valid generated ID and a delivered text chunk are different events.
+        hold: 0.65
+        visual_cues:
+          - id: sg-runtime-owners-beat-1
+            phrase: Grammar and sampling constrain or select the next token before output state advances
+            targets:
+              - runtime-owners-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-runtime-output
+            phrase: A valid generated ID and a delivered text chunk are different events
+            targets:
+              - runtime-owners-mechanism
+            color: yellow
+            linger: 0.55
+  - id: token-clocks
+    title: How long does the reader wait?
+    visual: Use supplied request arrival 0, first output 240 and later outputs 280/350 milliseconds. Split
+      waiting, forward and delivery inside the same TTFT.
+    beats:
+      - say: Start the clock when the request arrives. Its first output reaches the client at two hundred
+          forty milliseconds. That whole wait is time to first token. The next two arrivals are at two hundred
+          eighty and three hundred fifty. Measure from one arrival to the next. The gaps are forty and seventy
+          milliseconds. Those are the inter-token latencies the reader experiences.
+        hold: 0.65
+        visual_cues:
+          - id: sg-token-clocks-beat-0
+            phrase: Start the clock when the request arrives
+            targets:
+              - token-clocks-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-clock-first
+            phrase: Its first output reaches the client at two hundred forty milliseconds
+            targets:
+              - token-clocks-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-clock-gaps
+            phrase: The gaps are forty and seventy milliseconds
+            targets:
+              - token-clocks-mechanism
+            color: cyan
+            linger: 0.55
+      - say: Where did the first two hundred forty milliseconds go? Trace tokenization, queue wait, prefix
+          lookup, the first forward pass, sampling and delivery. If the GPU was idle, check when the request
+          entered its first batch. For a gap between later tokens, follow that step through scheduling,
+          collectives, grammar or draft work, and transport.
+        hold: 0.65
+        visual_cues:
+          - id: sg-token-clocks-beat-1
+            phrase: Where did the first two hundred forty milliseconds go
+            targets:
+              - token-clocks-mechanism
+            color: yellow
+            linger: 0.55
+  - id: mixed-budget
+    title: Spend one scheduler budget on decode and unmatched prompt work
+    visual: Keep R0/R1, four reused positions and nine unmatched prompt tokens. Spend one decode plus five prefill
+      at step 0, then one plus four and two decodes.
+    beats:
+      - say: This step has room for six fresh input positions. R zero needs one for decode. R one has four
+          cached prompt positions and nine still to process. After reserving one for decode, five of R one’s
+          prompt positions fit. The shared four already have their keys and values.
+        hold: 0.65
+        visual_cues:
+          - id: sg-mixed-budget-beat-0
+            phrase: This step has room for six fresh input positions
+            targets:
+              - mixed-budget-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-budget-five
+            phrase: five of R one’s prompt positions fit
+            targets:
+              - mixed-budget-mechanism
+            color: cyan
+            linger: 0.55
+      - say: The first step spends one plus five and leaves four prompt positions. The second spends one plus four and
+          finishes that prompt. Its final prefill can already select R one’s first output token. A later
+          decode consumes that selected output as an input and creates its own KV. A selected output and a
+          processed input position must stay distinct in the request history.
+        hold: 0.65
+        visual_cues:
+          - id: sg-mixed-budget-beat-1
+            phrase: The first step spends one plus five and leaves four prompt positions
+            targets:
+              - mixed-budget-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-budget-second
+            phrase: The second spends one plus four and finishes that prompt
+            targets:
+              - mixed-budget-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-budget-selected
+            phrase: Its final prefill can already select R one’s first output token
+            targets:
+              - mixed-budget-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-budget-next
+            phrase: A later decode consumes that selected output as an input and creates its own KV
+            targets:
+              - mixed-budget-mechanism
+            color: yellow
+            linger: 0.55
+      - say: Subtract the scheduled decode positions first. Use the remaining budget for as much of the
+          unmatched prompt as will fit. Each prompt position pays for one input to the model. A larger chunk
+          can get a new request to its first token sooner. A smaller chunk can give existing readers a shorter
+          wait for their next token.
+        hold: 0.65
+        visual_cues:
+          - id: sg-mixed-budget-beat-2
+            phrase: Subtract the scheduled decode positions first
+            targets:
+              - mixed-budget-mechanism
+            color: cyan
+            linger: 0.55
+  - id: page-admission
+    title: Check capacity and page alignment beyond the arithmetic budget
+    visual: Overlay the simplified 6-token accounting with separate page, KV and future-output reservation gates.
+      Keep current-prompt and future-output counts distinct.
+    beats:
+      - say: In the pinned revision, mixed chunking starts disabled. When enabled, PrefillAdder reserves the
+          decode positions in its input budget and, if present, its chunk budget. That leaves five places for
+          our prompt. Now check where their keys and values will go.
+        hold: 0.65
+        visual_cues:
+          - id: sg-page-admission-beat-0
+            phrase: In the pinned revision, mixed chunking starts disabled
+            targets:
+              - page-admission-mechanism
+            color: cyan
+            linger: 0.55
+      - say: One free page holds four positions. The fifth prompt position needs a second page, so this chunk
+          waits. In an idle queue, check the batch and allocator trace for free KV, page alignment, the
+          running-request limit and reservations for future output.
+        hold: 0.65
+        visual_cues:
+          - id: sg-page-admission-beat-1
+            phrase: One free page holds four positions
+            targets:
+              - page-admission-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-budget-memory
+            phrase: The fifth prompt position needs a second page
+            targets:
+              - page-admission-mechanism
+            color: yellow
+            linger: 0.55
+  - id: radix
+    title: A compressed tree shares exact leading token paths
+    visual: Executable radix insertion splits a cached sentence at its four-word common prefix. A different
+      sentence matches one leading word, and a different cache namespace matches none.
+    beats:
+      - say: >
+          Begin with the cached sentence, Birds sing near the lake at dawn. For this drawing, each word is one
+          constructed token. A new sentence begins, Birds sing near the old oak tree. Compare from the start.
+          Four tokens agree, so their existing key-value states can be reused under the same compatible cache
+          namespace.
+        hold: 0.6
+        visual_cues:
+          - id: radix-beat-1-focus-1
+            phrase: A new sentence begins, Birds sing near the old oak tree
+            targets:
+              - radix-query
+              - radix-common-edge
+              - radix-match-count
+            color: cyan
+            linger: 0.65
+          - id: sg-radix-match-four
+            phrase: Four tokens agree, so their existing key-value states can be reused under the same compatible cache namespace
+            targets:
+              - radix-match-count
+            color: cyan
+            linger: 0.45
+      - say: >
+          Insert the new sentence. A compressed edge splits after the common prefix, leaving two different
+          suffix branches. The tree stores paths and their associated cache locations. An attention kernel
+          later consumes those locations. The scheduler and tree decide which locations belong to this
+          request.
+        hold: 0.6
+        visual_cues:
+          - id: radix-beat-2-focus-1
+            phrase: The tree stores paths and their associated cache locations
+            targets:
+              - radix-common-edge
+              - radix-existing-suffix
+              - radix-new-suffix
+              - radix-match-count
+            color: cyan
+            linger: 0.65
+          - id: radix-beat-2-focus-2
+            phrase: A compressed edge splits after the common prefix, leaving two different suffix branches
+            targets:
+              - radix-common-edge
+              - radix-existing-suffix
+              - radix-new-suffix
+            color: yellow
+            linger: 0.65
+          - id: radix-insert-path
+            phrase: Insert the new sentence
+            targets:
+              - radix-query
+            color: pink
+            linger: 0.65
+      - say: >
+          Now ask about Birds fly over the lake. Only its first word follows the cached leading path. A
+          matching word later in the sentence cannot extend that prefix. Change the adapter or another
+          cache-key namespace, and this example reuses zero tokens. Real reuse also follows the selected
+          backend's page and alignment rules.
+        hold: 0.6
+        visual_cues:
+          - id: radix-beat-3-focus-1
+            phrase: Now ask about Birds fly over the lake
+            targets:
+              - radix-query
+              - radix-common-edge
+              - radix-match-count
+            color: cyan
+            linger: 0.65
+          - id: radix-beat-3-focus-2
+            phrase: Change the adapter or another cache-key namespace, and this example reuses zero tokens
+            targets:
+              - radix-cache-namespace
+              - radix-match-count
+            color: yellow
+            linger: 0.65
+          - id: sg-radix-match-one
+            phrase: Only its first word follows the cached leading path
+            targets:
+              - radix-match-count
+            color: cyan
+            linger: 0.45
+  - id: cache-namespaces
+    title: Which cache locations can this request use?
+    visual: Five aligned token-ID pairs share one full four-token page. Four KV addresses appear, then disappear
+      when only the requested adapter namespace changes.
+    beats:
+      - say: Read these two rows from the left. Each letter stands for one token ID. Compare A, B, C, D, and E. All
+          five match, and both rows belong to namespace A. In this example, the cache reuses whole pages of
+          four. The lookup returns locations twelve through fifteen. E starts the next page. The radix tree
+          supplies those addresses so the attention kernel can read the stored keys and values.
+        hold: 0.75
+        visual_cues:
+          - id: key-compare
+            phrase: Compare A, B, C, D, and E
+            targets:
+              - key-request
+              - key-stored
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: key-page
+            phrase: The lookup returns locations twelve through fifteen
+            targets:
+              - key-addresses
+            color: green
+            linger: 0.32
+            caption_boundary: true
+      - say: Keep every token and its position. Change just the request’s adapter from A to B. The stored page still
+          belongs to A. How many of those four locations can B use?
+        hold: 2.6
+        visual_cues:
+          - id: key-switch
+            phrase: Change just the request’s adapter from A to B
+            targets:
+              - key-request
+            color: yellow
+            linger: 0.32
+            caption_boundary: true
+          - id: key-question
+            phrase: How many of those four locations can B use
+            targets:
+              - key-addresses
+            color: yellow
+            linger: 0.32
+            caption_boundary: true
+      - say: B gets zero. Those keys and values came from a different adapter. In the pinned implementation the
+          request’s extra cache key can include its LoRA adapter identity. The article’s lookup helper returns
+          zero for different keys. Calling the pinned RadixKey match method on those different keys raises a
+          ValueError. Both rule out using A’s page. A cache salt can also separate namespaces. The service
+          must still authenticate the caller.
+        hold: 0.8
+        visual_cues:
+          - id: key-zero
+            phrase: B gets zero
+            targets:
+              - key-addresses
+            color: pink
+            linger: 0.32
+            caption_boundary: true
+          - id: key-class
+            phrase: Calling the pinned RadixKey match method on those different keys raises a ValueError
+            targets:
+              - key-request
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+  - id: context-position
+    title: A repeated suffix does not erase its earlier context
+    visual: Place two ticket token paths below a shared system/role prefix. Keep later Label/Explanation suffixes
+      separate. Compare output-only grammar with schema text in the input.
+    beats:
+      - say: "The two ticket requests share system instructions and the user-role opening, then their ticket tokens
+          diverge. Repeated Label and Explanation strings later in those prompts are not shared leading
+          context: their hidden states depend on the different earlier tickets. Inside one request, the
+          explanation can reuse its own already processed label context."
+        hold: 0.65
+        visual_cues:
+          - id: sg-context-position-beat-0
+            phrase: The two ticket requests share system instructions and the user-role opening, then their ticket tokens
+              diverge
+            targets:
+              - context-position-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-context-diverge
+            phrase: then their ticket tokens diverge
+            targets:
+              - context-position-mechanism
+            color: cyan
+            linger: 0.55
+      - say: An early template token, timestamp or random ID can shorten the longest hit. A model or adapter update
+          can invalidate stale KV even when visible text stays identical. An output-only grammar mask need not
+          change compatible prompt KV, but each request still needs its own grammar and sampling state. If the
+          schema is rendered into the prompt, it changes the token context instead.
+        hold: 0.65
+        visual_cues:
+          - id: sg-context-position-beat-1
+            phrase: An early template token, timestamp or random ID can shorten the longest hit
+            targets:
+              - context-position-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-context-early
+            phrase: An early template token, timestamp or random ID can shorten the longest hit
+            targets:
+              - context-position-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-context-schema
+            phrase: If the schema is rendered into the prompt
+            targets:
+              - context-position-mechanism
+            color: yellow
+            linger: 0.55
+  - id: locks
+    title: Shared paths remain protected until their last live user leaves
+    visual: Two live request identities hold the same four cache locations. Removing one identity preserves
+      protection; removing the last makes those locations eligible for eviction.
+    beats:
+      - say: >
+          Reuse creates a lifetime problem. Two requests can depend on the same cached prefix while generating
+          different suffixes. Our live owner set contains both request identities. Their shared path must stay
+          available until the model work that references it has finished.
+        hold: 0.6
+        visual_cues:
+          - id: locks-beat-1-focus-1
+            phrase: Two requests can depend on the same cached prefix while generating different suffixes
+            targets:
+              - locks-r0
+              - locks-r1
+              - locks-owner-set
+              - locks-s-locations-map-v-kv-v
+            color: cyan
+            linger: 0.65
+      - say: >
+          Request zero completes and releases its reference. One owner remains, so the shared locations stay
+          protected. Counting only the completed request would free data that request one still needs. The
+          lifetime belongs to all live users of the path.
+        hold: 0.6
+        visual_cues:
+          - id: locks-beat-2-focus-1
+            phrase: One owner remains, so the shared locations stay protected
+            targets:
+              - locks-r1
+              - locks-owner-set
+              - locks-s-locations-map-v-kv-v
+            color: cyan
+            linger: 0.65
+          - id: locks-release-r0
+            phrase: Request zero completes and releases its reference
+            targets:
+              - locks-r0
+              - locks-owner-set
+              - locks-s-locations-map-v-kv-v
+            color: blue
+            linger: 0.65
+          - id: locks-beat-2-focus-2
+            phrase: Counting only the completed request would free data that request one still needs
+            targets:
+              - locks-r1
+              - locks-eviction-state
+            color: yellow
+            linger: 0.65
+      - say: >
+          Release the second owner and the path becomes eligible for eviction. The cache manager can keep it
+          for the next request or reclaim its space. Route that next request to a different replica and it
+          will consult that replica’s own cache.
+        hold: 0.6
+        visual_cues:
+          - id: locks-beat-3-focus-1
+            phrase: The cache manager can keep it for the next request or reclaim its space
+            targets:
+              - locks-owner-set
+              - locks-eviction-state
+              - locks-s-locations-map-v-kv-v
+            color: cyan
+            linger: 0.65
+          - id: locks-release-r1
+            phrase: Release the second owner and the path becomes eligible for eviction
+            targets:
+              - locks-r1
+              - locks-owner-set
+              - locks-eviction-state
+            color: green
+            linger: 0.65
+  - id: cache-reclamation
+    title: Release a live KV owner after its last reader
+    visual: Retain the same physical locations and two owners. Add a pending GPU-reader event after application
+      cancellation; reclaim only after that event and the last release.
+    beats:
+      - say: Insert a newly computed suffix after the forward pass creates its KV. While a request uses a
+          match, the tree protects its path through the ancestors. If a client cancels during a forward pass,
+          the GPU can still be reading those locations. Keep the reference until that read finishes.
+        hold: 0.65
+        visual_cues:
+          - id: sg-cache-reclamation-beat-0
+            phrase: Insert a newly computed suffix
+            targets:
+              - cache-reclamation-mechanism
+            color: cyan
+            linger: 0.55
+      - say: R zero has finished. R one’s final reader is pending, so eviction stays blocked. After that
+          reader completes, R one releases its reference. The policy may then reclaim it. Release early and
+          another request could overwrite live data. Forget to release and the next request could wait for
+          space while the GPU sits idle.
+        hold: 0.65
+        visual_cues:
+          - id: sg-cache-reclamation-beat-1
+            phrase: R zero has finished
+            targets:
+              - cache-reclamation-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-reader-pending
+            phrase: R one’s final reader is pending
+            targets:
+              - cache-reclamation-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-reader-complete
+            phrase: After that reader completes
+            targets:
+              - cache-reclamation-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-owner-release
+            phrase: R one releases its reference
+            targets:
+              - cache-reclamation-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-reclaim
+            phrase: The policy may then reclaim it
+            targets:
+              - cache-reclamation-mechanism
+            color: yellow
+            linger: 0.55
+  - id: replica-locality
+    title: A healthy local cache can still miss after routing
+    visual: Use two replicas with distinct residency maps and an identical request. Move only its route; then show
+      longer-prefix-first work delaying an unrelated request.
+    beats:
+      - say: A radix cache is local to an engine or replica unless a higher-level layer coordinates placement and
+          state. Route the same compatible prompt to a different cold replica and its local lookup can miss.
+          Extra replicas can raise independent request capacity while changing warm-up and reuse. Cache-aware
+          routing trades locality against queueing and load balance.
+        hold: 0.65
+        visual_cues:
+          - id: sg-replica-locality-beat-0
+            phrase: A radix cache is local to an engine or replica unless a higher-level layer coordinates placement and
+              state
+            targets:
+              - replica-locality-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-route-cold
+            phrase: different cold replica and its local lookup can miss
+            targets:
+              - replica-locality-mechanism
+            color: cyan
+            linger: 0.55
+      - say: The paper’s cache-aware scheduler prefers longer matched prefixes over pure arrival order. A warm
+          request saves prefill, but unrelated requests can keep getting passed over. The paper’s offline
+          optimality result assumes, among other things, enough cache for the longest request. HiCache adds
+          host or storage tiers. A matching prefix can then save compute while costing time to bring its bytes
+          back.
+        hold: 0.65
+        visual_cues:
+          - id: sg-replica-locality-beat-1
+            phrase: The paper’s cache-aware scheduler prefers longer matched prefixes over pure arrival order
+            targets:
+              - replica-locality-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-tier
+            phrase: HiCache adds host or storage tiers
+            targets:
+              - replica-locality-mechanism
+            color: yellow
+            linger: 0.55
+  - id: overlap
+    title: Prepare the next batch while the current batch computes
+    visual: Two supplied schedules execute identical planning and GPU intervals. The overlapped version prepares
+      batch B during batch A's GPU work and removes one unit of device idle time.
+    beats:
+      - say: >
+          Prefix lookup is only one part of a scheduler's work. The runtime also chooses runnable requests,
+          prepares metadata, launches model execution and processes sampled results. In our supplied schedule,
+          planning and GPU work take different resources. A serial host loop leaves the GPU waiting between
+          batches.
+        hold: 0.6
+        visual_cues:
+          - id: overlap-beat-1-focus-1
+            phrase: In our supplied schedule, planning and GPU work take different resources
+            targets:
+              - overlap-id-host-label-host-planning-id-gpu-label-gpu-work
+              - overlap-batch-legend
+              - overlap-result
+            color: cyan
+            linger: 0.65
+          - id: overlap-beat-1-focus-2
+            phrase: A serial host loop leaves the GPU waiting between batches
+            targets:
+              - overlap-id-host-label-host-planning-id-gpu-label-gpu-work
+              - overlap-batch-legend
+              - overlap-result
+            color: yellow
+            linger: 0.65
+      - say: >
+          Prepare batch B while batch A is executing. Its GPU interval can begin as soon as A finishes because
+          the host already has B ready. The same GPU work now finishes at nine on the timeline. In the serial
+          schedule it finished at ten.
+        hold: 0.6
+        visual_cues:
+          - id: overlap-beat-2-focus-1
+            phrase: The same GPU work now finishes at nine on the timeline
+            targets:
+              - overlap-id-host-label-host-planning-id-gpu-label-gpu-work
+              - overlap-batch-legend
+              - overlap-result
+            color: cyan
+            linger: 0.65
+          - id: overlap-beat-2-focus-2
+            phrase: Prepare batch B while batch A is executing
+            targets:
+              - overlap-id-host-label-host-planning-id-gpu-label-gpu-work
+              - overlap-batch-legend
+              - overlap-result
+            color: yellow
+            linger: 0.65
+          - id: overlap-b-ready
+            phrase: Its GPU interval can begin as soon as A finishes
+            targets:
+              - overlap-id-host-label-host-planning-id-gpu-label-gpu-work
+              - overlap-batch-legend
+              - overlap-result
+            color: green
+            linger: 0.65
+      - say: >
+          Overlap still requires a valid batch. Token budgets, available cache slots, grammar state and
+          finished requests must agree at the handoff. Chunked prefill and mixed batches are policy choices.
+          Measure the configured path under realistic request lengths, and retain output correctness alongside
+          latency and completion rate.
+        hold: 0.6
+        visual_cues:
+          - id: overlap-beat-3-focus-1
+            phrase: and retain output correctness alongside latency and completion rate
+            targets:
+              - overlap-id-host-label-host-planning-id-gpu-label-gpu-work
+              - overlap-batch-legend
+              - overlap-result
+            color: cyan
+            linger: 0.65
+          - id: overlap-beat-3-focus-2
+            phrase: Chunked prefill and mixed batches are policy choices
+            targets:
+              - overlap-id-host-label-host-planning-id-gpu-label-gpu-work
+              - overlap-batch-legend
+              - overlap-result
+            color: yellow
+            linger: 0.65
+  - id: metadata-ready
+    title: A prepared batch must carry current request state
+    visual: Attach batchB token IDs, KV locations and grammar revision to its host planning interval; compare a
+      ready record with a late incompatible revision at GPU launch.
+    beats:
+      - say: Keep the prepared batch B record attached to the host lane from the overlap example. Its request IDs,
+          input positions, KV locations and grammar progress must describe the same step when the runner
+          consumes it. Overlapping work hides host time only when these dependencies are ready. A queued
+          record that points to recycled locations is not a valid faster schedule.
+        hold: 0.65
+        visual_cues:
+          - id: sg-metadata-ready-beat-0
+            phrase: Keep the prepared batch B record attached to the host lane from the overlap example
+            targets:
+              - metadata-ready-mechanism
+            color: cyan
+            linger: 0.55
+      - say: If a grammar update or KV mapping arrives late, identify the first consumer and its readiness event.
+          Extra queues and synchronization are part of the implementation cost. Preserve output correctness
+          and actual completion time while changing overlap, rather than interpreting a smaller host interval
+          as automatic service speedup.
+        hold: 0.65
+        visual_cues:
+          - id: sg-metadata-ready-beat-1
+            phrase: If a grammar update or KV mapping arrives late, identify the first consumer and its readiness event
+            targets:
+              - metadata-ready-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-metadata-late
+            phrase: If a grammar update or KV mapping arrives late
+            targets:
+              - metadata-ready-mechanism
+            color: yellow
+            linger: 0.55
+  - id: grammar
+    title: Grammar state changes the allowed next-token set
+    visual: A constructed category vocabulary masks an invalid numeric candidate and renormalizes allowed
+      probabilities. The chosen category then advances to a closing-brace state, while semantic correctness
+      remains a separate predicate.
+    beats:
+      - say: >
+          A category endpoint needs an answer its client can parse. A structured-output grammar tracks what
+          can legally follow the prefix already emitted. Our small vocabulary includes three valid category
+          words and an invalid numeric candidate. At this position, the grammar removes the invalid candidate
+          from the sampling distribution.
+        hold: 0.6
+        visual_cues:
+          - id: grammar-beat-1-focus-1
+            phrase: A structured-output grammar tracks what can legally follow the prefix already emitted
+            targets:
+              - grammar-request-state
+              - grammar-candidate
+              - grammar-raw
+            color: cyan
+            linger: 0.65
+          - id: grammar-mask-number
+            phrase: grammar removes the invalid candidate from the sampling distribution
+            targets:
+              - grammar-invalid-number
+              - grammar-allowed
+              - grammar-masked
+              - grammar-normalizer
+            color: pink
+            linger: 0.65
+      - say: >
+          Renormalize the remaining probabilities and select a category. The request's grammar state advances.
+          At the next position in this deliberately simplified vocabulary, only the closing brace is allowed.
+          Each request owns its own progress through the grammar even when several requests share model
+          context.
+        hold: 0.6
+        visual_cues:
+          - id: grammar-beat-2-focus-1
+            phrase: Renormalize the remaining probabilities
+            targets:
+              - grammar-masked
+              - grammar-normalizer
+              - grammar-normalized
+              - grammar-normalization-step
+            color: cyan
+            linger: 0.65
+          - id: grammar-select-category
+            phrase: select a category
+            targets:
+              - grammar-selected-category
+              - grammar-request-state
+            color: green
+            linger: 0.65
+          - id: grammar-close-object
+            phrase: only the closing brace is allowed
+            targets:
+              - grammar-closing-brace
+              - grammar-request-state
+              - grammar-normalization-step
+            color: yellow
+            linger: 0.65
+      - say: >
+          Our output is valid JSON, but the ticket asks for dark mode and the chosen label says bug. Syntax
+          validation succeeded while task accuracy failed. Evaluate both properties. Real tokenization and
+          grammar engines handle subword boundaries and longer structures; our whole-word vocabulary makes the
+          masking operation visible.
+        hold: 0.6
+        visual_cues:
+          - id: grammar-beat-3-focus-1
+            phrase: our whole-word vocabulary makes the masking operation visible
+            targets:
+              - grammar-candidate
+              - grammar-normalized
+            color: cyan
+            linger: 0.65
+          - id: grammar-syntax-and-accuracy
+            phrase: Syntax validation succeeded while task accuracy failed
+            targets:
+              - grammar-ticket
+              - grammar-selected-category
+              - grammar-task-verdict
+            color: pink
+            linger: 0.65
+  - id: constraint-contract
+    title: How does the server choose a legal label?
+    visual: Compare the server and frontend constraint options. Keep the model weights visible as the number
+      loses its bar and the label probabilities grow. Stop a separate JSON reply at the colon.
+    beats:
+      - say: For this ticket, send the server a JSON schema that lists the allowed labels. A server request
+          can use one constraint at a time. The other choices are a regular expression or grammar rules
+          written in EBNF. The pinned Python gen call accepts a schema or a regular expression. For EBNF, use
+          the server with XGrammar or llguidance. XGrammar is the documented default. Outlines supports
+          schemas and regular expressions.
+        hold: 0.65
+        visual_cues:
+          - id: sg-constraint-contract-beat-0
+            phrase: send the server a JSON schema
+            targets:
+              - constraint-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: constraint-server-options
+            phrase: The other choices are a regular expression or grammar rules written in EBNF
+            targets: [constraint-contract-mechanism]
+            color: cyan
+          - id: constraint-frontend
+            phrase: The pinned Python gen call
+            targets: [constraint-contract-mechanism]
+            color: cyan
+          - id: constraint-backends
+            phrase: use the server with XGrammar or llguidance
+            targets: [constraint-contract-mechanism]
+            color: yellow
+      - say: Look at the model’s four candidates. The number forty-two has five percent of the probability.
+          The grammar rules it out. The three labels keep a total weight of point nine five. Divide each
+          remaining weight by that total. Bug now gets about forty-seven percent. The grammar checks each
+          candidate token against the current state. If it rules out every token, sampling stops. Return
+          an error or mark the result incomplete.
+        hold: 0.65
+        caption_starts:
+          - The grammar rules it out
+          - The three labels keep
+          - Divide each remaining weight
+          - Bug now gets
+          - If it rules out every token
+        visual_cues:
+          - id: sg-constraint-contract-beat-1
+            phrase: Look at the model’s four candidates
+            targets:
+              - constraint-contract-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-constraint-mask
+            phrase: The grammar rules it out
+            targets:
+              - constraint-contract-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-constraint-mass
+            phrase: The three labels keep a total weight of point nine five
+            targets:
+              - constraint-contract-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-constraint-normalize
+            phrase: Divide each remaining weight by that total
+            targets:
+              - constraint-contract-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-constraint-empty
+            phrase: If it rules out every token
+            targets:
+              - constraint-contract-mechanism
+            color: yellow
+            linger: 0.55
+      - say: Watch the reply reach the colon. The token limit stops it there. We still need the label and the
+          closing brace. A cancellation or a broken connection can cut the reply short too. Check how
+          generation ended. If you retry with a looser grammar, validate the finished object against the
+          original schema. Then check the label against the ticket.
+        hold: 0.65
+        caption_starts:
+          - The token limit stops it there
+        visual_cues:
+          - id: sg-constraint-contract-beat-2
+            phrase: Watch the reply reach the colon
+            targets:
+              - constraint-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: constraint-limit
+            phrase: The token limit stops it there
+            targets:
+              - constraint-contract-mechanism
+            color: pink
+            linger: 0.55
+  - id: compressed-grammar
+    title: Compress forced syntax without confusing strings and model tokens
+    visual: Build a singular character-transition chain for a fixed JSON prefix, compress it, then show tokenizer
+      boundaries and unchanged variable-value branches.
+    beats:
+      - say: The original paper describes a compressed character or string finite-state machine. Consecutive
+          transitions with a single allowed continuation can become one forced string path, reducing model
+          steps for constant syntax. A variable value still presents a choice. This historical mechanism
+          explains why grammar structure can expose work beyond independently masking one token.
+        hold: 0.65
+        visual_cues:
+          - id: sg-compressed-grammar-beat-0
+            phrase: The original paper describes a compressed character or string finite-state machine
+            targets:
+              - compressed-grammar-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-compress
+            phrase: Consecutive transitions with a single allowed continuation can become one forced string path
+            targets:
+              - compressed-grammar-mechanism
+            color: cyan
+            linger: 0.55
+      - say: Strings and model tokens do not have identical boundaries. The paper retokenizes prior text together with
+          the forced string to preserve its tokenizer interpretation. It also discusses probability distortion
+          around compressed choices; do not assume every grammar implementation preserves an unconstrained
+          sampling distribution. Measure preparation, per-step mask work and complete latency on the actual
+          backend.
+        hold: 0.65
+        visual_cues:
+          - id: sg-compressed-grammar-beat-1
+            phrase: Strings and model tokens do not have identical boundaries
+            targets:
+              - compressed-grammar-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-retokenize
+            phrase: retokenizes prior text together with the forced string
+            targets:
+              - compressed-grammar-mechanism
+            color: yellow
+            linger: 0.55
+  - id: speculate
+    title: What belongs in position six?
+    visual: Align draft, target, committed text and ready KV by token position. Keep the sixth KV socket empty
+      after lake enters the output. Fill it only when a later forward processes lake.
+    beats:
+      - say: A cheaper draft proposes eight words. The birds sing near the sea at dawn. Count each word as one token
+          here. The target model can score the proposed positions together in one forward pass. We’ll read its
+          greedy choices from the left. An empty output slot means the word is still a proposal.
+        hold: 0.7
+        visual_cues:
+          - id: draft-words
+            phrase: The birds sing near the sea at dawn
+            targets:
+              - draft-rail
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+      - say: Read down each column. Both rows begin with “The birds sing.” Look one column farther for “near,” then
+          “the.” Now look at position six. The draft there says sea. The target chooses lake. Which word goes
+          in output slot six? Is its key-value entry ready?
+        hold: 2.6
+        visual_cues:
+          - id: speculate-agreed-prefix
+            phrase: Both rows begin with “The birds sing.” Look one column farther for “near,” then “the.”
+            targets:
+              - target-rail
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: speculate-beat-2-focus-1
+            phrase: The target chooses lake
+            targets:
+              - target-rail
+            color: yellow
+            linger: 0.32
+            caption_boundary: true
+          - id: draft-ask
+            phrase: Which word goes in output slot six? Is its key-value entry ready
+            targets:
+              - output-rail
+              - kv-rail
+            color: yellow
+            linger: 0.32
+            caption_boundary: true
+      - say: Put lake in output slot six. Its cache entry is still missing. Write the five matching words followed
+          by lake. Verification processed the five matching inputs, so their keys and values are ready. At
+          position six the input to verification was sea. Discard sea, at, and dawn. Keeping sea’s keys and
+          values would give the next step a different history from the one we’re sending to the reader.
+        hold: 1.15
+        visual_cues:
+          - id: speculate-commit-prefix
+            phrase: Write the five matching words followed by lake
+            targets:
+              - output-rail
+              - kv-rail
+            color: green
+            linger: 0.32
+            caption_boundary: true
+          - id: speculate-beat-3-focus-1
+            phrase: Discard sea, at, and dawn
+            targets:
+              - draft-rail
+            color: pink
+            linger: 0.32
+            caption_boundary: true
+      - say: Follow just those six committed words through one more step. Feed lake back into the target. When that
+          forward finishes, lake has its own keys and values. Greedy matching gave us the prefix in this
+          example. A stochastic decoder applies its probability-based acceptance and correction rules, and a
+          tree draft has branches to choose between.
+        hold: 0.75
+        visual_cues:
+          - id: replacement-feed
+            phrase: Feed lake back into the target
+            targets:
+              - output-rail
+              - kv-rail
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: replacement-forward
+            phrase: When that forward finishes, lake has its own keys and values
+            targets:
+              - kv-rail
+            color: green
+            linger: 0.32
+            caption_boundary: true
+  - id: speculative-economics
+    title: Count saved target steps against the whole draft cycle
+    visual: Retain the accepted-prefix convention and add supplied target 4 ms, draft 3 ms, verify 9 ms and commit
+      1 ms. Change accepted length while keeping the cost cycle fixed.
+    beats:
+      - say: Draft candidates can come from a smaller model, target-model features, trained multi-token heads or an
+          n-gram lookup. Greedy verification compares target choices; stochastic verification instead needs
+          its specified probability acceptance and correction rule. Tree candidates add branch selection.
+          Accepted token order, positions, grammar state and KV ownership must advance together.
+        hold: 0.65
+        visual_cues:
+          - id: sg-speculative-economics-beat-0
+            phrase: Draft candidates can come from a smaller model, target-model features, trained multi-token heads or an
+              n-gram lookup
+            targets:
+              - speculative-economics-mechanism
+            color: cyan
+            linger: 0.55
+      - say: Suppose one ordinary target step takes four milliseconds. A draft cycle takes three to draft,
+          nine to verify and one to commit. Five accepted drafts plus one target replacement advance six
+          tokens for thirteen milliseconds, compared with twenty-four ordinary milliseconds. With no accepted
+          draft, the same cycle advances one replacement for thirteen instead of four.
+        hold: 0.65
+        visual_cues:
+          - id: sg-speculative-economics-beat-1
+            phrase: A draft cycle takes three to draft, nine to verify and one to commit
+            targets:
+              - speculative-economics-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-spec-cost
+            phrase: Five accepted drafts plus one target replacement advance six tokens
+            targets:
+              - speculative-economics-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-spec-zero
+            phrase: With no accepted draft, the same cycle advances one replacement for thirteen instead of four
+            targets:
+              - speculative-economics-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-spec-thirteen
+            phrase: for thirteen milliseconds
+            targets:
+              - speculative-economics-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-spec-twentyfour
+            phrase: twenty-four ordinary milliseconds
+            targets:
+              - speculative-economics-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-spec-zero-input
+            phrase: With no accepted draft
+            targets:
+              - speculative-economics-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Short outputs, efficient high-concurrency target batches, extra draft KV and grammar work can
+          erase a benefit. Track how many tokens advance, what the draft and verification cost, how much
+          memory they use and how long the reader waits. When the target chooses a replacement, its next
+          forward still has to compute that token’s KV.
+        hold: 0.65
+        visual_cues:
+          - id: sg-speculative-economics-beat-2
+            phrase: Short outputs, efficient high-concurrency target batches, extra draft KV and grammar work can erase a
+              benefit
+            targets:
+              - speculative-economics-mechanism
+            color: cyan
+            linger: 0.55
+  - id: method-registry
+    title: Use the installed algorithm and its own compatibility rules
+    visual: Compare immutable built-in registry entries with dated live-guide cards; show two incompatible overlap
+      flag policies and an unsupported grammar request for UNO.
+    beats:
+      - say: Look at the installed worker’s list of draft methods. This revision includes EAGLE, EAGLE three,
+          standalone, n-gram and the DFlash family. Plugins can add methods. UNO appears in the later guide
+          and is absent from this built-in list. It drafts with a trained LoRA adapter and verifies with the
+          base weights of the same transformer.
+        hold: 0.65
+        visual_cues:
+          - id: sg-method-registry-beat-0
+            phrase: Look at the installed worker’s list of draft methods
+            targets:
+              - method-registry-mechanism
+            color: cyan
+            linger: 0.55
+      - say: The UNO guide checked for this lesson requires CUDA and FA three, with tensor and pipeline sizes
+          of one. That mode excludes grammar decoding. N-gram speculation disables overlap scheduling and
+          mixed chunked prefill. The EAGLE or standalone V two overlap path requires branching top-k one. A
+          larger explicit value raises an error, and automatic tuning can choose an incompatible width.
+        hold: 0.65
+        visual_cues:
+          - id: sg-method-registry-beat-1
+            phrase: The UNO guide checked for this lesson requires CUDA and FA three
+            targets:
+              - method-registry-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-method-ngram
+            phrase: N-gram speculation disables overlap scheduling and mixed chunked prefill
+            targets:
+              - method-registry-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-method-eagle
+            phrase: requires branching top-k one
+            targets:
+              - method-registry-mechanism
+            color: yellow
+            linger: 0.55
+      - say: The guide’s MT-bench table ran Llama three point one eight-B on an H one hundred. For your ticket
+          service, replay the same requests with speculation off and on. Keep the model, backend, precision,
+          concurrency, warmup, schema and scoring fixed. Record which draft method the worker used.
+        hold: 0.65
+        visual_cues:
+          - id: sg-method-registry-beat-2
+            phrase: replay the same requests with speculation off and on
+            targets:
+              - method-registry-mechanism
+            color: cyan
+            linger: 0.55
+  - id: parallel-axes
+    title: Choose the communication pattern for the split
+    visual: Carry one projection across TP shards, layers across PP stages, independent requests across DP
+      replicas and tokens across EP experts. Keep DP-attention distinct from full replicas.
+    beats:
+      - say: Tensor parallelism splits model dimensions and adds per-layer collectives. Pipeline parallelism splits
+          layer ranges and adds stage synchronization and fill/drain bubbles. Data parallelism assigns
+          independent requests to replicated models or request groups, affecting memory and cache locality.
+          Expert parallelism routes token work among experts and can add all-to-all communication and
+          imbalance.
+        hold: 0.65
+        visual_cues:
+          - id: sg-parallel-axes-beat-0
+            phrase: Tensor parallelism splits model dimensions and adds per-layer collectives
+            targets:
+              - parallel-axes-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-parallel-pipeline
+            phrase: Pipeline parallelism splits layer ranges
+            targets:
+              - parallel-axes-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-parallel-data
+            phrase: Data parallelism assigns independent requests
+            targets:
+              - parallel-axes-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-parallel-expert
+            phrase: Expert parallelism routes token work
+            targets:
+              - parallel-axes-mechanism
+            color: cyan
+            linger: 0.55
+      - say: Context or sequence paths split positions or attention work under layout constraints. SGLang’s
+          data-parallel attention can assign different request groups to attention replicas while other model
+          parts remain sharded; that is not identical to independent full-model replicas. Match backend,
+          quantization, model-specific layers and topology. A parallel setting that fits weights can still
+          make ITL worse if its communication dominates.
+        hold: 0.65
+        visual_cues:
+          - id: sg-parallel-axes-beat-1
+            phrase: Context or sequence paths split positions or attention work under layout constraints
+            targets:
+              - parallel-axes-mechanism
+            color: yellow
+            linger: 0.55
+  - id: disaggregate
+    title: Reserved destination memory still needs the actual cache data
+    visual: A computed key-value payload crosses a supplied link after prefill. Destination reservation exists
+      before transfer completion; the decode gate opens only when the entire current payload is ready.
+    beats:
+      - say: >
+          Separate prefill and decode workers introduce another ownership transfer. The prefill worker creates
+          the prompt's key-value state, and the decode worker must receive a compatible representation. Our
+          displayed dimensions calculate a half-gibibyte payload. The two factor accounts for both keys and
+          values.
+        hold: 0.6
+        visual_cues:
+          - id: disaggregate-beat-1-focus-1
+            phrase: Separate prefill and decode workers introduce another ownership transfer
+            targets:
+              - disaggregate-prefill-worker
+              - disaggregate-reservation
+              - disaggregate-decode-gate
+            color: cyan
+            linger: 0.65
+          - id: disaggregate-beat-1-focus-2
+            phrase: Our displayed dimensions calculate a half-gibibyte payload
+            targets:
+              - disaggregate-payload
+              - disaggregate-bandwidth
+            color: yellow
+            linger: 0.65
+          - id: disaggregate-create-kv
+            phrase: prefill worker creates the prompt's key-value state
+            targets:
+              - disaggregate-prefill-worker
+              - disaggregate-prefill-state
+            color: blue
+            linger: 0.65
+      - say: >
+          Reserve destination capacity early, then follow the transfer after prefill finishes. Reserved memory
+          describes available space. Ready memory contains the data that decoding can consume. On the supplied
+          link, payload divided by bandwidth gives the transfer-time lower bound shown on screen, before
+          protocol and contention costs.
+        hold: 0.6
+        visual_cues:
+          - id: disaggregate-beat-2-focus-1
+            phrase: payload divided by bandwidth gives the transfer-time lower bound shown on screen
+            targets:
+              - disaggregate-payload
+              - disaggregate-bandwidth
+              - disaggregate-byte-count
+              - disaggregate-transfer
+            color: cyan
+            linger: 0.65
+          - id: disaggregate-beat-2-focus-2
+            phrase: Reserve destination capacity early, then follow the transfer after prefill finishes
+            targets:
+              - disaggregate-reservation
+              - disaggregate-transfer
+              - disaggregate-ready-state
+            color: yellow
+            linger: 0.65
+      - say: >
+          The decode gate opens when the current transfer reaches completion. Production deployment must also
+          match model identity, layout, dtype and transport behavior, and handle failed handoffs. Track
+          prefill completion, reservation, transfer readiness and active decode separately to explain where a
+          request is waiting.
+        hold: 0.6
+        visual_cues:
+          - id: disaggregate-beat-3-focus-1
+            phrase: Track prefill completion, reservation, transfer readiness and active decode separately to explain
+              where a request is waiting
+            targets:
+              - disaggregate-prefill-state
+              - disaggregate-reservation
+              - disaggregate-ready-state
+              - disaggregate-decode-gate
+            color: cyan
+            linger: 0.65
+          - id: disaggregate-open-decode-gate
+            phrase: The decode gate opens when the current transfer reaches completion
+            targets:
+              - disaggregate-ready-state
+              - disaggregate-decode-gate
+              - disaggregate-byte-count
+            color: green
+            linger: 0.65
+  - id: payload-build
+    title: Build the transferred KV bytes from one actual tensor slice
+    visual: Construct K and V for one head/layer with 4096×128×2 bytes, then multiply 8 heads and 32 layers.
+      Compare payload time with a 10 ms allowance.
+    beats:
+      - say: "Build the article’s hypothetical full-attention payload from its tensors. One key tensor for one layer
+          and one head has four thousand ninety-six positions, one hundred twenty-eight scalars per position
+          and two bytes per scalar: one mebibyte. A matching value tensor makes two. Eight KV heads make
+          sixteen mebibytes per layer; thirty-two layers make five hundred twelve mebibytes."
+        hold: 0.65
+        visual_cues:
+          - id: sg-payload-build-beat-0
+            phrase: Build the article’s hypothetical full-attention payload from its tensors
+            targets:
+              - payload-build-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-payload-value
+            phrase: A matching value tensor makes two
+            targets:
+              - payload-build-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-payload-heads
+            phrase: Eight KV heads make sixteen mebibytes per layer
+            targets:
+              - payload-build-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-payload-layers
+            phrase: thirty-two layers make five hundred twelve mebibytes
+            targets:
+              - payload-build-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-payload-one
+            phrase: one mebibyte
+            targets:
+              - payload-build-mechanism
+            color: yellow
+            linger: 0.55
+      - say: Start with two tensors per head, one for keys and one for values. Multiply by the number of
+          layers, KV heads, positions, dimensions per head and bytes per scalar.
+          This example sends all five hundred twelve mebibytes from one worker, uncompressed and without
+          prefix reuse. If the link carries payload at twenty-five decimal gigabytes per second, the bytes
+          alone take about twenty-one point four seven milliseconds.
+        hold: 0.65
+        visual_cues:
+          - id: sg-payload-build-beat-1
+            phrase: Start with two tensors per head
+            targets:
+              - payload-build-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-payload-time
+            phrase: about twenty-one point four seven milliseconds
+            targets:
+              - payload-build-mechanism
+            color: yellow
+            linger: 0.55
+      - say: The handoff has ten milliseconds. The bytes alone take more than twice that long. A smaller
+          payload could leave time for setup, queues and synchronization. To size that payload, use the rate
+          the link delivers while the other transfers are running.
+        hold: 0.65
+        visual_cues:
+          - id: sg-payload-build-beat-2
+            phrase: The handoff has ten milliseconds
+            targets:
+              - payload-build-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-payload-fail
+            phrase: The bytes alone take more than twice that long
+            targets:
+              - payload-build-mechanism
+            color: cyan
+            linger: 0.55
+  - id: reservation-policy
+    title: Keep reserved, received and active decode bytes separate
+    visual: Reserve 10×512 MiB destination space before its bytes arrive. Compare early and prefill-complete
+      policies while retaining source KV longer and showing the lost transfer overlap.
+    beats:
+      - say: A decode pool can be capacity-constrained while waiting for data. Ten pending prefills each
+          reserve five hundred twelve mebibytes here, totaling five gibibytes of destination capacity. Those
+          slots can all be reserved while zero bytes have arrived. Track the space set aside, the bytes
+          received and the requests actively decoding.
+        hold: 0.65
+        visual_cues:
+          - id: sg-reservation-policy-beat-0
+            phrase: A decode pool can be capacity-constrained while waiting for data
+            targets:
+              - reservation-policy-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-reservation-five
+            phrase: totaling five gibibytes of destination capacity
+            targets:
+              - reservation-policy-mechanism
+            color: cyan
+            linger: 0.55
+      - say: The documented early policy reserves destination KV before prefill finishes. The prefill-complete
+          alternative waits for the final prefill result, then reserves and starts the transfer handshake. It
+          can leave more destination space available early, while retaining source KV longer and removing
+          chunked-prefill/transfer overlap. The initial guide limits this mode to Mooncake, a Python bootstrap
+          registry and specified attention and pipeline sizes of one.
+        hold: 0.65
+        visual_cues:
+          - id: sg-reservation-policy-beat-1
+            phrase: The documented early policy reserves destination KV before prefill finishes
+            targets:
+              - reservation-policy-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-reservation-deferred
+            phrase: The prefill-complete alternative waits for the final prefill result
+            targets:
+              - reservation-policy-mechanism
+            color: yellow
+            linger: 0.55
+      - say: Workers must agree on policy, revision and layout. Both policies use the global KV pool. What
+          changes is when each request claims its slots. Compare reserved capacity, both queues and the time
+          decode waits for transfer under each policy.
+        hold: 0.65
+        visual_cues:
+          - id: sg-reservation-policy-beat-2
+            phrase: Workers must agree on policy, revision and layout
+            targets:
+              - reservation-policy-mechanism
+            color: cyan
+            linger: 0.55
+  - id: transfer-failure
+    title: Can the decode worker read this buffer?
+    visual: Fill the last of four destination segments, try an old ready event, then the current event. Replay
+      the full handoff with only the received layout changed.
+    beats:
+      - say: The prefill worker computed the prompt’s keys and values. Across the link, the decode worker has
+          reserved five hundred twelve mebibytes for them. Each of these four spaces holds one hundred
+          twenty-eight. Three spaces have received their data. How much still has to arrive?
+        hold: 2.3
+        visual_cues:
+          - id: transfer-segments
+            phrase: Three spaces have received their data
+            targets:
+              - transfer-buffer
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+      - say: One hundred twenty-eight mebibytes are missing. Let the last block arrive. All the bytes are here. The
+          worker is waiting on attempt eight, and now it gets a ready event for attempt seven. That signal
+          belongs to an earlier transfer. Even with a full buffer, the reader still has to wait for its own
+          event.
+        hold: 1.3
+        visual_cues:
+          - id: transfer-short
+            phrase: One hundred twenty-eight mebibytes are missing
+            targets:
+              - transfer-buffer
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: transfer-last-block
+            phrase: Let the last block arrive
+            targets:
+              - transfer-buffer
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: transfer-old
+            phrase: a ready event for attempt seven
+            targets:
+              - transfer-event
+            color: yellow
+            linger: 0.32
+            caption_boundary: true
+      - say: Now the reader gets the ready event for attempt eight. Its model revision, layout, data type and
+          positions all match. It can read the buffer. Replay that instant with one change. This time the
+          sender used layout L one. The receiver still expects L two. The full byte count and the current
+          event are the same. Can this reader start?
+        hold: 2.6
+        visual_cues:
+          - id: transfer-current
+            phrase: Now the reader gets the ready event for attempt eight
+            targets:
+              - transfer-event
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: transfer-read
+            phrase: It can read the buffer
+            targets:
+              - transfer-consumer
+            color: green
+            linger: 0.32
+            caption_boundary: true
+          - id: transfer-layout
+            phrase: This time the sender used layout L one
+            targets:
+              - transfer-format
+            color: yellow
+            linger: 0.32
+            caption_boundary: true
+      - say: Hold decode. This reader would interpret the bytes in the wrong layout. Retry with a compatible layout,
+          or cancel the handoff. Keep the attempt identity with its buffers until outstanding readers finish
+          and cleanup can release them. Even after the transport reports success, check that the decode stream
+          can read those buffers.
+        hold: 0.8
+        visual_cues:
+          - id: transfer-hold
+            phrase: Hold decode
+            targets:
+              - transfer-consumer
+            color: pink
+            linger: 0.32
+            caption_boundary: true
+  - id: service-replay
+    title: What did the CPU checks establish?
+    visual: Run the article lookup helper twice on the same five IDs with four-token pages. Change only the
+      requested namespace. Take the resulting expectation into a controlled serving replay.
+    beats:
+      - say: Here are five token IDs and the little Python lookup from the article. The first call uses namespace A
+          on both sides. It returns four. In the second call, change just the requested namespace to B. It
+          returns zero. These calls run on a CPU. They check what the helper predicts about a full page and a
+          changed key. The pinned RadixKey class handles the same mismatch differently. Its direct match
+          rejects incompatible keys with a ValueError.
+        hold: 0.75
+        visual_cues:
+          - id: replay-base
+            phrase: The first call uses namespace A on both sides
+            targets:
+              - replay-same
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: replay-four
+            phrase: It returns four
+            targets:
+              - replay-result-a
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: replay-key
+            phrase: change just the requested namespace to B
+            targets:
+              - replay-other
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: replay-zero
+            phrase: It returns zero
+            targets:
+              - replay-result-b
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+      - say: The article also runs a small ownership check. Eviction is blocked while the second request still owns
+          the segment. A separate transfer calculation gives a payload-only bound of about twenty-one and a
+          half milliseconds. None of these scripts load model weights. To see whether the running service
+          saves prefill, start with a supported model and backend. Check the program’s named outputs. Send the
+          same prompt twice to one warm worker, then change one early token. Compare both matched positions
+          and fresh prefill positions in the batch trace. A mock backend can check the call order. The worker
+          trace tells you which computation the server actually skipped.
+        hold: 0.8
+        visual_cues:
+          - id: replay-evidence
+            phrase: eviction is blocked while the second request still owns the segment
+            targets:
+              - replay-owner
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: replay-bound
+            phrase: a payload-only bound of about twenty-one and a half milliseconds
+            targets:
+              - replay-bound
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: replay-live
+            phrase: Send the same prompt twice to one warm worker
+            targets:
+              - replay-next
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: replay-observe
+            phrase: Compare both matched positions and fresh prefill positions in the batch trace
+            targets:
+              - replay-observe
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+  - id: serving-receipt
+    title: Bind workload, cache state and timing to the same comparison
+    visual: Create one release receipt and replay the same request identities under cold/warm cache and one
+      changed mechanism. Keep a required grammar fixed.
+    beats:
+      - say: Record accelerator model, count and topology; SGLang, model and tokenizer revisions; prompt/output length
+          distribution; concurrency or arrival process; and warmup plus steady-state duration. Include
+          precision, quantization, attention backend, flags, cache state, baseline and correctness checks. A
+          frontend program benchmark and a plain-API serving benchmark need their own workload definitions.
+        hold: 0.65
+        visual_cues:
+          - id: sg-serving-receipt-beat-0
+            phrase: Record accelerator model, count and topology; SGLang, model and tokenizer revisions; prompt/output
+              length distribution; concurrency or arrival process; and warmup plus steady-state duration
+            targets:
+              - serving-receipt-mechanism
+            color: cyan
+            linger: 0.55
+      - say: Measure tokenization, queue wait, matched tokens, KV allocations, batch positions, chunk sizes, forward
+          time, collectives, grammar masks, draft acceptance and delivery. Separate cold and warm trials.
+          Disable one mechanism in an isolated replay, preserving the service’s required schema and quality
+          contract. A grammar-off run can diagnose overhead while failing to represent the constrained
+          product.
+        hold: 0.65
+        visual_cues:
+          - id: sg-serving-receipt-beat-1
+            phrase: Measure tokenization, queue wait, matched tokens, KV allocations, batch positions, chunk sizes,
+              forward time, collectives, grammar masks, draft acceptance and delivery
+            targets:
+              - serving-receipt-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-receipt-replay
+            phrase: Disable one mechanism in an isolated replay
+            targets:
+              - serving-receipt-mechanism
+            color: yellow
+            linger: 0.55
+      - say: Nsight Systems can expose host gaps, queues, transfers and GPU launches. Nsight Compute explains
+          selected kernel behavior such as occupancy and memory traffic. Replay the same requests so you can
+          locate the gap that moved. Record median and ninety-ninth-percentile latency, memory pressure,
+          warmup or compile time, and errors alongside throughput.
+        hold: 0.65
+        visual_cues:
+          - id: sg-serving-receipt-beat-2
+            phrase: Nsight Systems can expose host gaps, queues, transfers and GPU launches
+            targets:
+              - serving-receipt-mechanism
+            color: cyan
+            linger: 0.55
+          - id: sg-receipt-compute
+            phrase: Nsight Compute explains selected kernel behavior
+            targets:
+              - serving-receipt-mechanism
+            color: cyan
+            linger: 0.55
+  - id: goodput-gate
+    title: Compute qualified throughput separately from offered-load capacity
+    visual: Use two complete 10s offered-load fixtures and their qualifying fractions. Keep rejected/failed work
+      in the denominator; distinguish higher goodput from a passing service point.
+    beats:
+      - say: Name both service quantities. Qualified goodput is the number of valid completions meeting the declared
+          TTFT and ITL conditions divided by the full measurement duration. Offered-load capacity is the
+          highest tested offered rate that also meets the required qualifying fraction. Count rejected,
+          failed, cancelled and late work in the offered-request denominator according to the declared policy.
+        hold: 0.65
+        visual_cues:
+          - id: sg-goodput-gate-beat-0
+            phrase: Name both service quantities
+            targets:
+              - goodput-gate-mechanism
+            color: cyan
+            linger: 0.55
+      - say: "In a separate ten-second fixture, ten requests per second offers one hundred attempts and ninety-two
+          qualify. Goodput is nine point two qualified requests per second and the qualifying fraction is
+          ninety-two percent. At twelve offered per second, one hundred five of one hundred twenty qualify:
+          ten point five qualified per second but only eighty-seven point five percent. Under a supplied
+          ninety-percent fraction rule, ten is the highest passing tested offered rate."
+        hold: 0.65
+        visual_cues:
+          - id: sg-goodput-gate-beat-1
+            phrase: In a separate ten-second fixture, ten requests per second offers one hundred attempts and ninety-two
+              qualify
+            targets:
+              - goodput-gate-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-goodput-a
+            phrase: Goodput is nine point two qualified requests per second and the qualifying fraction is ninety-two percent
+            targets:
+              - goodput-gate-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-goodput-b
+            phrase: ten point five qualified per second but only eighty-seven point five percent
+            targets:
+              - goodput-gate-mechanism
+            color: yellow
+            linger: 0.55
+          - id: sg-goodput-select
+            phrase: ten is the highest passing tested offered rate
+            targets:
+              - goodput-gate-mechanism
+            color: yellow
+            linger: 0.55
+      - say: The busier server completes more qualifying requests each second, yet a smaller share of its
+          customers get a timely, valid reply. To learn whether eleven requests per second passes, test it
+          with the same latency targets, workload, duration and quality check.
+        hold: 0.65
+        visual_cues:
+          - id: sg-goodput-gate-beat-2
+            phrase: The busier server completes more qualifying requests each second
+            targets:
+              - goodput-gate-mechanism
+            color: cyan
+            linger: 0.55
+  - id: failure-drill
+    title: Where did the four-token hit go?
+    visual: Replay one redacted prompt with a changed first ID. Restore the ID and its warm hit before rerouting
+      the identical prompt to an empty replica. Compare a separate long-prefill decode stall.
+    beats:
+      - say: Suppose first-token latency doubles. GPU use falls to thirty-five percent, and two tickets that used to
+          share work now prefill separately. Start with a redacted replay on the warm replica. All four
+          leading IDs match. Change only the first ID, from ten to ninety-nine. The other three still line up.
+          The prefix hit drops to zero because lookup stops at the first difference. Compare the rendered
+          template and token IDs for that ticket.
+        hold: 0.8
+        visual_cues:
+          - id: drill-reference
+            phrase: All four leading IDs match
+            targets:
+              - drill-local
+              - drill-hit
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: drill-change
+            phrase: Change only the first ID, from ten to ninety-nine
+            targets:
+              - drill-input
+            color: yellow
+            linger: 0.32
+            caption_boundary: true
+          - id: drill-miss
+            phrase: The prefix hit drops to zero
+            targets:
+              - drill-hit
+            color: pink
+            linger: 0.32
+            caption_boundary: true
+      - say: Restore the ten on replica A. All four positions are reusable again. Now route that same request to
+          replica B. B’s tree is empty. With the template fixed, how many of the four positions does this
+          local lookup find?
+        hold: 2.3
+        visual_cues:
+          - id: drill-restore
+            phrase: Restore the ten on replica A
+            targets:
+              - drill-input
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: drill-warm
+            phrase: All four positions are reusable again
+            targets:
+              - drill-hit
+            color: green
+            linger: 0.32
+            caption_boundary: true
+          - id: drill-move
+            phrase: Now route that same request to replica B
+            targets:
+              - drill-local
+            color: yellow
+            linger: 0.32
+            caption_boundary: true
+      - say: Zero on B. This time a different replica explains the miss. Both replays lost four positions of reuse.
+          To find the wait behind low GPU use, time tokenization, the scheduler queue and the first forward
+          for that request. If admission is blocked, check free KV capacity and evictable positions. A miss
+          tells you the worker has to prefill again. It takes an allocator or queue trace to show why the
+          worker was idle.
+        hold: 0.75
+        visual_cues:
+          - id: drill-cold
+            phrase: Zero on B
+            targets:
+              - drill-hit
+            color: pink
+            linger: 0.32
+            caption_boundary: true
+      - say: Now suppose hits stay high and an existing reader waits longer between tokens. In this schedule, the
+          long prefill fills the gap between two decode steps. Check the admitted chunk and the runner and
+          collective timings. For split workers, check the queues and transfer too. Replay the same requests
+          with one change at a time, keeping the required output schema and scoring fixed when comparing
+          speculation.
+        hold: 0.8
+        visual_cues:
+          - id: drill-timing
+            phrase: the long prefill fills the gap between two decode steps
+            targets:
+              - drill-clock
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+  - id: project-source
+    title: Read paper, release guide and source as different evidence
+    visual: Keep the 2024 paper, f 8e 62a pin, documentation check and Apache source boundary distinct; point to
+      owned code modules rather than treating a repository as production proof.
+    beats:
+      - say: The founding paper names Lianmin Zheng, Liangsheng Yin, Zhiqiang Xie, Ying Sheng and
+          collaborators around Berkeley, Stanford and the broader research community. LMSYS incubates SGLang
+          under the sgl-project organization. The core source uses the Apache two license. Checkpoints,
+          tokenizers, datasets and third-party kernels can carry their own terms. The maintainer and
+          code-owner files tell contributors who reviews changes.
+        hold: 0.65
+        visual_cues:
+          - id: sg-project-source-beat-0
+            phrase: The founding paper names Lianmin Zheng, Liangsheng Yin, Zhiqiang Xie, Ying Sheng and collaborators
+              around Berkeley, Stanford and the broader research community
+            targets:
+              - project-source-mechanism
+            color: cyan
+            linger: 0.55
+      - say: The article links each file at the revision on screen. Follow a generation from the language API
+          through the interpreter. For a stalled batch, look at admission budgets, then radix keys and locks.
+          The grammar manager tracks legal tokens, the speculative registry identifies draft methods, and the
+          prefill and decode modules handle the KV transfer. To trace a deployed worker, open those files at
+          its installed revision.
+        hold: 0.65
+        visual_cues:
+          - id: sg-project-source-beat-1
+            phrase: The article links each file at the revision on screen
+            targets:
+              - project-source-mechanism
+            color: yellow
+            linger: 0.55
+  - id: synthesis
+    title: Which reply should the ticket desk accept?
+    visual: Compare two complete JSON replies to the opening dark-mode ticket. The schema accepts both enum
+      values. Checking each label against the independently supplied category separates them.
+    beats:
+      - say: Back at the ticket desk, a human has marked the dark-mode request as a feature. Look at two possible
+          replies from the structured endpoint. For either reply, the request passed through tokenization,
+          cache lookup and scheduling. The model chose tokens under the grammar, and the detokenizer turned
+          the IDs back into text. Both replies are complete objects with an allowed label. Which one should
+          the desk accept?
+        hold: 2.3
+        visual_cues:
+          - id: synthesis-output
+            phrase: Look at two possible replies from the structured endpoint
+            targets:
+              - synthesis-reply
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: synthesis-parse
+            phrase: Both replies are complete objects with an allowed label
+            targets:
+              - synthesis-schema
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+      - say: Accept the reply that says feature. It agrees with the category the reviewer assigned. Send the bug
+          reply for review. Its syntax passed the same check. Recover the ticket and the chosen value for this
+          request before changing the grammar. For the last ticket, you’ll make the decision one step earlier,
+          before the decode worker reads a single byte.
+        hold: 0.8
+        visual_cues:
+          - id: synthesis-compare
+            phrase: Accept the reply that says feature
+            targets:
+              - synthesis-meaning
+            color: green
+            linger: 0.32
+            caption_boundary: true
+  - id: fresh-handoff
+    title: Two replays of the last ticket
+    visual: Bracket the first complete page of seven matching IDs across namespaces. Finish B’s separate 96 MiB
+      payload, fork the completed buffer into two replays and compare ready events for attempts 1 and 2
+      against the same current attempt.
+    beats:
+      - say: Here’s a fresh ticket. Seven leading token IDs match a path stored under namespace A. A page holds four
+          positions. Our request needs namespace B. B also has its own prefill transfer on attempt two.
+          Sixty-four of its ninety-six mebibytes have arrived. How many positions can B reuse from A, and how
+          much of B’s own transfer is still missing?
+        hold: 3
+        visual_cues:
+          - id: fresh-path
+            phrase: Seven leading token IDs match a path stored under namespace A
+            targets:
+              - fresh-key
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: fresh-b
+            phrase: Our request needs namespace B
+            targets:
+              - fresh-key
+            color: blue
+            linger: 0.32
+            caption_boundary: true
+          - id: fresh-input
+            phrase: Sixty-four of its ninety-six mebibytes have arrived
+            targets:
+              - fresh-buffer
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+      - say: B can reuse zero positions from A. With the same namespace it could have reused the first full page,
+          four positions. Across namespaces, even those four belong to someone else. B still needs thirty-two
+          mebibytes. Let those last thirty-two arrive. Its own buffer is full. Keep it right there, before the
+          reader gets a ready event.
+        hold: 1
+        visual_cues:
+          - id: sg-fresh-zero
+            phrase: B can reuse zero positions from A
+            targets:
+              - fresh-key
+            color: pink
+            linger: 0.32
+            caption_boundary: true
+          - id: sg-fresh-missing
+            phrase: B still needs thirty-two mebibytes
+            targets:
+              - fresh-buffer
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: sg-fresh-fill
+            phrase: Let those last thirty-two arrive
+            targets:
+              - fresh-buffer
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+      - say: Replay that instant twice. Same request, same compatible layout, same ninety-six mebibytes. Both decode
+          workers are waiting for attempt two. In the left replay the ready event says attempt one. In the
+          right replay it says attempt two. Which replay can start decode?
+        hold: 3
+        visual_cues:
+          - id: fresh-stamps
+            phrase: In the left replay the ready event says attempt one
+            targets:
+              - fresh-event-left
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+          - id: sg-fresh-ready
+            phrase: In the right replay it says attempt two
+            targets:
+              - fresh-event-right
+            color: cyan
+            linger: 0.32
+            caption_boundary: true
+      - say: Only the right replay can start. Follow its ready event into the decode step. This reader can now use
+          all three blocks. On the left, keep the buffer and wait for attempt two, or cancel the handoff and
+          clean up. Both replays still got zero positions from A. In the next lesson, slime sends sampled
+          tokens, loss masks and group IDs to a trainer. There we’ll need to know which version of the model
+          produced each token.
+        hold: 1.1
+        visual_cues:
+          - id: sg-fresh-decode
+            phrase: Only the right replay can start
+            targets:
+              - fresh-reader-left
+              - fresh-reader-right
+            color: green
+            linger: 0.32
+            caption_boundary: true
+          - id: fresh-launch
+            phrase: Follow its ready event into the decode step
+            targets:
+              - fresh-reader-right
+            color: green
+            linger: 0.32
+            caption_boundary: true
+          - id: fresh-read
+            phrase: This reader can now use all three blocks
+            targets:
+              - fresh-reader-right
+            color: green
+            linger: 0.32
+            caption_boundary: true

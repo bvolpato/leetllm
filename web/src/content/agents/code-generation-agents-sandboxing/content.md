@@ -483,35 +483,35 @@ Reliable coding agents pair concise execution evidence with explicit trust bound
   {
     "question": "A read-only Python test file expects a nonempty list. Candidate code shares the interpreter, monkey-patches the assertion helper, and exits 0 while returning []. What closes this flaw?",
     "options": [
-      "Check the exit code from a parent script while keeping candidate and tests in one interpreter.",
-      "Keep grading expectations outside candidate reach and compare outputs in a separate trusted validator.",
-      "Hash the read-only test file inside the candidate interpreter.",
-      "Mount the test directory read-only with noexec while sharing the Python process."
+      "Verify the subprocess exit code from a parent wrapper while candidate and tests share one interpreter.",
+      "Store grading expectations outside candidate reach and compare outputs inside a separate trusted validator.",
+      "Compute a SHA-256 hash of the read-only test file from inside the shared candidate Python interpreter.",
+      "Mount the test directory read-only with noexec flags while still sharing the same Python interpreter."
     ],
-    "answer": "Keep grading expectations outside candidate reach and compare outputs in a separate trusted validator.",
+    "answer": "Store grading expectations outside candidate reach and compare outputs inside a separate trusted validator.",
     "explanation": "Read-only mounts stop disk edits, not in-memory monkey-patching or reading private tests. A separate trusted validator prevents assertion tampering."
   },
   {
     "question": "A local Linux agent grants Landlock read-write access to /repo and adds a read-only rule on /repo/.git in the same layer. Why can an untrusted patch still escape to the host?",
     "options": [
-      "Grants in one Landlock layer form a union, not a subtraction, so the worker can plant .git/hooks/post-checkout to execute on the developer's next host git checkout.",
-      "Landlock restricts TCP sockets only and ignores local paths.",
-      "Git disables Landlock when .git/config exists.",
-      "Read-only Landlock rules still permit executable scripts inside /tmp."
+      "Same-layer Landlock grants form a union, letting the worker plant .git/hooks/post-checkout for a later host git run.",
+      "Same-layer Landlock rules constrain outbound TCP sockets while leaving local filesystem paths unrestricted by default.",
+      "Local Git binaries disable active Landlock rulesets whenever a repository contains a readable .git/config file.",
+      "Read-only Landlock rules on .git still allow the worker to launch arbitrary host-privileged binaries out of /tmp."
     ],
-    "answer": "Grants in one Landlock layer form a union, not a subtraction, so the worker can plant .git/hooks/post-checkout to execute on the developer's next host git checkout.",
+    "answer": "Same-layer Landlock grants form a union, letting the worker plant .git/hooks/post-checkout for a later host git run.",
     "explanation": "A child read-only rule does not subtract parent write rights in the same Landlock layer. A planted hook survives worker exit and runs under host privileges during a later host Git command."
   },
   {
     "question": "Why does secret-zero containment proxy API calls through a host Unix domain socket instead of placing GITHUB_TOKEN in an offline worker's environment?",
     "options": [
-      "Offline workers cannot read environment variables under --net=none.",
-      "Untrusted code can base64-encode env vars into stdout logs; a host broker keeps credentials outside the sandbox, scopes routes, and allowlists reply fields.",
-      "Unix sockets encrypt upstream traffic without TLS.",
-      "Environment variables are slower than Unix domain sockets."
+      "Offline workers launched under --net=none lose kernel access to process environment variables at startup.",
+      "Worker code still leaks env vars through stdout logs; a host broker attaches tokens outside and filters replies.",
+      "Local Unix domain sockets automatically encrypt outbound GitHub API requests without configuring TLS certificates.",
+      "Reading process environment variables adds more per-request latency than proxying JSON over a Unix domain socket."
     ],
-    "answer": "Untrusted code can base64-encode env vars into stdout logs; a host broker keeps credentials outside the sandbox, scopes routes, and allowlists reply fields.",
-    "explanation": "Blocking networking does not stop stdout credential exfiltration. A host broker attaches tokens only on outbound calls and filters responses."
+    "answer": "Worker code still leaks env vars through stdout logs; a host broker attaches tokens outside and filters replies.",
+    "explanation": "Blocking networking does not stop stdout credential exfiltration (for example via base64). A host broker keeps raw credentials outside the sandbox, scopes routes, and allowlists reply fields."
   },
   {
     "question": "A container has a cgroup CPU quota of 36 ms per 80 ms period across two busy threads and a 4-second external wall deadline. What is its aggregate CPU cap, and what kills an infinite loop?",

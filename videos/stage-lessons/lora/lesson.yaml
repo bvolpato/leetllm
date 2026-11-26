@@ -1,0 +1,1896 @@
+version: 1
+id: lora
+title: "LoRA: From Low-Rank Geometry to a Tested Adapter"
+source: training/lora-parameter-efficient-fine-tuning/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "Hu et al. LoRA: Low-Rank Adaptation of Large Language Models"
+    url: https://arxiv.org/abs/2106.09685
+  - title: "Hugging Face PEFT: LoRA developer guide"
+    url: https://huggingface.co/docs/peft/developer_guides/lora
+  - title: "Dettmers et al. QLoRA: Efficient Finetuning of Quantized LLMs"
+    url: https://arxiv.org/abs/2305.14314
+  - title: Aghajanyan et al. Intrinsic Dimensionality Explains the Effectiveness of Language Model Fine-Tuning
+    url: https://arxiv.org/abs/2012.13255
+  - title: Kalajdzievski. A Rank Stabilization Scaling Factor for Fine-Tuning with LoRA
+    url: https://arxiv.org/abs/2312.03732
+  - title: "Liu et al. DoRA: Weight-Decomposed Low-Rank Adaptation"
+    url: https://arxiv.org/abs/2402.09353
+  - title: "Punica: Multi-Tenant LoRA Serving"
+    url: https://arxiv.org/abs/2310.18547
+  - title: "S-LoRA: Serving Thousands of Concurrent LoRA Adapters"
+    url: https://arxiv.org/abs/2311.03285
+  - title: PEFT adapter dtype troubleshooting
+    url: https://huggingface.co/docs/peft/developer_guides/troubleshooting
+  - title: TRL1.17.1 SFTTrainer source
+    url: https://github.com/huggingface/trl/blob/v1.17.1/trl/trainer/sft_trainer.py
+  - title: bitsandbytes0.50.2 four-bit autograd
+    url: https://github.com/bitsandbytes-foundation/bitsandbytes/blob/0.50.2/bitsandbytes/autograd/_functions.py
+scenes:
+  - id: policy-task
+    title: "Which reply should the adapter change?"
+    visual: "Two key reviews arrive with the same base reply. Keep both ages and the retrieved 90-day rule visible while the viewer picks a reply. Show the desired route beside the original reply, then set the release rule for both held-out sets."
+    beats:
+      - say: "The assistant sends both keys to routine review. One is twelve days old. The other is ninety-two. Our team sends keys to the rotation owner at ninety days. Which reply needs to change?"
+        caption_starts: ["Our team sends keys", "Which reply needs to change"]
+        hold: 2.3
+        visual_cues:
+          - id: ticket-young
+            phrase: "One is twelve days old"
+            targets: [routine-ticket]
+            linger: 0.2
+          - id: ticket-old
+            phrase: "The other is ninety-two"
+            targets: [overdue-ticket]
+            linger: 0.2
+          - id: rotation-rule
+            phrase: "Our team sends keys to the rotation owner at ninety days"
+            targets: [rule-marker]
+            linger: 0.2
+      - say: "Ticket four needs the rotation owner. Ticket seven stays in routine review. LoRA keeps the base weights fixed. We train two small matrices on five thousand labeled tickets to change how the model uses the rule. The assistant looks up the current rule when a ticket arrives."
+        caption_starts: ["Ticket seven stays in routine review", "LoRA keeps the base weights fixed", "The assistant looks up the current rule"]
+        hold: 0.7
+        visual_cues:
+          - id: ticket-route
+            phrase: "Ticket four needs the rotation owner"
+            targets: [ticket-actions]
+            caption_boundary: true
+            linger: 0.2
+          - id: ticket-keep
+            phrase: "Ticket seven stays in routine review"
+            targets: [ticket-actions]
+            linger: 0.2
+          - id: ticket-train
+            phrase: "We train two small matrices"
+            targets: [training-pair]
+            linger: 0.2
+      - say: "We’ll test both kinds of reply. Set aside twenty policy tickets and twenty routine reviews before training. The adapter needs nineteen correct in each set. Save the expected replies, the ticket format, and the base model revision so we can run the same test after training."
+        caption_starts: ["The adapter needs nineteen correct"]
+        hold: 0.8
+        visual_cues:
+          - id: ticket-sets
+            phrase: "nineteen correct in each set"
+            targets: [ticket-ledgers]
+            linger: 0.2
+  - id: intro
+    title: "One ticket, two paths through a layer"
+    visual: "Follow P04 through the blue base layer. Select the policy factors from three task-specific pairs, then send the same input into the selected pair and combine its correction with the base output."
+    beats:
+      - say: "Bring that overdue ticket back to the assistant. The blue block is one of its trained layers. We keep its weights fixed. It still computes its usual response to this input."
+        hold: 0.65
+        visual_cues:
+          - id: intro-b1-1
+            phrase: "keep its weights fixed"
+            targets: [frozen-base]
+            linger: 0.2
+      - say: "Attach two small trainable matrices beside that layer. Together they contribute a correction. This is low-rank adaptation, or LoRA. A code reviewer and a science tutor can each have a pair of their own and share the same base. The optimizer updates just the selected factors."
+        hold: 0.65
+        visual_cues:
+          - id: intro-b2-1
+            phrase: "Attach two small trainable matrices"
+            targets: [adapter-factors]
+            linger: 0.2
+      - say: "For ticket four, select the policy pair. Send the same input down this second path. Add its correction to the base output. To see how two little matrices can change that output, let's open the layer and follow one input by hand."
+        hold: 0.8
+        visual_cues:
+          - id: intro-select
+            phrase: "select the policy pair"
+            targets: [adapter-factors]
+            linger: 0.2
+          - id: intro-send
+            phrase: "Send the same input down this second path"
+            targets: [adapter-factors]
+            linger: 0.2
+          - id: intro-b3-1
+            phrase: "Add its correction to the base output"
+            targets: [new-response]
+            linger: 0.2
+  - id: linear-layer
+    title: A matrix mixes input directions
+    visual: Two input coordinates weight the two columns of a matrix. Scaled basis vectors form a head-to-tail
+      sum, producing the exact output vector.
+    beats:
+      - say: A linear layer takes an input vector and multiplies it by a matrix of learned weights. Each input
+          coordinate controls how much of one matrix column enters the output.
+        hold: 0.6
+        visual_cues:
+          - id: linear-layer-b1-1
+            phrase: matrix of learned weights
+            targets:
+              - weight-matrix
+            linger: 0.45
+      - say: Here the first coordinate stretches the blue column vector. The second contributes the other column.
+          Place the contributions head to tail, and their sum is the layer's response.
+        hold: 0.7
+        visual_cues:
+          - id: linear-layer-b2-1
+            phrase: blue column vector
+            targets:
+              - first-column
+            linger: 0.45
+          - id: linear-layer-b2-2
+            phrase: other column
+            targets:
+              - second-column
+            linger: 0.45
+          - id: linear-layer-b2-3
+            phrase: their sum
+            targets:
+              - column-sum
+            linger: 0.45
+      - say: Fine-tuning changes these weights using examples and their errors. If every entry can change
+          independently, the update has the same large rectangular shape as the original matrix.
+        hold: 0.65
+        visual_cues:
+          - id: linear-layer-b3-1
+            phrase: every entry
+            targets:
+              - weight-matrix
+            linger: 0.45
+  - id: dense-update
+    title: Keep the base, learn a correction
+    visual: A dense update grid separates from a frozen base. The two output vectors are added, then the dense
+      update is replaced by two thin factors.
+    beats:
+      - say: We can describe any weight change as an additive correction. The adapted layer applies the original
+          matrix and the correction to the very same input, then adds their outputs.
+        hold: 0.7
+        visual_cues:
+          - id: dense-update-b1-1
+            phrase: original matrix
+            targets:
+              - frozen-base
+            linger: 0.45
+          - id: dense-update-b1-2
+            phrase: correction. The
+            targets:
+              - trainable-correction
+            linger: 0.45
+          - id: dense-base-output
+            phrase: original matrix
+            targets:
+              - frozen-base
+              - dense-base-vector
+            linger: 0.35
+          - id: dense-correction-output
+            phrase: the correction to the very same input
+            targets:
+              - trainable-correction
+              - dense-correction-vector
+            linger: 0.35
+          - id: dense-output-sum
+            phrase: adds their outputs
+            targets:
+              - dense-output
+            linger: 0.35
+      - say: LoRA freezes the original matrix and learns a structured correction beside it. The base still contributes
+          its pretrained transformation on every pass. Only the added factors receive parameter updates.
+        hold: 0.6
+        visual_cues:
+          - id: dense-update-b2-1
+            phrase: base still contributes
+            targets:
+              - frozen-base
+            linger: 0.45
+          - id: dense-update-b2-2
+            phrase: added factors
+            targets:
+              - trainable-correction
+            linger: 0.45
+      - say: The key constraint is rank. To understand what that buys, start with a correction whose outputs all point
+          along one direction. A single direction can still affect every output coordinate.
+        hold: 0.8
+        visual_cues:
+          - id: dense-update-b3-1
+            phrase: rank
+            targets:
+              - sum-identity
+            linger: 0.45
+  - id: intrinsic-rank
+    title: One free scalar can still change every direction
+    visual: "On persistent 3D axes compare theta times identity with rank-one BA: count one optimization scalar
+      versus three independent output axes. Keep distinction labeled as counterexample."
+    beats:
+      - say: "Watch the three diagonal entries move together. One number, theta, controls all three. This is a small version of the distinction behind LoRA. Aghajanyan and colleagues studied how few coordinates training needed in a randomly projected parameter space. To find the rank of a matrix, follow its outputs."
+        hold: 0.65
+        visual_cues:
+          - id: intrinsic-rank-1
+            phrase: "three diagonal entries move together"
+            targets:
+              - intrinsic-rank-mechanism
+            linger: 0.35
+      - say: "Each basis input sends an arrow along a different axis. Three independent directions give rank three, even though we turned just one knob. Set theta to zero and all three arrows disappear. Now switch to a LoRA update of width one. All three outputs lie on the same line. In general, B times A has rank at most the width of the factors."
+        hold: 0.65
+        visual_cues:
+          - id: intrinsic-rank-2
+            phrase: "Each basis input sends an arrow"
+            targets:
+              - intrinsic-rank-mechanism
+            linger: 0.35
+          - id: intrinsic-zero
+            phrase: "Set theta to zero"
+            targets:
+              - intrinsic-rank-mechanism
+            linger: 0.25
+          - id: intrinsic-ba
+            phrase: "switch to a LoRA update of width one"
+            targets:
+              - intrinsic-rank-mechanism
+            linger: 0.25
+      - say: "One line may be enough for a particular task. A wider adapter can learn more directions. Compare them on the same held-out examples. If the task needs changes beyond the adapter’s reach, full fine-tuning lets you update every eligible entry."
+        hold: 0.8
+        visual_cues:
+          - id: intrinsic-rank-3
+            phrase: "A wider adapter can learn more directions"
+            targets:
+              - intrinsic-rank-mechanism
+            linger: 0.35
+  - id: rank-one
+    title: One direction, many possible corrections
+    visual: A row vector measures a moving three-dimensional input. A column vector expands the resulting scalar
+      along one fixed line. Its outer product fills a genuine three-by-three matrix.
+    beats:
+      - say: The first factor measures the input with a dot product. It compresses the input into one scalar. The
+          second factor multiplies a fixed output direction by that scalar.
+        hold: 0.7
+        visual_cues:
+          - id: rank-one-b1-1
+            phrase: one scalar
+            targets:
+              - scalar-measurement
+            linger: 0.45
+      - say: As the input moves, the correction slides forward or backward on this line. Its length and sign change,
+          while its available direction stays fixed. That is a rank-one transformation.
+        hold: 0.85
+        visual_cues:
+          - id: rank-one-b2-1
+            phrase: slides forward or backward
+            targets:
+              - correction-vector
+            linger: 0.45
+      - say: Multiplying the column by the row gives an outer product. Every column of this update matrix is a scaled
+          copy of the same vector, so all its outputs remain on that line.
+        hold: 0.75
+        visual_cues:
+          - id: rank-one-b3-1
+            phrase: outer product
+            targets:
+              - outer-product
+            linger: 0.45
+  - id: rank-two
+    title: Two directions open a plane
+    visual: A second independent rank-one component enters a stable projected three-dimensional coordinate system.
+      Their weighted sums sweep a plane while a target outside the plane remains unreachable.
+    beats:
+      - say: Add a second independent direction. Now the input supplies two coefficients, and the correction combines
+          two output vectors. Their possible sums fill a plane inside this three-dimensional output space.
+        hold: 0.8
+        visual_cues:
+          - id: rank-two-b1-1
+            phrase: two output vectors
+            targets:
+              - first-basis
+              - second-basis
+            linger: 0.45
+      - say: Watch the two contributions move head to tail. The tip can reach different places across the plane, but a
+          target outside it requires another independent direction or a different learned plane.
+        hold: 0.85
+        visual_cues:
+          - id: rank-two-b2-1
+            phrase: head to tail
+            targets:
+              - first-contribution
+              - second-contribution
+            linger: 0.45
+          - id: rank-two-b2-2
+            phrase: tip
+            targets:
+              - resultant-vector
+            linger: 0.45
+      - say: Rank counts independent directions in this linear correction. A rank-two adapter has room for at most
+          two. Training can rotate its plane, and redundant factors can make its actual rank smaller.
+        hold: 0.75
+        visual_cues:
+          - id: rank-two-b3-1
+            phrase: at most two
+            targets:
+              - rank-limit
+            linger: 0.45
+          - id: rank-two-rotation
+            phrase: Training can rotate its plane
+            targets:
+              - first-basis
+              - second-basis
+              - rank-limit
+            linger: 0.25
+  - id: factorization
+    title: Build the update from thin factors
+    visual: A two-by-three A and three-by-two B multiply. Each selected output entry accumulates two displayed
+      products before the next entry fills. The completed update matches the sum of two outer products.
+    beats:
+      - say: Collect the measuring rows into A and the output directions into B. Their product has the full update's
+          shape. Its inner dimension is the adapter's rank, the narrow passage between them.
+        hold: 0.7
+        visual_cues:
+          - id: factorization-b1-1
+            phrase: measuring rows into A
+            targets:
+              - a-factor
+            linger: 0.45
+          - id: factorization-b1-2
+            phrase: output directions into B
+            targets:
+              - b-factor
+            linger: 0.45
+      - say: Each update entry is a dot product between a row of B and a column of A. Follow the highlighted pair of
+          products as they accumulate into one matrix entry.
+        hold: 0.8
+        visual_cues:
+          - id: factorization-b2-1
+            phrase: accumulate into one matrix entry
+            targets:
+              - entry-calculation
+              - a-factor
+              - b-factor
+              - factor-product
+            linger: 0.45
+      - say: Repeat across the matrix, and the entire correction appears. Equivalently, we're adding two rank-one
+          outer products. The dense matrix is useful for understanding, while training can keep only the
+          factors.
+        hold: 0.75
+        visual_cues:
+          - id: factorization-b3-1
+            phrase: entire correction appears
+            targets:
+              - factor-product
+            linger: 0.45
+  - id: thin-forward
+    title: "What does this input send through the adapter?"
+    visual: "For the article’s two-by-two merge example, compute the two base coordinates and slide the same scale-two correction onto both rulers. Change only the first input coordinate. Keep the weights, rulers and scale fixed for the null-space prediction."
+    beats:
+      - say: "Take the input two, one. The frozen matrix has two rows. In the first row, twice one plus two gives four. In the second, twice three plus four gives ten. Put a blue mark at each base output."
+        hold: 0.65
+        visual_cues:
+          - id: forward-base
+            phrase: "four gives ten"
+            targets: [forward-rails]
+            linger: 0.2
+      - say: "Now follow the same input through the narrow path. A subtracts the second coordinate from the first. Two minus one leaves one. B sends half that amount to the first output and the whole amount to the second. Our scale is two, so the correction is one and two."
+        hold: 0.55
+        visual_cues:
+          - id: forward-difference
+            phrase: "Two minus one leaves one"
+            targets: [forward-factors]
+            linger: 0.2
+          - id: forward-scale
+            phrase: "the correction is one and two"
+            targets: [forward-factors]
+            linger: 0.2
+      - say: "Start at each blue mark and add its yellow correction. Four becomes five. Ten becomes twelve. Those are the two coordinates we would get by merging the scaled product into the base. Here we used just the two thin multiplications."
+        hold: 0.85
+        visual_cues:
+          - id: forward-add
+            phrase: "Start at each blue mark and add its yellow correction"
+            targets: [forward-rails]
+            linger: 0.2
+          - id: forward-sum
+            phrase: "Ten becomes twelve"
+            targets: [forward-answer]
+            linger: 0.2
+      - say: "Keep every weight. Change the first input from two to one. The blue marks move because the base also reads the new input. With two equal input coordinates, how far will the adapter move either mark?"
+        hold: 2.2
+        visual_cues:
+          - id: forward-new-input
+            phrase: "Change the first input from two to one"
+            targets: [forward-input]
+            linger: 0.2
+      - say: "One minus one is zero. B has nothing to expand. Both marks stay at their new base values. The adapted output stays at three, seven. These same factors can change both outputs on one request and leave them alone on another."
+        caption_starts: ["Both marks stay", "The adapted output stays at three, seven"]
+        hold: 0.88
+        visual_cues:
+          - id: forward-zero
+            phrase: "One minus one is zero"
+            targets: [forward-factors]
+            caption_boundary: true
+            linger: 0.2
+          - id: forward-unchanged
+            phrase: "stays at three, seven"
+            targets: [forward-answer]
+            linger: 0.2
+  - id: parameter-count
+    title: A narrow passage changes the budget
+    visual: A 4096-square weight grid unfolds into thin rank-16 strips. Areas show their true ratio with a
+      magnified adapter inset. Counts and the general formula assemble.
+    beats:
+      - say: Now enlarge the layer. A square projection with width four thousand ninety-six contains nearly seventeen
+          million weights. Full fine-tuning can train every one, along with the training state they require.
+        hold: 0.7
+        visual_cues:
+          - id: parameter-count-b1-1
+            phrase: seventeen million weights
+            targets:
+              - base-count
+            linger: 0.45
+          - id: parameter-base-result
+            phrase: nearly seventeen million weights
+            targets:
+              - base-count
+            linger: 0.25
+      - say: At rank sixteen, the two factors contain about one hundred thirty-one thousand trainable values
+          altogether. That's less than one percent of the original matrix. The inset magnifies their narrow
+          width.
+        hold: 0.8
+        visual_cues:
+          - id: parameter-count-b2-1
+            phrase: one hundred thirty-one thousand
+            targets:
+              - adapter-count
+            linger: 0.45
+          - id: parameter-adapter-result
+            phrase: about one hundred thirty-one thousand trainable values altogether
+            targets:
+              - adapter-count
+            linger: 0.25
+          - id: parameter-percent-result
+            phrase: That's less than one percent of the original matrix
+            targets:
+              - adapter-ratio
+            linger: 0.25
+      - say: "For any rectangular layer, count the two thin rectangles: rank times input width, plus output width
+          times rank. Increase rank and adapter parameters grow linearly, along with the available update
+          capacity."
+        hold: 0.7
+        visual_cues:
+          - id: parameter-count-b3-1
+            phrase: rank times input width
+            targets:
+              - parameter-equation
+            linger: 0.45
+  - id: initialization
+    title: "Which factor can learn on the first pass?"
+    visual: "Keep a scalar input, target and both loss-gradient formulas in view. Trace the error back to B with A nonzero. At B = 0 the path to A stops. Apply the SGD update to B, then follow the next error back through both factors."
+    beats:
+      - say: "We want the first pass to reproduce the checkpoint's response. The usual recipe gives A small random values and sets B to zero. Take a scalar example where A is one. The input is one, and the target is one. The frozen base outputs zero. So does the adapter. Look at the two derivatives below. Which factor can learn on this first pass?"
+        hold: 2.05
+        visual_cues:
+          - id: initialization-b1-1
+            phrase: "gives A small random values"
+            targets: [a-initial]
+            linger: 0.2
+          - id: initialization-b1-2
+            phrase: "sets B to zero"
+            targets: [b-initial]
+            linger: 0.2
+      - say: "Follow the error back to B. The output is one below the target, and A sent a one forward. Multiply those together. B gets a gradient of minus one. To reach A, that error has to go through B. With B still at zero, A gets a gradient of zero."
+        hold: 0.75
+        visual_cues:
+          - id: init-error-to-b
+            phrase: "Follow the error back to B"
+            targets: [b-initial]
+            linger: 0.2
+          - id: initialization-b2-1
+            phrase: "B gets a gradient of minus one"
+            targets: [b-gradient]
+            caption_boundary: true
+            linger: 0.2
+          - id: initialization-b2-2
+            phrase: "A gets a gradient of zero"
+            targets: [a-gradient]
+            caption_boundary: true
+            linger: 0.2
+      - say: "Take one gradient step. At a learning rate of one tenth, B moves to one tenth. Now follow the next error back through B. This time it reaches A too. If both factors start at zero, ordinary gradient descent gets stuck. And even a nonzero A can measure zero on a particular input, just as it did for those two equal coordinates. Check the gradients on your actual examples."
+        hold: 0.8
+        visual_cues:
+          - id: initialization-b3-1
+            phrase: "B moves to one tenth"
+            targets: [b-initial]
+            linger: 0.2
+          - id: init-through-b
+            phrase: "follow the next error back through B"
+            targets: [a-gradient]
+            linger: 0.2
+  - id: gradient-contract
+    title: Derive which factor moves first
+    visual: Keep actual A/B/x/z/g tensors, backpropagate outer products and perform scalar SGD updates from the
+      existing initialization trace; failure input Ax=0 and both-zero factors then repair one factor.
+    beats:
+      - say: Write z equals A x and let g be the loss gradient with respect to the layer output. With scale s, B
+          receives s times the outer product of g and z. A receives s times the outer product of B transpose g
+          and x. These are loss gradients; separate optimizer decay can add another update. The original paper
+          uses Gaussian A; PEFT’s ordinary linear initialization uses Kaiming-uniform A and zero B. These
+          choices preserve the same zero-correction invariant.
+        hold: 0.65
+        visual_cues:
+          - id: gradient-contract-1
+            phrase: Write z equals A x and let
+            targets:
+              - gradient-contract-mechanism
+            linger: 0.35
+          - id: gradient-z
+            phrase: Write z equals A x
+            targets:
+              - gradient-contract-mechanism
+            linger: 0.25
+          - id: gradient-b-outer
+            phrase: B receives s times the outer product of g and z
+            targets:
+              - gradient-contract-mechanism
+            linger: 0.25
+          - id: gradient-a-outer
+            phrase: A receives s times the outer product of B transpose g and x
+            targets:
+              - gradient-contract-mechanism
+            linger: 0.25
+      - say: At B zero, the A loss gradient is zero. B can move if the scale, incoming gradient and measured
+          intermediate make their outer product nonzero. In our scalar trace, A is one, B is zero, x is one
+          and the target is one. Half squared error gives B gradient minus one. An SGD rate of zero point one
+          makes B zero point one.
+        hold: 0.65
+        visual_cues:
+          - id: gradient-contract-2
+            phrase: At B zero, the A loss gradient
+            targets:
+              - gradient-contract-mechanism
+            linger: 0.35
+          - id: gradient-first-b
+            phrase: B gradient minus one
+            targets:
+              - gradient-contract-mechanism
+            linger: 0.25
+          - id: gradient-first-step
+            phrase: makes B zero point one
+            targets:
+              - gradient-contract-mechanism
+            linger: 0.25
+      - say: The next output is zero point one, so the error is minus zero point nine. Now B gradient is minus zero
+          point nine and A gradient is minus zero point zero nine; both can move. If A x is zero, B waits for
+          that example. If both factors are zero, both loss gradients vanish. Reversing the no-op
+          initialization can make A move first instead, and batch contributions can cancel. Starting both factors nonzero usually changes the checkpoint’s first output.
+        hold: 0.8
+        visual_cues:
+          - id: gradient-contract-3
+            phrase: The next output is zero point one,
+            targets:
+              - gradient-contract-mechanism
+            linger: 0.35
+          - id: gradient-next-error
+            phrase: error is minus zero point nine
+            targets:
+              - gradient-contract-mechanism
+            linger: 0.25
+          - id: gradient-next-a
+            phrase: A gradient is minus zero point zero nine
+            targets:
+              - gradient-contract-mechanism
+            linger: 0.25
+          - id: gradient-null-cases
+            phrase: If A x is zero
+            targets:
+              - gradient-contract-mechanism
+            linger: 0.25
+  - id: strength
+    title: Capacity and strength are separate choices
+    visual: A computed rank-one vector is scaled by alpha/r while its line stays fixed. Rank rises and a second
+      direction appears, with the scaling multiplier explicitly changing and then held constant.
+    beats:
+      - say: Ordinary LoRA multiplies the correction by alpha divided by rank. Alpha supplies an explicit strength
+          control. Turning it changes the correction's length without creating new directions for this fixed
+          pair of factors.
+        hold: 0.7
+        visual_cues:
+          - id: strength-b1-1
+            phrase: correction's length
+            targets:
+              - scaled-vector
+            linger: 0.45
+      - say: Increasing rank changes capacity, but keeping alpha fixed also changes this multiplier. A rank comparison
+          becomes easier to interpret when the explicit scale is held constant and recorded beside the result.
+        hold: 0.7
+        visual_cues:
+          - id: strength-b2-1
+            phrase: rank changes
+            targets:
+              - rank-setting
+            linger: 0.45
+          - id: strength-b2-2
+            phrase: explicit scale
+            targets:
+              - explicit-scale
+            linger: 0.45
+      - say: The learned correction also depends on initialization, data, and optimization. Rank and scale are
+          connected experimental choices. Compare actual update norms and held-out quality instead of
+          inferring strength from rank alone.
+        hold: 0.75
+        visual_cues:
+          - id: strength-b3-1
+            phrase: actual update norms
+            targets:
+              - scaled-vector
+            linger: 0.45
+  - id: rank-scaling
+    title: The multiplier changes with the chosen rank
+    visual: Display the same factor-output vector with ordinary scales 2/.5/2 then rsLoRA5.657/2.828/11.314; hold
+      learned norm unknown separately from explicit multiplier.
+    beats:
+      - say: "Compute the multiplier before interpreting a rank sweep. Ordinary LoRA uses alpha divided by r. Alpha
+          sixteen with rank eight gives two. Keep alpha sixteen and raise rank to thirty-two: the multiplier
+          becomes zero point five. To retain an ordinary multiplier of two at rank thirty-two, alpha must
+          become sixty-four."
+        hold: 0.65
+        visual_cues:
+          - id: rank-scaling-1
+            phrase: Compute the multiplier before interpreting a rank
+            targets:
+              - rank-scaling-mechanism
+            linger: 0.35
+          - id: scale-ordinary-two
+            phrase: rank eight gives two
+            targets:
+              - rank-scaling-mechanism
+            linger: 0.25
+          - id: scale-ordinary-half
+            phrase: becomes zero point five
+            targets:
+              - rank-scaling-mechanism
+            linger: 0.25
+          - id: scale-ordinary-repair
+            phrase: alpha must become sixty-four
+            targets:
+              - rank-scaling-mechanism
+            linger: 0.25
+      - say: "Rank-stabilized LoRA instead uses alpha divided by square root r. Those three configurations give about five point six five seven, two point eight two eight, and eleven point three one four. Look at the first two bars. With alpha fixed, quadrupling rank now halves the multiplier. The paper derives this scaling from assumptions about initialization, inputs and gradients."
+        hold: 0.65
+        visual_cues:
+          - id: rank-scaling-2
+            phrase: Rank-stabilized LoRA instead uses alpha divided by
+            targets:
+              - rank-scaling-mechanism
+            linger: 0.35
+          - id: scale-rs-first
+            phrase: five point six five seven
+            targets:
+              - rank-scaling-mechanism
+            linger: 0.25
+          - id: scale-rs-second
+            phrase: two point eight two eight
+            targets:
+              - rank-scaling-mechanism
+            linger: 0.25
+          - id: scale-rs-third
+            phrase: eleven point three one four
+            targets:
+              - rank-scaling-mechanism
+            linger: 0.25
+      - say: A zero-initialized B still gives zero correction with either scale. After learning begins, the number of
+          components, initialization, optimizer and data all affect the actual correction norm. Record rank,
+          alpha, scaling convention, learning rate and targets. Compare measured gradient and update norms
+          alongside held-out behavior, rather than treating a larger rank as a known stronger trained model.
+        hold: 0.8
+        visual_cues:
+          - id: rank-scaling-3
+            phrase: A zero-initialized B still gives zero correction
+            targets:
+              - rank-scaling-mechanism
+            linger: 0.35
+  - id: target-modules
+    title: Choose where the new capacity enters
+    visual: A token flows through query, key, value, output and MLP transformations in a schematic Transformer
+      block. Q/V adapters appear first, then additional attention and MLP adapters.
+    beats:
+      - say: A transformer contains many candidate matrices. Query and value projections formed an important
+          configuration in the original LoRA paper. Adapting them changes parts of attention routing and the
+          information it carries.
+        hold: 0.7
+        visual_cues:
+          - id: target-modules-b1-1
+            phrase: Query and value projections
+            targets:
+              - attention-projections
+            linger: 0.45
+      - say: You can also adapt the other attention projections and the feed-forward layers. Broader coverage puts
+          trainable corrections in more places. It costs more parameters and may help a task that narrower
+          coverage misses.
+        hold: 0.7
+        visual_cues:
+          - id: target-modules-b2-1
+            phrase: more places
+            targets:
+              - projection-adapters
+            linger: 0.45
+      - say: Inspect the actual matched modules and their shapes. Architectures use different names and widths. New
+          vocabulary also needs its intended embedding or output rows trained, which attention adapters alone
+          leave frozen.
+        hold: 0.75
+        visual_cues:
+          - id: target-modules-b3-1
+            phrase: actual matched modules
+            targets:
+              - attention-projections
+            linger: 0.45
+  - id: target-budget
+    title: Spend capacity where the block transforms information
+    visual: Expand actual Q/K/V/O and gate/up/down shapes and sum counted adapter rectangles. Switch to separately
+      labeled tiny GQA block with different K/V widths.
+    beats:
+      - say: Count one supplied block with four attention projections of size four thousand ninety-six squared. Its
+          gate and up matrices have widths four thousand ninety-six and eleven thousand eight, while down
+          reverses those dimensions. At rank sixteen, query plus value uses two hundred sixty-two thousand one
+          hundred forty-four adapter parameters.
+        hold: 0.65
+        visual_cues:
+          - id: target-budget-1
+            phrase: Count one supplied block with four attention
+            targets:
+              - target-budget-mechanism
+            linger: 0.35
+          - id: target-large-qv
+            phrase: two hundred sixty-two thousand one hundred forty-four adapter parameters
+            targets:
+              - target-budget-mechanism
+            linger: 0.25
+      - say: All four attention adapters plus all three MLP adapters use one million two hundred forty-nine thousand
+          two hundred eighty parameters, about four point seven seven times the query-value budget. Attention
+          changes information routing and content; the MLP transforms each token. The original LoRA work
+          studied query-value and other attention choices. In the QLoRA paper’s Alpaca comparison, spreading adapters across the LLaMA-seven-billion model’s linear layers helped it match full fine-tuning.
+        hold: 0.65
+        visual_cues:
+          - id: target-budget-2
+            phrase: All four attention adapters plus all three
+            targets:
+              - target-budget-mechanism
+            linger: 0.35
+          - id: target-large-all
+            phrase: one million two hundred forty-nine thousand two hundred eighty parameters
+            targets:
+              - target-budget-mechanism
+            linger: 0.25
+          - id: target-large-ratio
+            phrase: about four point seven seven times the query-value budget
+            targets:
+              - target-budget-mechanism
+            linger: 0.25
+      - say: Inspect actual module shapes. Our executed tiny Qwen-two fixture has hidden width sixteen, MLP width
+          thirty-two, two query heads and one key-value head. Query-value targeting at rank two costs one
+          hundred twelve parameters, all attention costs two hundred twenty-four, and all seven linear
+          projections cost five hundred twelve. Grouped-query keys and values are narrower here. The output
+          head is excluded by the checked all-linear shortcut.
+        hold: 0.8
+        visual_cues:
+          - id: target-budget-3
+            phrase: Inspect actual module shapes. Our executed tiny
+            targets:
+              - target-budget-mechanism
+            linger: 0.35
+          - id: target-tiny-qv
+            phrase: Query-value targeting at rank two costs one hundred twelve parameters
+            targets:
+              - target-budget-mechanism
+            linger: 0.25
+          - id: target-tiny-attention
+            phrase: all attention costs two hundred twenty-four
+            targets:
+              - target-budget-mechanism
+            linger: 0.25
+          - id: target-tiny-all
+            phrase: all seven linear projections cost five hundred twelve
+            targets:
+              - target-budget-mechanism
+            linger: 0.25
+  - id: prompt-prefix
+    title: Locate the learned state before naming the method
+    visual: Keep same ticket tokens/transformer layers; train virtual input embeddings, per-layer key/value prefix
+      then projection BA in three separately selected mechanisms.
+    beats:
+      - say: "Parameter-efficient methods can insert learned state in different places. Soft prompt tuning trains continuous virtual input embeddings. See the two extra vectors at the start of the input? The model reads them alongside the ticket. The projection weights stay fixed."
+        hold: 0.65
+        visual_cues:
+          - id: prompt-prefix-1
+            phrase: Parameter-efficient methods can insert learned state in
+            targets:
+              - prompt-prefix-mechanism
+            linger: 0.35
+          - id: prompt-vectors
+            phrase: Soft prompt tuning trains continuous virtual input embeddings
+            targets:
+              - prompt-prefix-mechanism
+            linger: 0.25
+      - say: "Prefix tuning learns continuous prefix state supplied to transformer layers. Each layer can attend to the extra keys and values beside it. LoRA places its factors inside selected weight transformations. Follow the yellow pair on the right. Its output adds directly to a projection."
+        hold: 0.65
+        visual_cues:
+          - id: prompt-prefix-2
+            phrase: Prefix tuning learns continuous prefix state supplied
+            targets:
+              - prompt-prefix-mechanism
+            linger: 0.35
+          - id: prefix-layer-state
+            phrase: Prefix tuning learns continuous prefix state supplied to transformer layers
+            targets:
+              - prompt-prefix-mechanism
+            linger: 0.25
+          - id: prefix-lora-placement
+            phrase: LoRA places its factors inside selected weight transformations
+            targets:
+              - prompt-prefix-mechanism
+            linger: 0.25
+      - say: "Open a saved checkpoint and look at what it contains. A soft prompt stores input vectors. A layer prefix supplies attention state. A LoRA adapter stores the factors for its target projections. The placement changes context use and serving costs. Compare those costs and task quality on the same requests."
+        hold: 0.8
+        visual_cues:
+          - id: prompt-prefix-3
+            phrase: Open a saved checkpoint and look at what it contains
+            targets:
+              - prompt-prefix-mechanism
+            linger: 0.35
+  - id: rectangular-contract
+    title: "What changes when two weights move?"
+    visual: "In a three-output layer, edit the first and third rows of B. Keep the frozen outputs visible while the viewer predicts which row stays put. Compare the FLOP counts for the base and the two thin products."
+    beats:
+      - say: "Follow four input coordinates through a layer with three outputs. At rank two, A takes the four numbers down to two. B takes those two back up to three. Now we can add the correction to the three numbers from the frozen layer. Check these shapes and a positive integer rank when you build the layer."
+        caption_starts: ["At rank two", "Now we can add"]
+        hold: 0.65
+        visual_cues:
+          - id: rectangular-contract-1
+            phrase: "Follow four input coordinates"
+            targets:
+              - rectangular-contract-mechanism
+            linger: 0.35
+      - say: "Here are the three outputs from the frozen layer. B starts at zero, so the adapter initially adds nothing. Change one entry in the top row of B and one in the bottom row. Which output will stay put?"
+        caption_starts: ["Change one entry", "Which output will stay put"]
+        hold: 2
+        visual_cues:
+          - id: rectangular-contract-2
+            phrase: "Here are the three outputs"
+            targets:
+              - rectangular-contract-mechanism
+            linger: 0.35
+          - id: rectangular-base
+            phrase: "three outputs from the frozen layer"
+            targets:
+              - rectangular-contract-mechanism
+            linger: 0.25
+          - id: rectangular-change
+            phrase: "Change one entry in the top row of B and one in the bottom row"
+            targets:
+              - rectangular-contract-mechanism
+            linger: 0.25
+      - say: "The middle output stays at minus zero point eight seven five. Both weights in the middle row of B are still zero. The other two outputs move. Merge the edited factors into the base and the same input gives the same three numbers."
+        caption_starts: ["The other two outputs move", "Merge the edited factors"]
+        hold: 0.85
+        visual_cues:
+          - id: rectangular-middle
+            phrase: "The middle output stays at minus zero point eight seven five"
+            targets: [rectangular-contract-mechanism]
+            linger: 0.25
+          - id: rectangular-output
+            phrase: "The other two outputs move"
+            targets:
+              - rectangular-contract-mechanism
+            linger: 0.25
+      - say: "How much work do the two thin products add? Take a projection of width four thousand ninety-six and rank sixteen. Counting a multiply and an add as two operations, the adapter takes about two hundred sixty-two thousand operations per token. The base takes about thirty-three point five million. The thin products add about zero point seven eight percent to that work. Scaling and adding the correction cost a few more operations. Building the dense update takes about twice the width squared times the rank. You can do that once when you merge."
+        caption_starts: ["the adapter takes about", "The base takes about", "The thin products add about"]
+        hold: 0.8
+        visual_cues:
+          - id: rectangular-contract-3
+            phrase: "How much work do the two thin products add"
+            targets:
+              - rectangular-contract-mechanism
+            linger: 0.35
+          - id: rectangular-flops-adapter
+            phrase: "two hundred sixty-two thousand operations per token"
+            targets:
+              - rectangular-contract-mechanism
+            linger: 0.25
+          - id: rectangular-flops-base
+            phrase: "thirty-three point five million"
+            targets:
+              - rectangular-contract-mechanism
+            linger: 0.25
+          - id: rectangular-flops-ratio
+            phrase: "zero point seven eight percent"
+            targets:
+              - rectangular-contract-mechanism
+            linger: 0.25
+  - id: tiny-peft
+    title: "Where did the new trainable weights go?"
+    visual: Animate actual tiny fixture from shapes through zero output/first and second gradients to saved
+      adapter/reloaded exact base/merged output. Scope pinned versions/no-download/CPU remains visible.
+    beats:
+      - say: This tiny Qwen-two model starts with random weights on a CPU. Ask PEFT to attach a rank-two adapter to every linear projection in the block. The seven matches add five hundred twelve adapter parameters, against three thousand four hundred eight original base parameters.
+        caption_starts: ["The seven matches add", "against three thousand four hundred eight original base parameters"]
+        hold: 0.65
+        visual_cues:
+          - id: tiny-peft-1
+            phrase: This tiny Qwen-two model starts with random weights
+            targets:
+              - tiny-peft-mechanism
+            linger: 0.35
+          - id: tiny-count
+            phrase: five hundred twelve adapter parameters
+            targets:
+              - tiny-peft-mechanism
+            linger: 0.25
+          - id: tiny-base-result
+            phrase: against three thousand four hundred eight original base parameters
+            targets:
+              - tiny-peft-mechanism
+            linger: 0.25
+      - say: The combined wrapped count is three thousand nine hundred twenty. At first the new branch contributes zero. The base weights stay frozen. Across two steps the gradients reach B first, then A. Save the adapter and reload it onto the same seeded base. The CPU check compares outputs before and after a supported merge.
+        caption_starts: ["At first the new branch contributes zero", "Across two steps", "Save the adapter"]
+        hold: 0.65
+        visual_cues:
+          - id: tiny-peft-2
+            phrase: The combined wrapped count is three thousand
+            targets:
+              - tiny-peft-mechanism
+            linger: 0.35
+          - id: tiny-no-op
+            phrase: the new branch contributes zero
+            targets:
+              - tiny-peft-mechanism
+            linger: 0.25
+          - id: tiny-gradients
+            phrase: the gradients reach B first, then A
+            targets:
+              - tiny-peft-mechanism
+            linger: 0.25
+          - id: tiny-save-reload
+            phrase: compares outputs before and after a supported merge
+            targets:
+              - tiny-peft-mechanism
+            linger: 0.25
+          - id: tiny-wrapped-result
+            phrase: The combined wrapped count is three thousand nine hundred twenty
+            targets:
+              - tiny-peft-mechanism
+            linger: 0.25
+      - say: "Read the seven yellow counts. Each one belongs to a projection that received an adapter. For the larger model, set the rank, alpha, dropout, target modules, and causal language modeling task. Print the matched names, shapes, and trainable counts again. Then measure peak memory on the training GPU and score the held-out tickets."
+        caption_starts: ["For the larger model", "Then measure peak memory"]
+        hold: 0.8
+        visual_cues:
+          - id: tiny-peft-3
+            phrase: "Read the seven yellow counts"
+            targets:
+              - tiny-peft-mechanism
+            linger: 0.35
+  - id: lexical-contract
+    title: New token IDs need learned rows
+    visual: Append token IDs, show tokenizer/model row mismatch, resize before wrap then reveal frozen
+      input/output rows; repair untied row training and save/reload tying checks.
+    beats:
+      - say: Adding tokenizer IDs does not itself resize the model tensors. Resize token embeddings before wrapping
+          the model, then verify input and output dimensions. Newly allocated rows also need useful learned
+          values. Attention-only adapters cannot directly train frozen input embeddings or a frozen output
+          head.
+        hold: 0.65
+        visual_cues:
+          - id: lexical-contract-1
+            phrase: Adding tokenizer IDs does not itself resize
+            targets:
+              - lexical-contract-mechanism
+            linger: 0.35
+          - id: lexical-resize
+            phrase: Resize token embeddings before wrapping the model
+            targets:
+              - lexical-contract-mechanism
+            linger: 0.25
+      - say: For untied input and output weights, configure and save the intended rows in both places. Training an
+          input representation alone does not train its separate output readout. The checked all-linear
+          selection excludes a pretrained model’s output layer. For tied weights, verify that the same tying
+          survives wrapping and saving.
+        hold: 0.65
+        visual_cues:
+          - id: lexical-contract-2
+            phrase: For untied input and output weights, configure
+            targets:
+              - lexical-contract-mechanism
+            linger: 0.35
+          - id: lexical-both
+            phrase: configure and save the intended rows in both places
+            targets:
+              - lexical-contract-mechanism
+            linger: 0.25
+      - say: Supported row-selective training can avoid saving a whole embedding matrix, but the relevant PEFT options
+          are version-sensitive. Inspect trainable parameters, nonzero gradients and saved state for the new
+          IDs, then reload and test generation. A lexical failure calls for this path check before another
+          attention-rank increase.
+        hold: 0.8
+        visual_cues:
+          - id: lexical-contract-3
+            phrase: Supported row-selective training can avoid saving a
+            targets:
+              - lexical-contract-mechanism
+            linger: 0.35
+          - id: lexical-reload
+            phrase: then reload and test generation
+            targets:
+              - lexical-contract-mechanism
+            linger: 0.25
+  - id: memory
+    title: "What has to fit on the GPU?"
+    visual: "Compare illustrative live allocations on one 32 GB limit. Hold weights, buffers and adapter state fixed when lengthening the ticket, then halve only adapter state. Quantization targets the frozen weights and requires a fresh peak measurement."
+    beats:
+      - say: "Take a separate example with a thirty-two gigabyte GPU. Sixteen gigabytes of frozen weights stay in memory. Freezing them lets us drop their parameter gradients and Adam moments. Add the buffers, the saved activations, and the adapter's own training state. With tickets a thousand twenty-four tokens long, those allocations total twenty-nine gigabytes in this example."
+        hold: 0.75
+        visual_cues:
+          - id: memory-weights
+            phrase: "Sixteen gigabytes of frozen weights"
+            targets: [memory-bars]
+            linger: 0.2
+          - id: memory-stack
+            phrase: "Add the buffers, the saved activations, and the adapter's own training state"
+            targets: [memory-bars]
+            linger: 0.2
+          - id: memory-short
+            phrase: "total twenty-nine gigabytes"
+            targets: [memory-bars]
+            caption_boundary: true
+            linger: 0.2
+      - say: "Keep the same microbatch and adapter. Double each ticket to two thousand forty-eight tokens. In this example the saved activations grow from eight gigabytes to thirteen. The blue weights and the gray buffers stay put. The new peak is thirty-four gigabytes."
+        hold: 0.8
+        visual_cues:
+          - id: memory-length
+            phrase: "Double each ticket to two thousand forty-eight tokens"
+            targets: [memory-bars]
+            linger: 0.2
+          - id: memory-grow
+            phrase: "saved activations grow from eight gigabytes to thirteen"
+            targets: [memory-bars]
+            linger: 0.2
+          - id: memory-long
+            phrase: "The new peak is thirty-four gigabytes"
+            targets: [memory-bars]
+            caption_boundary: true
+            linger: 0.2
+      - say: "Someone proposes a smaller rank. Suppose that halves the adapter state, from one gigabyte to half a gigabyte. All other allocations stay as shown. Would this version fit under the same limit?"
+        hold: 2.1
+        visual_cues:
+          - id: memory-question
+            phrase: "Would this version fit under the same limit"
+            targets: [memory-next]
+            linger: 0.2
+      - say: "It still takes thirty-three and a half gigabytes. We're one and a half over. The longer tickets added five gigabytes of activations. That's where I'd measure the effect of checkpointing or a smaller microbatch. Include temporary buffers and any master weights when you profile the real job."
+        caption_starts: ["We're one and a half over", "The longer tickets added five gigabytes"]
+        hold: 0.75
+        visual_cues:
+          - id: memory-half
+            phrase: "It still takes thirty-three and a half gigabytes"
+            targets: [memory-bars]
+            caption_boundary: true
+            linger: 0.2
+      - say: "What if the blue weights themselves take up too much room? QLoRA stores supported frozen weights in four-bit form and reconstructs them for computation. Scales, higher-precision tensors, trainable adapters and activations still need space. Let's count the base storage before we make another fit decision."
+        hold: 0.8
+        visual_cues:
+          - id: memory-quantized
+            phrase: "stores supported frozen weights in four-bit form"
+            targets: [memory-next]
+            linger: 0.2
+  - id: state-budget
+    title: A small adapter leaves the base and runtime bill
+    visual: Stack the exact70B12-byte model-state recipe; remove base grads/moments preserving140GB then switch
+      explicitly to65B scale780/130/32.5+1.031GB. All bars use honest axes and omitted allocations.
+    beats:
+      - say: "Use decimal gigabytes and fix the recipe. Seventy billion parameters with two-byte weights, two-byte
+          gradients and two four-byte Adam moments require twelve bytes each: eight hundred forty gigabytes of
+          model state. This excludes activations and temporaries. A separate four-byte master copy adds two
+          hundred eighty, making one thousand one hundred twenty gigabytes."
+        hold: 0.65
+        visual_cues:
+          - id: state-budget-1
+            phrase: Use decimal gigabytes and fix the recipe.
+            targets:
+              - state-budget-mechanism
+            linger: 0.35
+          - id: state-twelve
+            phrase: eight hundred forty gigabytes of model state
+            targets:
+              - state-budget-mechanism
+            linger: 0.25
+          - id: state-master
+            phrase: making one thousand one hundred twenty gigabytes
+            targets:
+              - state-budget-mechanism
+            linger: 0.25
+      - say: "Freezing that base removes its parameter gradients and optimizer state. The sixteen-bit weights take one hundred forty gigabytes, plus space for the adapter and the running model. Now use the size from the QLoRA paper. At sixty-five billion parameters, the same full-training recipe gives seven hundred eighty gigabytes and its sixteen-bit frozen base is one hundred thirty."
+        hold: 0.65
+        visual_cues:
+          - id: state-budget-2
+            phrase: Freezing that base removes its parameter gradients
+            targets:
+              - state-budget-mechanism
+            linger: 0.35
+          - id: state-freeze
+            phrase: removes its parameter gradients and optimizer state
+            targets:
+              - state-budget-mechanism
+            linger: 0.25
+          - id: state-sixty-five
+            phrase: seven hundred eighty gigabytes and its sixteen-bit frozen base is one hundred thirty
+            targets:
+              - state-budget-mechanism
+            linger: 0.25
+      - say: "An ideal four-bit payload for sixty-five billion weights is thirty-two point five gigabytes. Including the block scales brings the base to about thirty-three point five. On a forty-eight-gigabyte GPU that leaves about fourteen point five gigabytes. The activations, adapters and temporary buffers must share that space. The QLoRA team trained a sixty-five-billion model on one GPU of that size and matched sixteen-bit fine-tuning on the tasks they evaluated."
+        hold: 0.8
+        visual_cues:
+          - id: state-budget-3
+            phrase: An ideal four-bit payload for sixty-five billion
+            targets:
+              - state-budget-mechanism
+            linger: 0.35
+          - id: state-four-bit
+            phrase: thirty-two point five gigabytes
+            targets:
+              - state-budget-mechanism
+            linger: 0.25
+          - id: state-nested
+            phrase: about thirty-three point five
+            targets:
+              - state-budget-mechanism
+            linger: 0.25
+          - id: state-room
+            phrase: about fourteen point five gigabytes
+            targets:
+              - state-budget-mechanism
+            linger: 0.25
+  - id: frozen-backward
+    title: Frozen weights still carry an upstream derivative
+    visual: Trace loss gradient through same fixed base matrix into an earlier adapter, keeping base gradient slot
+      absent; grow sequence activation storage and replay checkpointed recomputation without invented memory
+      measurements.
+    beats:
+      - say: Freezing a parameter stops its parameter-gradient and optimizer-state updates. It does not remove that
+          operation from the forward pass or every backward path. When an earlier adapter needs an input
+          gradient through a frozen linear map, the gradient still multiplies by the base transpose. The graph
+          retains or recomputes whatever the supported backward needs.
+        hold: 0.65
+        visual_cues:
+          - id: frozen-backward-1
+            phrase: Freezing a parameter stops its parameter-gradient and
+            targets:
+              - frozen-backward-mechanism
+            linger: 0.35
+          - id: frozen-input-gradient
+            phrase: the gradient still multiplies by the base transpose
+            targets:
+              - frozen-backward-mechanism
+            linger: 0.25
+      - say: At two thousand forty-eight tokens per ticket, activations can dominate the tiny adapter state. Many
+          terms grow with batch, context and depth; a materialized attention-score matrix additionally grows
+          quadratically with context length. Smaller rank will not repair every activation peak.
+        hold: 0.65
+        visual_cues:
+          - id: frozen-backward-2
+            phrase: At two thousand forty-eight tokens per ticket,
+            targets:
+              - frozen-backward-mechanism
+            linger: 0.35
+          - id: frozen-quadratic
+            phrase: grows quadratically with context length
+            targets:
+              - frozen-backward-mechanism
+            linger: 0.25
+      - say: Compare smaller microbatches, activation checkpointing and an attention implementation that avoids the
+          full score matrix. Checkpointing trades saved activations for recomputation. Measure peak memory
+          using the real context, microbatch and backward path, including temporary buffers. A small adapter
+          file alone says little about the largest live allocation.
+        hold: 0.8
+        visual_cues:
+          - id: frozen-backward-3
+            phrase: Compare smaller microbatches, activation checkpointing and an
+            targets:
+              - frozen-backward-mechanism
+            linger: 0.35
+          - id: frozen-recompute
+            phrase: Checkpointing trades saved activations for recomputation
+            targets:
+              - frozen-backward-mechanism
+            linger: 0.25
+  - id: nf4-codec
+    title: "Which four-bit code is nearest?"
+    visual: "Use the published rounded NF4 levels as ruler positions. Magnify the central five levels and snap two opposite inputs to their nearest codes. Restore the block scale to read the reconstructed weights."
+    beats:
+      - say: "These sixteen marks are the numbers a four-bit code can select. Zero is one of the marks. Count outward and there are seven negatives and eight positives. This uneven spacing comes from a normal-distribution model. NF4 uses the bits as a lookup index. The normal distribution extends to infinity in both directions. The codebook uses finite endpoints."
+        hold: 0.7
+        visual_cues:
+          - id: nf4-levels
+            phrase: "sixteen marks"
+            targets: [nf4-ruler]
+            linger: 0.2
+      - say: "Look at the four weights below. The largest absolute value is two. Divide each weight by two to put it on the ruler. The middle of the ruler is magnified now. The yellow input sits at positive one tenth. Which level, code eight or code nine, is closer?"
+        hold: 2
+        visual_cues:
+          - id: nf4-scale
+            phrase: "largest absolute value is two"
+            targets: [nf4-block]
+            linger: 0.2
+          - id: nf4-normalized
+            phrase: "Divide each weight by two"
+            targets: [nf4-block]
+            linger: 0.2
+          - id: nf4-question
+            phrase: "code eight or code nine"
+            targets: [nf4-ruler]
+            linger: 0.2
+      - say: "Positive one tenth is closer to code eight. Now look across zero. Negative one tenth lands closer to code six. The distances differ because the table is asymmetric. Zero takes code seven, and the largest weight lands exactly at code fifteen."
+        hold: 0.72
+        visual_cues:
+          - id: nf4-positive
+            phrase: "Positive one tenth is closer to code eight"
+            targets: [nf4-ruler]
+            caption_boundary: true
+            linger: 0.2
+          - id: nf4-negative
+            phrase: "Negative one tenth lands closer to code six"
+            targets: [nf4-ruler]
+            caption_boundary: true
+            linger: 0.2
+          - id: nf4-ends
+            phrase: "largest weight lands exactly at code fifteen"
+            targets: [nf4-block]
+            linger: 0.2
+      - say: "Read code eight back out and multiply its level by two. That gives about zero point one five nine. On the negative side we get about minus zero point one eight two. Both started two tenths from zero. The positive weight moved farther, and zero survived exactly. To read these four codes back, we also need their shared scale of two."
+        hold: 0.85
+        visual_cues:
+          - id: nf4-read-positive
+            phrase: "about zero point one five nine"
+            targets: [nf4-block]
+            caption_boundary: true
+            linger: 0.2
+          - id: nf4-read-negative
+            phrase: "about minus zero point one eight two"
+            targets: [nf4-block]
+            caption_boundary: true
+            linger: 0.2
+  - id: nested-paging
+    title: Account for scales and move the right memory pages
+    visual: At fixed64-weight block zoom from32-bit scale to8-bit code and256-scale parent; retain offset
+      metadata. Separately show optimizer managed pages faulting GPU↔host during activation pressure, no
+      overlap claim.
+    beats:
+      - say: "One FP32 scale for every sixty-four weights costs thirty-two divided by sixty-four, or zero point five
+          bits per weight. Quantize each scale to eight bits and give each group of two hundred fifty-six
+          scales one FP32 scale: eight divided by sixty-four plus thirty-two divided by the product of
+          sixty-four and two hundred fifty-six is about zero point one two seven bits per weight."
+        hold: 0.65
+        visual_cues:
+          - id: nested-paging-1
+            phrase: One FP32 scale for every sixty-four weights
+            targets:
+              - nested-paging-mechanism
+            linger: 0.35
+          - id: nested-formula
+            phrase: about zero point one two seven bits per weight
+            targets:
+              - nested-paging-mechanism
+            linger: 0.25
+      - say: At sixty-five billion weights, that large-tensor scale estimate saves about three point zero three
+          decimal gigabytes. It excludes incomplete blocks and small extra metadata. The paper describes
+          eight-bit floating scales; the checked bitsandbytes implementation uses eight-bit codebook indices
+          and retains a centering offset. Packed values, scale codes and parent scales all have to survive
+          loading.
+        hold: 0.65
+        visual_cues:
+          - id: nested-paging-2
+            phrase: At sixty-five billion weights, that large-tensor scale
+            targets:
+              - nested-paging-mechanism
+            linger: 0.35
+          - id: nested-savings
+            phrase: saves about three point zero three decimal gigabytes
+            targets:
+              - nested-paging-mechanism
+            linger: 0.25
+      - say: "Follow the yellow blocks. Each one holds optimizer state. When other allocations fill the GPU, CUDA managed memory can migrate optimizer-state pages between host and GPU. The frozen weights and activations stay where they are. Moving a page out makes room. Bringing it back for an optimizer step takes time. The QLoRA team reported equal speed in their comparison at batch size sixteen, with sixty-five billion parameters and a forty-eight-gigabyte GPU."
+        hold: 0.8
+        visual_cues:
+          - id: nested-paging-3
+            phrase: Follow the yellow blocks
+            targets:
+              - nested-paging-mechanism
+            linger: 0.35
+          - id: optimizer-migrate
+            phrase: migrate optimizer-state pages between host and GPU
+            targets:
+              - nested-paging-mechanism
+            linger: 0.25
+  - id: precision-contract
+    title: Inspect four precision choices and actual temporaries
+    visual: Keep four typed tensor inventories base packed/base compute/adapter/optimizer. Actual BF16 wrapper
+      promotion becomes FP32; TRL source later casts eligible trainable LoRA factors BF16, DoRA magnitude
+      remains explicit. Show full dequantized backward matrix buffer.
+    beats:
+      - say: "Record four precision choices separately: packed base storage, dequantized computation, adapter
+          parameter storage and optimizer state. Asking the base to compute in BF16 does not force the factors
+          or moments to use BF16. The article’s pinned CPU wrapper keeps the base in BF16 but promotes both
+          LoRA factors to FP32 by default; disabling adapter-dtype promotion retains BF16 factors."
+        hold: 0.65
+        visual_cues:
+          - id: precision-contract-1
+            phrase: "Record four precision choices separately: packed base"
+            targets:
+              - precision-contract-mechanism
+            linger: 0.35
+          - id: precision-promote
+            phrase: promotes both LoRA factors to FP32 by default
+            targets:
+              - precision-contract-mechanism
+            linger: 0.25
+      - say: The checked PEFT troubleshooting guide documents this promotion. A later trainer can change it again. In
+          TRL one point seventeen point one, the quantized-model path casts trainable LoRA parameters to BF16
+          while excluding the DoRA magnitude vector. Inspect the actual tensors after preparation, wrapping
+          and trainer construction, rather than inferring their storage dtype from one load argument.
+        hold: 0.65
+        visual_cues:
+          - id: precision-contract-2
+            phrase: The checked PEFT troubleshooting guide documents this
+            targets:
+              - precision-contract-mechanism
+            linger: 0.35
+          - id: precision-trainer
+            phrase: casts trainable LoRA parameters to BF16
+            targets:
+              - precision-contract-mechanism
+            linger: 0.25
+      - say: "Watch what happens during backward. In bitsandbytes zero point fifty point two, the standard four-bit path materializes a dequantized weight matrix to compute input gradients. That temporary needs room alongside the packed weights. Load the quantized base, prepare it for k-bit training, attach the adapters, and measure peak memory through a full training step."
+        hold: 0.8
+        visual_cues:
+          - id: precision-contract-3
+            phrase: "Watch what happens during backward"
+            targets:
+              - precision-contract-mechanism
+            linger: 0.35
+          - id: precision-temporary
+            phrase: materializes a dequantized weight matrix
+            targets:
+              - precision-contract-mechanism
+            linger: 0.25
+  - id: sharded-training
+    title: The frozen base still has a gathering peak
+    visual: Walk one block owner through sharded frozen weights all-gather/full unit compute/release while adapter
+      optimizer owns only requires_grad parameters; reject inference device_map auto training plan.
+    beats:
+      - say: "These four workers each hold a shard of the base. To train one adapter across them, the training launcher has to coordinate gradients and optimizer updates. Accelerate’s automatic device map places layers for inference. For training, choose a supported setup such as FSDP or DeepSpeed, and check that it supports your adapters and any quantized weights."
+        hold: 0.65
+        visual_cues:
+          - id: sharded-training-1
+            phrase: "These four workers each hold a shard"
+            targets:
+              - sharded-training-mechanism
+            linger: 0.35
+      - say: "Build the optimizer from the intended trainable parameters. A sharded frozen base still obeys the
+          wrapper’s materialization contract: an FSDP unit gathers its frozen weights before computing with
+          that unit. Its peak includes gathered weights, activations, adapter state and temporary buffers.
+          Block-level granularity can limit the gathered unit, but the exact wrapping and prefetch schedule
+          matter."
+        hold: 0.65
+        visual_cues:
+          - id: sharded-training-2
+            phrase: Build the optimizer from the intended trainable
+            targets:
+              - sharded-training-mechanism
+            linger: 0.35
+          - id: sharded-gather
+            phrase: gathers its frozen weights before computing with that unit
+            targets:
+              - sharded-training-mechanism
+            linger: 0.25
+          - id: sharded-block
+            phrase: Block-level granularity can limit the gathered unit
+            targets:
+              - sharded-training-mechanism
+            linger: 0.25
+      - say: "To resume this run, reload the same base revision, tokenizer, target modules and quantization settings. Restore the adapter and optimizer, the learning-rate schedule, the random state and the position in the training data. The next update depends on all of them."
+        hold: 0.8
+        visual_cues:
+          - id: sharded-training-3
+            phrase: "To resume this run"
+            targets:
+              - sharded-training-mechanism
+            linger: 0.35
+  - id: merge
+    title: Fold the correction into the base
+    visual: Exact two-by-two factors and base combine into one merged matrix. The same input yields identical
+      algebraic outputs. Three adapter tabs then route separate requests through one unchanged shared base.
+    beats:
+      - say: After training, compute the scaled factor product and add it to the base matrix. Distributing
+          multiplication over that sum proves the merged layer has the same mathematical response as the two
+          paths.
+        hold: 0.8
+        visual_cues:
+          - id: merge-b1-1
+            phrase: factor product
+            targets:
+              - update-matrix
+            linger: 0.45
+          - id: merge-b1-2
+            phrase: base matrix
+            targets:
+              - base-matrix
+            linger: 0.45
+      - say: A merged artifact uses an ordinary dense layer. Compare its outputs in evaluation mode, with dropout
+          disabled. Floating-point arithmetic can introduce small rounding differences, so use an appropriate
+          numerical tolerance.
+        hold: 0.75
+        visual_cues:
+          - id: merge-b2-1
+            phrase: ordinary dense layer
+            targets:
+              - merged-matrix
+            linger: 0.45
+      - say: For several tasks, keeping adapters separate preserves one shared base. Each request selects its own
+          factors. Preserve the exact base revision alongside every adapter so loading, comparison, and
+          rollback remain reproducible.
+        hold: 0.75
+        visual_cues:
+          - id: merge-b3-1
+            phrase: exact base revision
+            targets:
+              - merge-identity
+            linger: 0.45
+  - id: export-contract
+    title: Save the adapter before unloading its path
+    visual: Keep same base+adapter identity through adapter save, clean reload, eval merge return value and
+      numerical comparison; diverge quantized training base from BF16 reload then re-evaluate separate
+      artifacts.
+    beats:
+      - say: "Save the separate adapter before merging. The merge-and-unload call modifies the wrapped base and returns a dense model with the correction folded into its weights. Use that returned model for inference. If you need to roll back, reload the clean base revision you saved."
+        hold: 0.65
+        visual_cues:
+          - id: export-contract-1
+            phrase: Save the separate adapter before merging. The
+            targets:
+              - export-contract-mechanism
+            linger: 0.35
+          - id: export-save
+            phrase: Save the separate adapter before merging
+            targets:
+              - export-contract-mechanism
+            linger: 0.25
+          - id: export-mutate
+            phrase: modifies the wrapped base
+            targets:
+              - export-contract-mechanism
+            linger: 0.25
+      - say: "For the article’s exact two-by-two example, the merged rows are two, one and five, two. Give that matrix the input two, one. Its output is five, twelve, just as it was with two paths. On real weights, turn off dropout and compare the outputs within a tolerance for floating-point rounding."
+        hold: 0.65
+        visual_cues:
+          - id: export-contract-2
+            phrase: For the article’s exact two-by-two example, the
+            targets:
+              - export-contract-mechanism
+            linger: 0.35
+          - id: export-output
+            phrase: five, twelve
+            targets:
+              - export-contract-mechanism
+            linger: 0.25
+      - say: "If an adapter trained against a quantized base is reloaded onto BF16 weights for export, the base values have changed. Re-evaluate the merged export, then separately re-evaluate any re-quantized version. Keep the trained adapter, its source base and each supported export identifiable. To resume training, load the training checkpoint."
+        hold: 0.8
+        visual_cues:
+          - id: export-contract-3
+            phrase: If an adapter trained against a quantized
+            targets:
+              - export-contract-mechanism
+            linger: 0.35
+          - id: export-reevaluate
+            phrase: Re-evaluate the merged export, then separately re-evaluate any re-quantized version
+            targets:
+              - export-contract-mechanism
+            linger: 0.25
+  - id: dora-forward
+    title: Give each output row its own magnitude
+    visual: Reuse actual row[3,4] withnorm5 and rectangular4x6 rows; normalized direction rotates while
+      independent magnitude expands, showing initial exact identity and merged dense rows.
+    beats:
+      - say: DoRA makes magnitude explicit. In our PyTorch output-by-input layout, form V equals W zero plus scaled B
+          A. Divide each row of V by its own nonzero Euclidean norm, then multiply that row by its learned
+          magnitude m. There is one magnitude scalar per output row, broadcast across that row’s input
+          coordinates.
+        hold: 0.65
+        visual_cues:
+          - id: dora-forward-1
+            phrase: DoRA makes magnitude explicit. In our PyTorch
+            targets:
+              - dora-forward-mechanism
+            linger: 0.35
+      - say: Initialize B to zero and each magnitude to the corresponding base-row norm. The normalized direction
+          times its original norm reconstructs the exact base row, so the adapter starts as a no-op. Later,
+          directional factors and magnitude can both change. The nonzero-row assumption matters for the
+          displayed division. A supported trained DoRA adapter can merge its final normalized rows into a
+          dense matrix.
+        hold: 0.65
+        visual_cues:
+          - id: dora-forward-2
+            phrase: Initialize B to zero and each magnitude
+            targets:
+              - dora-forward-mechanism
+            linger: 0.35
+          - id: dora-initial-identity
+            phrase: reconstructs the exact base row
+            targets:
+              - dora-normalized-row
+            linger: 0.25
+          - id: dora-direction-change
+            phrase: directional factors
+            targets:
+              - dora-direction
+            linger: 0.25
+          - id: dora-magnitude-change
+            phrase: magnitude can both change
+            targets:
+              - dora-normalized-row
+            linger: 0.25
+      - say: For four outputs, six inputs and rank two, LoRA has two times six plus four times two, or twenty
+          parameters. DoRA adds four magnitudes, twenty percent extra. For a square
+          width-four-thousand-ninety-six rank-sixteen layer, it adds four thousand ninety-six to one hundred
+          thirty-one thousand seventy-two, or three point one two five percent. The output-row axis determines
+          the count; a square matrix would hide an axis mistake.
+        hold: 0.8
+        visual_cues:
+          - id: dora-forward-3
+            phrase: For four outputs, six inputs and rank
+            targets:
+              - dora-forward-mechanism
+            linger: 0.35
+          - id: dora-four-magnitudes
+            phrase: DoRA adds four magnitudes
+            targets:
+              - dora-row-count
+            linger: 0.25
+          - id: dora-twenty-percent
+            phrase: twenty percent extra
+            targets:
+              - dora-row-count
+            linger: 0.25
+          - id: dora-square-count
+            phrase: three point one two five percent
+            targets:
+              - dora-row-count
+            linger: 0.25
+  - id: dora-backward
+    title: "What does the row length contribute to the gradient?"
+    visual: "Stretch [3,4] to [6,8] at fixed magnitude and input. Return to the original row and subtract the norm derivative as a vector. Test both gradients in the direction of that same stretch."
+    beats:
+      - say: "Start with the row three, four. Its length is five and its learned magnitude is five. The input reads just the first coordinate, so the output is three. Now double both coordinates to six and eight. The row is ten units long. With the learned magnitude still five, what output will that input see?"
+        hold: 2.05
+        visual_cues:
+          - id: dora-start
+            phrase: "the output is three"
+            targets: [dora-forward-readout]
+            linger: 0.2
+          - id: dora-stretch
+            phrase: "double both coordinates to six and eight"
+            targets: [dora-row]
+            linger: 0.2
+      - say: "Three again. Doubling the row also doubled the number we divide by. Both implementations recompute that length on every forward pass. Now rewind to three, four. When we differentiate the output, do we also follow the path through the length?"
+        hold: 0.85
+        visual_cues:
+          - id: dora-same
+            phrase: "Three again"
+            targets: [dora-forward-readout]
+            caption_boundary: true
+            linger: 0.2
+          - id: dora-rewind
+            phrase: "Now rewind to three, four"
+            targets: [dora-row]
+            linger: 0.2
+      - say: "The DoRA paper's efficient backward pass, and the PEFT version in the article, hold the denominator fixed. That leaves the direct gradient, one, zero. For full differentiation, subtract the part that points along the row. That subtraction takes away point three six horizontally and point four eight vertically. The full gradient ends at point six four, minus point four eight. With A set to the identity and B to zero, the article checks the actual B gradient against the detached rule."
+        hold: 0.85
+        visual_cues:
+          - id: dora-direct
+            phrase: "the direct gradient, one, zero"
+            targets: [dora-gradients]
+            caption_boundary: true
+            linger: 0.2
+          - id: dora-subtract
+            phrase: "subtract the part that points along the row"
+            targets: [dora-gradients]
+            linger: 0.2
+          - id: dora-full
+            phrase: "point six four, minus point four eight"
+            targets: [dora-gradients]
+            caption_boundary: true
+            linger: 0.2
+      - say: "Test those arrows against the stretch you just saw. For a small change along three, four, take the dot product with each gradient. The detached rule gives three. The full derivative gives zero. That zero explains why changing the length alone left the normalized output unmoved. The detached rule deliberately sends a different training signal. It still recomputes the length on the next forward pass."
+        hold: 0.82
+        visual_cues:
+          - id: dora-radial-check
+            phrase: "The full derivative gives zero"
+            targets: [dora-radial]
+            caption_boundary: true
+            linger: 0.2
+      - say: "The numbers below compare changes in magnitude and direction in the paper's VL-BART study. Those correlations describe the layers and checkpoints in that study. An additive update can rotate a row too. Compare quality and training cost on your own task before choosing the variant."
+        hold: 0.8
+        visual_cues:
+          - id: dora-study
+            phrase: "the paper's VL-BART study"
+            targets: [dora-radial]
+            linger: 0.2
+  - id: serving-contract
+    title: One shared base can serve different corrections
+    visual: Retain request IDs and adapter assignments through actual batched base XWtranspose and per-segment
+      low-rank math. Grow assumed artifacts on decimal disk scale; separate SGMV execution from S-LoRA
+      pagepool/KV.
+    beats:
+      - say: Choose the serving contract from traffic. A merged single-adapter model removes its low-rank branch.
+          Dynamic adapters keep one shared base and select the corresponding factors per request. Several
+          merged artifacts can coexist on disk without being simultaneously resident on GPUs; count disk, host
+          memory, device weights, KV cache and runtime buffers separately.
+        hold: 0.65
+        visual_cues:
+          - id: serving-contract-1
+            phrase: Choose the serving contract from traffic. A
+            targets:
+              - serving-contract-mechanism
+            linger: 0.35
+      - say: "Each blue square is a fourteen-gigabyte checkpoint. Save fifty merged copies and you write seven hundred gigabytes. Keep one base instead. Fifty adapters at one hundred twenty-eight megabytes each add just six point four gigabytes. The shared files total twenty point four decimal gigabytes. The merged copies use about thirty-four times as much disk space. If one adapter gets most of the traffic, you may still want to merge that one."
+        caption_starts: ["Save fifty merged copies", "The shared files total", "The merged copies use about"]
+        hold: 0.65
+        visual_cues:
+          - id: serving-contract-2
+            phrase: "Each blue square is a fourteen-gigabyte checkpoint"
+            targets:
+              - serving-contract-mechanism
+            linger: 0.35
+          - id: serving-storage
+            phrase: seven hundred gigabytes
+            targets:
+              - serving-contract-mechanism
+            linger: 0.25
+          - id: serving-shared
+            phrase: twenty point four decimal gigabytes
+            targets:
+              - serving-contract-mechanism
+            linger: 0.25
+          - id: serving-ratio
+            phrase: "thirty-four times as much disk space"
+            targets:
+              - serving-contract-mechanism
+            linger: 0.25
+      - say: Punica’s Segmented Gather Matrix-Vector operation supports heterogeneous adapters sharing base
+          computation. For row-stored requests, the base product is X W zero transpose, and adapter i adds its
+          scale times X i A i transpose B i transpose. S-LoRA instead highlights a common engine-managed pool
+          for adapter and KV tensors, with noncontiguous pages and prefetching. This serving paging is
+          distinct from managed-memory optimizer paging. Actual admission and batching still depend on ranks,
+          shapes, memory and runtime support.
+        hold: 0.8
+        visual_cues:
+          - id: serving-contract-3
+            phrase: Punica’s Segmented Gather Matrix-Vector operation supports heterogeneous
+            targets:
+              - serving-contract-mechanism
+            linger: 0.35
+          - id: serving-segments
+            phrase: adapter i adds its scale times X i A i transpose B i transpose
+            targets:
+              - serving-contract-mechanism
+            linger: 0.25
+          - id: serving-pool
+            phrase: a common engine-managed pool for adapter and KV tensors
+            targets:
+              - serving-contract-mechanism
+            linger: 0.25
+  - id: evaluate
+    title: Let the task decide the useful rank
+    visual: A constrained plane moves toward training targets, then held-out task and regression examples probe
+      separate outputs. A final causal map links factors, rank, scale, targets, memory and evaluation.
+    beats:
+      - say: "A low-rank constraint makes a testable bet: the task's useful changes can fit inside these smaller
+          updates. Difficult examples may need more rank, broader target coverage, better data, or a different
+          training approach."
+        hold: 0.75
+        visual_cues:
+          - id: evaluate-b1-1
+            phrase: testable bet
+            targets:
+              - training-curve
+            linger: 0.45
+      - say: Evaluate new skills and existing capabilities together. Falling training loss shows that examples were
+          fitted. Held-out task checks and regression checks reveal whether the active adapter learned
+          behavior you actually want.
+        hold: 0.8
+        visual_cues:
+          - id: evaluate-b2-1
+            phrase: training loss
+            targets:
+              - training-curve
+            linger: 0.45
+          - id: evaluate-b2-2
+            phrase: Held-out task checks
+            targets:
+              - heldout-curve
+            linger: 0.45
+          - id: evaluate-b2-3
+            phrase: regression checks
+            targets:
+              - regression-curve
+            linger: 0.45
+      - say: You can now trace LoRA from one direction to a trainable bottleneck, through its first gradient and into
+          a merged layer. A small path becomes useful when its measured behavior earns its place.
+        hold: 1.1
+        visual_cues:
+          - id: evaluate-b3-1
+            phrase: measured behavior
+            targets:
+              - heldout-curve
+            linger: 0.45
+  - id: diagnose-policy
+    title: Let the failure choose the next comparison
+    visual: Run controlled fictional policy ticket batches through stable candidate table; training-flat branch
+      traces masks/gradients/targets, falling-train/worse-validation branch checksdata/dropout; coupled rank
+      scale table remains visible.
+    beats:
+      - say: "Start with one run. The table gives you choices for the next comparison. For example, keep the learning rate, dropout and target layers fixed, and compare rank eight with rank sixteen at the same scale. Use the same supervised tokens and evaluation cases in both runs."
+        hold: 0.65
+        visual_cues:
+          - id: diagnose-policy-1
+            phrase: "Start with one run"
+            targets:
+              - diagnose-policy-mechanism
+            linger: 0.35
+      - say: If neither training loss nor policy behavior moves, inspect formatting, masks, actual target modules and
+          gradients before buying rank. Compare broader MLP coverage when the narrower target path misses the
+          needed transformation. If higher rank increases cost without held-out quality, check scale and data.
+          If training improves while held-out behavior worsens, investigate data quality, regularization and
+          regressions rather than treating the lower training loss as a deployment win.
+        hold: 0.65
+        visual_cues:
+          - id: diagnose-policy-2
+            phrase: If neither training loss nor policy behavior
+            targets:
+              - diagnose-policy-mechanism
+            linger: 0.35
+          - id: diagnose-path
+            phrase: inspect formatting, masks, actual target modules and gradients
+            targets:
+              - diagnose-policy-mechanism
+            linger: 0.25
+          - id: diagnose-overfit
+            phrase: training improves while held-out behavior worsens
+            targets:
+              - diagnose-policy-mechanism
+            linger: 0.25
+      - say: "Record task outcomes and regression outcomes beside validation loss, peak memory and latency. Pick a change that reaches the failure. A newly added token may need its own embedding row trained. A slow single-adapter deployment may benefit from a merge. If broader changes are needed, compare full fine-tuning on the same cases."
+        hold: 0.8
+        visual_cues:
+          - id: diagnose-policy-3
+            phrase: Record task outcomes and regression outcomes beside
+            targets:
+              - diagnose-policy-mechanism
+            linger: 0.35
+  - id: fresh-policy
+    title: "Which change earns a release?"
+    visual: "Move a supplied scalar score across zero. Then score separate fictional policy and routine sets. Replay one corrected ticket at a time from the same original outcomes. A and B tie on pooled accuracy, but only B corrects R07 in the set that fell short."
+    beats:
+      - say: "Try a fresh scoring layer. Its weights are supplied for this calculation. A negative score keeps a ticket in routine review. Zero or above sends it to the rotation owner. The input is two, one. Use the frozen row for the blue score. Then use A, B and the scale of two. Where will the adapted score land?"
+        hold: 2.25
+        visual_cues:
+          - id: policy-operands-ready
+            phrase: "The input is two, one"
+            targets: [policy-operands]
+            linger: 0.2
+          - id: policy-base-row
+            phrase: "Use the frozen row for the blue score"
+            targets: [policy-operands]
+            linger: 0.2
+          - id: policy-factor-row
+            phrase: "Then use A, B and the scale of two"
+            targets: [policy-operands]
+            linger: 0.2
+      - say: "The frozen row gives minus two plus one, or minus one. On the other path, two minus a half leaves one and a half. B halves that to three quarters. Scaling by two gives a correction of one and a half. Add that to the blue score and you land at positive one half. Send this ticket to the rotation owner."
+        hold: 0.9
+        visual_cues:
+          - id: fresh-policy-base
+            phrase: "or minus one"
+            targets: [policy-arithmetic]
+            caption_boundary: true
+            linger: 0.2
+          - id: fresh-policy-z
+            phrase: "leaves one and a half"
+            targets: [policy-arithmetic]
+            caption_boundary: true
+            linger: 0.2
+          - id: fresh-policy-unscaled
+            phrase: "to three quarters"
+            targets: [policy-arithmetic]
+            caption_boundary: true
+            linger: 0.2
+          - id: fresh-policy-correction
+            phrase: "a correction of one and a half"
+            targets: [policy-arithmetic]
+            caption_boundary: true
+            linger: 0.2
+          - id: fresh-policy-output
+            phrase: "you land at positive one half"
+            targets: [policy-ruler]
+            caption_boundary: true
+            linger: 0.2
+          - id: fresh-policy-decision
+            phrase: "Send this ticket to the rotation owner"
+            targets: [policy-ruler]
+            caption_boundary: true
+            linger: 0.2
+      - say: "Now pull out the two sets we reserved. These are separate, fictional evaluation results. On the twenty policy tickets the candidate gets nineteen correct. On the routine reviews it gets eighteen correct. Look at ticket seven. Its key was only twelve days old, yet the assistant sent it to the owner. That second set falls below ninety-five percent. Hold this candidate. Keep the clean base and the separate adapter so you can inspect the missed replies."
+        hold: 0.9
+        visual_cues:
+          - id: fresh-policy-count
+            phrase: "gets nineteen correct"
+            targets: [policy-ticket-row]
+            caption_boundary: true
+            linger: 0.2
+          - id: fresh-regression-count
+            phrase: "gets eighteen correct"
+            targets: [routine-ticket-row]
+            caption_boundary: true
+            linger: 0.2
+          - id: fresh-policy-hold
+            phrase: "Hold this candidate"
+            targets: [ticket-decision]
+            caption_boundary: true
+            linger: 0.2
+      - say: "Two follow-up candidates each fix exactly one ticket. Candidate A fixes policy ticket twenty. Candidate B fixes routine ticket seven instead. Everything else matches the original run. Which candidate gets at least nineteen right in both sets?"
+        hold: 2.4
+        visual_cues:
+          - id: policy-option-a
+            phrase: "Candidate A fixes policy ticket twenty"
+            targets: [ticket-results]
+            linger: 0.2
+          - id: policy-option-b
+            phrase: "Candidate B fixes routine ticket seven instead"
+            targets: [ticket-results]
+            linger: 0.2
+      - say: "Try A first. Policy ticket twenty moves to the rotation owner. Its row is now perfect. The two missed routine reviews are still there. A gets thirty-eight correct overall, but routine reviews stay at eighteen. Hold A."
+        caption_starts: ["The two missed routine reviews are still there", "A gets thirty-eight correct overall"]
+        hold: 0.85
+        visual_cues:
+          - id: policy-fix-a
+            phrase: "Policy ticket twenty moves to the rotation owner"
+            targets: [ticket-results]
+            caption_boundary: true
+            linger: 0.2
+          - id: policy-verdict-a
+            phrase: "Hold A"
+            targets: [ticket-decision]
+            caption_boundary: true
+            linger: 0.2
+      - say: "Go back to the original answers and try B. Ticket seven returns to routine review. That brings routine reviews up to nineteen, alongside nineteen on policy. Both candidates got thirty-eight right. Only B passes the release rule. Keep that adapter with the exact base and ticket format you tested. To resume training after preemption, keep the optimizer state, schedule and data position too. Training Run Operations picks up there, with global batch size and learning-rate scaling."
+        caption_starts: ["That brings routine reviews up to nineteen", "Both candidates got thirty-eight right", "Keep that adapter with the exact base and ticket format you tested", "To resume training after preemption", "Training Run Operations picks up there"]
+        hold: 1.05
+        visual_cues:
+          - id: policy-fix-b
+            phrase: "Ticket seven returns to routine review"
+            targets: [ticket-results]
+            caption_boundary: true
+            linger: 0.2
+          - id: policy-verdict-b
+            phrase: "Only B passes the release rule"
+            targets: [ticket-decision]
+            caption_boundary: true
+            linger: 0.2
+          - id: policy-save
+            phrase: "Keep that adapter with the exact base and ticket format you tested"
+            targets: [policy-handoff]
+            linger: 0.2
+          - id: policy-resume
+            phrase: "keep the optimizer state, schedule and data position too"
+            targets: [policy-handoff]
+            linger: 0.2

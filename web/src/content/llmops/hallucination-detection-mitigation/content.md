@@ -268,10 +268,16 @@ $$
 Once $\hat{p}_i$ is calibrated, choosing an operational acceptance cutoff $\tau \in [0, 1]$ defines a **Risk-Coverage Curve**. Accepting a claim only when $\hat{p}_i \ge \tau$ yields empirical coverage $C(\tau) = \frac{1}{n}\sum_i \mathbb{I}[\hat{p}_i \ge \tau]$ and selective unsupported risk among served claims:
 
 $$
-\hat{R}(\tau) = \frac{\sum_{i=1}^{n} \mathbb{I}[\hat{p}_i \ge \tau \land y_i = 0]}{\max\bigl(1, \sum_{i=1}^{n} \mathbb{I}[\hat{p}_i \ge \tau]\bigr)}
+\hat{R}_{\text{sel}}(\tau) = \frac{\sum_{i=1}^{n} \mathbb{I}[\hat{p}_i \ge \tau \land y_i = 0]}{\max\bigl(1, \sum_{i=1}^{n} \mathbb{I}[\hat{p}_i \ge \tau]\bigr)}
 $$
 
-To convert an empirical curve into a finite-sample reliability target before deployment, <span data-glossary="conformal-prediction">split-conformal risk control</span> [^angelopoulos2021conformal] [^angelopoulos2022ConformalRiskControl] solves for the smallest threshold $\hat{\tau}$ on an independent calibration split of $n_{\text{cal}}$ claims such that even under worst-case finite-sample fluctuations, expected test error remains controlled near target risk $\alpha$ (for instance $\alpha = 0.05$). Under an upper finite-sample adjustment $R_{\text{upper}}(\tau) = \frac{n_{\text{cal}} \hat{R}_{\text{cal}}(\tau) + 1}{n_{\text{cal}} + 1} \le \alpha$, the selected threshold $\hat{\tau}$ accounts explicitly for calibration set size rather than overfitting to noisy single-point empirical rates, echoing recent theoretical work on abstention guarantees [^chen2025limitingconfidence].
+To convert an empirical threshold into a finite-sample guarantee before deployment, <span data-glossary="conformal-prediction">Conformal Risk Control (CRC)</span> [^angelopoulos2021conformal] [^angelopoulos2022ConformalRiskControl] controls any bounded loss $L_i(\tau) \in [0, 1]$ that is non-increasing in $\tau$. Conditional selective risk $\hat{R}_{\text{sel}}(\tau)$ is not guaranteed monotone in $\tau$, whereas the **unconditional false-claim loss** $L_i(\tau) = \mathbb{I}[\hat{p}_i \ge \tau \land y_i = 0]$ is strictly non-increasing as the acceptance cutoff rises. Averaging $L_i(\tau)$ over an independent calibration split of $n_{\text{cal}}$ claims gives empirical false-claim risk $\hat{R}_{\text{cal}}(\tau) = \frac{1}{n_{\text{cal}}}\sum_{i=1}^{n_{\text{cal}}} L_i(\tau) = \frac{\text{errors}(\tau)}{n_{\text{cal}}}$. Selecting the smallest threshold $\hat{\tau}$ satisfying the finite-sample upper bound
+
+$$
+R_{\text{upper}}(\tau) = \frac{n_{\text{cal}} \hat{R}_{\text{cal}}(\tau) + 1}{n_{\text{cal}} + 1} = \frac{\text{errors}(\tau) + 1}{n_{\text{cal}} + 1} \le \alpha
+$$
+
+guarantees $\mathbb{E}[L_{\text{test}}(\hat{\tau})] \le \alpha$ on exchangeable test claims, explicitly accounting for calibration sample size instead of trusting a noisy point estimate (bounding conditional selective risk directly requires non-monotone hypothesis-testing procedures such as Learn-then-Test).
 
 <figure>
   <img src="illustrations/_generated/detection_signal_router_dark.png" alt="Line chart of unsupported claim risk versus answer coverage across abstention thresholds. A calibrated NLI verifier holds risk at five percent at seventy percent coverage, outperforming token probability and consistency alone." />
@@ -324,7 +330,8 @@ p_test = calibrator.predict_proba(X_test)[:, 1]
 print(
     f"Raw NLI heuristic  | Brier={brier_score_loss(y_test, raw_test):.4f} | "
     f"ECE={expected_calibration_error(y_test, raw_test):.4f} | "
-    f"AUC={roc_auc_score(y_test, raw_test):.4f}"
+    f"AUC={roc_auc_score(y_test, raw_test):.4f} | "
+    f"AP={average_precision_score(y_test, raw_test):.4f}"
 )
 print(
     f"Calibrated verifier| Brier={brier_score_loss(y_test, p_test):.4f} | "
@@ -333,51 +340,50 @@ print(
     f"AP={average_precision_score(y_test, p_test):.4f}"
 )
 
-# Split-conformal risk control: scan downward from strictest cutoff until upper bound exceeds alpha
+# Conformal Risk Control on monotone unconditional false-claim loss L_i(tau) = 1[p_i >= tau and y_i == 0]
 alpha = 0.05
+n_cal = len(y_cal)
 thresholds = np.linspace(0.96, 0.50, 47)
 selected_tau = 0.96
 for tau in thresholds:
     accepted = p_cal >= tau
-    n_acc = int(np.sum(accepted))
-    if n_acc < 20:
-        continue
     errors = int(np.sum((y_cal == 0) & accepted))
-    upper_risk = (errors + 1.0) / (n_acc + 1.0)
+    upper_risk = (errors + 1.0) / (n_cal + 1.0)
     if upper_risk <= alpha:
         selected_tau = float(tau)
     else:
         break
 
-print(f"\nSelected split-conformal cutoff (alpha={alpha:.2f}): tau={selected_tau:.2f}")
+print(f"\nSelected Conformal Risk Control cutoff (alpha={alpha:.2f}): tau={selected_tau:.2f}")
 for label, cutoff in [("Permissive 0.60", 0.60), ("Conformal gate", selected_tau), ("Strict 0.96", 0.96)]:
     acc = p_test >= cutoff
     cov = float(np.mean(acc))
-    risk = float(np.mean(y_test[acc] == 0)) if np.any(acc) else 0.0
-    print(f"{label:16s} | cutoff={cutoff:.2f} | test_coverage={cov:.3f} | test_risk={risk:.3f}")
+    uncond_risk = float(np.mean((y_test == 0) & acc))
+    sel_risk = float(np.mean(y_test[acc] == 0)) if np.any(acc) else 0.0
+    print(f"{label:16s} | cutoff={cutoff:.2f} | test_cov={cov:.3f} | uncond_risk={uncond_risk:.3f} | sel_risk={sel_risk:.3f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-Raw NLI heuristic  | Brier=0.1220 | ECE=0.1155 | AUC=0.9400
+Raw NLI heuristic  | Brier=0.1220 | ECE=0.1155 | AUC=0.9400 | AP=0.9494
 Calibrated verifier| Brier=0.0965 | ECE=0.0359 | AUC=0.9402 | AP=0.9497
 
-Selected split-conformal cutoff (alpha=0.05): tau=0.93
-Permissive 0.60  | cutoff=0.60 | test_coverage=0.540 | test_risk=0.139
-Conformal gate   | cutoff=0.93 | test_coverage=0.297 | test_risk=0.017
-Strict 0.96      | cutoff=0.96 | test_coverage=0.230 | test_risk=0.011
+Selected Conformal Risk Control cutoff (alpha=0.05): tau=0.75
+Permissive 0.60  | cutoff=0.60 | test_cov=0.540 | uncond_risk=0.075 | sel_risk=0.139
+Conformal gate   | cutoff=0.75 | test_cov=0.458 | uncond_risk=0.040 | sel_risk=0.087
+Strict 0.96      | cutoff=0.96 | test_cov=0.230 | uncond_risk=0.003 | sel_risk=0.011
 ```
 <!-- leetllm: output:end -->
 
-Look at both halves of the diagnostic output. Replacing an overconfident NLI logit heuristic with multi-feature logistic calibration lowers both Brier score and Expected Calibration Error substantially on unseen queries while lifting ranking discrimination (`AUC` and <span data-glossary="average-precision">Average Precision</span>). Then, selecting $\hat{\tau}$ conservatively on `X_cal` keeps unseen test error right inside the target budget without ad hoc manual threshold guessing.
+Look at both halves of the diagnostic output. Replacing an overconfident NLI logit heuristic with multi-feature logistic calibration lowers both Brier score and Expected Calibration Error substantially on unseen queries while preserving strong ranking discrimination (`AUC` and <span data-glossary="average-precision">Average Precision</span>). Then, selecting $\hat{\tau}$ conservatively on `X_cal` keeps unseen unconditional false-claim risk inside the $\alpha = 0.05$ budget while surfacing the corresponding conditional selective risk among served claims.
 
 ## Mitigation layers across generation and serving
 
 No single intervention removes every hallucination failure mode cleanly, because hallucinations originate across retrieval gaps, decoding variance, and post-generation presentation. Effective production pipelines compose complementary defenses along the execution timeline:
 
-1. **Decoding-time faithfulness amplification**: Methods such as **DoLa (Decoding by Contrasting Layers)** [^chuang2024DoLa] and **Contrastive Decoding** [^li2024contrastive] subtract surface-layer priors from deeper factual layers or subtract unconditioned prior logits from context-conditioned logits:
+1. **Decoding-time faithfulness amplification**: Methods such as **DoLa (Decoding by Contrasting Layers)** [^chuang2024DoLa] and **Context-Aware Decoding (CAD)** [^li2024contrastive] subtract surface-layer priors from deeper factual layers or contrast context-conditioned logits against unconditioned prior logits:
    $$
-   \log p_{\text{CAD}}(y_t \mid x, D) \propto (1 + \alpha)\log p(y_t \mid x, D) - \alpha \log p(y_t \mid x)
+   p_{\text{CAD}}(y_t \mid x, D) = \operatorname{softmax}\!\bigl((1 + \alpha)\log p(y_t \mid x, D) - \alpha \log p(y_t \mid x)\bigr)
    $$
    Weighting context-dependent probability shifts suppresses fluent clichés memorized from pretraining whenever retrieved context points in a different direction.
 2. **Verify-then-edit and independent verification**: **Chain-of-Verification (CoVe)** [^dhuliawala2023] drafts an initial answer, formulates targeted verification questions for each claim, answers those verification questions independently without leaking the draft's phrasing, and revises only contradicted spans. Isolating verification prevents self-anchoring bias.
@@ -389,7 +395,7 @@ No single intervention removes every hallucination failure mode cleanly, because
   <figcaption>Unsupported-claim rates fall cumulatively when prompt grounding, multi-sample consistency filtering, atomic claim pruning, and corrective retrieval plus a calibrated gate work in sequence.</figcaption>
 </figure>
 
-> **Common mistake:** Measuring hallucination defenses on error rate alone. As benchmarks like TruthfulQA illustrate,[^lin2021] a filter that refuses 90% of queries trivially pushes unsupported errors near zero while making the assistant useless. Always track selective risk alongside supported recall and net serving utility (`+1` per served supported claim minus penalty $\lambda$ per served unsupported claim).
+> **Common mistake:** Measuring hallucination defenses on error rate alone. As benchmarks like TruthfulQA illustrate,[^lin2021] a filter that refuses 90% of queries mechanically pushes unsupported errors near zero while making the assistant useless. Always track selective risk alongside supported recall and net serving utility (`+1` per served supported claim minus penalty $\lambda$ per served unsupported claim).
 
 <!-- leetllm: test, deps=numpy,scikit-learn, output=show, id=mitigation-pipeline-lab -->
 ```python title="layered-mitigation-benchmark.py"
@@ -416,7 +422,7 @@ def simulate_pipeline_stages(n_queries: int = 200, seed: int = 42) -> None:
     )
 
     # Layer 1: Base unverified draft serves all claims
-    # Layer 2: Grounded prompt recovers half of fixable omissions cleanly (-7pp risk)
+    # Layer 2: Grounded prompt recovers 25% of unsupported claims (~7pp risk drop)
     prompt_supported = np.where(
         (base_supported == 0) & (rng.random((n_queries, claims_per_query)) < 0.25),
         1,
@@ -543,15 +549,15 @@ Even well-calibrated verifiers degrade in production when surrounding infrastruc
   },
   {
     "id": "hd-m5-conformal-threshold",
-    "question": "In split-conformal risk control over n_cal = 99 calibration claims, you evaluate candidate threshold tau and observe 2 unsupported claims among 59 accepted claims. Using the finite-sample upper bound (errors + 1) / (n_accepted + 1), does tau satisfy a strict target risk alpha = 0.04?",
+    "question": "In Conformal Risk Control over n_cal = 99 calibration claims, you evaluate candidate threshold tau and observe 4 unsupported claims accepted (out of 60 accepted claims overall). Using the finite-sample upper bound (errors + 1) / (n_cal + 1) on unconditional false-claim risk, does tau satisfy a strict target risk alpha = 0.045?",
     "options": [
-      "Yes, because raw error ratio 2 / 59 is around 0.034, below alpha = 0.04.",
-      "No, because (2 + 1) / (59 + 1) = 3 / 60 = 0.050, which exceeds alpha = 0.04.",
-      "Yes, because calibration sample size n_cal cancels cleanly in the numerator.",
-      "Cannot determine without fitting a second neural network on the test set."
+      "Yes, because the empirical calibration risk 4 / 99 is about 0.040, below alpha = 0.045.",
+      "No, because (4 + 1) / (99 + 1) = 5 / 100 = 0.050, which exceeds alpha = 0.045.",
+      "Yes, because dividing 4 errors by 99 + 1 gives 0.040 without any numerator adjustment.",
+      "No, because selective error 4 / 60 = 0.067 replaces n_cal inside the conformal bound."
     ],
-    "answer": "No, because (2 + 1) / (59 + 1) = 3 / 60 = 0.050, which exceeds alpha = 0.04.",
-    "explanation": "Split-conformal risk control adds a +1 smoothing count in both numerator and denominator to guard against finite-sample variance on the calibration set. Here (2+1)/(59+1) = 0.050 > 0.040, so the gate must select a stricter threshold."
+    "answer": "No, because (4 + 1) / (99 + 1) = 5 / 100 = 0.050, which exceeds alpha = 0.045.",
+    "explanation": "Conformal Risk Control bounds the monotone unconditional false-claim loss over all n_cal calibration claims using (errors + 1) / (n_cal + 1). Here (4 + 1) / (99 + 1) = 0.050 > 0.045, so the gate must raise tau even though the raw empirical rate 4 / 99 ≈ 0.040 falls below 0.045."
   },
   {
     "id": "hd-m6-prune-vs-abstain",

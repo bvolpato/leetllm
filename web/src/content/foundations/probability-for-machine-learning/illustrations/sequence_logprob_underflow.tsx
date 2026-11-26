@@ -145,14 +145,14 @@ export function create(theme: ThemeMode = 'dark') {
         { color: critical, width: 3, dash: '5 3' },
     )
 
-    // Crossing point at n = 162 -> underflows to 0.0 by step 163
+    // Crossing point at n = 162 -> 0.01^162 = 1e-324 rounds to 0.0 in float64
     rightPlot.point(162, -324, { color: critical, r: 6 })
     rightPlot.point(200, -400, { color: critical, r: 5.5 })
 
     fig.callout(
         [rightPlot.px(162), rightPlot.py(-324)],
         [rightPlot.px(195), rightPlot.py(-110)],
-        'Underflows at n = 163',
+        'Underflows at n = 162',
         {
             color: critical,
             size: 13,

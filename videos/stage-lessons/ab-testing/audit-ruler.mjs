@@ -1,91 +1,139 @@
-import { assertEqual, column, dot, dynamic, line, place } from 'vizmatic/stage';
-import { area, label, mono, note } from '../kit-narrated.mjs';
-import { BUDGET, groundingPacket, report } from './parts.mjs';
+// Pure-cinema grounding non-inferiority ruler shared by guardrails & fresh-grounding scenes.
+import { line } from 'vizmatic/stage';
+import {
+  BAD_COLOR,
+  BUDGET,
+  COSMOS,
+  CTRL_COLOR,
+  GOOD_COLOR,
+  TRT_COLOR,
+  WARN_COLOR,
+  glowDot,
+  groundingPacket,
+  report,
+  rule,
+  txt,
+} from './parts.mjs';
 
-export const points = (rate) => (100 * rate).toFixed(2);
-const signed = (v) => (v < 0 ? '−' : '+') + Math.abs(v).toFixed(2);
+export const signedPp = (v) => (v < 0 ? '−' : '+') + Math.abs(v).toFixed(2);
 
-export function auditRuler(s) {
-  const [unit, field, calculation, footer] = area.rows([0.8, 4.7, 1.1, 1], 'normal');
-  const [ids, tracks] = field.columns([1, 3], 'wide');
-  const [cap, first, second, ticks] = tracks.rows([1, 2, 2, 1], 'tight');
-  const x = (pp) => tracks.point('left')[0] + tracks.width * (0.08 + (0.84 * (pp + 1)) / 2);
-  const bottom = ticks.point('top')[1];
-  const cutoff = BUDGET.grounding;
-  const step = (xa, ya, xb, yb, options) => line([xa, ya], [xb, yb], options);
-  const axis = step(x(-1), bottom, x(1), bottom, { stroke: 'dim', width: 3 });
-  const limit = step(x(cutoff), cap.point('bottom')[1], x(cutoff), bottom, {
-    stroke: 'yellow',
-    width: 5,
-  });
-  const marks = [-1, -0.5, 0, 0.5, 1].map((v) => [
-    step(x(v), bottom, x(v), bottom + 13, { stroke: 'dim', width: 3 }),
-    mono(v === 0 ? '0' : signed(v), { size: 32, color: v === cutoff ? 'yellow' : 'dim' }).moveTo([
-      x(v),
-      bottom + 37,
-    ]),
-  ]);
-  const limitName = mono('Limit  +' + cutoff.toFixed(2), { size: 40, color: 'yellow' }).moveTo([
-    x(cutoff),
-    cap.point('center')[1],
-  ]);
-  const frame = [
-    place(
-      label('Grounding failure rate   ·   rewrite minus control   ·   percentage points'),
-      unit,
+// Builds pure-cinema ruler frame + row elements inside a guardedDynamic callback.
+export function buildAuditRulerNodes({
+  left = -350,
+  right = 820,
+  axisY = 175,
+  topY = -225,
+  rows = [],
+}) {
+  const x = (pp) => left + ((pp + 1.0) / 2.0) * (right - left);
+  const cutX = x(BUDGET.grounding);
+
+  const nodes = [
+    txt(
+      'GROUNDING FAILURE DELTA (REWRITE − CONTROL, PERCENTAGE POINTS)',
+      left,
+      topY - 62,
+      26,
+      COSMOS.cyan,
+      'mono',
+      'left',
     ),
-    axis,
-    limit,
-    limitName,
-    marks,
+    // Fixed non-inferiority cutoff (+0.50 pp)
+    line([cutX, topY], [cutX, axisY], { stroke: WARN_COLOR, width: 4.5, dash: [10, 7] }).glow(
+      8,
+      WARN_COLOR,
+    ),
+    txt('BUDGET +0.50 pp', cutX, topY - 26, 26, WARN_COLOR, 'mono').glow(6, WARN_COLOR),
+    // Zero reference line
+    line([x(0), topY + 25], [x(0), axisY], { stroke: COSMOS.rule, width: 2.2 }),
+    // Horizontal percentage-point axis
+    rule(left, axisY, right, axisY, COSMOS.muted, 3),
   ];
-  function auditRow(index, failures, { open = false } = {}) {
-    const packet = groundingPacket(failures);
-    const lane = [first, second][index];
-    const y = lane.point('center')[1];
-    const names = ids.rows([1, 2, 2, 1], 'tight');
-    const color = index ? 'blue' : 'cyan';
-    const rowTitle = index ? 'Practice audit' : 'Original audit';
-    const name = place(
-      column(
-        [
-          label(open && !packet.passes ? rowTitle + ' · HOLD' : rowTitle, { size: 40, color }),
-          note('Control   ' + report.control.groundingFailures + ' / 2,000 failed'),
-          note('Rewrite   ' + failures + ' / 2,000 failed'),
-        ],
-        { gap: 'tight' },
+
+  [-1.0, -0.5, 0, 0.5, 1.0].forEach((v) => {
+    const tx = x(v);
+    nodes.push(
+      rule(tx, axisY, tx, axisY + 12, COSMOS.muted, 2.5),
+      txt(
+        v === 0 ? '0' : signedPp(v),
+        tx,
+        axisY + 42,
+        26,
+        v === BUDGET.grounding ? WARN_COLOR : COSMOS.muted,
+        'mono',
       ),
-      names[index + 1],
     );
-    const estimate = packet.delta * 100;
-    const spread = s.value(open ? 1 : 0);
-    const rail = step(x(-1), y, x(1), y, { stroke: 'grid', width: 3 });
-    const center = dot(14, color).moveTo([x(estimate), y]);
-    const band = dynamic(() => {
-      const margin = 100 * 1.96 * packet.se * spread.value;
-      const lo = x(estimate - margin);
-      const hi = x(estimate + margin);
-      return [
-        step(lo, y, hi, y, { stroke: color, width: 7 }),
-        ...[lo, hi].map((end) => step(end, y - 18, end, y + 18, { stroke: color, width: 5 })),
-      ];
-    });
-    const upper = mono(signed(packet.upper * 100), { size: 42, color });
-    const tipX = x(packet.upper * 100);
-    const labelX = index ? tipX - upper.bounds().width / 2 + 5 : tipX;
-    upper.moveTo([labelX, y - 52]);
-    const bound = packet.upper * 100;
-    assertEqual(packet.passes, bound < cutoff, 'strict audit budget');
-    return {
-      packet,
-      name,
-      center,
-      band,
-      upper,
-      spread,
-      rail,
-      row: [name, rail, band, center, upper],
-    };
-  }
-  return { frame, auditRow, calculation, footer };
+  });
+
+  rows.forEach((cfg) => {
+    const {
+      y,
+      failures,
+      label,
+      color = CTRL_COLOR,
+      spread = 0,
+      showPoint = 1,
+      showUpper = 0,
+      showBadge = 0,
+      opacity = 1,
+    } = cfg;
+    const pkt = groundingPacket(failures);
+    const est = pkt.delta * 100;
+    const margin = 100 * 1.96 * pkt.se * spread;
+    const loX = x(est - margin);
+    const hiX = x(est + margin);
+    const estX = x(est);
+
+    nodes.push(
+      txt(label, -855, y - 26, 30, color, 'sans', 'left').opacity(opacity),
+      txt(
+        `Ctrl ${report.control.groundingFailures}/2000 · Trt ${failures}/2000`,
+        -855,
+        y + 18,
+        26,
+        COSMOS.muted,
+        'mono',
+        'left',
+      ).opacity(opacity),
+      rule(left, y, right, y, COSMOS.rule, 2).opacity(opacity * 0.7),
+    );
+
+    if (showPoint > 0.02) {
+      if (spread > 0.02) {
+        const bandCol = showBadge > 0.5 ? (pkt.passes ? GOOD_COLOR : BAD_COLOR) : color;
+        nodes.push(
+          line([loX, y], [hiX, y], { stroke: bandCol, width: 8 }).glow(8, bandCol).opacity(opacity),
+          line([loX, y - 16], [loX, y + 16], { stroke: bandCol, width: 4.5 }).opacity(opacity),
+          line([hiX, y - 16], [hiX, y + 16], { stroke: bandCol, width: 4.5 }).opacity(opacity),
+        );
+      }
+      nodes.push(
+        glowDot(estX, y, {
+          radius: 11,
+          color: color === TRT_COLOR ? COSMOS.blue : color,
+          glow: 12,
+          opacity: showPoint * opacity,
+        }),
+      );
+      if (showUpper > 0.02) {
+        const tipCol = pkt.passes ? GOOD_COLOR : BAD_COLOR;
+        const tipText = `${signedPp(pkt.upper * 100)} pp`;
+        nodes.push(
+          txt(
+            tipText,
+            pkt.passes ? hiX - 58 : hiX + 18,
+            y - 44,
+            28,
+            tipCol,
+            'mono',
+            pkt.passes ? 'center' : 'left',
+          )
+            .glow(6, tipCol)
+            .opacity(showUpper * opacity),
+        );
+      }
+    }
+  });
+
+  return nodes;
 }

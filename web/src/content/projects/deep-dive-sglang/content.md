@@ -227,7 +227,7 @@ Because each replica maintains its own radix tree, round-robin load balancing ac
 
 ## Structured generation: constrain the next token
 
-Prompting for JSON suggests a format; **constrained decoding** guarantees syntactic validity by tracking a finite-state automaton per request and masking every illegal vocabulary logit to $-\infty$ before sampling. SGLang supports regex, <span data-glossary="json-schema">JSON schema</span>, and EBNF grammars (mutually exclusive on server APIs; frontend `sgl.gen` exposes `regex` and `json_schema`) via **XGrammar** (default), **Outlines**, and **llguidance**.[^sglang2026structured][^sglangPinnedSource2026]
+Prompting for JSON suggests a format; **constrained decoding** guarantees syntactic validity by tracking a finite-state automaton per request and masking every illegal vocabulary logit to $-\infty$ before sampling. SGLang supports regex, <span data-glossary="json-schema">JSON schema</span>, and EBNF grammars (mutually exclusive on server APIs; frontend `sgl.gen` exposes `regex` and `json_schema`) via **XGrammar** (default) and **llguidance** (plus **Outlines** for regex and JSON schema).[^sglang2026structured][^sglangPinnedSource2026]
 
 ```python title="schema-constrained.py"
 import sglang as sgl
@@ -350,7 +350,7 @@ Follow one request end to end through `sgl-project/sglang`:[^sglangPinnedSource2
 5. `python/sglang/srt/mem_cache/radix_cache.py`: `match_prefix`, `insert`, locks, and eviction.
 6. `python/sglang/srt/model_executor/model_runner.py`: forward batches, attention backends, and parallel groups.
 7. `python/sglang/srt/constrained/grammar_manager.py`: XGrammar / Outlines / llguidance integration.
-8. `python/sglang/srt/speculative/spec_info.py` & `spec_registry.py`: EAGLE, MTP, DFlash, n-gram, and UNO dispatch.
+8. `python/sglang/srt/speculative/spec_info.py` & `spec_registry.py`: EAGLE, MTP, DFlash, and n-gram dispatch (UNO was added after the pinned snapshot).
 9. `python/sglang/srt/disaggregation/prefill.py` & `decode.py`: P/D transfer lifecycle and reservations.
 
 ## Rerun and measure

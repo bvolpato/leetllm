@@ -1,184 +1,326 @@
-// The probabilities stay on the left while two losses propose different changes to the same score.
+// Scene 12 (squared-vs-ce): "How far will each loss move the score for slept?"
+// Confident wrong logits [8, 0, 0] -> Jacobian vanishing -> CE (-0.9997) vs Squared Error (-0.0007) race.
 import {
-  barChart,
-  beside,
-  column,
-  dynamic,
-  fade,
-  fitted,
-  grid,
-  indicate,
-  line,
-  place,
-  rect,
-  row,
-  tex,
-} from 'vizmatic/stage';
-import { completeModel } from '../../../films/softmax/model.mjs';
-import { area, heading, label, mono, namedBox, note } from '../../kit-narrated.mjs';
-import { MARK_COLOR, OTHER_COLOR, TARGET_COLOR, WORDS, WORD_COLOR } from '../parts.mjs';
+  COSMOS,
+  DANGER_COLOR,
+  MARK_COLOR,
+  MODEL,
+  TARGET_COLOR,
+  WORD_COLOR,
+  aura,
+  glowDot,
+  glowRing,
+  glowTex,
+  glowingTrail,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  rule,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+  unitRibbon,
+} from '../parts.mjs';
 
-const TARGET = 1;
-/** The two losses of the scene. Yellow is cross-entropy, and cyan is squared error. */
-const LOSS = { ce: MARK_COLOR, squared: OTHER_COLOR };
+const P_WRONG = MODEL.certain;
+const CE_GRAD = P_WRONG[1] - 1; // -0.99966
+const SQ_GRAD = MODEL.squared[1]; // -0.00067
 
 export default function squaredVsCe(s, c) {
-  const model = completeModel();
-  const p = model.certain;
-  const gradient = { ce: p[TARGET] - 1, squared: model.squared[TARGET] };
+  const phase = s.value(0);
+  const showLogits = s.value(0);
+  const showFav = s.value(0);
+  const showTarget = s.value(0);
+  const showCeLabel = s.value(0);
+  const showBrierLabel = s.value(0);
+  const showJac = s.value(0);
 
-  const [picture] = area.rows([7, 1], 'normal');
-  const [left, right] = picture.columns([2, 5], 'loose');
+  const showCeLane = s.value(0);
+  const showCancel = s.value(0);
+  const showCeVal = s.value(0);
+  const showSqLane = s.value(0);
+  const showRemain = s.value(0);
+  const showSqVal = s.value(0);
 
-  // The mistake: three bars that stay for the whole scene. Each value waits for its clause.
-  const [premiseBand, plot] = left.rows([1, 4], 'tight');
-  const bars = WORDS.map((word, i) => ({ label: word, value: p[i], color: WORD_COLOR[i] }));
-  const chart = place(
-    fitted(plot.inset('normal'), (width) =>
-      barChart(bars, {
-        width,
-        height: plot.height * 0.6,
-        max: 1,
-        labelSize: 40,
-        showValues: false,
-      }),
-    ),
-    plot,
-  );
-  const premise = place(
-    column(
-      [row([label('scores'), mono('[8, 0, 0]')]), label('target: slept', { color: TARGET_COLOR })],
-      {
-        gap: 'tight',
-        align: 'center',
-      },
-    ),
-    premiseBand,
-  );
-  const values = p.map((value, i) =>
-    beside(
-      mono(value.toFixed(4), { color: WORD_COLOR[i], size: 34 }),
-      chart,
-      'under',
-      'tight',
-      chart.bar(i),
-    ),
-  );
-  c.show('brier-logits', premise);
-  c.show('brier-favorite', values[0], { after: true });
-  c.show('brier-target', [values[1], values[2]], { after: true });
+  const showStepAxis = s.value(0);
+  const ceStep = s.value(0);
+  const sqStep = s.value(0);
+  const inspectCyan = s.value(0);
 
-  // The two losses: a slope in probability, times the softmax factor, gives a gradient on the score.
-  const route = (name, formula, slope, entry, color, value) => ({
-    name: column([label(name, { color }), tex(formula, { size: 36, color })], { gap: 'tight' }),
-    slope: tex(slope, { size: 48, color }),
-    factor: tex(`\\times\\; ${entry}`, { size: 48 }),
-    result: namedBox(value.toFixed(4), { width: 230, height: 96, color, font: 'mono' }),
+  const bgAura = aura(120, 40, 620, '#3a183b30', '#12384218');
+  const title = heroTitle(['Confident Mistake:', 'Cross-Entropy vs MSE'], {
+    x: -855,
+    y: -430,
+    size: 54,
+    lineHeight: 62,
+    accent: TARGET_COLOR,
+    eyebrow: 'GRADIENT SATURATION TEST',
   });
-  // Cross-entropy has one term, on the target. Squared error sums over the three words.
-  const ce = route(
-    'cross-entropy',
-    '-\\log p_{t}',
-    '-\\tfrac{1}{p_{t}}',
-    'p_{t}\\,(1 - p_{t})',
-    LOSS.ce,
-    gradient.ce,
-  );
-  const squared = route(
-    'squared error',
-    '\\tfrac12 \\sum_i (p_i - y_i)^2',
-    '(p_i - y_i)',
-    'p_i\\,(\\delta_{it} - p_{t})',
-    LOSS.squared,
-    gradient.squared,
-  );
-  const heads = ['loss', 'slope', 'softmax factor', 'sum of products'].map((words) => note(words));
-  const cells = (loss) => [loss.name, loss.slope, loss.factor, loss.result];
-  place(
-    grid([...heads, ...cells(ce), ...cells(squared)], {
-      columns: 4,
-      gap: ['normal', 'loose'],
-      align: 'left',
-    }),
-    right,
-    'left',
-  );
-  const sentence = (context, word, color) =>
-    column(
-      [note(context), row([label('The dog', { size: 75 }), label(word, { size: 75, color })])],
-      { align: 'left', gap: 'tight' },
-    );
-  const observed = sentence('On the page', 'slept', TARGET_COLOR);
-  const favorite = sentence('Model’s first choice', 'ran', WORD_COLOR[0]);
-  place(column([observed, favorite], { align: 'left', gap: 'loose' }), right);
-  s.add(heading(c.title), chart, observed);
-  c.show('brier-logits', favorite);
-  c.swap('squared-vs-ce-0', [observed, favorite], [heads, ce.name]);
-  c.show('brier-half-sum', squared.name);
-  c.show('brier-jacobian', [ce.factor, squared.factor]);
-  c.show('squared-vs-ce-1', ce.slope);
-  // Cross-entropy cancels the factor: the p of the slope and the p of the factor go dim together.
-  const cancelled = [...ce.slope.part('p_{t}'), ...ce.factor.part('p_{t}').slice(0, 2)];
-  c.on('brier-cancel', () =>
-    s.play(...cancelled.map((glyph) => fade(glyph, 0.25)), { duration: 0.8 }),
-  );
-  c.show('brier-ce-result', ce.result, { after: true });
-  c.show('brier-squared-slope', squared.slope);
-  c.show('brier-squared-result', squared.result, { after: true });
-  // Squared error keeps the factor: it swells and turns yellow.
-  c.on('brier-remain', () => s.play(indicate(squared.factor, { color: MARK_COLOR })));
 
-  const [header, ceBand, sqBand] = right.inset('wide').rows([1, 1.3, 1.3], 'wide');
-  const step = place(
-    column(
-      [label('Increase in the score for slept', { size: 56 }), note('Direct step of size 1')],
-      {
-        align: 'left',
-        gap: 'tight',
-      },
-    ),
-    header,
-    'left',
-  );
-  c.swap('squared-vs-ce-2', [heads, ...cells(ce), ...cells(squared)], step);
+  const eqCe = glowTex('L_{\\text{CE}} = -\\ln p_{\\text{slept}}', {
+    x: -440,
+    y: -15,
+    size: 38,
+    color: TARGET_COLOR,
+    glow: 6,
+  });
+  const eqSq = glowTex('L_{\\text{sq}} = \\tfrac{1}{2}\\sum_k (p_k - y_k)^2', {
+    x: 420,
+    y: -15,
+    size: 38,
+    color: COSMOS.cyan,
+    glow: 6,
+  });
 
-  function showUpdate(cue, name, band, slope, color) {
-    const [title, meter] = band.rows(2, 'tight');
-    const rail = rect(meter.width, 24, { fill: 'surface', stroke: 'dim', width: 2 }).at(
-      meter.cx,
-      meter.cy,
+  const live = guardedDynamic(s.value(1), () => {
+    const pulse = 0.72 + 0.28 * Math.sin(phase.value * 3.0);
+    const nodes = [];
+
+    // Top probability strip for logits [8, 0, 0]
+    nodes.push(
+      txt(
+        'Confident wrong logits:  ran = 8.0,  slept = 0.0,  ate = 0.0',
+        -855,
+        -255,
+        28,
+        COSMOS.ink,
+        'mono',
+        'left',
+      ).opacity(0.45 + 0.55 * showLogits.value),
+      ...unitRibbon(-855, -205, 1710, 34, P_WRONG, WORD_COLOR, {
+        opacity: 0.45 + 0.55 * showFav.value,
+      }),
     );
-    const lossName = place(label(name, { color }), title, 'left');
-    const amount = place(mono('+' + (-slope).toFixed(4), { color, size: 48 }), title, 'right');
-    const zero = place(note('0'), meter, 'bottom left').shift(0, 16);
-    const one = place(note('+1'), meter, 'bottom right').shift(0, 16);
-    c.show('squared-vs-ce-2', [rail, lossName, zero, one], { lead: -0.45 });
-    const fraction = s.value(0);
-    const change = dynamic(() => {
-      const width = -slope * fraction.value * meter.width;
-      const end = meter.left + width;
-      const tick = line([end, meter.cy - 19], [end, meter.cy + 19], { stroke: color, width: 4 });
-      return width > 0
-        ? [
-            rect(width, 22, { fill: color, stroke: null }).at(meter.left + width / 2, meter.cy),
-            tick,
-          ]
-        : [];
-    });
-    c.after(cue, () => {
-      s.add(change);
-      s.play(fraction.to(1, { duration: 0.45 }));
-    });
-    c.show(cue, amount, { after: true, lead: -0.45 });
-    return amount;
-  }
-  showUpdate('brier-ce-step', 'Cross-entropy', ceBand, gradient.ce, LOSS.ce);
-  const squaredStep = showUpdate(
-    'brier-squared-step',
-    'Squared error',
-    sqBand,
-    gradient.squared,
-    LOSS.squared,
-  );
-  c.on('brier-inspect', () => s.play(indicate(squaredStep, { color: LOSS.squared })));
+    if (showFav.value > 0.02) {
+      nodes.push(
+        txt(
+          `ran > 99.9% (${(P_WRONG[0] * 100).toFixed(2)}%)`,
+          -855,
+          -145,
+          26,
+          WORD_COLOR[0],
+          'mono',
+          'left',
+        ).opacity(showFav.value),
+      );
+    }
+    if (showTarget.value > 0.02) {
+      nodes.push(
+        txt(
+          `slept ≈ 0.03% (${P_WRONG[1].toFixed(4)})`,
+          855,
+          -145,
+          26,
+          TARGET_COLOR,
+          'mono',
+          'right',
+        ).opacity(showTarget.value),
+      );
+    }
+
+    if (showJac.value > 0.02) {
+      nodes.push(
+        txt(
+          'Softmax Jacobian saturated:  ∂p_slept / ∂z_slept ≈ 0.00034',
+          0,
+          -95,
+          28,
+          MARK_COLOR,
+          'mono',
+        ).opacity(showJac.value),
+      );
+    }
+
+    // Beat 0 visual loss-shape contrast along bottom (steep -ln(p) vs flat 0.5*(1-p)^2 near p->0)
+    const beat0CurveOp = Math.max(0, 1 - showCeLane.value * 2.6);
+    if (beat0CurveOp > 0.02) {
+      const yBase = 345;
+      const plotH = 190;
+      const plotW = 640;
+      const xL = -785;
+      const xR = 145;
+      const cePts = [];
+      const sqPts = [];
+      for (let k = 0; k <= 40; k++) {
+        const p = 0.04 + (0.96 * k) / 40;
+        cePts.push([xL + p * plotW, yBase - Math.min(1, -Math.log(p) / 3.2) * plotH]);
+        sqPts.push([xR + p * plotW, yBase - Math.pow(1 - p, 2) * plotH * 0.55]);
+      }
+      nodes.push(
+        txt(
+          'CROSS-ENTROPY CURVE: STEEP NEAR p → 0',
+          xL,
+          122,
+          26,
+          TARGET_COLOR,
+          'mono',
+          'left',
+        ).opacity(beat0CurveOp),
+        rule(xL, yBase, xL + plotW, yBase, COSMOS.rule, 2.2).opacity(beat0CurveOp),
+        glowingTrail(cePts, { color: TARGET_COLOR, width: 4.0, glow: 9, opacity: beat0CurveOp }),
+        txt(
+          'SQUARED ERROR CURVE: FLAT NEAR p → 0',
+          xR,
+          122,
+          26,
+          COSMOS.cyan,
+          'mono',
+          'left',
+        ).opacity(beat0CurveOp),
+        rule(xR, yBase, xR + plotW, yBase, COSMOS.rule, 2.2).opacity(beat0CurveOp),
+        glowingTrail(sqPts, { color: COSMOS.cyan, width: 4.0, glow: 9, opacity: beat0CurveOp }),
+      );
+    }
+
+    // Center comparison: Left = Cross-Entropy (cancels p_slept), Right = Squared Error (trapped!)
+    const b1Op = Math.max(0, (showCeLane.value - 0.45) / 0.55);
+    if (b1Op > 0.02) {
+      const op = b1Op;
+      nodes.push(
+        txt('CROSS-ENTROPY', -855, -20, 26, TARGET_COLOR, 'mono', 'left').opacity(op),
+        txt('−(1 / p_s) · p_s(1 − p_s)', -855, 32, 30, COSMOS.ink, 'mono', 'left').opacity(op),
+      );
+    }
+    if (showCancel.value > 0.02) {
+      nodes.push(
+        txt('p_s cancels!', -395, 32, 28, MARK_COLOR, 'mono', 'left').opacity(showCancel.value),
+      );
+    }
+    if (showCeVal.value > 0.02) {
+      nodes.push(
+        txt(`∂L / ∂z_slept = ${CE_GRAD.toFixed(4)}`, -855, 96, 36, TARGET_COLOR, 'mono', 'left')
+          .glow(8, TARGET_COLOR)
+          .opacity(showCeVal.value),
+      );
+    }
+
+    if (showSqLane.value > 0.02) {
+      const op = showSqLane.value;
+      nodes.push(
+        rule(15, -35, 15, 130, COSMOS.rule, 2).opacity(op),
+        txt('SCALED BRIER (SQUARED ERROR)', 75, -20, 26, COSMOS.cyan, 'mono', 'left').opacity(op),
+        txt('Σ (p_k − y_k) · ∂p_k / ∂z_slept', 75, 32, 30, COSMOS.ink, 'mono', 'left').opacity(op),
+      );
+    }
+    if (showRemain.value > 0.02) {
+      nodes.push(
+        txt('tiny Jacobian stays in the sum!', 75, 148, 26, DANGER_COLOR, 'mono', 'left').opacity(
+          showRemain.value,
+        ),
+      );
+    }
+    if (showSqVal.value > 0.02) {
+      nodes.push(
+        txt(`∂L / ∂z_slept = ${SQ_GRAD.toFixed(4)}`, 75, 92, 34, COSMOS.cyan, 'mono', 'left')
+          .glow(7, COSMOS.cyan)
+          .opacity(showSqVal.value),
+      );
+    }
+
+    // Bottom step-size=1 race ruler on z_slept (0.0 -> +1.0): skeleton stays visible during beat 1!
+    const axisOp = Math.max(b1Op * 0.65, showStepAxis.value);
+    if (axisOp > 0.02) {
+      const axLeft = -760;
+      const axRight = 760;
+      const axY = 285;
+      const op = axisOp;
+      const xOf = (d) => axLeft + d * (axRight - axLeft);
+      const cePos = xOf(Math.abs(CE_GRAD) * ceStep.value);
+      const sqPos = xOf(Math.abs(SQ_GRAD) * sqStep.value);
+
+      nodes.push(
+        txt(
+          'ONE DIRECT STEP (η = 1.0) ON z_slept',
+          -855,
+          182,
+          26,
+          MARK_COLOR,
+          'mono',
+          'left',
+        ).opacity(op),
+        rule(axLeft, axY, axRight, axY, COSMOS.cyan, 3).opacity(op * 0.8),
+        txt('0.0', axLeft, axY + 62, 26, COSMOS.muted, 'mono').opacity(op),
+        txt('+0.5', xOf(0.5), axY + 62, 26, COSMOS.muted, 'mono').opacity(op),
+        txt('+1.0', axRight, axY + 62, 26, COSMOS.muted, 'mono').opacity(op),
+      );
+
+      if (ceStep.value > 0.02) {
+        const w = Math.max(4, cePos - axLeft);
+        nodes.push(
+          lumBar(axLeft + w / 2, axY - 28, w, 28, {
+            color: TARGET_COLOR,
+            fillOpacity: 0.82,
+            glow: 10,
+            opacity: op,
+          }),
+          glowDot(cePos, axY - 28, { radius: 8, color: TARGET_COLOR, glow: 12, opacity: op }),
+          txt(
+            `CE: +${Math.abs(CE_GRAD).toFixed(4)}`,
+            cePos - 10,
+            axY - 62,
+            28,
+            TARGET_COLOR,
+            'mono',
+            'right',
+          ).opacity(ceStep.value * op),
+        );
+      }
+
+      if (sqStep.value > 0.02) {
+        nodes.push(
+          glowDot(sqPos + 4, axY + 6, { radius: 7.5, color: COSMOS.cyan, glow: 14, opacity: op }),
+          txt(
+            `Squared error: +${Math.abs(SQ_GRAD).toFixed(4)} (< 1/1000)`,
+            axLeft + 75,
+            axY + 112,
+            28,
+            COSMOS.cyan,
+            'mono',
+            'left',
+          ).opacity(sqStep.value * op),
+        );
+      }
+
+      if (inspectCyan.value > 0.02) {
+        nodes.push(
+          glowRing(sqPos + 4, axY + 6, 22 + 4 * pulse, COSMOS.cyan, {
+            width: 3.5,
+            glow: 12,
+            opacity: inspectCyan.value * op,
+          }),
+          txt('1,490× weaker signal!', 855, axY + 112, 30, DANGER_COLOR, 'mono', 'right')
+            .glow(7, DANGER_COLOR)
+            .opacity(inspectCyan.value * op),
+        );
+      }
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.0);
+
+  tweenCue(s, c, 'brier-logits', showLogits, 1, { duration: 0.4 });
+  tweenCue(s, c, 'brier-favorite', showFav, 1, { duration: 0.4 });
+  tweenCue(s, c, 'brier-target', showTarget, 1, { duration: 0.4 });
+  c.show('squared-vs-ce-0', eqCe);
+  tweenCue(s, c, 'squared-vs-ce-0', showCeLabel, 1, { duration: 0.35 });
+  c.show('brier-half-sum', eqSq);
+  tweenCue(s, c, 'brier-half-sum', showBrierLabel, 1, { duration: 0.35 });
+  tweenCue(s, c, 'brier-jacobian', showJac, 1, { duration: 0.45 });
+
+  c.hide('squared-vs-ce-1', eqCe);
+  c.hide('squared-vs-ce-1', eqSq);
+  tweenCue(s, c, 'squared-vs-ce-1', showCeLane, 1, { duration: 0.45 });
+  tweenCue(s, c, 'brier-cancel', showCancel, 1, { duration: 0.4 });
+  tweenCue(s, c, 'brier-ce-result', showCeVal, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'brier-squared-slope', showSqLane, 1, { duration: 0.45 });
+  tweenCue(s, c, 'brier-remain', showRemain, 1, { duration: 0.4 });
+  tweenCue(s, c, 'brier-squared-result', showSqVal, 1, { duration: 0.45, after: true });
+
+  tweenCue(s, c, 'squared-vs-ce-2', showStepAxis, 1, { duration: 0.45 });
+  tweenCue(s, c, 'brier-ce-step', ceStep, 1, { duration: 0.75 });
+  tweenCue(s, c, 'brier-squared-step', sqStep, 1, { duration: 0.55 });
+  tweenCue(s, c, 'brier-inspect', inspectCyan, 1, { duration: 0.45 });
 }

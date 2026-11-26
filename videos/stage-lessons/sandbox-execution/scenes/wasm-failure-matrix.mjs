@@ -1,276 +1,450 @@
-// Scene `wasm-failure-matrix`: each failure of the guest has its own result.
-//
-// The picture: a matrix stays at the left. Its rows are the probes, and its columns are the four
-// results. Each probe puts its mark in one column when the voice gives its result. At the right is
-// the part of the guest that the probe is about: the end of the one memory page with a window of
-// four bytes that slides over it, then a host reader checking a file grant, then three runs
-// of the fuel probe that stop at one place.
+// Scene 11 (wasm-failure-matrix): "At the last byte of a page"
+// 8x4 luminous Wasm failure classification matrix + sliding 4-byte page-boundary window
+// + symlink-resolving host reader + 3x deterministic fuel runs.
 import {
-  assertEqual,
-  boxOf,
-  column,
-  dot,
-  dynamic,
-  indicate,
-  line,
-  pictogram,
-  place,
-  recolor,
-  rect,
-  row,
+  COSMOS,
+  ROLE,
+  cinemaAtmosphere,
+  crossSwap,
+  glowDot,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  memoryAccess,
+  renderGauge,
+  rule,
+  runAmbientPhase,
+  runtimeAccess,
   seq,
-  text,
-} from 'vizmatic/stage';
-import { memoryAccess } from '../../../films/sandbox-execution/arithmetic.mjs';
-import { runtimeAccess, wasmFixture } from '../../../films/sandbox-execution/model.mjs';
-import { area, chip, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { COLOR, gauge } from '../parts.mjs';
+  tweenCue,
+  txt,
+  verifyInvariant,
+  wasmFixture,
+} from '../parts.mjs';
 
-const RESULTS = ['trap', 'returns -1', 'start fails', 'rejected'];
-/** The probes: the name of the row, the column of its result, and the cue at whose end the mark lands. */
+const RESULTS = ['trap', 'ret -1', 'init fail', 'reject'];
 const PROBES = [
-  { name: 'infinite loop', result: 0, cue: 'fm-loop', lands: 'fm-trap' },
-  { name: 'loop in the start function', result: 0, cue: 'fm-start', lands: 'fm-start-trap' },
-  { name: 'memory.grow with no room', result: 1, cue: 'fm-page', lands: 'fm-grow' },
-  { name: 'four-byte load', result: 0, cue: 'fm-load', lands: 'fm-beyond' },
-  { name: 'first memory over the limit', result: 2, cue: 'fm-initial', lands: 'fm-initial-fails' },
-  { name: 'a declared import', result: 3, cue: 'fm-import', lands: 'fm-import' },
-  { name: 'no run export', result: 3, cue: 'fm-export', lands: 'fm-export' },
-  { name: 'wrong function type', result: 3, cue: 'fm-type', lands: 'fm-type' },
+  { name: 'infinite loop', col: 0, cue: 'fm-loop', lands: 'fm-trap' },
+  { name: 'loop in start()', col: 0, cue: 'fm-start', lands: 'fm-start-trap' },
+  { name: 'memory.grow cap', col: 1, cue: 'fm-page', lands: 'fm-grow' },
+  { name: '4-byte load OOB', col: 0, cue: 'fm-load', lands: 'fm-beyond' },
+  { name: 'initial mem > cap', col: 2, cue: 'fm-initial', lands: 'fm-initial-fails' },
+  { name: 'declared import', col: 3, cue: 'fm-import', lands: 'fm-import' },
+  { name: 'missing run export', col: 3, cue: 'fm-export', lands: 'fm-export' },
+  { name: 'wrong fn signature', col: 3, cue: 'fm-type', lands: 'fm-type' },
 ];
-/** The page of the guest: its size, and the cells of its end that the picture shows. */
-const PAGE = 65536;
-const INSIDE = 8;
-const BEYOND = 4;
-const LOAD = 4;
+
+const PAGE_BYTES = 65536;
+const LOAD_BYTES = 4;
+const LAST_GOOD = PAGE_BYTES - LOAD_BYTES; // 65532
+const INSIDE_CELLS = 8;
+const BEYOND_CELLS = 4;
 
 export default function wasmFailureMatrix(s, c) {
   const guest = wasmFixture();
-  const lastGood = PAGE - LOAD; // 65532
-  assertEqual(memoryAccess(lastGood), 'read permitted', 'the last four bytes of the page');
-  assertEqual(memoryAccess(lastGood + 2), 'MEMORY_OUT_OF_BOUNDS', 'two bytes past the end');
-  assertEqual(guest.memoryGrowth, -1, 'a refused growth returns -1');
+  verifyInvariant(memoryAccess(LAST_GOOD) === 'read permitted', '65532 fits 64 KiB page');
+  verifyInvariant(memoryAccess(LAST_GOOD + 2) === 'MEMORY_OUT_OF_BOUNDS', '65534 traps OOB');
+  verifyInvariant(guest.memoryGrowth === -1, 'memory.grow returns -1');
+  verifyInvariant(runtimeAccess('wasm', '/work/report.xml').allowed === true, 'report allowed');
+  verifyInvariant(runtimeAccess('wasm', '/work/notes.txt').allowed === false, 'notes denied');
 
-  // The frame: the matrix at the left, and the part of the guest at the right.
-  const [matrixBox, detail] = area.columns([11, 8], 'wide');
-  const paint = (name, color, options = {}) => chip(name, { color, stroke: color, ...options });
+  const phase = s.value(0);
+  const rowLit = PROBES.map(() => s.value(0));
+  const rowMark = PROBES.map(() => s.value(0));
+  const rowPulse = PROBES.map(() => s.value(0));
+  const showNoTrap = s.value(0);
 
-  // The matrix: a header, and one row for each probe. A column is one kind of result.
-  const bands = matrixBox.rows([1, ...PROBES.map(() => 1.15)], 'none');
-  const cut = (band) => band.columns([4.4, 1.4, 1.5, 1.5, 1.4], 'none');
-  const heads = cut(bands[0])
-    .slice(1)
-    .map((cell, i) => place(note(RESULTS[i]), cell));
-  const rule = (band) =>
-    line([band.left, band.top], [band.right, band.top], { stroke: 'grid', width: 2 });
-  const rows = PROBES.map((probe, i) => {
-    const cells = cut(bands[i + 1]);
-    const color = probe.result === 0 || probe.result === 2 ? COLOR.fail : COLOR.host;
-    return {
-      ...probe,
-      name: place(label(probe.name, { size: 30, color: COLOR.quiet }), cells[0], 'left'),
-      mark: dot(15, color).moveTo(cells[probe.result + 1].point()),
-      cells,
-      rule: rule(bands[i + 1]),
-    };
+  // Right detail panel modes (0 = fuel + page + 4-byte window, 1 = host file reader, 2 = 3 deterministic runs)
+  const mode0 = s.value(1);
+  const mode1 = s.value(0);
+  const mode2 = s.value(0);
+
+  // Mode 0 states
+  const fuelLvl = s.value(0);
+  const showPage2 = s.value(0);
+  const showGrowVal = s.value(0);
+  const showLoadWin = s.value(0);
+  const slideOffset = s.value(0); // 0 -> 2 bytes
+  const ansFits = s.value(0);
+  const ansPredict = s.value(0);
+  const ansOob = s.value(0);
+
+  // Mode 1 states
+  const showGrant = s.value(0);
+  const showResolved = s.value(0);
+  const showDenied = s.value(0);
+
+  // Mode 2 states
+  const runLvls = [s.value(0), s.value(0), s.value(0)];
+  const showSources = s.value(0);
+  const showReal = s.value(0);
+
+  const bgAtmo = cinemaAtmosphere(ROLE.wasm, ROLE.candidate);
+  const title = heroTitle(['At the Last Byte', 'of a Page'], {
+    x: -860,
+    y: -445,
+    size: 48,
+    lineHeight: 56,
+    accent: ROLE.wasm,
+    eyebrow: 'WEBASSEMBLY BOUNDARY FAILURE MATRIX',
   });
-  // The growth of memory does not trap: its place in the first column stays empty.
-  const noTrap = pictogram('cross', { size: 34, accent: COLOR.quiet }).moveTo(
-    rows[2].cells[1].point(),
-  );
 
-  s.add(heading(c.title), ...heads, ...rows.flatMap((made) => [made.rule, made.name]));
+  const live = guardedDynamic(s.value(1), () => {
+    const m0 = mode0.value;
+    const m1 = mode1.value;
+    const m2 = mode2.value;
+    const nodes = [];
 
-  const light = (made) => recolor(made.name, 'ink', { duration: 0.3 });
-  for (const made of rows) {
-    c.on(made.cue, () => s.play(light(made)));
-    c.show(made.lands, made.mark, { after: true });
-  }
-  c.show('fm-notrap', noTrap);
+    // === LEFT: 8x4 Luminous Failure Matrix ===
+    const mx = -860;
+    const my = -248;
+    const colXs = [-430, -305, -175, -45];
+    RESULTS.forEach((h, ci) => {
+      nodes.push(txt(h, colXs[ci], my, 26, COSMOS.muted, 'mono'));
+    });
+    nodes.push(rule(mx, my + 24, 15, my + 24, ROLE.rule, 2));
 
-  // Beat 0, at the right: the memory of the guest. One page, and the end of it.
-  const [fuelBand, pagesBand, endBand, answerBand] = detail.rows([1.3, 3, 4, 1.5], 'normal');
-  // The fuel of the run: a loop burns all of it, and the trap is at the limit.
-  const [fuelNameBand, fuelTrack] = fuelBand.columns([1, 4], 'normal');
-  const fuelName = place(label('fuel', { size: 36 }), fuelNameBand, 'left');
-  const fuel = gauge(s, fuelTrack.inset('none', (fuelTrack.height - 44) / 2), {
-    cap: 0.7,
-    color: COLOR.candidate,
+    PROBES.forEach((probe, ri) => {
+      const y = my + 66 + ri * 72;
+      const lit = rowLit[ri].value;
+      const mk = rowMark[ri].value;
+      const pls = rowPulse[ri].value;
+      const dotCol = probe.col === 0 || probe.col === 2 ? ROLE.candidate : ROLE.host;
+      nodes.push(
+        rule(mx, y + 36, 15, y + 36, COSMOS.rule, 1.2).opacity(0.45),
+        txt(probe.name, mx, y, 26, lit > 0.4 ? COSMOS.ink : COSMOS.dim, 'sans', 'left'),
+      );
+      if (mk > 0.02) {
+        nodes.push(
+          glowDot(colXs[probe.col], y, {
+            radius: 10 + pls * 3,
+            color: pls > 0.4 ? ROLE.mark : dotCol,
+            glow: pls > 0.4 ? 15 : 10,
+            opacity: mk,
+          }),
+        );
+      }
+    });
+    if (showNoTrap.value > 0.02) {
+      nodes.push(
+        txt('x', colXs[0], my + 66 + 2 * 72, 26, COSMOS.dim, 'mono').opacity(showNoTrap.value),
+      );
+    }
+
+    // === RIGHT PANEL: Mode 0 (Fuel + 64 KiB Page + 4-byte sliding load window) ===
+    const rx = 85;
+    if (m0 > 0.02) {
+      const fy = -245;
+      nodes.push(txt('FUEL', rx, fy, 26, ROLE.host, 'mono', 'left').opacity(m0));
+      const fg = renderGauge(rx + 105, fy, 660, 32, fuelLvl.value, {
+        cap: 0.72,
+        color: ROLE.candidate,
+        opacity: m0,
+      });
+      nodes.push(...fg.nodes);
+
+      // Linear memory pages
+      const py = -125;
+      nodes.push(
+        txt('LINEAR MEMORY  (1 PAGE CAP)', rx, py - 42, 26, ROLE.wasm, 'mono', 'left').opacity(m0),
+        lumBar(rx + 145, py + 12, 290, 62, {
+          color: ROLE.wasm,
+          fillOpacity: 0.2,
+          strokeWidth: 2.2,
+          glow: 8,
+          opacity: m0,
+        }),
+        txt('1 page  /  64 KiB', rx + 145, py + 12, 26, COSMOS.ink, 'mono').opacity(m0),
+      );
+      if (showPage2.value > 0.02) {
+        nodes.push(
+          lumBar(rx + 465, py + 12, 260, 62, {
+            color: COSMOS.dim,
+            fillOpacity: 0.08,
+            strokeWidth: 2,
+            dash: [8, 6],
+            opacity: m0 * showPage2.value,
+          }),
+          txt('page 2 denied', rx + 465, py + 12, 26, COSMOS.muted, 'mono').opacity(
+            m0 * showPage2.value,
+          ),
+        );
+      }
+      if (showGrowVal.value > 0.02) {
+        nodes.push(
+          txt(
+            `memory.grow(1) = ${guest.memoryGrowth}  (no trap)`,
+            rx,
+            py + 76,
+            26,
+            ROLE.host,
+            'mono',
+            'left',
+          ).opacity(m0 * showGrowVal.value),
+        );
+      }
+
+      // 12-byte strip at the end of the 64 KiB page (8 inside + 4 beyond)
+      const by = 132;
+      const cellW = 58;
+      const cellH = 68;
+      const totalCols = INSIDE_CELLS + BEYOND_CELLS;
+      const stripLeft = rx;
+
+      nodes.push(
+        txt(
+          `END OF PAGE  (last valid byte: ${PAGE_BYTES - 1})`,
+          rx,
+          by - 78,
+          26,
+          ROLE.wasm,
+          'mono',
+          'left',
+        ).opacity(m0),
+      );
+      for (let i = 0; i < totalCols; i++) {
+        const cx = stripLeft + i * (cellW + 6) + cellW * 0.5;
+        const inside = i < INSIDE_CELLS;
+        nodes.push(
+          lumBar(cx, by, cellW, cellH, {
+            color: inside ? ROLE.wasm : COSMOS.dim,
+            fillOpacity: inside ? 0.2 : 0.06,
+            strokeWidth: 2,
+            glow: inside ? 5 : 0,
+            dash: inside ? undefined : [6, 5],
+            opacity: m0,
+          }),
+        );
+      }
+      // Page boundary line between index 7 and 8
+      const boundX = stripLeft + INSIDE_CELLS * (cellW + 6) - 3;
+      nodes.push(
+        rule(boundX, by - 48, boundX, by + 48, ROLE.candidate, 4)
+          .glow(9, ROLE.candidate)
+          .opacity(m0),
+      );
+
+      // Sliding gold 4-byte i32.load window
+      if (showLoadWin.value > 0.02) {
+        const startIdx = INSIDE_CELLS - LOAD_BYTES + slideOffset.value;
+        const wLeft = stripLeft + startIdx * (cellW + 6) - 4;
+        const wWidth = LOAD_BYTES * (cellW + 6) + 2;
+        const addrStart = LAST_GOOD + Math.round(slideOffset.value);
+        const addrEnd = addrStart + LOAD_BYTES - 1;
+        nodes.push(
+          lumBar(wLeft + wWidth * 0.5, by, wWidth, cellH + 18, {
+            color: ROLE.mark,
+            fillOpacity: 0.14,
+            strokeWidth: 3.4,
+            glow: 12,
+            opacity: m0 * showLoadWin.value,
+          }),
+          txt(
+            `i32.load:  bytes ${addrStart} .. ${addrEnd}`,
+            rx,
+            by + 74,
+            28,
+            ROLE.mark,
+            'mono',
+            'left',
+          ).opacity(m0 * showLoadWin.value),
+        );
+      }
+
+      // Non-overlapping result line below byte strip
+      const ay = 310;
+      if (ansFits.value > 0.02) {
+        nodes.push(
+          txt('read permitted  (fits inside page)', rx, ay, 30, ROLE.pass, 'mono', 'left')
+            .glow(7, ROLE.pass)
+            .opacity(m0 * ansFits.value),
+        );
+      }
+      if (ansPredict.value > 0.02) {
+        nodes.push(
+          txt('Does this 4-byte read still fit?', rx, ay, 36, ROLE.mark, 'serif', 'left')
+            .glow(8, ROLE.mark)
+            .opacity(m0 * ansPredict.value),
+        );
+      }
+      if (ansOob.value > 0.02) {
+        nodes.push(
+          lumBar(rx + 360, ay, 720, 68, {
+            color: ROLE.candidate,
+            fillOpacity: 0.18,
+            strokeWidth: 2.5,
+            glow: 10,
+            opacity: m0 * ansOob.value,
+          }),
+          txt('TRAP: MEMORY_OUT_OF_BOUNDS', rx + 360, ay, 30, ROLE.candidate, 'mono').opacity(
+            m0 * ansOob.value,
+          ),
+        );
+      }
+    }
+
+    // === RIGHT PANEL: Mode 1 (Scoped Host File Reader symlink resolution) ===
+    if (m1 > 0.02) {
+      const ry = -215;
+      nodes.push(
+        txt('SCOPED HOST FILE READER', rx, ry, 34, ROLE.host, 'sans', 'left')
+          .glow(7, ROLE.host)
+          .opacity(m1),
+        rule(rx, ry + 34, 855, ry + 34, ROLE.host, 2.5).opacity(m1),
+      );
+      if (showGrant.value > 0.02) {
+        nodes.push(
+          txt('Granted file:', rx, ry + 96, 26, COSMOS.muted, 'mono', 'left').opacity(
+            m1 * showGrant.value,
+          ),
+          txt('/work/report.xml', rx, ry + 144, 34, ROLE.evidence, 'mono', 'left').opacity(
+            m1 * showGrant.value,
+          ),
+        );
+      }
+      if (showResolved.value > 0.02) {
+        nodes.push(
+          txt(
+            'Resolved request (after links):',
+            rx,
+            ry + 236,
+            26,
+            COSMOS.muted,
+            'mono',
+            'left',
+          ).opacity(m1 * showResolved.value),
+          txt('/work/notes.txt', rx, ry + 284, 34, ROLE.candidate, 'mono', 'left').opacity(
+            m1 * showResolved.value,
+          ),
+        );
+      }
+      if (showDenied.value > 0.02) {
+        nodes.push(
+          lumBar(rx + 360, ry + 392, 720, 74, {
+            color: ROLE.candidate,
+            fillOpacity: 0.18,
+            strokeWidth: 2.5,
+            glow: 10,
+            opacity: m1 * showDenied.value,
+          }),
+          txt(
+            'READ DENIED  /  0 bytes returned',
+            rx + 360,
+            ry + 392,
+            32,
+            ROLE.candidate,
+            'mono',
+          ).opacity(m1 * showDenied.value),
+        );
+      }
+    }
+
+    // === RIGHT PANEL: Mode 2 (3 deterministic runs + nondeterminism sources) ===
+    if (m2 > 0.02) {
+      const ry = -225;
+      nodes.push(
+        txt(
+          'DETERMINISTIC FUEL EXHAUSTION (3 RUNS)',
+          rx,
+          ry,
+          26,
+          ROLE.host,
+          'mono',
+          'left',
+        ).opacity(m2),
+        rule(rx, ry + 24, 855, ry + 24, ROLE.host, 2).opacity(m2),
+      );
+      runLvls.forEach((lv, i) => {
+        const y = ry + 84 + i * 74;
+        nodes.push(txt(`run ${i + 1}`, rx, y, 28, COSMOS.ink, 'mono', 'left').opacity(m2));
+        const rg = renderGauge(rx + 120, y, 640, 34, lv.value, {
+          cap: 0.72,
+          color: ROLE.candidate,
+          opacity: m2,
+        });
+        nodes.push(...rg.nodes);
+      });
+
+      if (showSources.value > 0.02) {
+        const sy = 100;
+        nodes.push(
+          txt('SOURCES OF RUNTIME VARIANCE', rx, sy, 26, ROLE.mark, 'mono', 'left').opacity(
+            m2 * showSources.value,
+          ),
+          txt('host imports  ·  memory growth', rx, sy + 50, 28, ROLE.mark, 'mono', 'left').opacity(
+            m2 * showSources.value,
+          ),
+          txt('NaN payloads  ·  relaxed SIMD', rx, sy + 98, 28, ROLE.mark, 'mono', 'left').opacity(
+            m2 * showSources.value,
+          ),
+        );
+      }
+      if (showReal.value > 0.02) {
+        nodes.push(
+          txt(
+            'Record observed probe outcomes on your exact runtime',
+            rx,
+            298,
+            28,
+            ROLE.pass,
+            'sans',
+            'left',
+          )
+            .glow(6, ROLE.pass)
+            .opacity(m2 * showReal.value),
+        );
+      }
+    }
+
+    return nodes;
   });
-  const memoryName = label('linear memory', { size: 36 });
-  const pageOf = (name, color, dash) => {
-    const box = rect(240, 84, { radius: 10, stroke: color, fill: 'surface', width: 4, dash });
-    return { box, name: note(name, { color }) };
-  };
-  const pages = [
-    pageOf('1 page, 64 KiB', COLOR.candidate),
-    pageOf('no room', COLOR.quiet, [10, 8]),
-  ];
-  const grown = mono(`memory.grow(1) = ${guest.memoryGrowth}`, { size: 30, color: COLOR.host });
-  place(
-    column(
-      [
-        memoryName,
-        row(
-          pages.map((made) => made.box),
-          { gap: 'normal' },
-        ),
-        grown,
-      ],
-      { gap: 'normal' },
-    ),
-    pagesBand,
-    'left',
-  );
-  pages.forEach((made) => place(made.name, boxOf(made.box)));
-  // The last bytes of the page, the bytes after it, and a load of four bytes that slides over them.
-  const [overBand, cellBand, underBand] = endBand.rows([2, 3, 2], 'tight');
-  const slots = cellBand.columns(INSIDE + BEYOND, 'none');
-  const bytes = slots.map((slot, i) =>
-    rect(slot.width - 8, slot.height, {
-      radius: 6,
-      stroke: i < INSIDE ? COLOR.candidate : COLOR.quiet,
-      fill: 'surface',
-      width: 3,
-      dash: i < INSIDE ? undefined : [8, 6],
-    }).at(slot.cx, slot.cy),
-  );
-  const endName = note(`Last byte  ${PAGE - 1}`).moveTo([
-    slots[INSIDE - 1].right - 100,
-    overBand.cy,
-  ]);
-  const slide = s.value(0);
-  const first = () => INSIDE - LOAD + Math.round(slide.value);
-  const edge = (index) => slots[0].left + index * slots[0].width;
-  const load = dynamic(() => {
-    const [from, to] = [edge(first()), edge(first() + LOAD)];
-    return rect(to - from, cellBand.height + 20, {
-      radius: 8,
-      stroke: COLOR.mark,
-      fill: null,
-      width: 5,
-    }).at((from + to) / 2, cellBand.cy);
-  });
-  const address = dynamic(() =>
-    text(
-      `4 bytes   ${lastGood + Math.round(slide.value)} … ${lastGood + Math.round(slide.value) + LOAD - 1}`,
-      {
-        font: 'mono',
-        size: 28,
-        color: COLOR.mark,
-      },
-    ).moveTo([cellBand.cx, underBand.cy]),
-  );
-  const permitted = place(
-    mono(memoryAccess(lastGood), { size: 34, color: COLOR.pass }),
-    answerBand,
-    'left',
-  );
-  const outOfBounds = place(
-    mono(memoryAccess(lastGood + 2), { size: 34, color: COLOR.fail }),
-    answerBand,
-    'left',
-  );
-  // The fuel, the page and the end of the page are the guest when the scene opens.
-  s.add(
-    fuelName,
-    fuel.track,
-    fuel.fill,
-    fuel.limit,
-    memoryName,
-    pages[0].box,
-    pages[0].name,
-    ...bytes,
-    endName,
-  );
-  c.on('fm-loop', () => s.play(fuel.level.to(0.7, { duration: 1.6 })));
-  c.on('fm-start', () =>
-    s.play(seq(fuel.level.to(0, { duration: 0.4 }), fuel.level.to(0.7, { duration: 1.4 }))),
-  );
-  c.show('fm-grow', [pages[1].box, pages[1].name]);
-  c.show('fm-grow', grown, { after: true });
-  c.show('fm-load', [load, address]);
-  c.show('fm-inside', permitted, { after: true });
-  c.hide('fm-slide', permitted);
-  c.on('fm-slide', () => s.play(slide.to(2, { duration: 0.85 })));
-  const predict = place(label('Does this read fit?', { color: COLOR.mark }), answerBand, 'left');
-  c.show('fm-predict', predict);
-  c.swap('fm-beyond', predict, outOfBounds, { after: true });
 
-  // The host compares the resolved file with the file it granted.
-  const memory = [
-    fuelName,
-    fuel.track,
-    fuel.fill,
-    fuel.limit,
-    memoryName,
-    ...pages.flatMap((made) => [made.box, made.name]),
-    grown,
-    ...bytes,
-    endName,
-    load,
-    address,
-    outOfBounds,
-  ];
-  const grantedFile = '/work/report.xml';
-  const resolvedFile = '/work/notes.txt';
-  assertEqual(runtimeAccess('wasm', grantedFile).allowed, true, 'the report is in the grant');
-  assertEqual(
-    runtimeAccess('wasm', resolvedFile).allowed,
-    false,
-    'the notes are outside the grant',
-  );
-  const reader = label('Host file reader', { size: 50, color: COLOR.host });
-  const grant = note('Granted file');
-  const report = mono(grantedFile, { size: 44, color: COLOR.evidence });
-  const requested = note('Resolved request');
-  const notes = mono(resolvedFile, { size: 44, color: COLOR.candidate });
-  const denied = label('Read denied   /   0 bytes', { size: 43, color: COLOR.fail });
-  const hostImport = [reader, grant, report, requested, notes, denied];
-  place(column(hostImport, { gap: 'wide', align: 'left' }), detail, 'left');
-  c.swap('fm-reader', memory, reader);
-  c.show('fm-grant', [grant, report]);
-  c.show('fm-resolved', [requested, notes]);
-  c.show('fm-denied', denied, { after: true });
+  s.add(bgAtmo, title, live);
+  runAmbientPhase(s, c, phase, 2.4);
 
-  const [runsBand, sourcesBand, endsBand] = detail.rows([4, 3, 2], 'normal');
-  const runBands = runsBand.rows(3, 'normal');
-  const runs = runBands.map((band, i) => {
-    const [nameBand, trackBand] = band.columns([1, 4], 'normal');
-    return {
-      name: place(label(`run ${i + 1}`, { size: 34 }), nameBand, 'left'),
-      gauge: gauge(s, trackBand.inset('none', (trackBand.height - 44) / 2), {
-        cap: 0.7,
-        color: COLOR.candidate,
-      }),
-    };
+  // Wire all 8 matrix rows
+  PROBES.forEach((probe, i) => {
+    tweenCue(s, c, probe.cue, rowLit[i], 1, { duration: 0.25 });
+    tweenCue(s, c, probe.lands, rowMark[i], 1, { duration: 0.3, after: true });
   });
-  const sources = ['imports', 'memory growth', 'NaN bits', 'relaxed SIMD'].map((name) =>
-    paint(name, COLOR.mark),
-  );
-  const differ = note('what can still differ');
-  place(
-    column(
-      [differ, row(sources.slice(0, 2), { gap: 'tight' }), row(sources.slice(2), { gap: 'tight' })],
-      { gap: 'tight' },
-    ),
-    sourcesBand,
-    'left',
-  );
-  const receipt = place(label('Boundary probe results', { size: 38 }), endsBand, 'left');
-  c.swap(
-    4,
-    hostImport,
-    runs.flatMap((made) => [made.name, made.gauge.track, made.gauge.fill, made.gauge.limit]),
-  );
-  c.on('fm-repeat', () =>
+  tweenCue(s, c, 'fm-notrap', showNoTrap, 1, { duration: 0.3 });
+
+  // Beat 0 & 1: Fuel, memory.grow, 4-byte sliding load
+  tweenCue(s, c, 'fm-loop', fuelLvl, 0.72, { duration: 1.2 });
+  c.on('fm-start', () => {
+    s.play(seq(fuelLvl.to(0, { duration: 0.3 }), fuelLvl.to(0.72, { duration: 1.0 })));
+  });
+  tweenCue(s, c, 'fm-grow', showPage2, 1, { duration: 0.3 });
+  tweenCue(s, c, 'fm-grow', showGrowVal, 1, { duration: 0.3, after: true });
+
+  tweenCue(s, c, 'fm-load', showLoadWin, 1, { duration: 0.35 });
+  tweenCue(s, c, 'fm-inside', ansFits, 1, { duration: 0.3, after: true });
+  c.on('fm-slide', () => {
+    s.play(ansFits.to(0, { duration: 0.2 }), slideOffset.to(2, { duration: 0.8 }));
+  });
+  tweenCue(s, c, 'fm-predict', ansPredict, 1, { duration: 0.35 });
+  crossSwap(s, c, 'fm-beyond', ansPredict, ansOob, { duration: 0.4, after: true });
+
+  // Beat 3: Host file reader
+  crossSwap(s, c, 'fm-reader', mode0, mode1, { duration: 0.4 });
+  tweenCue(s, c, 'fm-grant', showGrant, 1, { duration: 0.35 });
+  tweenCue(s, c, 'fm-resolved', showResolved, 1, { duration: 0.35 });
+  tweenCue(s, c, 'fm-denied', showDenied, 1, { duration: 0.35, after: true });
+
+  // Beat 4: 3 deterministic runs + variance sources
+  crossSwap(s, c, 'fm-repeat', mode1, mode2, { duration: 0.4 });
+  c.on('fm-repeat', () => {
     s.play(
-      seq(...runs.map((made) => made.gauge.level.to(0.7, { duration: 0.7 }))),
-      indicate(rows[0].mark, { color: COLOR.mark, duration: 2 }),
-    ),
-  );
-  c.show('fm-sources', [differ, ...sources], { stagger: true });
-  c.show('fm-real', receipt);
-  c.on('fm-grow-result', () => s.play(indicate(rows[2].mark, { color: COLOR.mark, duration: 1 })));
-  c.on('fm-load-result', () => s.play(indicate(rows[3].mark, { color: COLOR.mark, duration: 1 })));
+      seq(
+        runLvls[0].to(0.72, { duration: 0.55 }),
+        runLvls[1].to(0.72, { duration: 0.55 }),
+        runLvls[2].to(0.72, { duration: 0.55 }),
+      ),
+      rowPulse[0].to(1, { duration: 0.4 }),
+    );
+  });
+  tweenCue(s, c, 'fm-sources', showSources, 1, { duration: 0.4 });
+  tweenCue(s, c, 'fm-real', showReal, 1, { duration: 0.35 });
+  tweenCue(s, c, 'fm-grow-result', rowPulse[2], 1, { duration: 0.4 });
+  tweenCue(s, c, 'fm-load-result', rowPulse[3], 1, { duration: 0.4 });
 }

@@ -1,497 +1,663 @@
-// Scene `hook-and-circuit`: where a dictionary attaches to a model, and what a circuit claims.
-//
-// The picture: one model of three layers for the whole scene. A stream runs from the tokens to
-// the logits, and each layer has an attention branch over it and an MLP branch under it. The
-// hook moves from site to site. Then three features send their contributions to the logits, and
-// one of them leaves. Then a feature of a transcoder writes to the MLP outputs of its layer and
-// of later layers. Then attention freezes, and one edge of a graph for one prompt lights.
+// Scene 12: hook-and-circuit - "A feature hook must preserve its computational meaning"
+// Signature Luminous 3-Layer Transformer Architecture & Cross-Layer Transcoder Circuit Graph
+// (ZERO namedBox / PowerPoint cards!):
+// Beat 0: Orbiting gold hook ring glides between residual stream, MLP output, and attention output
+//         while 3 glowing deterministic activation clouds contrast their distinct distributions.
+// Beat 1: Three glowing stream lanes (Credential 1.08 + Urgency 0.08 + Formatting 0.00 = 1.16)
+//         on a luminous readout ruler; ablate credential (-> 0.08), restore, ablate formatting (1.16).
+// Beat 2: Cross-Layer Transcoder (CLT) glowing cyan feature orbs read residual stream and fan
+//         luminous multi-layer Bezier write arcs into downstream MLP `+` summers.
+// Beat 3: Local replacement model freezes attention patterns & norm denominators, attaches
+//         emerald constant error nodes (+e), stops intervening L1 MLP output, and illuminates
+//         one gold direct attribution path L0 -> L2.
 import {
   arrow,
-  assertEqual,
-  boxOf,
-  circle,
-  column,
-  decimal,
   dot,
   draw,
   dynamic,
   fade,
-  grid,
+  group,
   indicate,
   line,
-  pictogram,
-  place,
   recolor,
-  rect,
-  row,
   seededRandom,
-  text,
 } from 'vizmatic/stage';
-import { area, chipRow, heading, label, mono, namedBox, note } from '../../kit-narrated.mjs';
-import { COLOR } from '../parts.mjs';
+import {
+  COSMOS,
+  ROLE,
+  arcPts,
+  cinemaAtmosphere,
+  glowDot,
+  glowRing,
+  glowingTrail,
+  heroTitle,
+  lumBar,
+  playCue,
+  rule,
+  txt,
+} from '../parts.mjs';
 
 const LAYERS = 3;
-/** The readout of the article: three features, their weights, and their activations. */
 const READOUT = {
   names: ['Credential', 'Urgency', 'Formatting'],
   weights: [1.2, 0.1, 0],
   activations: [0.9, 0.8, 0.7],
-  colors: [COLOR.first, COLOR.second, 'dim'],
+  colors: [ROLE.first, ROLE.second, COSMOS.dim],
 };
 
-/** A cloud of dots in a cell: the values that one site holds. `shape` gives a point from two random numbers. */
-function cloud(cell, color, seed, shape) {
+function cloudDots(cx, cy, w, h, color, seed, shape) {
   const random = seededRandom(seed);
   const gauss = () => Math.sqrt(-2 * Math.log(1 - random())) * Math.cos(2 * Math.PI * random());
-  return Array.from({ length: 44 }, () => {
+  return Array.from({ length: 42 }, () => {
     const [u, v] = shape(gauss(), gauss());
-    return dot(4, color, { opacity: 0.8 }).at(
-      cell.cx + Math.max(-1, Math.min(1, u / 2.6)) * (cell.width / 2 - 8),
-      cell.cy - Math.max(-1, Math.min(1, v / 2.6)) * (cell.height / 2 - 8),
-    );
+    return dot(4, color)
+      .opacity(0.84)
+      .at(
+        cx + Math.max(-1, Math.min(1, u / 2.6)) * (w / 2 - 8),
+        cy - Math.max(-1, Math.min(1, v / 2.6)) * (h / 2 - 8),
+      );
   });
 }
 
+function archNode(x, y, w, h, label, color) {
+  return group(
+    lumBar(x, y, w, h, {
+      color,
+      fillOpacity: 0.18,
+      strokeWidth: 2.4,
+      glow: 7,
+      radius: 14,
+    }),
+    txt(label, x, y, 28, COSMOS.ink, 'sans', 'center'),
+  );
+}
+
 export default function hookAndCircuit(s, c) {
-  const contributions = READOUT.weights.map((weight, i) => weight * READOUT.activations[i]);
-  const total = contributions.reduce((sum, value) => sum + value, 0);
-  assertEqual(
-    [Number(total.toFixed(9)), Number((total - contributions[0]).toFixed(9))],
-    [1.16, 0.08],
-    'the readout, and the readout without its first feature',
-  );
+  const atmo = cinemaAtmosphere(ROLE.other, ROLE.first);
+  const title = heroTitle(['A feature hook must preserve', 'its computational meaning'], {
+    x: -855,
+    y: -445,
+    size: 46,
+    lineHeight: 54,
+    accent: ROLE.other,
+  });
 
-  // The model: tokens, three layers, logits. Each layer has an attention branch over the stream and an MLP branch under it.
-  const [modelBand, lowerBand] = area.rows([5, 3], 'normal');
-  const cells = modelBand
-    .columns([2, 3, 3, 3, 2], 'tight')
-    .map((cell) => cell.rows([2, 1, 2], 'none'));
-  const streamY = cells[0][1].cy;
-  const tokensBox = place(
-    namedBox('tokens', { width: 170, height: 84, color: 'dim' }),
-    cells[0][1],
-  );
-  const logitsBox = place(
-    namedBox('logits', { width: 170, height: 84, color: 'dim' }),
-    cells[4][1],
-  );
-  const stream = line(boxOf(tokensBox).point('right'), boxOf(logitsBox).point('left'), {
-    stroke: 'dim',
+  // --- Full-width luminous 3-layer Transformer diagram (y centered around -105) ---
+  const streamY = -95;
+  const tokX = -760;
+  const logX = 760;
+  const tokensHub = archNode(tokX, streamY, 155, 72, 'tokens', '#6c82b5');
+  const logitsHub = archNode(logX, streamY, 155, 72, 'logits', ROLE.mark);
+  const streamLine = line([tokX + 82, streamY], [logX - 82, streamY], {
+    stroke: '#586d9b',
     width: 6,
-  });
-  const layers = Array.from({ length: LAYERS }, (_, index) => {
-    const [upper, , lower] = cells[index + 1];
-    const attention = place(
-      namedBox('attention', { width: 200, height: 84, color: 'dim' }),
-      upper.columns(2, 'none')[0],
-    );
-    const mlp = place(
-      namedBox('MLP', { width: 200, height: 84, color: 'dim' }),
-      lower.columns(2, 'none')[1],
-    );
-    const branch = (box, over) => {
-      const b = boxOf(box);
-      const edge = over ? b.bottom : b.top;
-      const readX = b.left + b.width * 0.3,
-        writeX = b.right - b.width * 0.3;
-      return {
-        read: arrow([readX, streamY], [readX, edge], { stroke: 'dim', width: 3, pad: 8 }),
-        write: arrow([writeX, edge], [writeX, streamY], { stroke: 'dim', width: 3, pad: 8 }),
-        out: [writeX, (edge + streamY) / 2],
-        readAt: [readX, streamY],
-      };
-    };
-    return {
-      attention,
-      mlp,
-      a: branch(attention, true),
-      m: branch(mlp, false),
-      after: [cells[index + 1][1].right, streamY],
-    };
-  });
-  const model = [
-    tokensBox,
-    logitsBox,
-    stream,
-    ...layers.flatMap((layer) => [
-      layer.attention,
-      layer.mlp,
-      layer.a.read,
-      layer.a.write,
-      layer.m.read,
-      layer.m.write,
-    ]),
-  ];
-  s.add(heading(c.title), model);
+  }).glow(5, '#586d9b');
 
-  // Beat 0. The hook moves between three sites, and each site holds other values.
+  const layerXs = [-385, 0, 385];
+  const layers = layerXs.map((lx, idx) => {
+    const attnX = lx - 62;
+    const attnY = streamY - 148;
+    const mlpX = lx + 62;
+    const mlpY = streamY + 148;
+    const attn = archNode(attnX, attnY, 178, 66, `Attn L${idx}`, '#6078ab');
+    const mlp = archNode(mlpX, mlpY, 160, 66, `MLP L${idx}`, '#6078ab');
+
+    const aReadX = attnX - 38;
+    const aWriteX = attnX + 38;
+    const mReadX = mlpX - 34;
+    const mWriteX = mlpX + 34;
+
+    const aRead = arrow([aReadX, streamY - 6], [aReadX, attnY + 37], {
+      stroke: '#5a709e',
+      width: 3,
+      tip: 12,
+    });
+    const aWrite = arrow([aWriteX, attnY + 37], [aWriteX, streamY - 6], {
+      stroke: '#5a709e',
+      width: 3,
+      tip: 12,
+    });
+    const mRead = arrow([mReadX, streamY + 6], [mReadX, mlpY - 37], {
+      stroke: '#5a709e',
+      width: 3,
+      tip: 12,
+    });
+    const mWrite = arrow([mWriteX, mlpY - 37], [mWriteX, streamY + 6], {
+      stroke: '#5a709e',
+      width: 3,
+      tip: 12,
+    });
+
+    return {
+      lx,
+      attn,
+      mlp,
+      attnPos: [attnX, attnY],
+      mlpPos: [mlpX, mlpY],
+      a: { read: aRead, write: aWrite, out: [aWriteX, (attnY + 35 + streamY) / 2] },
+      m: { read: mRead, write: mWrite, out: [mWriteX, (mlpY - 35 + streamY) / 2] },
+      after: [lx + 185, streamY],
+    };
+  });
+
+  const modelNodes = [
+    tokensHub,
+    logitsHub,
+    streamLine,
+    ...layers.flatMap((l) => [l.attn, l.mlp, l.a.read, l.a.write, l.m.read, l.m.write]),
+  ];
+  const lowerRule = rule(-840, 140, 840, 140, COSMOS.rule, 1.6).opacity(0.55);
+
+  s.add(atmo, title, ...modelNodes, lowerRule);
+
+  // --- Beat 0: Orbiting gold hook visits 3 sites + 3 distinct activation clouds ---
   const sites = [layers[0].after, layers[1].m.out, layers[1].a.out];
   const where = s.value(0);
-  const hook = dynamic(() => {
+  const hookRing = dynamic(() => {
     const low = Math.min(sites.length - 2, Math.floor(where.value));
-    const share = where.value - low;
-    const at = [
-      sites[low][0] + (sites[low + 1][0] - sites[low][0]) * share,
-      sites[low][1] + (sites[low + 1][1] - sites[low][1]) * share,
-    ];
-    return circle(22, { stroke: COLOR.mark, width: 6, fill: null }).at(...at);
+    const sh = where.value - low;
+    const x = sites[low][0] + (sites[low + 1][0] - sites[low][0]) * sh;
+    const y = sites[low][1] + (sites[low + 1][1] - sites[low][1]) * sh;
+    return glowRing(x, y, 22, ROLE.mark, { width: 4.5, glow: 12, fillOpacity: 0.16 });
   });
-  const [siteBand, cloudBand] = lowerBand.columns([5, 2], 'wide');
-  const siteNames = [
-    ['residual', 'the shared state so far', COLOR.first],
-    ['MLP output', 'the update of one branch', COLOR.second],
-    ['attention output', 'routed context, before it merges', COLOR.other],
-  ];
-  const siteRows = siteNames.map(([name, meaning, color]) => [
-    label(name, { color }),
-    label(meaning),
-  ]);
-  place(
-    grid(siteRows.flat(), { columns: 2, gap: ['wide', 'normal'], even: true }),
-    siteBand,
-    'left',
-  );
-  const cloudCells = cloudBand.rows(3, 'tight');
-  const clouds = [
-    cloud(cloudCells[0], COLOR.first, 3, (u, v) => [u, v]),
-    cloud(cloudCells[1], COLOR.second, 4, (u, v) => [Math.abs(u) ** 2.2 - 1.6, v * 0.35]),
-    cloud(cloudCells[2], COLOR.other, 5, (u, v) => [u + v * 0.2, u * 0.8 + v * 0.25]),
-  ];
-  s.add(hook, siteRows[0]);
-  c.on('hook-mlp', () => s.play(where.to(1, { duration: 1 })));
-  c.show('hook-mlp', siteRows[1]);
-  c.on('hook-attn', () => s.play(where.to(2, { duration: 1 })));
-  c.show('hook-attn', siteRows[2]);
-  c.show('hook-and-circuit-b0', clouds[0], { after: true });
-  c.show('hook-width', [clouds[1], clouds[2]]);
-  const match = [
-    note('match all of these'),
-    chipRow(
-      [
-        'checkpoint',
-        'layer',
-        'token position',
-        'normalization',
-        'projection',
-        'centering',
-        'rescaling',
-        'dtype',
-      ],
-      {
-        maxWidth: lowerBand.width,
-        color: COLOR.mark,
-        stroke: COLOR.mark,
-      },
-    ),
-  ];
-  place(column(match, { gap: 'tight', align: 'left' }), lowerBand, 'left');
-  c.swap('hook-match', [...siteRows.flat(), ...clouds.flat()], match);
-  // A joint dictionary has a hook at every site, and it is trained on all of them.
-  const joint = sites
-    .slice(0, 2)
-    .map((at) => circle(22, { stroke: COLOR.mark, width: 6, fill: null }).at(...at));
-  const jointNote = place(
-    label('a joint dictionary: trained on every site', { color: COLOR.mark }),
-    lowerBand,
-    'bottom',
-  );
-  c.show('hook-joint', [...joint, jointNote]);
 
-  // Beat 1. A circuit: three features send their contributions along the stream to the logits.
+  const siteData = [
+    { y: 205, name: 'Residual stream', desc: 'accumulated shared trunk', col: ROLE.first },
+    { y: 300, name: 'MLP output', desc: 'nonlinear branch update', col: ROLE.second },
+    { y: 395, name: 'Attention output', desc: 'routed context before merge', col: ROLE.other },
+  ];
+  const siteRows = siteData.map((d) => [
+    glowDot(-805, d.y, { radius: 8, color: d.col, glow: 10 }),
+    txt(d.name, -775, d.y, 32, d.col, 'sans', 'left'),
+    txt(d.desc, -430, d.y, 30, COSMOS.ink, 'sans', 'left'),
+  ]);
+
+  const clouds = [
+    cloudDots(420, 205, 290, 74, ROLE.first, 3, (u, v) => [u, v]),
+    cloudDots(420, 300, 290, 74, ROLE.second, 4, (u, v) => [Math.abs(u) ** 2.2 - 1.6, v * 0.35]),
+    cloudDots(420, 395, 290, 74, ROLE.other, 5, (u, v) => [u + v * 0.2, u * 0.8 + v * 0.25]),
+  ];
+  const cloudCap = txt(
+    'Distinct activation distributions',
+    420,
+    452,
+    26,
+    COSMOS.muted,
+    'sans',
+    'center',
+  );
+
+  s.add(hookRing, ...siteRows[0]);
+  c.show('hook-and-circuit-b0', [...clouds[0], cloudCap], { after: true });
+  playCue(s, c, 'hook-mlp', (d) => s.play(where.to(1, { duration: d })), { dur: 0.95 });
+  c.show('hook-mlp', siteRows[1]);
+  playCue(s, c, 'hook-attn', (d) => s.play(where.to(2, { duration: d })), { dur: 0.95 });
+  c.show('hook-attn', siteRows[2]);
+  c.show('hook-width', [...clouds[1], ...clouds[2]]);
+
+  const matchHead = txt(
+    'Match every hook convention (same width ≠ same space):',
+    0,
+    210,
+    30,
+    COSMOS.muted,
+    'sans',
+    'center',
+  );
+  const matchLine1 = txt(
+    'checkpoint  ·  layer  ·  token position  ·  normalization',
+    0,
+    275,
+    30,
+    ROLE.mark,
+    'mono',
+    'center',
+  ).glow(6, ROLE.mark);
+  const matchLine2 = txt(
+    'projection  ·  centering  ·  rescaling  ·  dtype',
+    0,
+    330,
+    30,
+    ROLE.mark,
+    'mono',
+    'center',
+  ).glow(6, ROLE.mark);
+
+  const jointRings = sites
+    .slice(0, 2)
+    .map((pt) => glowRing(pt[0], pt[1], 22, ROLE.mark, { width: 4, glow: 10 }));
+  const jointNote = txt(
+    'Joint dictionary: explicitly trained across every site',
+    0,
+    405,
+    30,
+    ROLE.other,
+    'sans',
+    'center',
+  );
+
+  c.swap(
+    'hook-match',
+    [...siteRows.flat(), ...clouds.flat(), cloudCap],
+    [matchHead, matchLine1, matchLine2],
+  );
+  c.show('hook-joint', [...jointRings, jointNote]);
+
+  // --- Beat 1: Feature circuit readout (1.08 + 0.08 + 0.00 = 1.16) ---
   const kept = s.value(1);
   const formatting = s.value(1);
-  const activation = (i) => READOUT.activations[i] * [kept.value, 1, formatting.value][i];
-  const contribution = (i) => activation(i) * READOUT.weights[i];
-  const start = layers[0].after;
-  const end = boxOf(logitsBox).point('left');
-  const lanes = [-16, 0, 16];
-  const paths = READOUT.colors.map((color, i) => [
-    line([start[0], streamY + lanes[i]], [end[0], streamY + lanes[i]], { stroke: color, width: 5 }),
-    dot(13, color).at(start[0], streamY + lanes[i]),
-  ]);
-  const [termBand, scoreBand] = lowerBand.columns([2, 3], 'wide');
-  const [keyBand, ...termRows] = termBand.rows([0.75, 1, 1, 1], 'tight');
-  const terms = [
-    place(note('Activation × weight = score contribution'), keyBand, 'left'),
-    ...termRows.flatMap((band, i) => [
-      text(READOUT.names[i], { size: 34, color: READOUT.colors[i], anchor: 'left' }).at(
-        band.left,
-        band.cy,
-      ),
-      dynamic(() =>
-        text(
-          `${activation(i).toFixed(1)} × ${READOUT.weights[i].toFixed(1)} = ${contribution(i).toFixed(2)}`,
-          { size: 33, font: 'mono', color: READOUT.colors[i], anchor: 'right' },
-        ).at(band.right, band.cy),
-      ),
-    ]),
-  ];
-  // The contributions on one ruler, tip to tail.
-  const ruler = { max: 1.3, y: scoreBand.cy + 30 };
-  const at = (value) => scoreBand.left + (value / ruler.max) * scoreBand.width;
-  const scale = [
-    line([at(0), ruler.y + 22], [at(ruler.max), ruler.y + 22], { stroke: 'dim', width: 3 }),
-    ...[0, 0.5, 1].flatMap((tick) => [
-      line([at(tick), ruler.y + 22], [at(tick), ruler.y + 36], { stroke: 'dim', width: 3 }),
-      text(String(tick), { size: 30, font: 'mono', color: 'dim' }).at(at(tick), ruler.y + 64),
-    ]),
-  ];
-  const score = () => READOUT.activations.reduce((sum, _, i) => sum + contribution(i), 0);
-  const stack = dynamic(() => {
-    const first = contribution(0);
-    return [
-      first > 0.004
-        ? line([at(0), ruler.y], [at(first), ruler.y], { stroke: READOUT.colors[0], width: 26 })
-        : null,
-      line([at(first), ruler.y], [at(first + contribution(1)), ruler.y], {
-        stroke: READOUT.colors[1],
-        width: 26,
-      }),
-    ].filter(Boolean);
-  });
-  const reading = [
-    label('readout'),
-    decimal(() => score(), { digits: 2, size: 72, color: COLOR.mark }),
-  ];
-  place(row(reading, { gap: 'normal' }), scoreBand, 'top');
-  c.swap('hook-and-circuit-b1', [hook, ...joint, jointNote, ...match], paths.flat());
-  c.show('circuit-terms', [...terms.flat(), ...scale, stack]);
-  c.show('circuit-score', reading, { after: true });
-  // The first contribution leaves. Then it comes back, and the control leaves: it had no part.
-  c.on(
-    'circuit-remove',
-    () =>
-      s.play(
-        kept.to(0, { duration: 1.2 }),
-        ...paths[0].map((node) => fade(node, 0.2, { duration: 1.2 })),
-      ),
-    0.8,
-  );
-  c.on('circuit-reset', () => {
-    s.play(
-      kept.to(1, { duration: 0.8 }),
-      ...paths[0].map((node) => fade(node, 1, { duration: 0.8 })),
-    );
-  });
-  c.on('circuit-control', () => {
-    s.play(
-      formatting.to(0, { duration: 0.8 }),
-      ...paths[2].map((node) => fade(node, 0.2, { duration: 0.8 })),
-    );
-  });
-  const real = [
-    note('in a real model, test'),
-    chipRow(['held-out prompts', 'matched controls', 'edit strength', 'redundant paths'], {
-      maxWidth: lowerBand.width,
-      color: COLOR.mark,
-      stroke: COLOR.mark,
+  const actOf = (i) => READOUT.activations[i] * [kept.value, 1, formatting.value][i];
+  const contribOf = (i) => actOf(i) * READOUT.weights[i];
+  const totalScore = () => READOUT.activations.reduce((sum, _, i) => sum + contribOf(i), 0);
+
+  const laneStartX = layers[0].after[0];
+  const laneEndX = logX - 84;
+  const laneOffsets = [-14, 0, 14];
+  const paths = READOUT.colors.map((col, i) => [
+    line([laneStartX, streamY + laneOffsets[i]], [laneEndX, streamY + laneOffsets[i]], {
+      stroke: col,
+      width: 5,
+    }).glow(col === COSMOS.dim ? 0 : 8, col),
+    glowDot(laneStartX, streamY + laneOffsets[i], {
+      radius: 9,
+      color: col,
+      glow: col === COSMOS.dim ? 0 : 10,
     }),
+  ]);
+
+  const termHead = txt(
+    'Activation × weight = contribution',
+    -815,
+    195,
+    28,
+    COSMOS.muted,
+    'sans',
+    'left',
+  );
+  const termRows = READOUT.names.flatMap((name, i) => {
+    const ry = 260 + i * 68;
+    const col = READOUT.colors[i];
+    return [
+      txt(name, -815, ry, 32, col, 'sans', 'left'),
+      dynamic(() =>
+        txt(
+          `${actOf(i).toFixed(1)} × ${READOUT.weights[i].toFixed(1)} = ${contribOf(i).toFixed(2)}`,
+          -145,
+          ry,
+          30,
+          col,
+          'mono',
+          'right',
+        ),
+      ),
+    ];
+  });
+
+  // Glowing readout ruler on lower-right
+  const rLeft = 60;
+  const rRight = 800;
+  const rY = 345;
+  const rAt = (v) => rLeft + (v / 1.3) * (rRight - rLeft);
+  const rScale = [
+    rule(rLeft, rY + 24, rRight, rY + 24, '#4c608d', 3),
+    ...[0, 0.5, 1].flatMap((tk) => [
+      line([rAt(tk), rY + 24], [rAt(tk), rY + 36], { stroke: '#4c608d', width: 2.5 }),
+      txt(String(tk), rAt(tk), rY + 62, 26, COSMOS.dim, 'mono', 'center'),
+    ]),
   ];
-  place(column(real, { gap: 'tight', align: 'left' }), lowerBand, 'left');
-  c.swap('circuit-real', [...terms.flat(), ...scale, stack, ...reading], real);
-  const nullNote = place(
-    label('Another path can compensate for the edit.'),
-    lowerBand,
-    'bottom',
+  const rStack = dynamic(() => {
+    const c0 = contribOf(0);
+    const c1 = contribOf(1);
+    const out = [];
+    if (c0 > 0.005) {
+      out.push(
+        lumBar((rAt(0) + rAt(c0)) / 2, rY, rAt(c0) - rAt(0), 28, {
+          color: READOUT.colors[0],
+          fillOpacity: 0.48,
+          strokeWidth: 2,
+          glow: 9,
+          radius: 5,
+        }),
+      );
+    }
+    if (c1 > 0.005) {
+      out.push(
+        lumBar((rAt(c0) + rAt(c0 + c1)) / 2, rY, rAt(c0 + c1) - rAt(c0), 28, {
+          color: READOUT.colors[1],
+          fillOpacity: 0.48,
+          strokeWidth: 2,
+          glow: 9,
+          radius: 5,
+        }),
+      );
+    }
+    return out;
+  });
+  const scoreReadout = dynamic(() => [
+    txt('Readout score', 280, 225, 32, COSMOS.muted, 'sans', 'right'),
+    txt(totalScore().toFixed(2), 315, 225, 64, ROLE.mark, 'mono', 'left').glow(10, ROLE.mark),
+  ]);
+
+  c.swap(
+    'hook-and-circuit-b1',
+    [hookRing, ...jointRings, jointNote, matchHead, matchLine1, matchLine2],
+    paths.flat(),
+  );
+  c.show('circuit-terms', [termHead, ...termRows, ...rScale, rStack]);
+  c.show('circuit-score', scoreReadout, { after: true });
+
+  playCue(
+    s,
+    c,
+    'circuit-remove',
+    (d) =>
+      s.play(kept.to(0, { duration: d }), ...paths[0].map((n) => fade(n, 0.2, { duration: d }))),
+    { offset: 0.65, dur: 1.15 },
+  );
+  playCue(
+    s,
+    c,
+    'circuit-reset',
+    (d) => s.play(kept.to(1, { duration: d }), ...paths[0].map((n) => fade(n, 1, { duration: d }))),
+    { dur: 0.8 },
+  );
+  playCue(
+    s,
+    c,
+    'circuit-control',
+    (d) =>
+      s.play(
+        formatting.to(0, { duration: d }),
+        ...paths[2].map((n) => fade(n, 0.2, { duration: d })),
+      ),
+    { dur: 0.8 },
+  );
+
+  const realHead = txt(
+    'In a real model, verify across:',
+    0,
+    215,
+    30,
+    COSMOS.muted,
+    'sans',
+    'center',
+  );
+  const realLine = txt(
+    'held-out prompts  ·  matched controls  ·  edit strength  ·  redundant paths',
+    0,
+    280,
+    28,
+    ROLE.mark,
+    'mono',
+    'center',
+  ).glow(6, ROLE.mark);
+  const nullNote = txt(
+    'A null edit can mean weak strength or a compensating path',
+    0,
+    365,
+    30,
+    COSMOS.ink,
+    'sans',
+    'center',
+  );
+  c.swap(
+    'circuit-real',
+    [termHead, ...termRows, ...rScale, rStack, scoreReadout],
+    [realHead, realLine],
   );
   c.show('circuit-null', nullNote);
 
-  // Beat 2. A cross-layer transcoder: the features of a layer read the stream there, and write to this MLP output and the later ones.
-  const outlines = layers.map((layer) => {
-    const b = boxOf(layer.mlp);
-    return rect(b.width + 18, b.height + 18, {
-      stroke: COLOR.other,
-      width: 4,
-      fill: null,
-      radius: 16,
-    }).at(b.cx, b.cy);
-  });
-  const featureAt = layers.map((layer) => {
-    const b = boxOf(layer.mlp);
-    return [b.left - 38, b.top - 38];
-  });
-  const featureNodes = featureAt.map((p) => dot(14, COLOR.other).at(...p));
-  const outputNodes = layers.flatMap((layer) => [
-    rect(50, 50, { fill: 'bg', stroke: COLOR.other, width: 3, radius: 6 }).at(...layer.m.out),
-    text('+', { size: 30, color: COLOR.activation }).at(...layer.m.out),
-  ]);
-  const reads = featureAt.map((at) =>
-    arrow([at[0], streamY], at, { stroke: COLOR.other, width: 4, pad: 16 }),
+  // --- Beat 2: Cross-Layer Transcoder (CLT) glowing multi-layer fan ---
+  const featurePos = layers.map((l) => [l.mlpPos[0] - 118, l.mlpPos[1] - 62]);
+  const featureOrbs = featurePos.map((p) =>
+    group(
+      glowRing(p[0], p[1], 18, ROLE.other, { width: 3.5, glow: 10, fillOpacity: 0.25 }),
+      glowDot(p[0], p[1], { radius: 6, color: COSMOS.ink, glow: 8 }),
+    ),
   );
-  const sumWrites = layers.map((layer) =>
-    arrow([layer.m.out[0], layer.m.out[1] - 25], [layer.m.out[0], streamY], {
-      stroke: COLOR.other,
+  const sumHubs = layers.map((l) =>
+    group(
+      glowRing(l.m.out[0], l.m.out[1], 22, ROLE.other, { width: 3, glow: 8, fillOpacity: 0.2 }),
+      txt('+', l.m.out[0], l.m.out[1], 30, COSMOS.ink, 'mono', 'center'),
+    ),
+  );
+  const cltReads = featurePos.map((p) =>
+    arrow([p[0], streamY + 6], [p[0], p[1] - 20], { stroke: ROLE.other, width: 4, tip: 12 }).glow(
+      7,
+      ROLE.other,
+    ),
+  );
+  const cltSumWrites = layers.map((l) =>
+    arrow([l.m.out[0], l.m.out[1] - 24], [l.m.out[0], streamY + 6], {
+      stroke: ROLE.other,
       width: 4,
-      pad: 7,
+      tip: 12,
+    }).glow(7, ROLE.other),
+  );
+  const cltCrossArcs = layers.flatMap((_, from) =>
+    layers.slice(from).map((targetLayer, offset) => {
+      const p0 = [featurePos[from][0], featurePos[from][1] + 20];
+      const p1 = [targetLayer.m.out[0], targetLayer.m.out[1] + 24];
+      const lift = offset === 0 ? 55 : 105 + from * 28;
+      return glowingTrail(arcPts(p0, p1, lift, 28), {
+        color: ROLE.other,
+        width: 3.4,
+        glow: 8,
+        opacity: 0.88,
+      });
     }),
   );
-  const writes = layers.flatMap((layer, from) =>
-    layers.slice(from).flatMap((target) => {
-      const source = featureAt[from];
-      const lane = target.m.out[1] + 45 + from * 5;
-      return [
-        line([source[0], source[1] + 14], [source[0], lane], { stroke: COLOR.other, width: 4 }),
-        line([source[0], lane], [target.m.out[0], lane], { stroke: COLOR.other, width: 4 }),
-        arrow([target.m.out[0], lane], [target.m.out[0], target.m.out[1] + 25], {
-          stroke: COLOR.other,
-          width: 4,
-          tip: 9,
-          pad: 2,
-        }),
-      ];
-    }),
+
+  const cltHead = txt(
+    'Cross-layer transcoder: features read one layer, write to many MLP outputs',
+    0,
+    215,
+    30,
+    ROLE.other,
+    'sans',
+    'center',
+  ).glow(6, ROLE.other);
+  const cltComb = txt(
+    'Each MLP output combines writers from its own layer and earlier layers',
+    0,
+    290,
+    28,
+    COSMOS.ink,
+    'sans',
+    'center',
   );
-  const transcoder = place(
-    label('cross-layer transcoder: features in place of each MLP', { color: COLOR.other }),
-    lowerBand,
-    'top',
+  const cltStudies = txt(
+    'Circuit studies:  induction  ·  indirect object  ·  greater-than',
+    0,
+    375,
+    28,
+    ROLE.mark,
+    'mono',
+    'center',
   );
+
   c.swap(
     'hook-and-circuit-b2',
-    [...paths.flat(), ...real, nullNote],
-    [transcoder, ...outlines, ...featureNodes],
+    [...paths.flat(), realHead, realLine, nullNote],
+    [cltHead, ...featureOrbs],
   );
-  c.on('clt-reads', () =>
-    s.play(
-      ...layers.flatMap((layer) => [
-        fade(layer.mlp, 0.2),
-        fade(layer.m.read, 0),
-        fade(layer.m.write, 0),
-      ]),
-    ),
-  );
-  c.show(
+  playCue(
+    s,
+    c,
     'clt-reads',
-    reads.map((edge) => draw(edge)),
-  );
-  c.show('clt-writes', [outputNodes, ...sumWrites.map((edge) => draw(edge))]);
-  c.show(
-    'clt-writes',
-    writes.flat().map((edge) => draw(edge)),
-    { stagger: true },
-  );
-  const combines = place(
-    label('each MLP output: writers of this layer and of earlier ones'),
-    lowerBand,
-  );
-  c.show('clt-combines', combines);
-  c.on('clt-combines', () => s.play(indicate(sumWrites[2], { color: COLOR.mark, scale: 1 })));
-  c.on('clt-attention', () =>
-    s.play(...layers.map((layer) => indicate(layer.attention, { color: COLOR.mark, scale: 1.08 }))),
-  );
-  const studies = [
-    note('circuits that motivate the work'),
-    chipRow(['induction', 'indirect object', 'greater-than']),
-  ];
-  place(column(studies, { gap: 'tight', align: 'left' }), lowerBand, 'bottom left');
-  c.show('clt-studies', studies);
-
-  // Beat 3. The local replacement model of one prompt: attention is frozen, and the errors are constants.
-  const [legendBand, noteBand] = lowerBand.rows([1, 1], 'tight');
-  const local = place(
-    label('a replacement model for one prompt', { color: COLOR.mark }),
-    legendBand,
-    'top',
-  );
-  c.swap('hook-and-circuit-b3', [transcoder, combines, ...studies], local);
-  const frozen = layers.flatMap((layer) => {
-    const b = boxOf(layer.attention);
-    return [
-      text('patterns fixed', { size: 29, color: COLOR.other }).at(b.cx, b.top - 54),
-      text('norm denominators fixed', { size: 26, color: COLOR.other }).at(b.cx, b.top - 20),
-    ];
-  });
-  c.on('replacement-frozen', () =>
-    s.play(
-      ...layers.flatMap((layer) =>
-        [layer.a.read, layer.a.write].map((node) => recolor(node, COLOR.other)),
+    (d) =>
+      s.play(
+        ...layers.flatMap((l) => [
+          fade(l.mlp, 0, { duration: d }),
+          fade(l.m.read, 0, { duration: d }),
+          fade(l.m.write, 0, { duration: d }),
+        ]),
       ),
+    { dur: 0.5 },
+  );
+  c.show('clt-reads', cltReads);
+  c.show('clt-writes', [...sumHubs, ...cltSumWrites, ...cltCrossArcs]);
+  c.show('clt-combines', cltComb);
+  playCue(
+    s,
+    c,
+    'clt-combines',
+    (d) => s.play(indicate(sumHubs[2], { color: ROLE.mark, scale: 1.25, duration: d })),
+    { dur: 0.7 },
+  );
+  playCue(
+    s,
+    c,
+    'clt-attention',
+    (d) =>
+      s.play(
+        ...layers.map((l) => indicate(l.attn, { color: ROLE.mark, scale: 1.08, duration: d })),
+      ),
+    { dur: 0.7 },
+  );
+  c.show('clt-studies', cltStudies);
+
+  // --- Beat 3: Local replacement model & direct attribution edge ---
+  const localHead = txt(
+    'Local replacement model for one prompt',
+    0,
+    210,
+    34,
+    ROLE.mark,
+    'serif',
+    'center',
+  ).glow(6, ROLE.mark);
+  const frozenTags = layers.flatMap((l) => [
+    txt('patterns & norm fixed', l.attnPos[0], l.attnPos[1] - 54, 26, ROLE.other, 'mono', 'center'),
+  ]);
+  const liveAttnNote = txt(
+    'Attention patterns & norm denominators frozen (value paths stay live)',
+    0,
+    210,
+    28,
+    ROLE.other,
+    'sans',
+    'center',
+  );
+
+  const errorHubs = layers.map((l) =>
+    group(
+      lumBar(l.m.out[0] + 74, l.m.out[1], 36, 36, {
+        color: ROLE.residual,
+        fillOpacity: 0.45,
+        strokeWidth: 2.4,
+        glow: 9,
+        radius: 6,
+      }),
+      txt('e', l.m.out[0] + 74, l.m.out[1], 26, COSMOS.ink, 'mono', 'center'),
+      arrow([l.m.out[0] + 54, l.m.out[1]], [l.m.out[0] + 24, l.m.out[1]], {
+        stroke: ROLE.residual,
+        width: 3.5,
+        tip: 10,
+      }),
     ),
   );
-  c.show('replacement-frozen', frozen);
-  const valuePath = place(
-    label('attention value/output paths stay live', { color: COLOR.other }),
-    legendBand,
-    'top',
+  const matchCheck = txt(
+    '✓ logits match',
+    logX,
+    streamY - 62,
+    26,
+    ROLE.residual,
+    'mono',
+    'center',
+  ).glow(7, ROLE.residual);
+
+  const graphLegend = txt(
+    'Nodes:  ● features   ·   tokens   ·   +e errors   ·   logits',
+    0,
+    290,
+    28,
+    COSMOS.ink,
+    'mono',
+    'center',
   );
-  c.swap('replacement-frozen', local, valuePath);
-  const errors = layers.map((layer) =>
-    rect(26, 26, { fill: COLOR.residual, stroke: null, radius: 5 }).at(
-      layer.m.out[0] + 75,
-      layer.m.out[1],
-    ),
-  );
-  const errorLinks = layers.map((layer) =>
-    arrow([layer.m.out[0] + 62, layer.m.out[1]], [layer.m.out[0] + 25, layer.m.out[1]], {
-      stroke: COLOR.residual,
-      width: 4,
-      tip: 10,
-      pad: 3,
-    }),
-  );
-  c.show('repl-errors', [errors, ...errorLinks.map((edge) => draw(edge))]);
-  const same = place(
-    pictogram('check', { size: 44, accent: COLOR.residual }),
-    boxOf(logitsBox).grow('none', 'loose'),
-    'top',
-  );
-  c.show('repl-match', same);
-  const legend = place(
-    row(
+
+  // Direct attribution edge L0 -> L2 bypassing stopped L1 MLP output
+  const liftY = streamY - 18;
+  const srcSum = layers[0].m.out;
+  const dstFeat = featurePos[2];
+  const directEdge = [
+    arrow(featurePos[0], [srcSum[0] - 18, srcSum[1]], {
+      stroke: ROLE.mark,
+      width: 5.5,
+      tip: 14,
+    }).glow(10, ROLE.mark),
+    glowingTrail(
       [
-        chipRow(['● features; + output sums'], { color: COLOR.other, stroke: COLOR.other }),
-        chipRow(['token embeddings']),
-        chipRow(['error nodes'], { color: COLOR.residual, stroke: COLOR.residual }),
-        chipRow(['output logits'], { color: COLOR.mark, stroke: COLOR.mark }),
+        [srcSum[0], srcSum[1] - 24],
+        [srcSum[0], liftY],
+        [dstFeat[0], liftY],
+        [dstFeat[0], dstFeat[1] - 20],
       ],
-      { gap: 'tight' },
+      { color: ROLE.mark, width: 5.5, glow: 11 },
     ),
-    legendBand,
-    'bottom',
+  ];
+  const stopL1 = [
+    line(
+      [layers[1].m.out[0] - 26, layers[1].m.out[1] - 32],
+      [layers[1].m.out[0] + 26, layers[1].m.out[1] - 14],
+      {
+        stroke: ROLE.wrong,
+        width: 7,
+      },
+    ).glow(9, ROLE.wrong),
+  ];
+
+  const replNotes = [
+    'Direct edge = source activation × slope (intervening MLP stopped)',
+    'Isolates direct influence from source to target',
+    'Attention pattern held fixed',
+    'Pruned/inactive paths & error nodes can hide mechanisms',
+    'Always test graph predictions by editing the original model',
+  ].map((lineText) => txt(lineText, 0, 380, 30, ROLE.mark, 'sans', 'center'));
+
+  c.swap('hook-and-circuit-b3', [cltHead, cltComb, cltStudies], localHead);
+  playCue(
+    s,
+    c,
+    'replacement-frozen',
+    (d) =>
+      s.play(
+        ...layers.flatMap((l) =>
+          [l.a.read, l.a.write].map((n) => recolor(n, ROLE.other, { duration: d })),
+        ),
+      ),
+    { dur: 0.5 },
   );
-  c.show('repl-graph', legend);
-  // One edge of the graph: from the features of layer 0 to those of layer 2, along the stream, with the MLP output between them stopped.
-  const lift = streamY - 16;
-  const from = featureAt[0],
-    to = featureAt[2];
-  const sourceSum = layers[0].m.out;
-  const edge = [
-    arrow(from, sourceSum, { stroke: COLOR.mark, width: 6, pad: 30 }),
-    line([sourceSum[0], sourceSum[1] - 25], [sourceSum[0], lift], { stroke: COLOR.mark, width: 6 }),
-    line([sourceSum[0], lift], [to[0], lift], { stroke: COLOR.mark, width: 6 }),
-    arrow([to[0], lift], to, {
-      stroke: COLOR.mark,
-      width: 6,
-      pad: 10,
-    }),
-  ];
-  const between = layers[1].m.out;
-  const stops = [
-    line([between[0] - 20, between[1] - 36], [between[0] + 20, between[1] - 18], {
-      stroke: COLOR.wrong,
-      width: 8,
-    }),
-  ];
-  const notes = [
-    'an edge: source activation × slope on direct paths',
-    'direct paths from source to target',
-    'attention pattern held fixed',
-    'pruned paths and error nodes can hide a mechanism',
-    'check each edit in the original model',
-  ].map((words) => place(label(words, { size: 36 }), noteBand));
-  c.show('replacement-direct', [...stops, notes[0]]);
+  c.show('replacement-frozen', frozenTags);
+  c.swap('replacement-frozen', localHead, liveAttnNote);
+  c.show('repl-errors', errorHubs);
+  c.show('repl-match', matchCheck);
+  c.show('repl-graph', graphLegend);
+
+  c.show('replacement-direct', [...stopL1, replNotes[0]]);
   c.on('replacement-direct', () => {
-    s.play(fade(sumWrites[1], 0.12, { duration: 0.2 }));
-    for (const segment of edge) s.play(draw(segment, { duration: 0.4 }));
+    s.play(fade(cltSumWrites[1], 0.14, { duration: 0.2 }));
+    for (const seg of directEdge) s.play(draw(seg, { duration: 0.45 }));
   });
-  c.swap('repl-not-total', notes[0], notes[1]);
-  c.swap('repl-attention', notes[1], notes[2]);
-  c.on('repl-attention', () =>
-    s.play(...frozen.map((node) => indicate(node, { color: COLOR.mark, scale: 1 }))),
+  c.swap('repl-not-total', replNotes[0], replNotes[1]);
+  c.swap('repl-attention', replNotes[1], replNotes[2]);
+  playCue(
+    s,
+    c,
+    'repl-attention',
+    (d) =>
+      s.play(...frozenTags.map((n) => indicate(n, { color: ROLE.mark, scale: 1.06, duration: d }))),
+    { dur: 0.7 },
   );
-  c.swap('repl-hide', notes[2], notes[3]);
-  c.on('repl-hide', () =>
-    s.play(...errors.map((node) => indicate(node, { color: COLOR.mark, scale: 1.5 }))),
+  c.swap('repl-hide', replNotes[2], replNotes[3]);
+  playCue(
+    s,
+    c,
+    'repl-hide',
+    (d) =>
+      s.play(...errorHubs.map((n) => indicate(n, { color: ROLE.mark, scale: 1.25, duration: d }))),
+    { dur: 0.7 },
   );
-  c.swap('repl-compare', notes[3], notes[4]);
+  c.swap('repl-compare', replNotes[3], replNotes[4]);
 }

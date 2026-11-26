@@ -1,87 +1,82 @@
-// Scene `packing-bound`: how many directions fit, and what a small overlap costs.
-//
-// The picture: three acts on the plane, and each one reads an overlap as a shadow on a line.
-// 1. Two arrows stand at a right angle. A third one sweeps the circle, and its two shadows are
-//    never both zero.
-// 2. Random directions in D dimensions, each drawn at its true angle to one probe. As D grows, the
-//    fan closes on the perpendicular, and the bound falls under one.
-// 3. Twelve arrows that each overlap the probe by 0.1 join tip to tail. Their shadow on the probe
-//    creeps past the threshold.
+// Scene 2: packing-bound - "Small pairwise overlap can accumulate"
+// Act 1: Orthogonal blue & pink arrows + sweeping gold 3rd arrow (withheld verdict until packing-answer!),
+//        then Johnson-Lindenstrauss squared-distance ratio spectrum ruler.
+// Act 2: 24 random unit directions fan against probe + glowing 24x24 pairwise overlap matrix
+//        (yellow probe row) + MathJax concentration bound as D sweeps 16 -> 64 -> 256 -> 16 -> 64.
+// Act 3: 12 active unit directions (overlap 0.1 each) chaining tip-to-tail -> leak 1.2 > threshold 1.0
+//        (false activation), then 4 active -> 0.4, plus weak real signal (0.6).
 import {
   assertEqual,
   clamp,
-  column,
-  decimal,
   dot,
   dynamic,
-  fade,
-  grid,
   indicate,
   line,
-  place,
   rect,
   rightAngle,
-  row,
   seededRandom,
-  tex,
-  text,
 } from 'vizmatic/stage';
-import { heading, label, mono, note } from '../../kit-narrated.mjs';
-import { COLOR, NUMBER_SIZE, SIDE, board, vec } from '../parts.mjs';
+import {
+  COSMOS,
+  ROLE,
+  buildOvercomplete3d,
+  cinemaAtmosphere,
+  cinemaPlane,
+  glowDot,
+  glowTex,
+  heroTitle,
+  lumBar,
+  playCue,
+  rule,
+  txt,
+  vec,
+} from '../parts.mjs';
 
-/** The lane under axis 1 that shows a shadow as a bar, and the lane under it. */
-const LANE = [0, 84],
-  LANE_2 = [0, 118];
+const LANE = [0, 74];
+const LANE_2 = [0, 110];
 
-/** Each coordinate sign is sampled independently and fairly across all M directions. */
-const M = 24,
-  EPSILON = 0.5,
-  DIMENSIONS = [16, 64, 256];
-const bound = (dimension) => M * (M - 1) * Math.exp((-dimension * EPSILON ** 2) / 2);
+const M = 24;
+const EPSILON = 0.5;
+const DIMENSIONS = [16, 64, 256];
+const boundVal = (d) => M * (M - 1) * Math.exp((-d * EPSILON ** 2) / 2);
 
-/** The overlap of each sampled direction with the first one, the probe, for each dimension. */
 function sampleOverlaps() {
   const random = seededRandom(1);
   return DIMENSIONS.map((dimension) => {
-    const directions = Array.from({ length: M }, () =>
+    const dirs = Array.from({ length: M }, () =>
       Array.from({ length: dimension }, () => (random() < 0.5 ? -1 : 1) / Math.sqrt(dimension)),
     );
-    return directions.map((d) =>
-      directions.map((other) => d.reduce((sum, value, k) => sum + value * other[k], 0)),
-    );
+    return dirs.map((d) => dirs.map((o) => d.reduce((sum, val, k) => sum + val * o[k], 0)));
   });
 }
 
-/** The ratio of squared distances, after a random linear map and before it, for each pair of N points. */
 function sampleDistanceRatios() {
   const random = seededRandom(5);
   const gauss = () => Math.sqrt(-2 * Math.log(1 - random())) * Math.cos(2 * Math.PI * random());
-  const N = 8,
-    from = 256,
-    to = 64;
+  const N = 8;
+  const from = 256;
+  const to = 64;
   const points = Array.from({ length: N }, () => Array.from({ length: from }, gauss));
   const map = Array.from({ length: to }, () =>
     Array.from({ length: from }, () => gauss() / Math.sqrt(to)),
   );
   const mapped = points.map((p) =>
-    map.map((line) => line.reduce((sum, value, k) => sum + value * p[k], 0)),
+    map.map((row) => row.reduce((sum, val, k) => sum + val * p[k], 0)),
   );
-  const squared = (a, b) => a.reduce((sum, value, k) => sum + (value - b[k]) ** 2, 0);
+  const sq = (a, b) => a.reduce((sum, val, k) => sum + (val - b[k]) ** 2, 0);
   const ratios = [];
-  for (let i = 0; i < N; i++)
-    for (let j = i + 1; j < N; j++)
-      ratios.push(squared(mapped[i], mapped[j]) / squared(points[i], points[j]));
+  for (let i = 0; i < N; i++) {
+    for (let j = i + 1; j < N; j++) {
+      ratios.push(sq(mapped[i], mapped[j]) / sq(points[i], points[j]));
+    }
+  }
   return { ratios, points: N, from, to };
 }
 
-/** The accumulation of the voice: twelve active unit coefficients, each with overlap 0.1. */
-const ACTIVE = 12,
-  MU = 0.1,
-  THRESHOLD = 1;
+const ACTIVE = 12;
+const MU = 0.1;
+const THRESHOLD = 1;
 
-// In 13 dimensions, d_i = MU e_0 + sqrt(1 - MU^2) e_(i+1).
-// The second display axis is the alternating unit sum of the twelve private axes.
-// This orthogonal projection preserves probe overlaps and vector addition.
 const activeDirections = Array.from({ length: ACTIVE }, (_, i) =>
   Array.from({ length: ACTIVE + 1 }, (_, j) =>
     j === 0 ? MU : j === i + 1 ? Math.sqrt(1 - MU ** 2) : 0,
@@ -89,369 +84,465 @@ const activeDirections = Array.from({ length: ACTIVE }, (_, i) =>
 );
 const projectActive = (d) => [
   d[0],
-  d.slice(1).reduce((sum, value, i) => sum + (i % 2 ? -value : value), 0) / Math.sqrt(ACTIVE),
+  d.slice(1).reduce((sum, val, i) => sum + (i % 2 ? -val : val), 0) / Math.sqrt(ACTIVE),
 ];
 
 export default function packingBound(s, c) {
-  const b = board();
   const pairwise = sampleOverlaps();
-  const overlaps = pairwise.map((matrix) => matrix[0].slice(1));
+  const overlaps = pairwise.map((mat) => mat[0].slice(1));
   const jl = sampleDistanceRatios();
   assertEqual(
-    jl.ratios.every((ratio) => Math.abs(ratio - 1) <= EPSILON),
+    jl.ratios.every((r) => Math.abs(r - 1) <= EPSILON),
     true,
-    'every pair of the sampled map is within one plus or minus epsilon',
+    'every JL distance ratio stays inside 1 ± epsilon',
   );
-  assertEqual(Number((ACTIVE * MU).toFixed(6)), 1.2, 'twelve overlaps of 0.1');
-  assertEqual(
-    activeDirections.every((d) => Math.abs(Math.hypot(...d) - 1) < 1e-12),
-    true,
-    'the twelve active directions are unit vectors',
-  );
-  assertEqual(
-    activeDirections.every((d, i) =>
-      activeDirections.every(
-        (other, j) =>
-          i === j || Math.abs(d.reduce((sum, value, k) => sum + value * other[k], 0)) <= MU,
-      ),
-    ),
-    true,
-    'active-active overlaps also obey the stated coherence',
-  );
-  const [top, middle, bottom] = SIDE.rows([2, 5, 2], 'normal');
-  s.add(heading(c.title));
-  c.take(b.plane);
+  assertEqual(Number((ACTIVE * MU).toFixed(6)), 1.2, '12 * 0.1 = 1.2');
 
-  // Act 1. Two directions at a right angle, and a third one that looks for a place.
+  const atmo = cinemaAtmosphere(ROLE.first, ROLE.mark);
+  const title = heroTitle(['Small pairwise overlap', 'can accumulate'], {
+    x: -855,
+    y: -435,
+    size: 48,
+    lineHeight: 56,
+    accent: ROLE.mark,
+  });
+
+  const b = cinemaPlane(s, {
+    cx: -365,
+    cy: 95,
+    width: 960,
+    height: 700,
+    x: [-1.3, 2.9],
+    y: [-1.4, 1.8],
+  });
+
+  s.add(atmo, title, b.node);
+
+  // --- ACT 1: Two perpendicular directions + sweeping 3rd arrow ---
   const sweep = s.value(0.6);
   const third = () => [Math.cos(sweep.value), Math.sin(sweep.value)];
   const pair = [
-    b.arrowOf([0, 0], [1, 0], COLOR.first),
-    b.arrowOf([0, 0], [0, 1], COLOR.second),
-    rightAngle(b.P([0, 0]), b.P([1, 0]), b.P([0, 1]), { color: 'dim', width: 3 }),
+    b.arrowOf([0, 0], [1, 0], ROLE.first, { width: 7 }),
+    b.arrowOf([0, 0], [0, 1], ROLE.second, { width: 7 }),
+    rightAngle(b.P([0, 0]), b.P([1, 0]), b.P([0, 1]), { stroke: COSMOS.muted, width: 3 }),
   ];
   const seeker = [
-    b.shadowOf(third, [1, 0], COLOR.first),
-    b.shadowOf(third, [0, 1], COLOR.second),
-    b.arrowOf([0, 0], third, COLOR.mark, { width: 7 }),
+    b.shadowOf(third, [1, 0], ROLE.first, 8),
+    b.shadowOf(third, [0, 1], ROLE.second, 8),
+    b.arrowOf([0, 0], third, ROLE.mark, { width: 6.5 }),
   ];
-  const limit = place(
-    column([label('2 dimensions'), label('2 directions at a right angle')], {
-      gap: 'none',
-      align: 'center',
-    }),
-    top,
-  );
-  const shadows = [
-    note('shadow on 1'),
-    decimal(() => Math.abs(third()[0]), { digits: 2, size: 64, color: COLOR.first }),
-    note('shadow on 2'),
-    decimal(() => Math.abs(third()[1]), { digits: 2, size: 64, color: COLOR.second }),
-  ];
-  place(
-    grid(shadows, { columns: 2, gap: ['wide', 'normal'], align: ['right', 'left'] }),
-    middle,
-    'top',
-  );
-  const conclusion = place(label('At least one shadow', { color: COLOR.mark }), bottom);
-  s.add(pair, limit);
-  c.show('packing-bound-b0', [seeker, shadows]);
-  c.on('packing-up', () => s.play(sweep.to(Math.PI / 2, { duration: 1.3 })));
-  c.on('packing-side', () => s.play(sweep.to(0, { duration: 1.6 })));
-  c.show('packing-answer', conclusion, { after: true });
 
-  // Johnson-Lindenstrauss: a map to fewer dimensions keeps every distance within a band.
-  const [nameBand, rulerBand] = middle.inset('normal', 'none').rows([1, 2], 'tight');
-  const ruler = { min: 0.4, max: 1.6, region: rulerBand };
-  const rulerY = rulerBand.cy;
-  const at = (ratio) =>
-    ruler.region.left + ((ratio - ruler.min) / (ruler.max - ruler.min)) * ruler.region.width;
+  const rx = 515;
+  const limitHead = txt('2 dimensions', rx, -280, 42, COSMOS.ink, 'serif', 'center');
+  const limitSub = txt(
+    'At most 2 mutually perpendicular',
+    rx,
+    -230,
+    28,
+    COSMOS.muted,
+    'sans',
+    'center',
+  );
+
+  const shadowReadouts = dynamic(() => [
+    txt('shadow on blue', rx - 150, -90, 28, ROLE.first, 'sans', 'center'),
+    txt(Math.abs(third()[0]).toFixed(2), rx - 150, -25, 62, ROLE.first, 'mono', 'center').glow(
+      8,
+      ROLE.first,
+    ),
+    txt('shadow on pink', rx + 150, -90, 28, ROLE.second, 'sans', 'center'),
+    txt(Math.abs(third()[1]).toFixed(2), rx + 150, -25, 62, ROLE.second, 'mono', 'center').glow(
+      8,
+      ROLE.second,
+    ),
+  ]);
+
+  const verdict1 = txt(
+    'Every direction casts at least one shadow',
+    rx,
+    115,
+    30,
+    ROLE.mark,
+    'sans',
+    'center',
+  ).glow(6, ROLE.mark);
+
+  // Decorative orbiting 3D overcomplete sphere anchored in bottom-right during Act 1
+  const mini3d = buildOvercomplete3d({
+    x: rx,
+    y: 300,
+    radius: 1.7,
+    rayCount: 12,
+    activeIndices: [0, 1],
+    activeColors: [ROLE.first, ROLE.second],
+    unit: 72,
+  });
+
+  s.add(pair, limitHead, limitSub, mini3d.view);
+  const act1Dur = Math.max(0.8, c.cue('packing-bound-b1').start - c.start - 0.5);
+  c.at(0.1, () => {
+    s.play(mini3d.view.orbit({ theta: 0.7, phi: 0.92 }, { duration: act1Dur }));
+  });
+
+  c.show('packing-bound-b0', [seeker, shadowReadouts]);
+  playCue(s, c, 'packing-up', (d) => s.play(sweep.to(Math.PI / 2, { duration: d })), { dur: 1.25 });
+  playCue(s, c, 'packing-side', (d) => s.play(sweep.to(0, { duration: d })), { dur: 1.5 });
+  c.show('packing-answer', verdict1, { after: true });
+
+  // --- Johnson-Lindenstrauss squared-distance ratio ruler ---
+  const jlLeft = 215;
+  const jlRight = 835;
+  const jlY = 60;
+  const jlAt = (ratio) => jlLeft + ((ratio - 0.4) / 1.2) * (jlRight - jlLeft);
   const spread = s.value(0);
-  const scale = [
-    line([at(ruler.min), rulerY], [at(ruler.max), rulerY], { stroke: 'dim', width: 3 }),
-    ...[0.5, 1, 1.5].flatMap((tick) => [
-      line([at(tick), rulerY], [at(tick), rulerY + 14], { stroke: 'dim', width: 3 }),
-      text(tick === 1 ? '1' : tick.toFixed(1), {
-        size: NUMBER_SIZE,
-        font: 'mono',
-        color: 'dim',
-      }).at(at(tick), rulerY + 46),
+
+  const jlScale = [
+    rule(jlLeft, jlY, jlRight, jlY, '#4c608d', 3),
+    ...[0.5, 1, 1.5].flatMap((t) => [
+      line([jlAt(t), jlY], [jlAt(t), jlY + 14], { stroke: '#4c608d', width: 2.5 }),
+      txt(t === 1 ? '1' : t.toFixed(1), jlAt(t), jlY + 42, 26, COSMOS.dim, 'mono', 'center'),
     ]),
   ];
-  const ticks = dynamic(() =>
+  const jlTicks = dynamic(() =>
     jl.ratios.map((ratio) => {
-      const x = at(1 + (ratio - 1) * spread.value);
-      return line([x, rulerY - 58], [x, rulerY - 8], {
-        stroke: COLOR.other,
+      const x = jlAt(1 + (ratio - 1) * spread.value);
+      return line([x, jlY - 62], [x, jlY - 8], {
+        stroke: ROLE.other,
         width: 4,
-        opacity: 0.85,
-      });
+        opacity: 0.88,
+      }).glow(5, ROLE.other);
     }),
   );
-  const band = rect(at(1 + EPSILON) - at(1 - EPSILON), 84, {
-    fill: COLOR.mark,
-    stroke: null,
-    opacity: 0.16,
+  const jlBand = lumBar(jlAt(1), jlY - 35, jlAt(1 + EPSILON) - jlAt(1 - EPSILON), 80, {
+    color: ROLE.mark,
+    fillOpacity: 0.16,
+    strokeWidth: 2,
+    glow: 6,
     radius: 6,
-  }).at(at(1), rulerY - 33);
-  const ratioName = place(label('squared-distance ratio'), nameBand, 'bottom');
-  const sample = place(
-    note(`${jl.points} points, ${jl.ratios.length} pairs, ${jl.from} to ${jl.to} dimensions`),
-    top,
-    'bottom',
-  );
-  const order = place(
-    tex('k = O\\!\\left(\\varepsilon^{-2}\\log N\\right)', { size: 52 }),
-    top,
-    'top',
-  );
-  const within = place(label('all within 1 ± ε', { color: COLOR.mark }), bottom, 'top');
-  const recovery = place(note('Feature test: recover known directions'), bottom, 'bottom');
-  c.swap('jl-name', [limit, ...shadows, conclusion], [...scale, ticks, ratioName, sample]);
-  c.on('jl-projection', () => s.play(spread.to(1, { duration: 1.8 })));
-  c.show('jl-dimension', order);
-  c.show('jl-within', [band, within]);
-  c.show('jl-not', recovery);
+  });
 
-  // Act 2. Random directions against one probe: each arrow stands at its true angle to the probe.
+  const jlFormula = glowTex('k = O\\!\\left(\\varepsilon^{-2}\\log N\\right)', {
+    x: rx,
+    y: -255,
+    size: 46,
+    color: ROLE.mark,
+    glow: 7,
+  });
+  const jlSample = txt(
+    `${jl.points} points, ${jl.ratios.length} pairs, ${jl.from} → ${jl.to}D`,
+    rx,
+    -165,
+    28,
+    COSMOS.muted,
+    'mono',
+    'center',
+  );
+  const jlTitle = txt('Squared-distance ratio', rx, -65, 32, COSMOS.ink, 'sans', 'center');
+  const jlWithin = txt('All 28 pairs within 1 ± ε', rx, 165, 32, ROLE.mark, 'sans', 'center').glow(
+    6,
+    ROLE.mark,
+  );
+  const jlRecovery = txt(
+    'Feature recovery needs direct mixture tests',
+    rx,
+    235,
+    26,
+    ROLE.other,
+    'sans',
+    'center',
+  );
+
+  c.swap(
+    'jl-name',
+    [limitHead, limitSub, shadowReadouts, verdict1, mini3d.view],
+    [...jlScale, jlTicks, jlTitle, jlSample],
+  );
+  playCue(s, c, 'jl-projection', (d) => s.play(spread.to(1, { duration: d })), { dur: 1.7 });
+  c.show('jl-dimension', jlFormula);
+  c.show('jl-within', [jlBand, jlWithin]);
+  c.show('jl-not', jlRecovery);
+
+  // --- ACT 2: 24 Random directions fan + 24x24 overlap matrix + concentration bound ---
   const stage = s.value(0);
-  const dimension = () => 16 * 4 ** stage.value;
+  const dimNow = () => 16 * 4 ** stage.value;
   const overlapOf = (i) => {
     const low = Math.min(DIMENSIONS.length - 2, Math.floor(stage.value));
-    const share = stage.value - low;
-    return overlaps[low][i] * (1 - share) + overlaps[low + 1][i] * share;
+    const frac = stage.value - low;
+    return overlaps[low][i] * (1 - frac) + overlaps[low + 1][i] * frac;
   };
-  const side = (i) => (i % 2 ? -1 : 1);
-  const ray = (i) => {
-    const overlap = overlapOf(i);
-    return [overlap, side(i) * Math.sqrt(Math.max(0, 1 - overlap ** 2))];
+  const rayOf = (i) => {
+    const ov = overlapOf(i);
+    return [ov, (i % 2 ? -1 : 1) * Math.sqrt(Math.max(0, 1 - ov ** 2))];
   };
   const inside = (i) => Math.abs(overlapOf(i)) <= EPSILON + 1e-9;
+
   const fan = overlaps[0].map((_, i) =>
     b.arrowOf(
       [0, 0],
-      () => ray(i),
-      () => (inside(i) ? 'dim' : COLOR.wrong),
-      { width: 4 },
+      () => rayOf(i),
+      () => (inside(i) ? '#536794' : ROLE.wrong),
+      { width: 3.5, glow: 0 },
     ),
   );
-  const marks = dynamic(() =>
+  const projDots = dynamic(() =>
     overlaps[0].map((_, i) => {
       const p = b.P([overlapOf(i), 0]);
-      return dot(7, inside(i) ? COLOR.activation : COLOR.wrong).at(p[0], p[1] + LANE[1]);
+      const col = inside(i) ? ROLE.activation : ROLE.wrong;
+      return glowDot(p[0], p[1] + LANE[1], { radius: 6, color: col, glow: 8 });
     }),
   );
-  const edge = Math.sqrt(1 - EPSILON ** 2);
-  const cone = [
-    [EPSILON, edge],
-    [-EPSILON, edge],
+  const edgeY = Math.sqrt(1 - EPSILON ** 2);
+  const coneLines = [
+    [EPSILON, edgeY],
+    [-EPSILON, edgeY],
   ].map((d) =>
-    line(b.P(vec.scale(d, -1.12)), b.P(vec.scale(d, 1.12)), {
-      stroke: COLOR.mark,
-      width: 3,
-      dash: [12, 10],
-    }),
+    line(b.P(vec.scale(d, -1.14)), b.P(vec.scale(d, 1.14)), {
+      stroke: ROLE.mark,
+      width: 2.8,
+      dash: [11, 9],
+    }).opacity(0.85),
   );
-  const allowed = b.segmentOf([-EPSILON, 0], [EPSILON, 0], COLOR.mark, {
+  const allowedSpan = b.segmentOf([-EPSILON, 0], [EPSILON, 0], ROLE.mark, {
     lift: LANE,
-    width: 18,
-    opacity: 0.3,
+    width: 16,
+    opacity: 0.34,
+    glow: 6,
   });
-  const probe = b.arrowOf([0, 0], [1, 0], COLOR.activation, { width: 9 });
-  const probeTag = b.tagOf([1.55, 0], 'probe', COLOR.activation, [0, -36], { font: undefined });
-  const formula = place(
-    tex('P(\\text{fail}) \\le M(M-1)\\,e^{-D\\varepsilon^{2}/2}', { size: 46 }),
-    top,
-  );
-  const boundColor = () => (bound(dimension()) > 1 ? COLOR.wrong : COLOR.mark);
-  const [factBand, matrixBand] = middle.rows([2, 5], 'normal');
-  const [leftHalf, rightHalf] = factBand.columns(2, 'normal');
-  const facts = [
-    label('dimensions'),
-    decimal(() => dimension(), { digits: 0, size: 52 }),
-    label('bound'),
-    dynamic(() => {
-      const value = bound(dimension());
-      const words = value >= 10 ? value.toFixed(0) : value >= 0.001 ? value.toFixed(3) : '< 0.001';
-      return text(words, { size: 52, font: 'mono', color: boundColor() });
-    }),
-  ];
-  place(column(facts.slice(0, 2), { gap: 'tight', align: 'center' }), leftHalf);
-  place(column(facts.slice(2), { gap: 'tight', align: 'center' }), rightHalf);
-  const sampleNote = place(
-    column(
-      [
-        note(`M = ${M}; ε = ${EPSILON}`, { color: COLOR.mark }),
-        note('fair independent signs / √D'),
-      ],
-      { gap: 'tight', align: 'center' },
-    ),
-    bottom,
-    'top',
-  );
+  const probeArrow = b.arrowOf([0, 0], [1, 0], ROLE.activation, { width: 8.5 });
+  const probeTag = b.tagOf([1.48, 0], 'probe', ROLE.activation, [0, -34], {
+    font: 'sans',
+    size: 30,
+  });
+
+  const boundEq = glowTex('P(\\text{fail}) \\le M(M-1)\\,e^{-D\\varepsilon^{2}/2}', {
+    x: rx,
+    y: -310,
+    size: 40,
+    color: ROLE.mark,
+    glow: 6,
+  });
+  const dimReadout = dynamic(() => [
+    txt('dimensions D', rx - 155, -210, 26, COSMOS.muted, 'mono', 'center'),
+    txt(String(Math.round(dimNow())), rx - 155, -155, 52, COSMOS.ink, 'mono', 'center'),
+  ]);
+  const boundReadout = dynamic(() => {
+    const val = boundVal(dimNow());
+    const col = val > 1 ? ROLE.wrong : ROLE.mark;
+    const str = val >= 10 ? val.toFixed(0) : val >= 0.001 ? val.toFixed(3) : '< 0.001';
+    return [
+      txt('union bound', rx + 155, -210, 26, COSMOS.muted, 'mono', 'center'),
+      txt(str, rx + 155, -155, 52, col, 'mono', 'center').glow(8, col),
+    ];
+  });
+
   const allPairs = s.value(0);
-  const cell = Math.min(matrixBand.height / M, matrixBand.width / (M * 2));
+  const matCell = 11.5;
+  const matLeft = 215;
+  const matTop = -65;
   const matrix = dynamic(() => {
     const low = Math.min(DIMENSIONS.length - 2, Math.floor(stage.value));
-    const fraction = stage.value - low;
-    return pairwise[low].flatMap((row, i) =>
-      row.map((value, j) => {
-        const overlap = Math.abs(value * (1 - fraction) + pairwise[low + 1][i][j] * fraction);
-        return rect(cell - 1, cell - 1, {
-          fill:
-            i === j
-              ? 'faint'
-              : overlap > EPSILON
-                ? COLOR.wrong
-                : i === 0
-                  ? COLOR.mark
-                  : COLOR.other,
-          stroke: null,
-          opacity:
-            i === j ? 0.15 : (i === 0 ? 1 : 0.15 + 0.85 * allPairs.value) * (0.2 + 0.8 * overlap),
-        }).at(matrixBand.left + (j + 0.5) * cell, matrixBand.top + (i + 0.5) * cell);
+    const frac = stage.value - low;
+    return pairwise[low].flatMap((rowArr, i) =>
+      rowArr.map((val, j) => {
+        const ov = Math.abs(val * (1 - frac) + pairwise[low + 1][i][j] * frac);
+        const col =
+          i === j ? '#2b3652' : ov > EPSILON ? ROLE.wrong : i === 0 ? ROLE.mark : ROLE.other;
+        const op =
+          i === j ? 0.2 : (i === 0 ? 1 : 0.16 + 0.84 * allPairs.value) * (0.25 + 0.75 * ov);
+        return rect(matCell - 1.2, matCell - 1.2, { fill: col, stroke: null, opacity: op }).at(
+          matLeft + (j + 0.5) * matCell,
+          matTop + (i + 0.5) * matCell,
+        );
       }),
     );
   });
-  const matrixWords = place(
-    column(
-      [note('absolute pair overlaps'), note('yellow row: this probe'), note('diagonal excluded')],
-      { gap: 'tight', align: 'left' },
-    ),
-    matrixBand.columns(2, 'normal')[1],
-    'left',
-  ).nodes;
-  const fanScope = place(note('angles to this probe only'), bottom, 'bottom');
-  const over = place(
-    label('over 1: the bound says nothing', { color: COLOR.wrong }),
-    bottom,
-    'bottom',
-  );
+
+  const matInfo = [
+    txt('24×24 pair overlaps', 525, 10, 28, COSMOS.ink, 'sans', 'left'),
+    txt('Yellow row: this probe', 525, 56, 26, ROLE.mark, 'sans', 'left'),
+    txt('M = 24,  ε = 0.50', 525, 104, 26, COSMOS.muted, 'mono', 'left'),
+    txt('signs ±1 / √D', 525, 148, 26, COSMOS.dim, 'mono', 'left'),
+  ];
+  const fanScope = txt('Angles to probe row only', rx, 280, 28, COSMOS.muted, 'sans', 'center');
+  const overOne = txt(
+    'Bound > 1: no useful guarantee at D = 16',
+    rx,
+    280,
+    28,
+    ROLE.wrong,
+    'sans',
+    'center',
+  ).glow(6, ROLE.wrong);
+
   c.swap(
     'packing-bound-b1',
-    [...pair, ...seeker, ...scale, ticks, ratioName, sample, order, band, within, recovery],
+    [
+      ...pair,
+      ...seeker,
+      ...jlScale,
+      jlTicks,
+      jlTitle,
+      jlSample,
+      jlFormula,
+      jlBand,
+      jlWithin,
+      jlRecovery,
+    ],
     [
       ...fan,
-      marks,
-      ...cone,
-      allowed,
-      probe,
+      projDots,
+      ...coneLines,
+      allowedSpan,
+      probeArrow,
       probeTag,
-      facts[0],
-      facts[1],
-      sampleNote,
+      dimReadout,
       matrix,
-      ...matrixWords,
+      ...matInfo,
       fanScope,
     ],
   );
-  // The fan passes over the numbers of the axes, so the numbers leave for this act.
-  c.on('packing-bound-b1', () => s.play(fade(b.plane.numbers, 0, { duration: 0.3 })));
-  c.on('packing-bound-b2', () => s.play(fade(b.plane.numbers, 1, { duration: 0.3 })), 0.4);
-  c.on('bound-concentration', () => s.play(stage.to(1, { duration: 1.8 })));
-  c.show('bound-formula', [formula, facts[2], facts[3]]);
-  c.on('bound-formula', () => s.play(allPairs.to(1, { duration: 0.8 })));
+  playCue(s, c, 'packing-bound-b1', (d) => s.play(b.ticksAlpha.to(0, { duration: d })), {
+    dur: 0.3,
+  });
+  playCue(s, c, 'bound-concentration', (d) => s.play(stage.to(1, { duration: d })), { dur: 1.7 });
+  c.show('bound-formula', [boundEq, boundReadout]);
+  playCue(s, c, 'bound-formula', (d) => s.play(allPairs.to(1, { duration: d })), { dur: 0.8 });
+  playCue(s, c, 'bound-exp', (d) => s.play(stage.to(2, { duration: d })), { dur: 1.7 });
   c.hide('random-bound', fanScope);
-  c.on('bound-exp', () => s.play(stage.to(2, { duration: 1.8 })));
-  c.on('random-bound', () => s.play(stage.to(0, { duration: 1.4 })));
-  c.show('random-bound', over, { after: true });
-  c.on('bound-many', () => s.play(stage.to(1, { duration: 1.6 })));
-  c.hide('bound-many', over);
+  playCue(s, c, 'random-bound', (d) => s.play(stage.to(0, { duration: d })), { dur: 1.3 });
+  c.show('random-bound', overOne, { after: true });
+  playCue(s, c, 'bound-many', (d) => s.play(stage.to(1, { duration: d })), { dur: 1.5 });
+  c.hide('bound-many', overOne);
   c.show('bound-many', fanScope, { lead: -0.3 });
 
-  // Act 3. Projections of twelve active unit directions join tip to tail.
+  // --- ACT 3: Coherence accumulation (12 active directions * 0.1 = 1.2 > 1.0) ---
   const joined = s.value(0);
-  const step = (i) => projectActive(activeDirections[i]);
+  const stepVec = (i) => projectActive(activeDirections[i]);
   const starts = Array.from({ length: ACTIVE }, (_, i) =>
-    Array.from({ length: i }, (_, j) => step(j)).reduce(vec.add, [0, 0]),
+    Array.from({ length: i }, (_, j) => stepVec(j)).reduce(vec.add, [0, 0]),
   );
-  const share = (i) => clamp(joined.value - i);
-  const tip = () => {
+  const shareOf = (i) => clamp(joined.value - i);
+  const chainTip = () => {
     const last = Math.min(ACTIVE - 1, Math.max(0, Math.ceil(joined.value) - 1));
-    return vec.add(starts[last], vec.scale(step(last), share(last)));
+    return vec.add(starts[last], vec.scale(stepVec(last), shareOf(last)));
   };
-  const chain = starts.map((start, i) =>
-    b.arrowOf(start, () => vec.add(start, vec.scale(step(i), share(i))), COLOR.other, { width: 5 }),
+  const chain = starts.map((st, i) =>
+    b.arrowOf(st, () => vec.add(st, vec.scale(stepVec(i), shareOf(i))), ROLE.other, { width: 5 }),
   );
-  const leak = () => tip()[0];
-  const drop = b.shadowOf(tip, [1, 0], COLOR.mark, 8);
-  const leakBar = [
-    b.segmentOf([0, 0], () => [Math.min(leak(), THRESHOLD), 0], COLOR.mark, {
+  const leakVal = () => chainTip()[0];
+  const dropShadow = b.shadowOf(chainTip, [1, 0], ROLE.mark, 8);
+  const leakBars = [
+    b.segmentOf([0, 0], () => [Math.min(leakVal(), THRESHOLD), 0], ROLE.mark, {
       lift: LANE,
-      width: 18,
+      width: 16,
     }),
-    b.segmentOf([THRESHOLD, 0], () => [Math.max(leak(), THRESHOLD), 0], COLOR.wrong, {
+    b.segmentOf([THRESHOLD, 0], () => [Math.max(leakVal(), THRESHOLD), 0], ROLE.wrong, {
       lift: LANE,
-      width: 18,
+      width: 16,
     }),
   ];
-  const coherence = place(
-    tex('\\left|d_j^{\\top}x\\right| \\le \\mu \\sum_{i} |z_i|', { size: 50 }),
-    top,
+
+  const coherenceEq = glowTex('\\left|d_j^{\\top}x\\right| \\le \\mu \\sum_{i} |z_i|', {
+    x: rx,
+    y: -275,
+    size: 46,
+    color: ROLE.mark,
+    glow: 7,
+  });
+
+  const tallyReadout = dynamic(() => {
+    const lv = leakVal();
+    const leakCol = lv > THRESHOLD ? ROLE.wrong : ROLE.mark;
+    return [
+      txt('active features', rx - 150, -105, 28, COSMOS.muted, 'sans', 'center'),
+      txt(String(Math.round(joined.value)), rx - 150, -35, 68, ROLE.other, 'mono', 'center').glow(
+        8,
+        ROLE.other,
+      ),
+      txt('probe leak', rx + 150, -105, 28, COSMOS.muted, 'sans', 'center'),
+      txt(lv.toFixed(1), rx + 150, -35, 68, leakCol, 'mono', 'center').glow(10, leakCol),
+    ];
+  });
+
+  const eachNote1 = txt('Overlap μ = 0.1 each', rx, 110, 32, ROLE.other, 'mono', 'center');
+  const eachNote2 = txt(
+    '13D unit vectors projected to 2D',
+    rx,
+    158,
+    26,
+    COSMOS.muted,
+    'sans',
+    'center',
   );
-  const tally = [
-    label('active'),
-    decimal(() => Math.round(joined.value), { digits: 0, size: 72, color: COLOR.other }),
-    label('leak'),
-    decimal(() => leak(), { digits: 1, size: 72, color: COLOR.mark }),
-  ];
-  place(column(tally.slice(0, 2), { gap: 'tight', align: 'center' }), leftHalf);
-  place(column(tally.slice(2), { gap: 'tight', align: 'center' }), rightHalf);
-  const each = place(
-    column(
-      [label(`overlap ${MU} each`, { color: COLOR.other }), note('13D vectors projected to 2D')],
-      { gap: 'none', align: 'center' },
-    ),
-    bottom,
-    'top',
-  );
+
   const gate = [
     line(
-      vec.add(b.P([THRESHOLD, 0]), [0, LANE[1] - 22]),
-      vec.add(b.P([THRESHOLD, 0]), [0, LANE_2[1] + 22]),
-      {
-        stroke: COLOR.activation,
-        width: 4,
-      },
-    ),
-    b.tagOf([THRESHOLD, 0], 'threshold 1', COLOR.activation, [18, LANE_2[1] + 12], {
+      vec.add(b.P([THRESHOLD, 0]), [0, LANE[1] - 24]),
+      vec.add(b.P([THRESHOLD, 0]), [0, LANE_2[1] + 24]),
+      { stroke: ROLE.activation, width: 4 },
+    ).glow(6, ROLE.activation),
+    b.tagOf([THRESHOLD, 0], 'threshold 1.0', ROLE.activation, [16, LANE_2[1] + 10], {
       anchor: 'left',
+      size: 28,
     }),
   ];
-  const falseAlarm = place(label('a false activation', { color: COLOR.wrong }), bottom, 'bottom');
-  const weak = b.segmentOf([0, 0], [0.6, 0], COLOR.first, { lift: LANE_2, width: 18 });
-  const weakNote = place(
-    label('a weak real signal is cut too', { color: COLOR.first }),
-    bottom,
-    'bottom',
-  );
+  const falseAlarm = txt(
+    'False activation on inactive probe!',
+    rx,
+    265,
+    32,
+    ROLE.wrong,
+    'sans',
+    'center',
+  ).glow(8, ROLE.wrong);
+
+  const weakBar = b.segmentOf([0, 0], [0.6, 0], ROLE.first, { lift: LANE_2, width: 16 });
+  const weakNote = txt(
+    'High cutoff cuts weak real signals (0.6)',
+    rx,
+    265,
+    30,
+    ROLE.first,
+    'sans',
+    'center',
+  ).glow(6, ROLE.first);
+
   c.swap(
     'packing-bound-b2',
     [
       ...fan,
-      marks,
-      ...cone,
-      allowed,
-      formula,
-      ...facts,
-      sampleNote,
+      projDots,
+      ...coneLines,
+      allowedSpan,
+      boundEq,
+      dimReadout,
+      boundReadout,
       matrix,
-      ...matrixWords,
+      ...matInfo,
       fanScope,
     ],
-    [...chain, drop, ...leakBar, each],
+    [...chain, dropShadow, ...leakBars, eachNote1, eachNote2],
   );
-  c.on('packing-bound-b2', () => s.play(joined.to(1, { duration: 0.9 })));
-  c.show('coherence-readout', coherence);
-  c.show('coherence-accumulate', tally);
-  c.on('coherence-accumulate', () => s.play(joined.to(ACTIVE, { duration: 4.6 })));
-  c.after('coherence-leak', () =>
-    s.play(indicate(tally[3], { color: COLOR.activation, scale: 1.2 })),
+  playCue(s, c, 'packing-bound-b2', (d) => s.play(b.ticksAlpha.to(1, { duration: d })), {
+    offset: 0.3,
+    dur: 0.3,
+  });
+  playCue(s, c, 'packing-bound-b2', (d) => s.play(joined.to(1, { duration: d })), { dur: 0.9 });
+  c.show('coherence-readout', coherenceEq);
+  c.show('coherence-accumulate', tallyReadout);
+  playCue(s, c, 'coherence-accumulate', (d) => s.play(joined.to(ACTIVE, { duration: d })), {
+    dur: 4.4,
+  });
+  playCue(
+    s,
+    c,
+    'coherence-leak',
+    (d) => s.play(indicate(tallyReadout, { color: ROLE.wrong, scale: 1.08, duration: d })),
+    { after: true, dur: 0.7 },
   );
   c.show('coherence-threshold', gate);
   c.show('coherence-threshold', falseAlarm, { after: true });
   c.hide('coherence-sparsity', falseAlarm);
-  c.on('coherence-sparsity', () => s.play(joined.to(4, { duration: 1.6 })));
-  c.show('coherence-weak', [weak, weakNote]);
-  c.keep(b.plane);
+  playCue(s, c, 'coherence-sparsity', (d) => s.play(joined.to(4, { duration: d })), { dur: 1.5 });
+  c.show('coherence-weak', [weakBar, weakNote]);
 }

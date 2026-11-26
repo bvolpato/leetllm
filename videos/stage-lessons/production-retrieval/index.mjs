@@ -1,28 +1,33 @@
-import { narratedLesson } from '../../lib/narrated-lesson.mjs';
-import subjectIntro from './scenes/subject-intro.mjs';
-import threePaths from './scenes/three-paths.mjs';
-import versionedEvidence from './scenes/versioned-evidence.mjs';
-import validityInvariants from './scenes/validity-invariants.mjs';
+// Full-bleed dark-cinema 22-scene Production Retrieval stage lesson (vizmatic@0.10.0).
+import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
+import { verifyRetrievalInvariants } from './parts.mjs';
+import answerFromEvidenceScene from './scenes/answer-from-evidence.mjs';
 import authorizedRetrieval from './scenes/authorized-retrieval.mjs';
-import filteringContract from './scenes/filtering-contract.mjs';
-import lexicalCounterexample from './scenes/lexical-counterexample.mjs';
-import pinnedBundle from './scenes/pinned-bundle.mjs';
+import cacheIdentity from './scenes/cache-identity.mjs';
 import childToParent from './scenes/child-to-parent.mjs';
 import contextBudget from './scenes/context-budget.mjs';
-import answerFromEvidenceScene from './scenes/answer-from-evidence.mjs';
-import promptContract from './scenes/prompt-contract.mjs';
-import recordedModelFailure from './scenes/recorded-model-failure.mjs';
 import evidenceIsData from './scenes/evidence-is-data.mjs';
-import revocationAndCache from './scenes/revocation-and-cache.mjs';
-import cacheIdentity from './scenes/cache-identity.mjs';
-import traceAndDiagnose from './scenes/trace-and-diagnose.mjs';
-import recallContracts from './scenes/recall-contracts.mjs';
-import serialLatency from './scenes/serial-latency.mjs';
-import releaseGates from './scenes/release-gates.mjs';
-import tailsAndGates from './scenes/tails-and-gates.mjs';
+import filteringContract from './scenes/filtering-contract.mjs';
 import freshEvidence from './scenes/fresh-evidence.mjs';
-export default narratedLesson({
+import lexicalCounterexample from './scenes/lexical-counterexample.mjs';
+import pinnedBundle from './scenes/pinned-bundle.mjs';
+import promptContract from './scenes/prompt-contract.mjs';
+import recallContracts from './scenes/recall-contracts.mjs';
+import recordedModelFailure from './scenes/recorded-model-failure.mjs';
+import releaseGates from './scenes/release-gates.mjs';
+import revocationAndCache from './scenes/revocation-and-cache.mjs';
+import serialLatency from './scenes/serial-latency.mjs';
+import subjectIntro from './scenes/subject-intro.mjs';
+import tailsAndGates from './scenes/tails-and-gates.mjs';
+import threePaths from './scenes/three-paths.mjs';
+import traceAndDiagnose from './scenes/trace-and-diagnose.mjs';
+import validityInvariants from './scenes/validity-invariants.mjs';
+import versionedEvidence from './scenes/versioned-evidence.mjs';
+
+export default cinematicLesson({
   id: 'production-retrieval',
+  accent: COSMOS.cyan,
+  invariants: verifyRetrievalInvariants,
   scenes: {
     'subject-intro': subjectIntro,
     'three-paths': threePaths,

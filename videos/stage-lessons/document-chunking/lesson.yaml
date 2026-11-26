@@ -1,0 +1,833 @@
+version: 1
+id: document-chunking
+title: Where to Cut a Document for Retrieval
+source: retrieval/chunking-strategies-document-processing/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+    url: https://arxiv.org/abs/2005.11401
+  - title: Recursive Character Text Splitter documentation
+    url: https://docs.langchain.com/oss/python/integrations/splitters/recursive_text_splitter
+  - title: Parent Document Retriever documentation
+    url: https://reference.langchain.com/python/langchain-classic/retrievers/parent_document_retriever/ParentDocumentRetriever
+  - title: "Late Chunking: Contextual Chunk Embeddings Using Long-Context Embedding Models"
+    url: https://arxiv.org/abs/2409.04701
+  - title: A Systematic Analysis of Chunking Strategies for Reliable Question Answering
+    url: https://arxiv.org/abs/2601.14123
+  - title: MiniLM L6 embedding model card
+    url: https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+scenes:
+  - id: subject-intro
+    title: What starts the 15-minute clock?
+    visual: A five-word search hit pulls away along a torn edge. Rejoining the two pieces restores the trigger and the action. A bracket widens to keep the whole instruction in one chunk.
+    beats:
+      - say: Fifteen minutes with deploy ID. That's all the search hit says. What starts the clock?
+        hold: 2.25
+        caption_starts:
+          - What starts the clock
+        visual_cues:
+          - id: read-hit
+            phrase: Fifteen minutes with deploy ID
+            targets:
+              - search-hit
+            color: blue
+            linger: 0.25
+      - say: Slide the pieces together. A failed rollback starts the clock. Page on-call within fifteen minutes and include the deploy ID.
+        hold: 1.05
+        caption_starts:
+          - A failed rollback starts the clock
+          - Page on-call within fifteen minutes
+        visual_cues:
+          - id: open-page
+            phrase: Slide the pieces together
+            targets:
+              - runbook-page
+            color: blue
+            linger: 0.25
+          - id: read-trigger
+            phrase: A failed rollback starts the clock
+            targets:
+              - runbook-page
+            color: green
+            linger: 0.25
+      - say: A chunk is a piece of a document that search can return. Move the cut to the start of the sentence. Now one hit gives the model the whole paging rule.
+        hold: 0.65
+        caption_starts:
+          - Move the cut to the start of the sentence
+          - Now one hit gives the model
+        visual_cues:
+          - id: widen-hit
+            phrase: Move the cut to the start of the sentence
+            targets: [chunk-bracket]
+            color: blue
+            linger: 0.25
+  - id: answerable-units
+    title: What does the passage let you say?
+    visual: A phrase check follows three cuts of the original rule. Inserting “do not” reverses the instruction while all three required phrases still match.
+    beats:
+      - say: An engineer needs the trigger, the deadline and the ID. Try the beginning of the sentence on its own. You can quote what happened, but the passage ends at “within.” The time and the ID are both missing.
+        hold: 0.75
+      - say: Now try the other cut. It includes the time and the deploy ID. It also runs straight into a rule about archiving notes. Which event does the fifteen-minute deadline belong to? This passage never says.
+        hold: 0.85
+        caption_starts:
+          - Which event does the fifteen-minute deadline belong to
+          - This passage never says
+        visual_cues:
+          - id: missing-trigger
+            phrase: This passage never says
+            targets: [phrase-comparison]
+            color: yellow
+            linger: 0.25
+      - say: Put the original sentence back together. For this example we can run a small check. Look for “rollback failure,” “fifteen minutes,” and “deploy ID” in the candidate. All three phrases occur, and the sentence says when to page on-call.
+        hold: 0.75
+      - say: Insert “do not” just before “page on-call.” Read that instruction beside the source. Will the three-phrase check change?
+        hold: 2
+        visual_cues:
+          - id: edit-instruction
+            phrase: Insert “do not”
+            targets:
+              - phrase-comparison
+            color: yellow
+            linger: 0.25
+      - say: All three phrases still match. An engineer following this version would do the opposite of what the source says. Use the check to catch broken cuts in these examples. Review which action, condition and exceptions the returned passage actually supports.
+        hold: 1
+        visual_cues:
+          - id: same-result
+            phrase: All three phrases still match
+            targets:
+              - phrase-comparison
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+  - id: fixed-windows
+    title: Where does a six-word window end?
+    visual: A six-position bracket stops at 15. A second bracket shifts four positions and carries two words into the next excerpt from the same page.
+    beats:
+      - say: Here are the first ten words of our seventeen-word page. Count each space-separated item as one word, including “on-call.” Take the first six words. If the engineer got only that window, what unit of time could they cite?
+        hold: 2.1
+        visual_cues:
+          - id: six-places
+            phrase: Take the first six words
+            targets:
+              - window-page
+            color: blue
+            linger: 0.25
+      - say: They have the number fifteen. The word “minutes” is just across the edge. Keep the window six words wide and slide it forward four places. “Within fifteen” comes along. This time we get “within fifteen minutes with deploy ID.” Look back at what stayed behind.
+        hold: 1
+        visual_cues:
+          - id: slide-four
+            phrase: slide it forward four places
+            targets:
+              - window-page
+            color: blue
+            linger: 0.25
+      - say: The second hit has the unit and the ID, but the failed rollback sits in the first hit. Those two shared words are the overlap. Subtract two from the window size of six and you get a stride of four. Starting at word one brings us to word five. A real index measures its input with the embedding model's tokenizer.
+        hold: 0.8
+  - id: overlap-limit
+    title: What do the repeated words buy?
+    visual: Seven-word windows build on the same seventeen positions. Gold marks the words of a short fact within each window as three counts update.
+    beats:
+      - say: Widen the window to seven and look at the five words in gold. Start with zero overlap. The first hit ends at “minutes.” The next has “with deploy ID.” The index stores all seventeen words once, but neither hit contains that whole gold phrase.
+        hold: 0.95
+        visual_cues:
+          - id: zero-overlap
+            phrase: Start with zero overlap
+            targets:
+              - overlap-page
+            color: blue
+            linger: 0.25
+      - say: Repeat two words at each cut. Follow the gold marks across the second hit. One seven-word hit now contains the whole deadline and ID. We paid for that by indexing twenty-one word occurrences from the same seventeen source words.
+        hold: 1
+        visual_cues:
+          - id: two-overlap
+            phrase: Repeat two words at each cut
+            targets:
+              - overlap-page
+            color: blue
+            linger: 0.25
+      - say: Try four words of overlap. Now the index writes thirty-three word occurrences. The count of hits containing the gold phrase is still one. What about the entire paging rule? It stretches across ten words. Even the widest hit covers only seven.
+        hold: 0.9
+        caption_starts:
+          - What about the entire paging rule
+          - It stretches across ten words
+        visual_cues:
+          - id: four-overlap
+            phrase: Try four words of overlap
+            targets:
+              - overlap-page
+            color: blue
+            linger: 0.25
+          - id: compare-whole-rule
+            phrase: What about the entire paging rule
+            targets: [overlap-page]
+            color: yellow
+            linger: 0.25
+          - id: whole-rule-count
+            phrase: Even the widest hit covers only seven
+            targets: [overlap-page]
+            color: blue
+            linger: 0.25
+      - say: If the question needs the governing condition, sliding a seven-word window more often won't fit that ten-word sentence. Keep the section together if it fits, or arrange to return the missing context after search.
+        hold: 0.7
+  - id: structure-and-tables
+    title: What belongs with the fourteen-day window?
+    visual: Two headings keep paging and archiving separate. When the table splits into row groups, each group receives its column names.
+    beats:
+      - say: Page seven already has a heading for rollback failure. The line underneath gives the paging instruction. Attach the section title to the searchable text. An engineer who finds that section can read the condition and its deadline together.
+        hold: 0.55
+        visual_cues:
+          - id: attach-heading
+            phrase: Attach the section title to the searchable text
+            targets:
+              - headed-sections
+            color: blue
+            linger: 0.6
+      - say: Now the same policies arrive in a table. A table row cut away from its column names still says “fourteen days” and “release summary.” Repeat the header for each row group. Now you can tell which value is the window and which is the evidence to include.
+        hold: 0.75
+        visual_cues:
+          - id: read-row
+            phrase: A table row cut away from its column names
+            targets:
+              - table-groups
+            color: blue
+            linger: 0.6
+          - id: table-repeat-header
+            phrase: Repeat the header for each row group
+            targets:
+              - table-groups
+            color: cyan
+            linger: 0.5
+      - say: Keep the page, version and span of the original row. A heading helps retrieval. The locator lets someone check the original cell, including any qualifier that applied to the whole table.
+        hold: 0.55
+        visual_cues:
+          - id: row-location
+            phrase: Keep the page, version and span
+            targets:
+              - table-locator
+            color: blue
+            linger: 0.6
+  - id: tail-balancing
+    title: Repair a short tail under the same hard cap
+    visual: Fifteen words stay at their source positions as two boundaries move. Raising the preferred minimum changes the review decision without changing the hard cap.
+    beats:
+      - say: Keep the order of these fifteen words. We call each smaller piece a child of this section. A child may hold seven words, and we'd like each to have at least four. That leaves seven, seven and one. Merge the last word into its neighbor and you get eight in the second child. Move both boundaries instead. Five, five and five fit. The character ranges below lead back to the same text. Each range includes its start and stops before its end. Read the first five words. It has a deadline and stops before the deploy ID. Embed the heading with it and require the missing text to come back before answering.
+        hold: 0.8
+        visual_cues:
+          - id: tail-balancing-0
+            phrase: Keep the order of these fifteen words
+            targets:
+              - tail-balancing-operation
+            linger: 0.4
+          - id: tail-merge
+            phrase: Merge the last word
+            targets:
+              - tail-balancing-operation
+            linger: 0.35
+          - id: tail-balance
+            phrase: Move both boundaries instead
+            targets:
+              - tail-balancing-operation
+            linger: 0.35
+          - id: balance-not-evidence
+            phrase: Read the first five words
+            targets:
+              - tail-balancing-operation
+            linger: 0.35
+      - say: Raise the preferred minimum to six. Two children of seven can hold only fourteen of our fifteen words, so we still need at least three. Three children of six would need eighteen words. Keep the hard cap and flag the short children for review, or use a different representation.
+        hold: 0.8
+        visual_cues:
+          - id: tail-balancing-1
+            phrase: Raise the preferred minimum to six
+            targets:
+              - tail-balancing-operation
+            linger: 0.4
+          - id: tail-impossible
+            phrase: Three children of six would need eighteen words
+            targets:
+              - tail-balancing-operation
+            linger: 0.35
+      - say: Return to the seventeen-word page. Stop as soon as a window reaches the end. Another copy of the tail would charge for the same words again. On a long document, twenty percent overlap advances each window by eighty percent of its width. One divided by point eight gives about one and a quarter times as many windows. For a short page, count them directly. Our seven-word windows indexed seventeen, twenty-one or thirty-three word occurrences. None held the entire ten-word rule.
+        hold: 0.8
+        visual_cues:
+          - id: tail-balancing-2
+            phrase: Return to the seventeen-word page
+            targets:
+              - tail-balancing-operation
+            linger: 0.4
+          - id: overlap-asymptotic
+            phrase: On a long document, twenty percent overlap
+            targets:
+              - tail-balancing-operation
+            linger: 0.35
+  - id: token-offsets
+    title: What counts toward the embedding limit?
+    visual: The same runbook span retains its immutable source positions while added retrieval labels and tokenizer overhead consume a different budget.
+    beats:
+      - say: This longer section has fifteen whitespace-separated words and ninety-three characters. How many tokens will the embedding model see? Run its tokenizer over the full search text, including headings and special tokens. MiniLM, the model in the article, produces a vector with three hundred and eighty-four coordinates. Its default input limit is two hundred and fifty-six wordpieces. One number measures the output, the other limits what the model can read.
+        hold: 0.8
+        caption_starts:
+          - How many tokens will the embedding model see
+          - Run its tokenizer over the full search text
+          - MiniLM, the model in the article
+        visual_cues:
+          - id: measure-full-input
+            phrase: Run its tokenizer over the full search text
+            targets: [token-offsets-operation]
+            linger: 0.35
+          - id: token-offsets-0
+            phrase: fifteen whitespace-separated words
+            targets:
+              - token-offsets-operation
+            linger: 0.4
+          - id: token-model-contract
+            phrase: MiniLM, the model in the article
+            targets:
+              - token-offsets-operation
+            linger: 0.35
+      - say: Try a smaller example with a sixteen-token input limit. Here are the tokenizer readings for this input. Twelve tokens belong to the body, three to its heading, and two are special tokens. Will the full input fit?
+        hold: 2
+      - say: Seventeen tokens. The last one falls beyond the limit. Split at a boundary that keeps the meaning, then measure the new input. This time the tokenizer counts eleven body tokens. With the same heading and both special tokens, all sixteen fit. Check the evidence again whenever you shorten a child.
+        hold: 0.85
+        visual_cues:
+          - id: token-total
+            phrase: Seventeen tokens
+            targets: [token-offsets-operation]
+            caption_boundary: true
+          - id: shorter-child
+            phrase: This time the tokenizer counts eleven body tokens
+            targets: [token-offsets-operation]
+          - id: all-sixteen
+            phrase: all sixteen fit
+            targets: [token-offsets-operation]
+            caption_boundary: true
+      - say: Keep the body where it is on the page. Prepend the source and section labels to the copy you embed. They use some of its token allowance. When you quote the body, follow its original span. Record the document version and the offset units, whether characters, bytes or token positions. If ingestion normalized the text, keep the map back to the original.
+        hold: 0.8
+        visual_cues:
+          - id: token-offsets-1
+            phrase: Keep the body where it is on the page
+            targets:
+              - token-offsets-operation
+            linger: 0.4
+          - id: prepend-labels
+            phrase: Prepend the source and section labels
+            targets:
+              - token-offsets-operation
+            linger: 0.35
+      - say: Here the parser starts a new section at two Markdown heading marks. The section number belongs to our index. To locate the passage in the PDF, keep its page and original coordinates. Use a parser that understands nesting, code fences and tables when those structures occur. For an oversized block, a recursive splitter can try paragraph breaks, line breaks, spaces, then characters. Its default counts characters. Check the final token length, and inspect any cut that separates an exception from its rule.
+        hold: 0.8
+        visual_cues:
+          - id: token-offsets-2
+            phrase: the parser starts a new section at two Markdown heading marks
+            targets:
+              - token-offsets-operation
+            linger: 0.4
+  - id: evaluate-and-release
+    title: Choose the smallest chunk that can answer
+    visual: One runbook question is tested against three real candidate passages and a ten-word cutoff. Coverage checks reveal which chunk carries the condition, deadline, and identifier without exceeding the limit.
+    beats:
+      - say: Our query asks after a rollback failure, who gets paged, when, and which ID to include. This worked example uses a ten-word cutoff. Which candidate stays under it and contains all three answer fields?
+        hold: 2.1
+        visual_cues:
+          - id: release-query-cutoff-b1-1
+            phrase: ten-word cutoff
+            targets:
+              - release-query
+            color: yellow
+            linger: 0.6
+          - id: release-ten-word-cutoff-b1-2
+            phrase: contains all three answer fields
+            targets:
+              - release-candidates
+            color: blue
+            linger: 0.6
+      - say: The five-word fragment fits but omits the deadline and ID. The twelve-word fragment has the deadline and ID, but omits the failure condition and adds an unrelated archive rule. The ten-word rollback sentence has all three fields and meets the cutoff.
+        hold: 0.75
+        visual_cues:
+          - id: release-fragment-check-b2-1
+            phrase: omits the deadline and ID
+            targets:
+              - release-coverage
+            color: cyan
+            linger: 0.6
+          - id: release-complete-rule-b2-2
+            phrase: adds an unrelated archive rule
+            targets:
+              - release-coverage
+            color: yellow
+            linger: 0.6
+          - id: release-all-fields-b2-3
+            phrase: has all three fields and meets the cutoff
+            targets:
+              - release-coverage
+            color: green
+            linger: 0.6
+      - say: "Choose the ten-word sentence. It is the shortest candidate here that answers the labeled question within the cutoff. Keep its source locator attached: incident-runbook-v3.pdf, page 7."
+        hold: 0.55
+        visual_cues:
+          - id: release-cutoff-choice-b3-1
+            phrase: shortest candidate here
+            targets:
+              - release-selection
+            color: green
+            linger: 0.6
+          - id: release-source-span-b3-2
+            phrase: source locator attached
+            targets:
+              - release-source
+            color: blue
+            linger: 0.6
+  - id: labeled-retrieval
+    title: Which words reach the model?
+    visual: Ranked hits from version three are packed into ten and nine word spaces. The source stays fixed while the condition disappears from the model input. A second comparison fixes the generator-token allowance.
+    beats:
+      - say: Let's test a cut with a question we know the answer to. This simple search counts distinct query words that occur in each passage. Count the matches down the page. The full paging sentence matches all four words. The two fragments tie at two, and the routine rule shares only “deploy.” A tie can go to whichever fragment comes first. Neither one contains the whole instruction.
+        hold: 0.75
+        visual_cues:
+          - id: count-matches
+            phrase: Count the matches down the page
+            targets:
+              - retrieval-evidence
+            color: blue
+            linger: 0.25
+      - say: Run three small checks. For each query, look at the winning record and the phrase its text must contain. Paging, archiving and handoff each pass both checks. Those are three examples with known answers. Add exceptions, split tables and questions the runbook can't answer before comparing real systems.
+        hold: 0.9
+        visual_cues:
+          - id: retrieval-suite
+            phrase: Paging, archiving and handoff each pass both checks
+            targets:
+              - retrieval-evidence
+            color: blue
+            linger: 0.25
+      - say: Keep page seven open. Search brings back both five-word halves of the paging rule. The deadline ranks first, and the packer has ten words of evidence space. Put the deadline in first. Add the five words from the start of the sentence. The model reads the selected pieces in source order. Now it can connect the deadline to the rollback that failed.
+        hold: 0.9
+        visual_cues:
+          - id: pack-deadline
+            phrase: Put the deadline in first
+            targets:
+              - retrieval-evidence
+            color: blue
+            linger: 0.25
+          - id: pack-condition
+            phrase: Add the five words from the start of the sentence
+            targets:
+              - retrieval-evidence
+            color: blue
+            linger: 0.25
+      - say: Change only the evidence allowance, from ten words to nine. The deadline still ranks first and uses five spaces. The packer takes whole hits. Can the second five-word hit fit?
+        hold: 2.1
+        caption_starts:
+          - The deadline still ranks first
+          - Can the second five-word hit fit
+        visual_cues:
+          - id: nine-spaces
+            phrase: from ten words to nine
+            targets: [retrieval-evidence]
+            color: yellow
+            linger: 0.25
+      - say: Only four spaces remain. The condition stays out. The search found the right page both times. Count this second answer as missing its evidence. When you change splitters, label the source version and the span that supports the answer. A new cut may give that span a different chunk ID.
+        hold: 0.9
+        caption_starts:
+          - The search found the right page both times
+          - When you change splitters
+        visual_cues:
+          - id: packing-verdict
+            phrase: The condition stays out
+            targets:
+              - retrieval-evidence
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: For a real generator, reserve room for the instructions, question and output. Suppose that leaves a hundred and twenty tokens for evidence. Two sixty-token hits fill it. Two thirty-token hits use only half. Fill the same allowance with four of the shorter hits, then compare the answers and citations. Track repeated source spans, index size and retrieval latency alongside quality.
+        hold: 0.85
+        visual_cues:
+          - id: equal-budget
+            phrase: Fill the same allowance with four of the shorter hits
+            targets:
+              - retrieval-evidence
+            color: blue
+            linger: 0.25
+  - id: parent-child-context
+    title: Follow a hit back to its section
+    visual: A narrow child span wins the retrieval match, then a version-matched authorized section expands to include the complete rollback condition and locator.
+    beats:
+      - say: Suppose the most precise match is just “within fifteen minutes.” Indexing a narrow passage can make it easier to find. What must come back with that passage for the engineer to know when to page?
+        hold: 0.55
+        visual_cues:
+          - id: parent-child-context-beat-1-focus-1
+            phrase: within fifteen minutes
+            targets:
+              - parent-child-context-object-search-child-within-15-minutes-25
+            color: blue
+            linger: 0.6
+      - say: Use the child hit to look up its parent section. Check the parent ID, the source version and the caller's access. The pointer resolves to the permitted section on page seven. That section connects the deadline to the failed rollback.
+        hold: 0.75
+        visual_cues:
+          - id: parent-child-context-beat-2-focus-1
+            phrase: Check the parent ID, the source version and the caller's access
+            targets:
+              - parent-child-context-object-beat-0-check-parent-id-version-access-runbook-v3-a-26
+            color: blue
+            linger: 0.6
+          - id: parent-child-context-beat-2-focus-2
+            phrase: Use the child hit to look up its parent section
+            targets:
+              - parent-child-context-object-search-child-within-15-minutes-25
+            color: blue
+            linger: 0.6
+      - say: Return one copy when two hits point to the same parent. Measure the complete packed prompt with the generator's tokenizer. The pointer helps us find the words. It takes the actual text to support the answer.
+        hold: 0.55
+        visual_cues:
+          - id: parent-child-context-beat-3-focus-1
+            phrase: Return one copy when two hits point to the same parent
+            targets:
+              - parent-child-context-object-beat-0-check-parent-id-version-access-runbook-v3-a-26
+            color: blue
+            linger: 0.6
+  - id: checked-parent
+    title: Can the host return this parent?
+    visual: Two child hits resolve to one fourteen-word parent. The host checks its version, permission and size before returning any text.
+    beats:
+      - say: Two hits point to the same section. One has the deploy ID, the other asks for the service name. Follow both pointers. Count the parent once. All fourteen words fit in our twenty-word allowance, including the rollback condition at the start.
+        hold: 0.8
+        visual_cues:
+          - id: checked-parent-0
+            phrase: Two hits point to the same section
+            targets:
+              - checked-parent-operation
+            linger: 0.4
+          - id: parent-dedup
+            phrase: Count the parent once
+            targets:
+              - checked-parent-operation
+            linger: 0.35
+      - say: Try the same lookup with one child marked version two. Its link is stale because the parent is version three. Restore the version, then remove access to the parent. The host denies the request. Restore access and lower the allowance to ten words. This time the whole parent is too long. Find a smaller complete passage or report that you lack the evidence.
+        hold: 0.8
+        visual_cues:
+          - id: checked-parent-1
+            phrase: one child marked version two
+            targets:
+              - checked-parent-operation
+            linger: 0.4
+          - id: parent-stale
+            phrase: one child marked version two
+            targets:
+              - checked-parent-operation
+            linger: 0.35
+          - id: parent-denied
+            phrase: remove access to the parent
+            targets:
+              - checked-parent-operation
+            linger: 0.35
+          - id: parent-small
+            phrase: lower the allowance to ten words
+            targets:
+              - checked-parent-operation
+            linger: 0.35
+      - say: Restore the twenty-word allowance. Both hits deliver the same fourteen-word section again. In a service, check current permissions on the child and the parent, and keep the document and splitter versions with each link. Count the final text with the generator's tokenizer after reserving space for instructions, the question and the answer.
+        hold: 0.8
+        visual_cues:
+          - id: checked-parent-2
+            phrase: Both hits deliver the same fourteen-word section again
+            targets:
+              - checked-parent-operation
+            linger: 0.4
+  - id: semantic-cosine
+    title: Where does the paragraph change topic?
+    visual: Neighboring sentence vectors share one incident axis before a commander sentence turns onto an orthogonal axis; zero vectors remain unknown.
+    beats:
+      - say: If a long section has no heading at the topic change, compare neighboring sentences. For this example, count distinct words from two short lists. One list contains rollback terms, the other handoff terms. The first sentence has “rollback” and “deploy,” so its coordinates are two and zero. The second hits only “minutes.” The third hits three handoff words. Count whole words so the letters I D inside “incident” don't count as an identifier.
+        hold: 0.8
+        visual_cues:
+          - id: semantic-cosine-0
+            phrase: count distinct words from two short lists
+            targets:
+              - semantic-cosine-operation
+            linger: 0.4
+      - say: Plot the three pairs. Cosine compares direction by dividing the dot product by both vector lengths. The first two arrows point the same way. Their cosine is one. The third points at a right angle to the second, giving a cosine of zero. Here we propose a cut whenever cosine falls below one half. That puts the boundary before the commander instruction.
+        hold: 0.8
+        visual_cues:
+          - id: semantic-cosine-1
+            phrase: Cosine compares direction
+            targets:
+              - semantic-cosine-operation
+            linger: 0.4
+          - id: cosine-first
+            phrase: Their cosine is one
+            targets:
+              - semantic-cosine-operation
+            linger: 0.35
+          - id: cosine-second
+            phrase: giving a cosine of zero
+            targets:
+              - semantic-cosine-operation
+            linger: 0.35
+      - say: Try the sentence “No action is required.” It contains none of our words, so its arrow has length zero. We would be dividing by zero. Send this boundary for review. With real embeddings, tune the threshold on labeled questions. Even a clear topic change can split an exception from its condition.
+        hold: 0.8
+        visual_cues:
+          - id: semantic-cosine-2
+            phrase: No action is required
+            targets:
+              - semantic-cosine-operation
+            linger: 0.4
+          - id: cosine-undefined
+            phrase: Send this boundary for review
+            targets:
+              - semantic-cosine-operation
+            linger: 0.35
+  - id: semantic-and-late
+    title: Who is the service owner?
+    visual: The same four-word excerpt is encoded on its own and inside a longer passage naming Maya. Only the second representation can use her name.
+    beats:
+      - say: Here's a different reason a search can miss. The instruction says “page the service owner.” Earlier on the same page, the runbook named Maya. If we encode only these four words, the encoder never sees her name.
+        hold: 0.55
+        visual_cues:
+          - id: semantic-and-late-beat-1-focus-1
+            phrase: page the service owner
+            targets:
+              - semantic-and-late-simulation-29
+            color: blue
+            linger: 0.6
+      - say: Late chunking encodes a longer input first, then pools contextual token states for each selected span. A chunk vector can carry information from a name earlier in the document.
+        hold: 0.75
+        visual_cues:
+          - id: semantic-and-late-beat-2-focus-1
+            phrase: then pools contextual token states for each selected span
+            targets:
+              - late-contextual-states
+            color: blue
+            linger: 0.6
+          - id: semantic-and-late-beat-2-focus-2
+            phrase: Late chunking encodes a longer input first
+            targets:
+              - late-full-input
+            color: blue
+            linger: 0.6
+      - say: The four highlighted states average to point seven one on our illustrative Maya coordinate. Read the four returned words again. They still say “page the service owner.” For a question that asks who to page, send the permitted sentence that names Maya as well.
+        hold: 0.55
+        visual_cues:
+          - id: semantic-and-late-beat-3-focus-1
+            phrase: Read the four returned words again
+            targets:
+              - semantic-and-late-simulation-29
+            color: blue
+            linger: 0.6
+  - id: late-boundaries
+    title: Which words shaped the stored vector?
+    visual: The same token-span boundaries are pooled after shared contextual encoding; cross-scope text is then removed from the encoder input.
+    beats:
+      - say: Keep the boundary around “page the service owner.” Encode the longer passage first. Use tokenizer offsets to select the four content-token states for that span and average them. Handle special tokens and normalization the way the model requires. Each selected state has already seen the shared context. Averaging vectors that were made in separate passes can't recreate that step.
+        hold: 0.8
+        visual_cues:
+          - id: late-boundaries-0
+            phrase: Keep the boundary around
+            targets:
+              - late-boundaries-operation
+            linger: 0.4
+          - id: late-shared-encode
+            phrase: Encode the longer passage first
+            targets:
+              - late-boundaries-operation
+            linger: 0.35
+          - id: late-offset-pool
+            phrase: select the four content-token states
+            targets:
+              - late-boundaries-operation
+            linger: 0.35
+      - say: The encoder must expose token states. Its input limit and attention pattern determine how far each state can see. For longer texts, the paper encodes overlapping larger windows. The pooled method stores one vector for each child. Late interaction keeps multiple vectors for token-level scoring.
+        hold: 0.8
+        visual_cues:
+          - id: late-boundaries-1
+            phrase: The encoder must expose token states
+            targets:
+              - late-boundaries-operation
+            linger: 0.4
+      - say: Maya's name sits in a restricted section. Everyone can read “page the service owner.” Encode those sections together and the name can shape the public vector, even if search returns only the four public words. Separate the encoder inputs by permission and trust scope. Now only the four public words go into this pass. Record the context version with each vector.
+        hold: 0.8
+        caption_starts:
+          - Encode those sections together
+          - Separate the encoder inputs by permission and trust scope
+          - Now only the four public words
+        visual_cues:
+          - id: late-boundaries-2
+            phrase: Maya's name sits in a restricted section
+            targets:
+              - late-boundaries-operation
+            linger: 0.4
+          - id: late-dependence
+            phrase: the name can shape the public vector
+            targets:
+              - late-boundaries-operation
+            linger: 0.35
+          - id: late-trust-repair
+            phrase: Separate the encoder inputs by permission and trust scope
+            targets:
+              - late-boundaries-operation
+            linger: 0.35
+  - id: evaluation-limits
+    title: What did the retrieval study measure?
+    visual: Chunk size and retrieved-context budget occupy different rulers; the source experiment remains labeled while the runbook evidence decides its own configuration.
+    beats:
+      - say: Bennani and Moslonka tested chunking on Wikipedia questions with SPLADE retrieval and a Ministral eight-billion instruction model. They varied individual chunks from fifty to five hundred tokens. They also varied how much retrieved text the generator could read, from five hundred to ten thousand tokens. Hits filled that budget in rank order.
+        hold: 0.8
+        visual_cues:
+          - id: evaluation-limits-0
+            phrase: Bennani and Moslonka tested chunking on Wikipedia questions
+            targets:
+              - evaluation-limits-operation
+            linger: 0.4
+      - say: Read the lower ruler. Sentence-preserving splits matched semantic splits up to roughly five thousand retrieved-context tokens in that experiment. The upper ruler still ends at five hundred tokens per chunk. Comparing zero with twenty percent overlap, the authors measured more indexing work without a measurable answer-quality gain in their setting.
+        hold: 0.8
+        visual_cues:
+          - id: evaluation-limits-1
+            phrase: Read the lower ruler
+            targets:
+              - evaluation-limits-operation
+            linger: 0.4
+          - id: study-context-five
+            phrase: roughly five thousand retrieved-context tokens
+            targets:
+              - evaluation-limits-operation
+            linger: 0.35
+      - say: Take a reference answer of “Maya” and a response of “MAYA” in capitals with a period. Normalizing case and punctuation gives an exact match. A semantic similarity score needs its scoring model. An abstention measure asks whether the system answered at all. Those measures can favor different context budgets, especially when extra passages bring distractors. Check uncertainty across questions and evaluate the citations on your own runbook.
+        hold: 0.8
+        visual_cues:
+          - id: evaluation-limits-2
+            phrase: Take a reference answer of “Maya”
+            targets:
+              - evaluation-limits-operation
+            linger: 0.4
+  - id: manifest-release
+    title: Which passages enter the index?
+    visual: A complete evaluated chunk and a broken fragment share plausible metadata; the prior evidence decision determines which enters the index.
+    beats:
+      - say: Both records have text, a source, a locator, a heading and a checksum. Look at the review decision. The complete rollback passage is ready. The deadline fragment is still under review. The manifest admits the first. That decision has to come from checking evidence for a question. A splitter that writes “ready” on every record has never made that check.
+        hold: 0.8
+        visual_cues:
+          - id: manifest-release-0
+            phrase: Both records have text
+            targets:
+              - manifest-release-operation
+            linger: 0.4
+          - id: manifest-ready
+            phrase: The manifest admits the first
+            targets:
+              - manifest-release-operation
+            linger: 0.35
+      - say: Change the deadline from fifteen minutes to twenty. Hash the edited chunk. Even though the length stayed the same, the bytes changed and so did the checksum. The hash can help detect an edit. Keep the ingestion checksum for the document separately. Record the immutable version, span and splitter configuration so a new ingestion can replace the old records. Establish the producer's identity and the accuracy of the rule separately.
+        hold: 0.8
+        visual_cues:
+          - id: manifest-release-1
+            phrase: Change the deadline
+            targets:
+              - manifest-release-operation
+            linger: 0.4
+          - id: manifest-edit
+            phrase: Hash the edited chunk
+            targets:
+              - manifest-release-operation
+            linger: 0.35
+      - say: For this runbook, start with one section per heading when it fits. Keep table headers and provenance. Split oversized sections, then check the full embedding input. Carry trust and authorization scope with the record. Quarantine excludes a source, and permission still applies when a child expands to a parent. Test extra overlap or a different encoder against the specific question that failed.
+        hold: 0.8
+        visual_cues:
+          - id: manifest-release-2
+            phrase: Carry trust and authorization scope with the record
+            targets:
+              - manifest-release-operation
+            linger: 0.4
+  - id: earned-transfer
+    title: Version five changes the page
+    visual: Two overlapping nine-word hits point into a twelve-word rule. The packer charges for both copies, then tests one current, permitted parent against budgets of twelve and eleven words.
+    beats:
+      - say: Version five changes the deadline and asks for the service name too. For this exercise, you have eighteen words of evidence space. Search ranks the last nine words first. The first nine words rank second. Both hits are permitted and come from this page. Read the two strips in source order. When should the engineer page, and what goes in the page?
+        hold: 2.2
+        visual_cues:
+          - id: last-nine
+            phrase: Search ranks the last nine words first
+            targets:
+              - final-page
+            color: blue
+            linger: 0.25
+          - id: first-nine
+            phrase: The first nine words rank second
+            targets:
+              - final-page
+            color: blue
+            linger: 0.25
+      - say: After a rollback failure, page on-call within twenty minutes. Include the deploy ID and the service name. Now lower the allowance to twelve words. The first-ranked hit takes nine. Three spaces remain for another nine-word hit. The condition was in the skipped hit. Look at words four through nine on the source. Both hits charged us for those same six words. Follow either pointer to the whole parent instead. This version is current, and the caller may read it. One copy of the parent uses exactly twelve words. The rollback condition is back beside the deadline.
+        hold: 1.2
+        visual_cues:
+          - id: fresh-context-answer
+            phrase: Include the deploy ID and the service name
+            targets:
+              - final-page
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-budget-cut
+            phrase: Now lower the allowance to twelve words
+            targets:
+              - final-page
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-insufficient-result
+            phrase: The condition was in the skipped hit
+            targets:
+              - final-page
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: shared-six
+            phrase: Look at words four through nine on the source
+            targets: [final-page]
+            color: yellow
+            linger: 0.25
+          - id: fresh-parent-repair
+            phrase: Follow either pointer to the whole parent instead
+            targets:
+              - final-page
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-parent-result
+            phrase: One copy of the parent uses exactly twelve words
+            targets:
+              - final-page
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: One last ticket. Same question, same permitted parent. This time you have eleven words. The host must return the parent whole, and it's the only approved complete passage for this question. Answer or abstain?
+        hold: 2.2
+        visual_cues:
+          - id: last-slot
+            phrase: This time you have eleven words
+            targets:
+              - final-page
+            color: yellow
+            linger: 0.25
+      - say: Abstain on this request. You're one word short. Now give that same ticket twelve words. The whole rule fits. Test both budgets. At eleven words the system should hold back. At twelve it should answer and cite the rule.
+        hold: 1.2
+        caption_starts:
+          - Now give that same ticket twelve words
+          - The whole rule fits
+          - Test both budgets
+          - At twelve it should answer
+        visual_cues:
+          - id: abstain
+            phrase: Abstain on this request
+            targets:
+              - final-page
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: retry-with-twelve
+            phrase: Now give that same ticket twelve words
+            targets: [final-page]
+            color: blue
+            linger: 0.25
+          - id: whole-rule-fits
+            phrase: The whole rule fits
+            targets: [final-page]
+            color: green
+            linger: 0.25

@@ -76,7 +76,7 @@ export function createFilm(theme: ThemeMode = 'dark') {
             const experts = [
                 {
                     name: 'E1',
-                    prob: 0.522,
+                    prob: Number(PROBS[0]!.toFixed(3)),
                     weight: 'w = 0.668',
                     out: '[2, 0, 0, 0]',
                     contrib: '[1.336, 0, 0, 0]',
@@ -306,7 +306,7 @@ export function createFilm(theme: ThemeMode = 'dark') {
             s.play(barGrow.to(1, { duration: 1.5, ease: smoother }))
             s.wait(0.6)
 
-            s.caption('Top-2 selects E1 (0.522) and E3 (0.259), renormalizing weights to 0.668 and 0.332.')
+            s.caption('Top-2 selects E1 (0.521) and E3 (0.259), renormalizing weights to 0.668 and 0.332.')
             s.play(gateSelect.to(1, { duration: 1.2, ease: smoother }))
             s.wait(0.7)
 

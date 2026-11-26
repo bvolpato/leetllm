@@ -106,7 +106,7 @@ Three encoding behaviors silently alter numbers before the accumulator ever runs
 
 1. **Subnormals and RNE ties:** OCP E4M3's smallest normal is $2^{-6}$ and its smallest subnormal is $d = 2^{-9} \approx 0.001953$. Under round-to-nearest-even (RNE), `0.75 d` rounds up to `d`, while exact tie `0.5 d` rounds to signed zero (`±0.0`). Some GPU modes also flush denormals to zero (FTZ).[^pytorchNumericalAccuracy2026]
 2. **Saturation cliffs:** Saturating conversion (`__NV_SATFINITE`) clamps `500` and `50,000` identically to `448`; non-saturating conversion turns overflow into E4M3 `NaN` or E5M2 `±inf`.[^nvidiaCudaMathFp82026]
-3. **Stochastic rounding (SR) vs. RNE:** Repeated small weight updates can stall under RNE when $\text{RNE}(W + \Delta W) = W$. **Stochastic rounding** rounds to neighboring representable values $l < x < u$ with probabilities $\frac{x - l}{u - l}$ (up) and $\frac{u - x}{u - l}$ (down), making $\mathbb{E}[\text{SR}(x)] = x$ unbiased for any finite $x$ inside range (for $x = 1.01$ between `1.0` and `1.125`, `p(1.125) = 0.08`, expected value `1.01`).[^nvidia2026nvfp4Recipe] Also verify internal MMA precision: even an FP32 accumulator does not guarantee full FP32 internal product precision across every instruction.[^nvidiaPtxIsa2026]
+3. **Stochastic rounding (SR) vs. RNE:** Repeated small weight updates can stall under RNE when $\text{RNE}(W + \Delta W) = W$. **Stochastic rounding** rounds to neighboring representable values $l < x < u$ with probabilities $\frac{x - l}{u - l}$ (up) and $\frac{u - x}{u - l}$ (down), making $\mathbb{E}[\text{SR}(x)] = x$ unbiased for any finite $x$ inside range (for $x = 1.01$ between `1.0` and `1.125`, `p(1.125) = 0.08`, expected value `1.01`).[^nvidia2026nvfp4Recipe] Also verify internal MMA precision: even an FP32 accumulator register can use narrower internal product or accumulation precision inside Tensor Core MMA instructions.[^nvidiaPtxIsa2026]
 
 <figure>
   <img src="illustrations/_generated/fp8_conversion_boundaries_dark.png" alt="The left number line magnifies zero to the smallest E4M3 subnormal d = 2⁻⁹. The RNE midpoint 0.5d maps to signed zero, while 0.75d maps to d. The separate right range maps an unscaled input 500 with S = 1 to the finite E4M3 code 448 and reconstructs 448." />
@@ -214,7 +214,7 @@ spike-only dot: ref=500.0, MX=512.0
 <!-- leetllm: output:end -->
 
 Look at two sharp lessons from those four lines of output:
-1. Under tensor-wide scaling ($S = 1.116$), `0.001` falls below half the smallest E4M3 step (`0.00218`) and **vanishes to zero**! Under MX block scaling ($S_0 = 2^{-8}$), `0.001` survives cleanly at `0.000977` (2.3% error), with just 1 E8M0 byte per 32 elements (`66 B` vs. `68 B` for a 64-element activation).[^nvidia2026mxfp8]
+1. Under tensor-wide scaling ($S = 1.116$), `0.001` falls below half of the smallest scaled E4M3 step (`0.5 × 0.00218 = 0.00109`) and **vanishes to zero**! Under MX block scaling ($S_0 = 2^{-8}$), `0.001` survives cleanly at `0.000977` (2.3% error), with just 1 E8M0 byte per 32 elements (`66 B` vs. `68 B` for a 64-element activation).[^nvidia2026mxfp8]
 2. On row 1, `500.0` rounds to `512.0` under $S_1 = 2.0$, yet `mx_y[1]` still matches `7.75` identically because positive and negative rounding errors cancel (`184 - 176.25 = 7.75`). Swap $W$ to a one-hot selector and the hidden `12.0` error jumps right out!
 
 <figure>
@@ -261,7 +261,7 @@ Always check target microarchitecture and toolkit tables before shipping: NVIDIA
       "7; 1% error."
     ],
     "answer": "7; 99% error.",
-    "explanation": "The scaled value is 700/(7/448)=44,800. Saturation returns code-value 448, then reconstruction 448×7/448=7. Relative loss is(700-7)/700=99%. FP32 accumulation cannot recover the missing magnitude, and the reconstructed operand remains finite."
+    "explanation": "The scaled value is 700 / (7 / 448) = 44,800. Saturation returns code-value 448, then reconstruction 448 × 7 / 448 = 7. Relative loss is (700 - 7) / 700 = 99%. FP32 accumulation cannot recover the missing magnitude, and the reconstructed operand remains finite."
   },
   {
     "question": "Let d=2^-9 be OCP E4M3’s smallest positive subnormal. Under round-to-nearest-even with preserved signed zero, what do positive 0.25d and positive 1.5d become?",
@@ -286,7 +286,7 @@ Always check target microarchitecture and toolkit tables before shipping: NVIDIA
     "explanation": "The input is 0.09375 into a gap of 0.125, so upper probability is 0.75. Expectation 0.25×1+0.75×1.125=1.09375. Using the raw fractional part ignores the floating neighbor gap; equating expectation with the upper outcome discards the lower branch."
   },
   {
-    "question": "For normal OCP E4M3 numbers, compare the adjacent spacing just below 4, in[2,4), with the spacing just above 4, in[4,8). Which ordered pair is correct?",
+    "question": "For normal OCP E4M3 numbers, compare the adjacent spacing just below 4, in [2, 4), with the spacing just above 4, in [4, 8). Which ordered pair is correct?",
     "options": [
       "0.125 below; 0.25 above.",
       "0.5 below; 0.25 above.",
@@ -294,7 +294,7 @@ Always check target microarchitecture and toolkit tables before shipping: NVIDIA
       "0.25 below; 0.25 above."
     ],
     "answer": "0.25 below; 0.5 above.",
-    "explanation": "Three fraction bits give eight subdivisions in each normal binade. In[2,4), spacing is 2/8=0.25. In[4,8), it is 4/8=0.5. Crossing the exponent boundary doubles absolute spacing; relative rounding error still depends on position within the grid."
+    "explanation": "Three fraction bits give eight subdivisions in each normal binade. In [2, 4), spacing is 2/8 = 0.25. In [4, 8), it is 4/8 = 0.5. Crossing the exponent boundary doubles absolute spacing; relative rounding error still depends on position within the grid."
   },
   {
     "question": "Two contraction blocks have coded partial dots -3 and 4, with positive reconstruction-scale products 2 and 5 respectively. In real arithmetic over reconstructed operands, what is the correctly scaled total and the result of wrongly pulling scale product 2 outside both blocks?",
@@ -305,7 +305,7 @@ Always check target microarchitecture and toolkit tables before shipping: NVIDIA
       "-26 correct; 2 with the outer scale."
     ],
     "answer": "14 correct; 2 with the outer scale.",
-    "explanation": "Each partial retains its own scale:2×(-3)+5×4=14. Applying 2 to the combined coded sum gives 2×(-3+4)=2. The scale varies along the contraction blocks and cannot be factored outside their outer sum. These real-arithmetic results do not assert bitwise equivalence for a hardware reduction order."
+    "explanation": "Each partial retains its own scale: 2 × (-3) + 5 × 4 = 14. Applying 2 to the combined coded sum gives 2 × (-3 + 4) = 2. Because the scale varies across contraction blocks, it stays inside the outer sum."
   },
   {
     "question": "A declared payload layout stores five logical rows of 33 FP8 values. Each row is physically padded to two full 32-value blocks, and each block stores one E8M0 byte. Exclude other tensors and allocator alignment. What is the total stored operand payload?",
@@ -316,7 +316,7 @@ Always check target microarchitecture and toolkit tables before shipping: NVIDIA
       "330 bytes."
     ],
     "answer": "330 bytes.",
-    "explanation": "Five rows × two blocks ×32 code bytes=320. Ten blocks add ten scale bytes, totaling 330. Counting only logical values gives 175 and omits padding; counting 320 omits scales."
+    "explanation": "Five rows × two blocks × 32 code bytes = 320. Ten blocks add ten scale bytes, totaling 330. Counting only logical values gives 175 and omits padding; counting 320 omits scales."
   },
   {
     "question": "A wide reference gives 10 for a dot product with the original operands and 8 with the reconstructed FP8 operands. The kernel returns 8 for the same FP8 inputs. What are the signed changes in the output when you first replace the operands and then run the kernel?",

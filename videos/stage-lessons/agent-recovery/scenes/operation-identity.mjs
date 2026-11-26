@@ -1,197 +1,316 @@
-// Scene `operation-identity`: one operation, several attempts, one job.
-//
-// The picture: the line of the operation. The key and the payload go on the card of the agent.
-// Attempt 1 commits the two records and loses its reply. Attempt 2 has a new trace and the same
-// key: it lands on the row that exists and brings back job-1. The same key with another target
-// bounces as a conflict, and a new key makes a second job.
+// Scene 3: operation-identity - "Which identifier survives a retry?"
+// Three luminous identity rings (Trace = trip, Key+Payload = logical work, Job = queue entry).
+// Demonstrates same-key replay (-> job-1), changed revision (-> conflict), and fresh key prediction (-> 2 jobs).
+import { circle, line } from 'vizmatic/stage';
 import {
-  assertEqual,
-  beside,
-  fadeIn,
-  indicate,
-  lagged,
-  moveTo,
-  par,
-  place,
-  seq,
-  shake,
-} from 'vizmatic/stage';
-import { dispatchOperation } from '../../../films/agent-recovery/model.mjs';
-import { chip, heading, note } from '../../kit-narrated.mjs';
-import { COLOR, OP, STATE, board, cross, docked, record, tint, token, travel } from '../parts.mjs';
-
-/** A key that the client makes new for a send. It names no earlier operation. */
-const NEW_KEY = STATE['operation-identity'].alternativeKey;
+  COSMOS,
+  OP,
+  ROLE,
+  ambientClock,
+  cinemaAtmosphere,
+  glowArrow,
+  glowCross,
+  glowDot,
+  glowPill,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  hexAlpha,
+  lowerFooter,
+  playCue,
+  txt,
+} from '../parts.mjs';
 
 export default function operationIdentity(s, c) {
-  // The four sends of the scene, through the controller of the model.
-  const database = { operations: new Map(), jobs: new Map() };
-  const payload = { run: 'RUN-842', revision: OP.revision };
-  const first = dispatchOperation(database, OP.key, payload, 'after-commit');
-  const replay = dispatchOperation(database, OP.key, payload, 'normal');
-  const changed = dispatchOperation(database, OP.key, { ...payload, revision: 'rev-18' }, 'normal');
-  const fresh = dispatchOperation(database, NEW_KEY, payload, 'normal');
-  assertEqual(
-    [first.reply, replay.job, changed.reply],
-    ['lost', OP.job, 'conflict'],
-    'the replies',
-  );
+  const title = heroTitle(['Which identifier survives a retry?'], {
+    x: -855,
+    y: -440,
+    size: 52,
+    accent: ROLE.op,
+  });
 
-  const b = board();
-  const context = beside(note(STATE['operation-identity'].startLabel), b.name, 'right', 'normal');
-  const laneY = b.out[1];
+  const amb = ambientClock(s, c);
+  const showKey = s.value(0);
+  const showPayload = s.value(0);
+  const showSend1 = s.value(0);
+  const showSend2 = s.value(0);
+  const showJob1 = s.value(0);
+  const showThreeIds = s.value(0);
+  const showReplay = s.value(0);
+  const showConflict = s.value(0);
+  const showFreshKey = s.value(0);
+  const showAsk = s.value(0);
+  const showJob2 = s.value(0); // STRICTLY AFTER 'new-job'!
 
-  // The card of the agent: the key, and the exact payload under it.
-  const key = beside(token(OP.key, COLOR.op), b.agent, 'under', 'normal', 'left');
-  const target = beside(token('RUN-842 → ' + OP.revision, COLOR.op), key, 'under', 'tight', 'left');
-  const keyName = beside(note('operation key', { color: COLOR.op }), key, 'right', 'tight');
+  const layer = guardedDynamic(
+    () => 1,
+    (alpha) => {
+      const orbit = amb.value * Math.PI * 6;
+      const nodes = [];
 
-  // The sends: each has its own trace, in the color of the agent side, and carries a key.
-  const attempt = (trace, words) => token(words, COLOR.attempt, { tag: trace });
-  const a1 = attempt('trace-a1', [[OP.key, COLOR.op]]);
-  const a2 = attempt('trace-a2', [[OP.key, COLOR.op]]);
-  const a3 = attempt('trace-a3', [
-    [OP.key, COLOR.op],
-    ['rev-18', COLOR.fail],
-  ]);
-  const a4 = attempt('trace-a4', [[NEW_KEY, 'ink']]);
-  const start = (node) => docked(node, b.out, 'right');
-  a1.moveTo(b.shelf(a1));
-  const traceName = beside(
-    note('trace id', { color: COLOR.attempt }),
-    a1,
-    'above',
-    'tight',
-    'left',
-  );
-  // The refused send waits under the lane, with the answer of the controller under it.
-  const parked = [(b.out[0] + b.door[0]) / 2, laneY + a3.height + 24];
-  a3.moveTo(parked);
-  const conflict = beside(
-    chip(changed.reply, { color: COLOR.fail, stroke: COLOR.fail }),
-    a3,
-    'under',
-    'tight',
-  );
-  for (const node of [a1, a2, a3, a4]) node.moveTo(start(node));
+      // Left column: Three distinct identity beacons
+      const idX = -635;
+      const traceY = -205;
+      const keyY = 25;
+      const jobY = 255;
 
-  // The records of the controller, and the two replies.
-  const ledgerRow = (words, job, color) =>
-    record(
-      [
-        [words, color === COLOR.fail ? 'ink' : COLOR.op],
-        ['→', 'dim'],
-        [job, color],
-      ],
-      b.recordWidth(0),
-      { color },
-    );
-  const jobRow = (job, color) =>
-    record(
-      [
-        [job, color],
-        [OP.state, 'ink'],
-      ],
-      b.recordWidth(1),
-      { color },
-    );
-  const ledger = ledgerRow(OP.key, OP.job, COLOR.sure).moveTo(b.stagedAt(0));
-  const job = jobRow(OP.job, COLOR.sure).moveTo(b.stagedAt(1));
-  const second = [
-    ledgerRow(NEW_KEY, fresh.job, COLOR.fail).moveTo(b.durableAt(0, 1)),
-    jobRow(fresh.job, COLOR.fail).moveTo(b.durableAt(1, 1)),
-  ];
-  // The name of the job id is over the job, just over the commit line. The job is under the line by then.
-  const jobName = place(
-    note('job id', { color: COLOR.sure }),
-    b.stagedBox(1).inset('none', 'normal'),
-    'bottom left',
-  );
-  const lost = token(OP.job, COLOR.sure);
-  lost.moveTo(docked(lost, b.exit));
-  const broken = cross();
-  const answer = token(replay.job, COLOR.sure);
-  answer.moveTo(docked(answer, b.exit));
+      // 1. Trace ID (rotates per trip)
+      const traceCol = ROLE.agent;
+      const traceLabel =
+        showFreshKey.value > 0.5
+          ? 'trace-3 (new trip)'
+          : showSend2.value > 0.5
+            ? 'trace-1 -> trace-2'
+            : 'trace-1 (one trip)';
+      nodes.push(
+        glowRing(idX, traceY, 72, traceCol, {
+          width: showSend1.value > 0.3 ? 3.8 : 2.2,
+          glow: showSend1.value > 0.3 ? 10 : 4,
+        }).opacity(alpha),
+        txt('TRACE', idX, traceY - 12, 26, traceCol, 'mono', 'center').opacity(alpha),
+        txt(
+          showSend2.value > 0.5 ? '#2' : '#1',
+          idX,
+          traceY + 22,
+          26,
+          COSMOS.ink,
+          'mono',
+          'center',
+        ).opacity(alpha),
+        txt(traceLabel, idX + 114, traceY, 26, traceCol, 'mono', 'left').opacity(alpha),
+      );
 
-  s.add(heading(c.title), b.base, context);
-  b.close(c);
-  c.hide('attempt-traces', context);
-  c.show('logical-key', [key, keyName]);
-  c.show('same-payload', target);
-  c.on('across-attempts', () => s.play(indicate(key, { color: COLOR.mark })));
+      // 2. Operation Key + Payload (survives retries)
+      const keyCol = ROLE.op;
+      const activeKeyStr = showFreshKey.value > 0.5 ? OP.altKey : OP.key;
+      const activeRevStr =
+        showConflict.value > 0.5 && showFreshKey.value < 0.5 ? OP.badRevision : OP.revision;
+      nodes.push(
+        glowRing(idX, keyY, 76, keyCol, {
+          width: showKey.value > 0.3 ? 4.4 : 2.5,
+          glow: showKey.value > 0.3 ? 14 : 5,
+        }).opacity(alpha),
+        glowDot(idX + Math.cos(orbit) * 86, keyY + Math.sin(orbit) * 86, {
+          radius: 5.5,
+          color: keyCol,
+          glow: 9,
+          opacity: 0.75 * alpha,
+        }),
+        txt('OP KEY', idX, keyY - 12, 26, keyCol, 'mono', 'center').opacity(alpha),
+        txt(activeKeyStr, idX, keyY + 22, 26, COSMOS.ink, 'mono', 'center').opacity(alpha),
+        txt(
+          showPayload.value > 0.3 ? `${OP.run} · ${activeRevStr}` : 'logical operation',
+          idX + 114,
+          keyY,
+          26,
+          showConflict.value > 0.5 && showFreshKey.value < 0.5 ? ROLE.fail : keyCol,
+          'mono',
+          'left',
+        ).opacity(alpha),
+      );
 
-  // Attempt 1: the controller commits both records, and the reply is lost.
-  c.on('attempt-traces', () =>
-    s.play(
-      seq(
-        travel(a1, docked(a1, b.door), { duration: 1.1 }),
-        par(fadeIn(ledger, { duration: 0.3 }), fadeIn(job, { duration: 0.3 })),
-        par(
-          moveTo(a1, b.shelf(a1), { duration: 0.6 }),
-          moveTo(ledger, b.durableAt(0), { duration: 0.7 }),
-          moveTo(job, b.durableAt(1), { duration: 0.7 }),
+      // 3. Job ID (belongs to controller queue entry)
+      const jobCol = ROLE.sure;
+      nodes.push(
+        glowRing(idX, jobY, 72, jobCol, {
+          width: showJob1.value > 0.3 ? 3.8 : 2.2,
+          glow: showJob1.value > 0.3 ? 10 : 4,
+        }).opacity(alpha),
+        txt('JOB ID', idX, jobY - 12, 26, jobCol, 'mono', 'center').opacity(alpha),
+        txt(
+          showJob2.value > 0.5 ? '2 jobs' : showJob1.value > 0.5 ? OP.job : 'queue',
+          idX,
+          jobY + 22,
+          26,
+          showJob2.value > 0.5 ? ROLE.fail : COSMOS.ink,
+          'mono',
+          'center',
+        ).opacity(alpha),
+        txt(
+          showThreeIds.value > 0.5 ? 'controller queue entry' : 'accepted work',
+          idX + 114,
+          jobY,
+          26,
+          jobCol,
+          'mono',
+          'left',
+        ).opacity(alpha),
+      );
+
+      // Right side: Controller Ledger + Queue Ledger Matrix (x = 120 .. 830)
+      nodes.push(
+        line([-75, -270], [-75, 325], {
+          stroke: hexAlpha(ROLE.controller, 0.45 * alpha),
+          width: 2.2,
+        }),
+        txt('CONTROLLER LEDGER & QUEUE', 400, -285, 28, ROLE.controller, 'mono', 'center').opacity(
+          alpha,
         ),
-        b.lose(lost, broken),
-      ),
-    ),
-  );
-  c.show('attempt-traces', traceName, { after: true });
-  // Attempt 2: a new trace, and the same key.
-  c.on('same-key', () =>
-    s.play(
-      seq(
-        travel(a2, docked(a2, b.door), { duration: 1.1 }),
-        lagged(
-          [a1, a2, key].map((node) => indicate(node, { color: COLOR.mark })),
-          { lag: 0.3 },
+      );
+
+      // Row 1: Committed job-1 entry (present once send 1 lands)
+      const r1Y = -170;
+      const hasJob1 = showSend1.value > 0.3 || showJob1.value > 0.3;
+      if (hasJob1) {
+        const a1 = Math.max(showSend1.value, showJob1.value) * alpha;
+        nodes.push(
+          glowPill(`${OP.key} · ${OP.revision}  ->  ${OP.job}`, 400, r1Y, ROLE.sure, {
+            size: 28,
+            alpha: a1,
+          }),
+        );
+      } else {
+        nodes.push(
+          txt(
+            'Waiting for approved rollback...',
+            400,
+            r1Y,
+            26,
+            COSMOS.muted,
+            'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      }
+
+      // Row 2: Active test probe against the ledger
+      const r2Y = -15;
+      if (showFreshKey.value > 0.3) {
+        const fa = showFreshKey.value * alpha;
+        nodes.push(
+          glowPill(`fresh key ${OP.altKey} · ${OP.revision}`, 400, r2Y, ROLE.mark, {
+            size: 28,
+            alpha: fa,
+          }),
+        );
+        if (showJob2.value > 0.5) {
+          nodes.push(
+            glowArrow(400, r2Y + 38, 400, r2Y + 110, ROLE.fail, { width: 3.5, alpha: fa }),
+            glowPill(`NO MATCH -> creates ${OP.job2} (2 queued jobs!)`, 400, r2Y + 152, ROLE.fail, {
+              size: 28,
+              alpha: showJob2.value * alpha,
+            }),
+          );
+        } else if (showAsk.value > 0.5) {
+          nodes.push(
+            txt(
+              'How many queued jobs will this controller have?',
+              400,
+              r2Y + 110,
+              32,
+              ROLE.mark,
+              'serif',
+              'center',
+            )
+              .glow(7, ROLE.mark)
+              .opacity(showAsk.value * alpha),
+            circle(36, {
+              fill: hexAlpha(ROLE.mark, 0.14 * alpha),
+              stroke: ROLE.mark,
+              width: 3,
+              dash: [6, 5],
+            }).at(400, r2Y + 185),
+            txt('?', 400, r2Y + 185, 34, ROLE.mark, 'mono', 'center').opacity(
+              showAsk.value * alpha,
+            ),
+          );
+        }
+      } else if (showConflict.value > 0.3) {
+        const ca = showConflict.value * alpha;
+        nodes.push(
+          glowPill(`same key ${OP.key} · ${OP.badRevision}`, 400, r2Y, ROLE.fail, {
+            size: 28,
+            alpha: ca,
+          }),
+          glowCross(400, r2Y + 78, 34, ROLE.fail, ca),
+          txt(
+            `CONFLICT: stored target is ${OP.revision}, not ${OP.badRevision}`,
+            400,
+            r2Y + 140,
+            26,
+            ROLE.fail,
+            'mono',
+            'center',
+          ).opacity(ca),
+        );
+      } else if (showReplay.value > 0.3) {
+        const ra = showReplay.value * alpha;
+        nodes.push(
+          glowPill(`trace-2 · ${OP.key} · ${OP.revision}`, 400, r2Y, ROLE.agent, {
+            size: 28,
+            alpha: ra,
+          }),
+          glowArrow(400, r2Y + 38, 400, r2Y + 106, ROLE.sure, { width: 3.5, alpha: ra }),
+          glowPill(`MATCH -> returns existing ${OP.job}`, 400, r2Y + 148, ROLE.sure, {
+            size: 28,
+            alpha: ra,
+          }),
+        );
+      } else if (showSend2.value > 0.3) {
+        nodes.push(
+          glowPill(`retry: trace-2 keeps ${OP.key}`, 400, r2Y, ROLE.agent, {
+            size: 28,
+            alpha: showSend2.value * alpha,
+          }),
+        );
+      } else {
+        nodes.push(
+          txt(
+            'Send 1 reply lost -> retry rotates trace only.',
+            400,
+            r2Y + 60,
+            26,
+            COSMOS.muted,
+            'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      }
+
+      nodes.push(
+        lowerFooter(
+          'ROTATE TRACE PER TRIP · KEEP OP KEY ACROSS RETRIES',
+          showJob2.value > 0.5
+            ? 'NEW KEY -> DUPLICATE JOB-2'
+            : showConflict.value > 0.5 && showFreshKey.value < 0.5
+              ? 'PAYLOAD DRIFT -> CONFLICT'
+              : 'SAME KEY + PAYLOAD -> JOB-1',
+          {
+            accent:
+              showJob2.value > 0.5 || (showConflict.value > 0.5 && showFreshKey.value < 0.5)
+                ? ROLE.fail
+                : ROLE.op,
+            alpha,
+          },
         ),
-      ),
-    ),
-  );
-  c.show('accepted-job', jobName);
-  c.on('accepted-job', () => s.play(indicate(job, { color: COLOR.mark })));
-  c.on('third-identity', () =>
-    s.play(
-      lagged(
-        [traceName, keyName, jobName].map((name) =>
-          indicate(name, { color: COLOR.mark, scale: 1 }),
-        ),
-        { lag: 0.5 },
-      ),
-    ),
+      );
+
+      return nodes;
+    },
   );
 
-  // The controller knows the key: attempt 2 lands on the row that exists, and job-1 comes back.
-  c.on('enforces', () => s.play(seq(b.absorb(a2), indicate(ledger, { color: COLOR.mark }))));
-  c.on('same-key-replay', () => s.play(b.arrive(answer)));
-  // The same key with another target: a conflict.
-  c.on('changed-target', () =>
-    s.play(
-      seq(
-        travel(a3, docked(a3, b.door), { duration: 0.8 }),
-        shake(a3, { duration: 0.35 }),
-        moveTo(a3, parked, { duration: 0.6 }),
-      ),
-    ),
-  );
-  c.show('conflict', conflict);
-  // A new key: the controller knows nothing of it, so it makes a second job.
-  const predict = place(
-    chip('How many queued jobs?', { color: COLOR.mark }),
-    b.store.inset('normal'),
-    'bottom',
-  );
-  c.on('random-key', () => s.play(travel(a4, docked(a4, b.door), { duration: 0.8 })));
-  c.show('job-count-question', predict);
-  c.hide('new-job', predict);
-  c.on('new-job', () => s.play(seq(b.absorb(a4), fadeIn(second, { duration: 0.3 }))));
-  c.keep([
-    ...b.base.filter((node) => node !== b.request && node !== b.reply),
-    key,
-    target,
-    ledger,
-    job,
-    ...second,
-    answer,
-  ]);
+  s.add(cinemaAtmosphere(ROLE.op, ROLE.agent), title, layer);
+
+  playCue(s, c, 'logical-key', (d) => s.play(showKey.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'same-payload', (d) => s.play(showPayload.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'across-attempts', (d) => s.play(showKey.to(1, { duration: d })), { dur: 0.35 });
+  playCue(s, c, 'attempt-traces', (d) => s.play(showSend1.to(1, { duration: d })), { dur: 0.55 });
+  playCue(s, c, 'same-key', (d) => s.play(showSend2.to(1, { duration: d })), { dur: 0.5 });
+  playCue(s, c, 'accepted-job', (d) => s.play(showJob1.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'third-identity', (d) => s.play(showThreeIds.to(1, { duration: d })), {
+    dur: 0.45,
+  });
+  playCue(s, c, 'enforces', (d) => s.play(showReplay.to(0.6, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'same-key-replay', (d) => s.play(showReplay.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'changed-target', (d) => s.play(showConflict.to(0.65, { duration: d })), {
+    dur: 0.4,
+  });
+  playCue(s, c, 'conflict', (d) => s.play(showConflict.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'random-key', (d) => s.play(showFreshKey.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'job-count-question', (d) => s.play(showAsk.to(1, { duration: d })), { dur: 0.45 });
+  // Strict prediction withholding: reveal 2 jobs ONLY AFTER 'new-job'!
+  playCue(s, c, 'new-job', (d) => s.play(showJob2.to(1, { duration: d })), {
+    after: true,
+    dur: 0.5,
+  });
 }

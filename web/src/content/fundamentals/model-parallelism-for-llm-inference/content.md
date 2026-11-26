@@ -211,7 +211,8 @@ def merge_shards(parts):
     return numer / denom
 
 parts = [shard_stats([1000., 1000.], [0., 0.]), shard_stats([1000.], [9.]), shard_stats([], [])]
-naive = sum(u / l for _, l, u in parts if l) / 2 if False else (0.0 + 9.0) / 2
+active = [p for p in parts if p is not None]
+naive = sum(u / l for _, l, u in active) / len(active)
 exact = merge_shards(parts)
 print(f"naive shard average={naive:.1f} vs exact mass-aware merge={exact:.1f}")
 ```

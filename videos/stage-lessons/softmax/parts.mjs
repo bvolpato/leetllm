@@ -1,584 +1,788 @@
-// What the scenes of `softmax` share: the running example as one board, and the job of each color.
-//
-// The board is the example that stays. Three words stand on a ruler of scores. A bar on each word
-// is its share of the probability, and the unit strip under the ruler is the whole budget. Every
-// part follows the same values, so a scene moves a score and the whole picture answers.
+// Shared cinematic math, invariants, 3D simplex/surface builders, and luminous UI for `softmax`.
 import { stableSoftmax } from 'vizmatic';
 import {
+  Node,
   arrow,
-  axes,
-  beside,
-  boxOf,
+  circle,
+  curve3d,
+  delay,
   dot,
-  dynamic,
-  fitted,
-  grid,
+  gridPlane3d,
   group,
   line,
-  place,
+  line3d,
+  linear,
+  linearGradient,
+  par,
+  points3d,
+  polyPath,
   rect,
-  row,
-  tex,
-  text,
+  surface,
 } from 'vizmatic/stage';
-import { LOGITS, TARGET, UPDATED, WORDS } from '../../films/softmax/fixtures.mjs';
-import { area, heading, label, note } from '../kit-narrated.mjs';
+import {
+  crossEntropy,
+  entropy,
+  lossTrace,
+  onlineLogSumExp,
+  positionReduction,
+  positiveTemperature,
+  probabilityLossGradient,
+  softmaxJacobian,
+} from '../../films/softmax/arithmetic.mjs';
+import {
+  FRESH_LOGITS,
+  FRESH_TARGET,
+  GRAD,
+  LOGITS,
+  PROBS,
+  TARGET,
+  UPDATED,
+  WORDS,
+} from '../../films/softmax/fixtures.mjs';
+import { completeModel, freshState, validateModel } from '../../films/softmax/model.mjs';
+import {
+  CINEMA_FRAME,
+  COSMOS,
+  aura,
+  cinematic3d,
+  glowDot,
+  glowTex,
+  glowingTrail,
+  guardedDynamic,
+  heroTitle,
+  metricReadout,
+  morphEquation,
+  orbitScene,
+  rule,
+  txt,
+  verifyApprox,
+  verifyInvariant,
+  wireframeSlab3d,
+} from '../cinematic-kit.mjs';
 
-export { WORDS };
-
-/** One color has one job through the lesson. The three candidate words: ran, slept, ate. */
-export const WORD_COLOR = ['blue', 'green', 'pink'];
-/** The observed word of the dog example is `slept`, so green is also the color of the target. */
-export const TARGET_COLOR = 'green';
-/** Yellow marks what the voice points at now. Cyan is the second thing in a comparison. */
-export const MARK_COLOR = 'yellow';
-export const OTHER_COLOR = 'cyan';
-
-/** The frame of the lesson: the board at the left, and what a scene adds at the right. */
-export const [BOARD, SIDE] = area.columns([3, 2], 'loose');
-
-/** The scores that the ruler shows, from its left end to its right end. */
-const RULER = { min: -0.5, max: 3.5, ticks: [0, 1, 2, 3] };
-const BAR_WIDTH = 100;
-const STRIP_HEIGHT = 64;
-/** The size of the numbers on the board. The words have the size of a label. */
-const NUMBER_SIZE = 30;
-
-/** A number of the ruler: whole when it is whole, and with one decimal while it moves. */
-const tickText = (value) =>
-  Math.abs(value) >= 100 || Math.abs(value - Math.round(value)) < 0.05
-    ? String(Math.round(value))
-    : value.toFixed(1);
-
-/** What a bar shows over it: nothing, its weight, or its share. */
-export const READ = { none: 0, weight: 1, share: 2 };
-
-/**
- * The state of the board at the end of each scene. The next scene starts from it, so the board
- * goes from scene to scene with no fade. `on` names the parts that are on the screen.
- */
-const BASE = {
-  z: LOGITS,
-  temperature: 1,
-  offset: 0,
-  shift: 0,
-  grow: [0, 0, 0],
-  solid: [0, 0, 0],
-  fill: [0, 0, 0],
-  read: [READ.none, READ.none, READ.none],
-  seen: [1, 1, 1],
-  target: TARGET,
-  on: [],
+export {
+  CINEMA_FRAME,
+  COSMOS,
+  FRESH_LOGITS,
+  FRESH_TARGET,
+  GRAD,
+  LOGITS,
+  PROBS,
+  TARGET,
+  UPDATED,
+  WORDS,
+  aura,
+  cinematic3d,
+  crossEntropy,
+  entropy,
+  freshState,
+  glowDot,
+  glowTex,
+  glowingTrail,
+  guardedDynamic,
+  heroTitle,
+  lossTrace,
+  metricReadout,
+  morphEquation,
+  onlineLogSumExp,
+  orbitScene,
+  positionReduction,
+  positiveTemperature,
+  probabilityLossGradient,
+  rule,
+  softmaxJacobian,
+  stableSoftmax,
+  txt,
+  wireframeSlab3d,
 };
-const OUTLINED = { grow: [1, 1, 1] };
-const SOLID = { ...OUTLINED, solid: [1, 1, 1] };
-const WEIGHED = { ...SOLID, offset: 1000, shift: 1003 };
-const all = (mode) => [mode, mode, mode];
-const RULED = ['words', 'observed', 'bars', 'frame', 'unit', 'rule', 'ticks'];
-export const STATE = {
-  start: { ...BASE, seen: [0, 0, 0] },
-  intro: { ...BASE, ...OUTLINED, on: ['words', 'observed', 'bars', 'frame', 'unit'] },
-  scores: { ...BASE, ...OUTLINED, on: RULED },
-  exponentials: { ...BASE, ...WEIGHED, read: all(READ.weight), on: [...RULED, 'readouts'] },
-};
-const SHARED = {
-  ...BASE,
-  ...SOLID,
-  fill: [1, 1, 1],
-  read: all(READ.share),
-  on: [...RULED, 'readouts', 'strip'],
-};
-STATE.mass = SHARED;
-STATE.loss = SHARED;
-STATE['gradient-chain'] = SHARED;
-STATE.gradient = { ...SHARED, on: [...SHARED.on, 'pushes'] };
-STATE.update = { ...SHARED, z: UPDATED };
-STATE.temperature = STATE.update;
 
-/**
- * Build the board in the state `from`. It returns the values that a scene moves and the parts
- * that a scene shows: `rule`, `ticks`, `words`, `bars`, `readouts`, `observed`, `frame`, `strip`.
- */
-export function board(s, from = BASE) {
-  const z = WORDS.map((_, i) => s.value(LOGITS[i]));
-  const temperature = s.value(1),
-    offset = s.value(0),
-    shift = s.value(0);
-  const grow = WORDS.map(() => s.value(0)),
-    solid = WORDS.map(() => s.value(0)),
-    fill = WORDS.map(() => s.value(0)),
-    read = WORDS.map(() => s.value(0)),
-    seen = WORDS.map(() => s.value(1)),
-    /** How far the name of a word is under its usual line, for two words that stand close. */
-    drop = WORDS.map(() => s.value(0));
-  const target = from.target;
-  // Names wait while colored dots cross on the ruler.
-  const namesOn = s.value(1),
-    tagsOn = s.value(1);
+/** Locked semantic roles for `softmax`: one color means one candidate or role across all 21 scenes. */
+export const WORD_COLOR = Object.freeze([COSMOS.blue, COSMOS.emerald, COSMOS.violet]);
+export const TARGET_COLOR = COSMOS.emerald;
+export const MARK_COLOR = COSMOS.gold;
+export const OTHER_COLOR = COSMOS.cyan;
+export const DANGER_COLOR = COSMOS.rose;
 
-  // The measures of the board, from its region: a line of text, the bars on the ruler, the strip.
-  const [top, stand, foot] = BOARD.rows([1, 6, 2], 'normal');
-  const ruleY = stand.top + stand.height * 0.7;
-  /** The height of a bar that has all of the probability. */
-  const tallest = ruleY - stand.top - 60;
-  const x = (score) => BOARD.left + ((score - RULER.min) / (RULER.max - RULER.min)) * BOARD.width;
-  const scores = () => z.map((value) => value.value);
-  const shares = () => stableSoftmax(scores(), temperature.value);
-  /** The weight of each word: e to its score as the ruler shows it. */
-  const weights = () => scores().map((score) => Math.exp(score + offset.value - shift.value));
-  const barTop = (i, share) => ruleY - 14 - tallest * share * grow[i].value;
+export const MODEL = completeModel();
+export const DOG_TRACE = lossTrace(LOGITS, TARGET);
+export const UPDATED_TRACE = lossTrace(UPDATED, TARGET);
+export const FRESH_TRACE = lossTrace(FRESH_LOGITS, FRESH_TARGET);
+export const DOG_ATE_TRACE = lossTrace(LOGITS, 2);
+export const SMOOTH_ALPHA = 0.1;
+export const SMOOTH_TARGET = Object.freeze([
+  SMOOTH_ALPHA / 3,
+  1 - SMOOTH_ALPHA + SMOOTH_ALPHA / 3,
+  SMOOTH_ALPHA / 3,
+]);
+export const SEQ_WORDS = Object.freeze(['bug', 'docs', 'today']);
+export const CLASS_WORDS = Object.freeze(['bug', 'docs', 'pad']);
 
-  const rule = group(
-    line([BOARD.left, ruleY], [BOARD.right, ruleY], { stroke: 'dim', width: 3 }),
-    ...RULER.ticks.map((tick) =>
-      line([x(tick), ruleY], [x(tick), ruleY + 14], { stroke: 'dim', width: 3 }),
-    ),
+/** Build-time mathematical invariant suite backed by `videos/films/softmax/model.mjs`. */
+export function verifySoftmaxInvariants() {
+  verifyInvariant(validateModel(), 'softmax model validateModel() must pass');
+  verifyApprox(
+    PROBS.reduce((a, b) => a + b, 0),
+    1,
+    1e-12,
+    'PROBS sum to 1',
   );
-  const ticks = dynamic(() =>
-    RULER.ticks.map((tick) =>
-      text(tickText(tick + offset.value - shift.value), {
-        font: 'mono',
-        size: NUMBER_SIZE,
-        color: 'dim',
-      }).at(x(tick), ruleY + 42),
-    ),
+  verifyApprox(PROBS[0], 0.8437947344813395, 1e-9, 'p(ran) ~ 84.4%');
+  verifyApprox(PROBS[1], 0.11419519938459449, 1e-9, 'p(slept) ~ 11.4%');
+  verifyApprox(PROBS[2], 0.04201006613406605, 1e-9, 'p(ate) ~ 4.2%');
+  verifyApprox(DOG_TRACE.loss, 2.169846019804714, 1e-9, 'dog cross-entropy ~ 2.170 nats');
+  verifyApprox(DOG_ATE_TRACE.loss - DOG_TRACE.loss, 1.0, 1e-12, 'relabeling to ate adds 1.0 nat');
+  verifyApprox(
+    GRAD.reduce((a, b) => a + b, 0),
+    0,
+    1e-12,
+    'logit gradients sum to 0',
   );
-  const words = dynamic(() =>
-    scores().flatMap((score, i) => [
-      dot(12, WORD_COLOR[i]).at(x(score), ruleY).opacity(seen[i].value),
-      text(WORDS[i], { size: 46, color: WORD_COLOR[i] })
-        .at(x(score), ruleY + 100 + drop[i].value)
-        .opacity(seen[i].value * namesOn.value),
-    ]),
-  );
-  // A bar is an outline while the lesson has not earned its number, and solid when it has.
-  const bars = dynamic(() => {
-    const share = shares();
-    return scores().flatMap((score, i) => {
-      const height = ruleY - 14 - barTop(i, share[i]);
-      if (height < 0.5) return [];
-      const at = [x(score), ruleY - 14 - height / 2];
-      const outline = rect(BAR_WIDTH, height, {
-        stroke: WORD_COLOR[i],
-        width: 3,
-        fill: null,
-        radius: 6,
-      }).at(...at);
-      const body = rect(BAR_WIDTH, height, {
-        fill: WORD_COLOR[i],
-        stroke: null,
-        radius: 6,
-        opacity: 0.86 * solid[i].value,
-      }).at(...at);
-      return solid[i].value < 0.01 ? [outline] : [body, outline];
-    });
+  verifyApprox(UPDATED_TRACE.probabilities[TARGET], 0.608507176, 1e-6, 'updated p(slept) ~ 60.9%');
+  verifyApprox(MODEL.smoothGap, Math.log(28), 1e-12, 'label smoothing optimal gap = ln(28)');
+  verifyApprox(MODEL.second.loss, 1.387, 1e-3, 'double-softmax reported loss ~ 1.387');
+  verifyApprox(MODEL.wrongGradient[TARGET], -0.127, 1e-3, 'double-softmax gradient ~ -0.127');
+  verifyApprox(MODEL.sequence.mean, 1.238, 1e-3, 'two-token sequence mean ~ 1.238');
+  verifyApprox(MODEL.pad.loss, 9.0, 1e-2, 'unmasked pad loss ~ 9.00');
+  verifyApprox(MODEL.excluded.loss, 0.313, 1e-3, 'masked pad loss ~ 0.313');
+  verifyApprox(MODEL.bytes / 2 ** 30, 31.3125, 1e-9, 'vocab logit matrix = 31.3125 GiB');
+  verifyApprox(MODEL.tiles.at(-1).logSumExp - 2, 2.148755181, 1e-6, 'online tile loss ~ 2.15');
+  verifyApprox(MODEL.freshMean, Math.log(8) / 2, 1e-12, 'fresh batch baseline mean = ln(8)/2');
+}
+
+/** Remaining seconds from a scene-relative cue time so animations never outrun narration. */
+export function remainDuration(c, startOffset = 0, margin = 0.45) {
+  const span = Math.max(0.2, c.end - c.start - startOffset - margin);
+  return span;
+}
+
+/** Schedule a smooth value tween at a cue (`after: true` withholds until clause end). */
+export function tweenCue(s, c, cueId, val, to, { duration = 0.65, after = false, ease } = {}) {
+  const fire = () => {
+    const opts = ease ? { duration, ease } : { duration };
+    s.play(val.to(to, opts));
+  };
+  if (after) c.after(cueId, fire);
+  else c.on(cueId, fire);
+}
+
+/** Drive a continuous subtle ambient oscillation across the entire scene window. */
+export function runAmbientPhase(s, c, phaseVal, cycles = 2.2) {
+  const dur = Math.max(0.5, c.end - c.start - 0.35);
+  c.at(0.05, () => {
+    s.play(phaseVal.to(cycles * Math.PI * 2, { duration: dur, ease: linear }));
   });
-  const readouts = dynamic(() => {
-    const share = shares(),
-      weight = weights();
-    return scores().flatMap((score, i) => {
-      const mode = Math.round(read[i].value);
-      if (mode === READ.none) return [];
-      const words =
-        mode === READ.weight
-          ? weight[i] >= 10
-            ? weight[i].toFixed(1)
-            : weight[i].toFixed(3)
-          : share[i] > 0 && share[i] < 0.005
-            ? '<1%'
-            : share[i] > 0.995 && share[i] < 1
-              ? '>99%'
-              : `≈${Math.round(share[i] * 100)}%`;
-      return [
-        text(words, { font: 'mono', size: NUMBER_SIZE, color: WORD_COLOR[i] }).at(
-          x(score),
-          barTop(i, share[i]) - 26,
-        ),
-      ];
-    });
-  });
-  /** A word over the bar of one candidate, such as `observed`. It follows the bar. */
-  const tag = (i, words, color) =>
-    dynamic(() =>
-      text(words, { size: NUMBER_SIZE, color })
-        .at(x(z[i].value), barTop(i, shares()[i]) - 68)
-        .opacity(tagsOn.value),
+}
+
+/** Smoothly cross-fade two visibility layers with zero P5 overlap (old drops below 0.25 before new rises). */
+export function crossSwap(s, c, cueId, outVal, inVal, { duration = 0.55, after = false } = {}) {
+  const fire = () => {
+    const half = duration * 0.48;
+    s.play(
+      par(outVal.to(0, { duration: half }), delay(inVal.to(1, { duration: half }), half * 0.96)),
     );
-  const observed = tag(target, 'observed', TARGET_COLOR);
-  /** A bracket under two words with the gap between their scores. */
-  const gap = (i, j, color = MARK_COLOR) =>
-    dynamic(() => {
-      const [a, b] = [z[i].value, z[j].value].sort((m, n) => m - n);
-      const y = ruleY + 160;
-      const end = (at) => line([x(at), y - 12], [x(at), y + 12], { stroke: color, width: 4 });
-      return [
-        line([x(a), y], [x(b), y], { stroke: color, width: 4 }),
-        end(a),
-        end(b),
-        text(tickText(b - a), { font: 'mono', size: NUMBER_SIZE + 4, color }).at(
-          x((a + b) / 2),
-          y + 34,
-        ),
-      ];
-    });
-
-  /** An arrow under the ruler from one score to another: the correction that descent gives a word. */
-  const push = (i, from, to) => {
-    // The arrow of the middle word is one line lower, so two arrows that meet do not share a line.
-    const y = ruleY + 160 + (i === 1 ? 30 : 0);
-    return arrow([x(from), y], [x(to), y], { stroke: WORD_COLOR[i], width: 7, tip: 22 });
   };
-  const pushes = group(...WORDS.map((_, i) => push(i, LOGITS[i], UPDATED[i])));
-
-  // The unit strip: each word fills its part of one budget, from the left, in the order of the voice.
-  const strip = { left: BOARD.left + 4, width: BOARD.width - 8, y: foot.cy };
-  const frame = rect(strip.width + 8, STRIP_HEIGHT + 8, {
-    stroke: 'dim',
-    width: 2,
-    fill: null,
-    radius: 8,
-  }).at(BOARD.cx, strip.y);
-  const unit = text('one unit of probability', {
-    size: NUMBER_SIZE,
-    color: 'dim',
-    anchor: 'left',
-  }).at(strip.left, strip.y + STRIP_HEIGHT / 2 + 40);
-  const filled = dynamic(() => {
-    let left = strip.left;
-    return shares().flatMap((share, i) => {
-      const width = strip.width * share * fill[i].value;
-      const segment = rect(width, STRIP_HEIGHT, {
-        fill: WORD_COLOR[i],
-        stroke: null,
-        opacity: 0.86,
-      }).at(left + width / 2, strip.y);
-      left += width;
-      return width < 0.5 ? [] : [segment];
-    });
-  });
-
-  // Every part is in its place. Now the board takes the state of its scene.
-  z.forEach((value, i) => value.set(from.z[i]));
-  temperature.set(from.temperature);
-  offset.set(from.offset);
-  shift.set(from.shift);
-  WORDS.forEach((_, i) => {
-    grow[i].set(from.grow[i]);
-    solid[i].set(from.solid[i]);
-    fill[i].set(from.fill[i]);
-    read[i].set(from.read[i]);
-    seen[i].set(from.seen[i]);
-  });
-
-  const parts = {
-    rule,
-    ticks,
-    words,
-    bars,
-    readouts,
-    observed,
-    frame,
-    unit,
-    strip: filled,
-    pushes,
-  };
-  return {
-    ...parts,
-    z,
-    temperature,
-    offset,
-    shift,
-    grow,
-    solid,
-    fill,
-    read,
-    seen,
-    drop,
-    namesOn,
-    tagsOn,
-    tag,
-    gap,
-    push,
-    x,
-    ruleY,
-    top,
-    foot,
-    shares,
-    weights,
-    /** The parts that are on the screen in a state, for `s.add`, `c.take` and `c.keep`. */
-    standing: (state) => state.on.map((name) => parts[name]),
-  };
+  if (after) c.after(cueId, fire);
+  else c.on(cueId, fire);
 }
 
-/** The line over the board: the prefix, and the word that the sentence continues with. */
-export function sentence(prefix, word, color) {
-  return place(
-    row([label(prefix, { size: 56 }), label(word, { size: 56, color })], { gap: 'tight' }),
-    BOARD.rows([1, 6, 2], 'normal')[0],
-    'left',
-  );
+/** Convert `#rrggbb` + alpha in [0, 1] to `#rrggbbaa` for Vizmatic's `rect({ fill })`. */
+export function hexAlpha(hex, alpha = 1) {
+  if (typeof hex !== 'string' || !hex.startsWith('#') || hex.length !== 7) return hex;
+  const byte = Math.max(0, Math.min(255, Math.round(alpha * 255)))
+    .toString(16)
+    .padStart(2, '0');
+  return `${hex}${byte}`;
 }
 
-/** The recipe of the lesson: one line for each step, in the order in which the scenes earn them. */
-const RECIPE = [
-  ['scores', 'z^{(0)} = [3,\\ 1,\\ 0]'],
-  ['weights', 'w_i = e^{z_i}'],
-  ['shares', 'p_i = \\frac{w_i}{\\sum_j w_j}'],
-  ['loss', 'L = -\\ln p_{\\text{target}}'],
-  ['gradient', '\\frac{\\partial L}{\\partial z_i} = p_i - y_i'],
-  ['update', 'z_i \\leftarrow z_i - \\eta\\,(p_i - y_i)'],
-];
-
-/**
- * The first `count` lines of the recipe, at the top of the side. Every line has its place from the
- * whole recipe, so a line stays where it is when the next scene adds one. Each line is `[name, formula]`.
- */
-export function recipe(count) {
-  const lines = RECIPE.map(([name, formula]) => [note(name), tex(formula, { size: 44 })]);
-  place(
-    grid(lines.flat(), { columns: 2, gap: ['wide', 'normal'], align: 'left' }),
-    SIDE,
-    'top left',
-  );
-  return lines.slice(0, count);
-}
-
-/**
- * Start a scene of the dog example: the board in the state of the scene before it, the line over
- * the board, and the first `lines` lines of the recipe. All of them come from that scene with no
- * fade. `finish(state, lines)` hands them to the next scene.
- */
-export function dogScene(s, c, from, lines, words = 'The dog slept') {
-  const b = board(s, from);
-  const said = place(label(words, { size: 56, color: TARGET_COLOR }), b.top, 'left');
-  const stack = recipe(RECIPE.length);
-  s.add(heading(c.title));
-  c.take([said, ...stack.slice(0, lines).flat(), ...b.standing(from)]);
-  return {
-    b,
-    said,
-    stack,
-    /** The part of the side under the first `count` lines of the recipe, for what a scene adds. */
-    under: (count) => SIDE.beside(boxOf(stack.slice(0, count).flat()), 'under'),
-    finish: (to, count = lines, sentence = said) =>
-      c.keep([sentence, ...stack.slice(0, count).flat(), ...b.standing(to)]),
-  };
-}
-
-/**
- * The loss curve, minus the log of a probability, with a point that follows `read`. It is as wide as
- * its region. `graph` is the axes with the curve, and `point` is the mark on the curve.
- */
-export function lossCurve(region, read, xLabel = 'share of the observed word') {
-  const graph = place(
-    fitted(region, (width) =>
-      axes({
-        x: [0, 1],
-        y: [0, 3],
-        xStep: 0.25,
-        yStep: 1,
-        width,
-        height: region.height * 0.5,
-        labelSize: 28,
-      }),
-    ),
-    region,
-  );
-  const names = [
-    beside(note(xLabel), graph, 'under', 'tight'),
-    beside(note('loss, in nats'), graph, 'above', 'tight', 'left'),
-  ];
-  graph.plot((p) => -Math.log(p), { stroke: 'ink', width: 5, from: 0.05, to: 1 });
-  const point = dynamic(() => {
-    const p = Math.max(0.05, read());
-    return [dot(15, MARK_COLOR).at(...graph.world(p, -Math.log(p)))];
-  });
-  return { graph: [graph, ...names], point };
-}
-
-/** A number that follows the film, as text: `∞` when it has no end. It keeps its left edge. */
-export function live(read, { digits = 3, size = 40, color = 'ink', prefix = '' } = {}) {
-  return dynamic(() => {
-    const value = read();
-    const words = Number.isFinite(value) ? Number(value.toFixed(digits)).toFixed(digits) : '∞';
-    return text(prefix + words, {
-      font: 'mono',
-      size,
-      color: Number.isFinite(value) ? color : 'red',
-      anchor: 'left',
-    });
-  });
-}
-
-/**
- * A slider: a knob on a line that follows `read`, between `min` and `max`. `log` gives each ratio
- * the same room. `at(value)` is the place of a value on the line, for a mark or a label.
- */
-export function slider(region, read, { min, max, log = false }) {
-  const part = (value) =>
-    log ? Math.log(value / min) / Math.log(max / min) : (value - min) / (max - min);
-  const at = (value) => [
-    region.left + Math.max(0, Math.min(1, part(value))) * region.width,
-    region.cy,
-  ];
-  const rail = line([region.left, region.cy], [region.right, region.cy], {
-    stroke: 'dim',
-    width: 6,
-  });
-  const knob = dynamic(() => [dot(18, MARK_COLOR).at(...at(read()))]);
-  return { rail, knob, at };
-}
-
-/**
- * Two distributions over the same classes, in fixed columns: the prediction as solid bars, and
- * the target as dashed outlines. `q` and `p` are the values that a scene moves. `qOn` and `pOn`
- * bring each of them in, and `read` puts the share of the prediction over each column.
- */
-export function pair(
-  s,
-  region,
-  { names = WORDS, colors = WORD_COLOR, predict, targetPredict } = {},
+/** Soft luminous bar without heavy slide-card borders. */
+export function lumBar(
+  cx,
+  cy,
+  w,
+  h,
+  {
+    color = COSMOS.cyan,
+    fillOpacity = 0.32,
+    strokeWidth = 2.2,
+    glow = 8,
+    radius = 8,
+    opacity = 1,
+    dash,
+  } = {},
 ) {
-  const p = names.map(() => s.value(0)),
-    q = names.map(() => s.value(0));
-  /** The prediction now: the function of the scene, or the values `q`. */
-  const shares = () => (predict ? predict() : q.map((value) => value.value));
-  const pOn = s.value(0),
-    qOn = s.value(0),
-    read = s.value(0);
-  const [plot, foot] = region.rows([6, 1], 'tight');
-  const slots = plot.columns(names.length, 'wide');
-  const tallest = plot.height - 70;
-  const rule = line([plot.left, plot.bottom], [plot.right, plot.bottom], {
-    stroke: 'dim',
-    width: 3,
-  });
-  const labels = names.map((name, i) =>
-    text(name, { size: 46, color: colors[i] }).at(slots[i].cx, foot.cy),
-  );
-  const chart = dynamic(() => {
-    const now = shares();
-    const targets = targetPredict ? targetPredict() : p.map((value) => value.value);
-    return names.flatMap((_, i) => {
-      const width = Math.min(170, slots[i].width * 0.62);
-      const bar = (share, style) => {
-        const height = Math.max(2, tallest * Math.min(1, share));
-        return rect(width, height, style).at(slots[i].cx, plot.bottom - 4 - height / 2);
-      };
-      const nodes = [];
-      if (qOn.value > 0.01 && now[i] > 0)
+  const node = rect(Math.max(2, w), Math.max(2, h), {
+    fill: fillOpacity > 0.005 ? hexAlpha(color, fillOpacity) : null,
+    stroke: color,
+    width: strokeWidth,
+    radius,
+    dash,
+  })
+    .at(cx, cy)
+    .opacity(opacity);
+  if (glow > 0) node.glow(glow, color);
+  return node;
+}
+
+/** Glowing open ring (for orbital callouts, target highlights, or zero-box status beacons). */
+export function glowRing(
+  cx,
+  cy,
+  r,
+  color = COSMOS.gold,
+  { width = 3, glow = 8, opacity = 1, dash } = {},
+) {
+  const node = circle(r, {
+    fill: null,
+    stroke: color,
+    width,
+    dash,
+  })
+    .at(cx, cy)
+    .opacity(opacity);
+  if (glow > 0) node.glow(glow, color);
+  return node;
+}
+
+/** Smooth quadratic arc between two points with screen glow. */
+export function glowingArc(
+  from,
+  to,
+  bend = -40,
+  { color = COSMOS.gold, width = 3.2, glow = 8, opacity = 0.9, steps = 24 } = {},
+) {
+  const mx = (from[0] + to[0]) * 0.5;
+  const my = (from[1] + to[1]) * 0.5 + bend;
+  const pts = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const u = 1 - t;
+    pts.push([
+      u * u * from[0] + 2 * u * t * mx + t * t * to[0],
+      u * u * from[1] + 2 * u * t * my + t * t * to[1],
+    ]);
+  }
+  return glowingTrail(pts, { color, width, glow, opacity, core: false });
+}
+
+/** Format probability nicely (>= 0.5% as 1 decimal or %, < 0.5% as <1% or exact). */
+export function fmtPct(p, exact = false) {
+  const pct = p * 100;
+  if (exact) return `${pct < 0.1 ? pct.toFixed(2) : pct.toFixed(1)}%`;
+  if (p > 0 && p < 0.005) return '<1%';
+  if (p > 0.995 && p < 1) return '>99%';
+  return `${pct.toFixed(1)}%`;
+}
+
+/**
+ * Floating luminous unit-probability ribbon: shows the conserved 1.0 budget as glowing
+ * light segments with zero box chrome.
+ */
+export function unitRibbon(
+  left,
+  cy,
+  totalW,
+  height,
+  shares,
+  colors = WORD_COLOR,
+  { fillScales = [1, 1, 1], opacity = 1, showLabels = false, names = WORDS } = {},
+) {
+  const nodes = [
+    rule(left, cy + height / 2 + 10, left + totalW, cy + height / 2 + 10, COSMOS.rule, 2).opacity(
+      opacity * 0.7,
+    ),
+    rule(left, cy + height / 2 + 2, left, cy + height / 2 + 18, COSMOS.muted, 2).opacity(
+      opacity * 0.8,
+    ),
+    rule(
+      left + totalW,
+      cy + height / 2 + 2,
+      left + totalW,
+      cy + height / 2 + 18,
+      COSMOS.muted,
+      2,
+    ).opacity(opacity * 0.8),
+  ];
+  let cursor = left;
+  shares.forEach((share, i) => {
+    const segW = Math.max(0, totalW * Math.max(0, share) * (fillScales[i] ?? 1));
+    if (segW >= 2) {
+      const cx = cursor + segW / 2;
+      nodes.push(
+        lumBar(cx, cy, segW - 3, height, {
+          color: colors[i],
+          fillOpacity: 0.76,
+          strokeWidth: 2,
+          glow: 9,
+          radius: 6,
+          opacity,
+        }),
+      );
+      if (showLabels && segW > 125) {
         nodes.push(
-          bar(now[i], { fill: colors[i], stroke: null, radius: 6, opacity: 0.86 * qOn.value }),
-        );
-      if (pOn.value > 0.01)
-        nodes.push(
-          bar(targets[i], {
-            stroke: 'ink',
-            width: 4,
-            fill: null,
-            radius: 6,
-            dash: [12, 9],
-            opacity: pOn.value,
-          }),
-        );
-      if (read.value > 0.5) {
-        const top =
-          plot.bottom -
-          4 -
-          tallest * Math.min(1, Math.max(now[i], pOn.value > 0.01 ? targets[i] : 0));
-        const share = now[i] * 100;
-        nodes.push(
-          text(`${share >= 99.95 || share < 0.05 ? share.toFixed(2) : share.toFixed(1)}%`, {
-            font: 'mono',
-            size: NUMBER_SIZE + 4,
-            color: colors[i],
-          }).at(slots[i].cx, top - 30),
+          txt(`${names[i]} ${fmtPct(share)}`, cx, cy, 26, COSMOS.bg, 'mono', 'center').opacity(
+            opacity,
+          ),
         );
       }
-      return nodes;
-    });
+    }
+    cursor += segW;
   });
-  return {
-    p,
-    q,
-    pOn,
-    qOn,
-    read,
-    rule,
-    labels,
-    chart,
-    slots,
-    plot,
-    foot,
-    all: [rule, ...labels, chart],
-  };
+  return nodes;
 }
 
-/** The columns of a batch table, with the title of each one. */
-const BATCH_COLUMNS = {
-  name: 'position',
-  input: 'input',
-  scores: 'scores',
-  target: 'target',
-  meter: 'share of the target',
-  share: '',
-  loss: 'loss',
-};
-
 /**
- * A batch as a table: one row for each position. A row is `{ name, input, scores, target, share,
- * loss, color }`, and `columns` names the cells that the table has. The share that the model gives
- * the target is a meter and a number. A row with no share is an ignored position. A scene shows the
- * cells on its cues: `rows[i].loss`, `titles.loss`.
+ * Orbiting 3D Probability Simplex (`p_0 + p_1 + p_2 = 1`) with luminous barycentric
+ * probability spires at the 3 vertices and a glowing live probability beacon moving on the triangle.
  */
-export function batch(
-  entries,
-  region,
-  columns = ['name', 'scores', 'target', 'meter', 'share', 'loss'],
-  headers = BATCH_COLUMNS,
+export function buildSimplex3d(
+  probsFn,
+  {
+    x = 390,
+    y = 35,
+    scale = 2.35,
+    names = WORDS,
+    colors = WORD_COLOR,
+    theta = -0.68,
+    phi = 1.06,
+    distance = 14.2,
+    unit = 112,
+    trailFn,
+  } = {},
 ) {
-  // The table fills its region: the meter takes a quarter of the width.
-  const METER = { width: region.width * 0.25, height: 44 };
-  const plain = (words, options = {}) => text(words, { font: 'mono', size: 42, ...options });
-  const rows = entries.map((entry) => {
-    const color = entry.color ?? TARGET_COLOR;
-    const width = Math.max(2, METER.width * (entry.share ?? 0));
-    const frame = rect(METER.width, METER.height, {
-      stroke: 'dim',
-      width: 2,
-      fill: null,
-      radius: 6,
-    });
-    const fill = rect(width, METER.height, { fill: color, stroke: null, opacity: 0.86 }).at(
-      (width - METER.width) / 2,
-      0,
+  // Equilateral triangle in z=0 plane centered at origin
+  const V = [
+    [scale * Math.cos(Math.PI / 2), scale * Math.sin(Math.PI / 2), 0], // top: ran
+    [scale * Math.cos((7 * Math.PI) / 6), scale * Math.sin((7 * Math.PI) / 6), 0], // left-front: slept
+    [scale * Math.cos((11 * Math.PI) / 6), scale * Math.sin((11 * Math.PI) / 6), 0], // right-front: ate
+  ];
+  const bary = (p) => [
+    p[0] * V[0][0] + p[1] * V[1][0] + p[2] * V[2][0],
+    p[0] * V[0][1] + p[1] * V[1][1] + p[2] * V[2][1],
+    0.04,
+  ];
+
+  const view = cinematic3d({
+    theta,
+    phi,
+    distance,
+    unit,
+    focus: [0, 0, 0.75],
+  }).at(x, y);
+
+  // Subtle floor grid plane
+  view.add(
+    gridPlane3d({
+      x: [-2.8, 2.8],
+      y: [-2.8, 2.8],
+      z: -0.02,
+      step: 0.7,
+      color: '#1c2642',
+      opacity: 0.38,
+    }),
+  );
+
+  // Luminous simplex triangle edges
+  const edges = [
+    [0, 1],
+    [1, 2],
+    [2, 0],
+  ];
+  for (const [a, b] of edges) {
+    view.add(
+      line3d(V[a], V[b], {
+        color: COSMOS.cyan,
+        width: 3.0,
+        glow: 8,
+        blend: 'screen',
+      }),
     );
-    return {
-      name: text(entry.name, { size: 42, color: 'dim' }),
-      input: plain(entry.input ?? ''),
-      scores: plain(entry.scores ?? ''),
-      target: plain(entry.target ?? '', { color }),
-      meter: entry.share === undefined ? group(frame) : group(frame, fill),
-      share: plain(entry.share === undefined ? 'ignored' : entry.share.toFixed(3), {
-        color: entry.share === undefined ? 'dim' : 'ink',
+  }
+  // Medians toward centroid (uniform 1/3, 1/3, 1/3)
+  for (let i = 0; i < 3; i++) {
+    view.add(
+      line3d(V[i], [0, 0, 0], {
+        color: colors[i],
+        width: 1.5,
+        opacity: 0.35,
+        blend: 'screen',
       }),
-      loss: plain(entry.loss === undefined ? '0' : entry.loss.toFixed(3), {
-        color: entry.loss === undefined ? 'dim' : MARK_COLOR,
-      }),
-    };
-  });
-  const titles = Object.fromEntries(columns.map((name) => [name, note(headers[name] || ' ')]));
-  const table = grid(
-    [
-      ...columns.map((name) => titles[name]),
-      ...rows.flatMap((cells) => columns.map((name) => cells[name])),
-    ],
+    );
+  }
+
+  // Soft entropy dome over the simplex (peaks at uniform center!)
+  const dome = surface(
+    (wx, wy) => {
+      const r2 = wx * wx + wy * wy;
+      return Math.max(0, 1.35 * Math.exp(-r2 / 2.2) - 0.14);
+    },
     {
-      columns: columns.length,
-      gap: [columns.length > 6 ? 'normal' : 'wide', 'loose'],
-      align: 'left',
+      x: [-2.2, 2.2],
+      y: [-2.2, 2.2],
+      resolution: [26, 26],
+      colors: ['#070910', '#121a3a', '#1d3b66', '#28648e', '#5ce1e6'],
+      mesh: '#5ce1e6',
+      meshOpacity: 0.12,
+      meshWidth: 0.5,
+      opacity: 0.38,
     },
   );
-  place(table, region, 'left');
-  return { rows, titles, table, of: (name) => rows.map((cells) => cells[name]) };
+  view.add(dome);
+
+  // Reactive 3D vertex probability spires (height = 2.6 * p_i)
+  for (let i = 0; i < 3; i++) {
+    const vx = V[i][0];
+    const vy = V[i][1];
+    view.add(
+      line3d(
+        [vx, vy, 0],
+        () => {
+          const p = probsFn();
+          return [vx, vy, Math.max(0.08, (p[i] ?? 0) * 2.55)];
+        },
+        {
+          color: colors[i],
+          width: 7.5,
+          glow: 12,
+          blend: 'screen',
+          onTop: true,
+        },
+      ),
+    );
+    // Glowing cap beam from barycentric point to vertex spire top
+    view.add(
+      line3d(
+        () => {
+          const p = probsFn();
+          const b = bary(p);
+          return [b[0], b[1], 0.12];
+        },
+        () => {
+          const p = probsFn();
+          return [vx, vy, Math.max(0.08, (p[i] ?? 0) * 2.55)];
+        },
+        {
+          color: colors[i],
+          width: 2.0,
+          opacity: 0.65,
+          glow: 5,
+          blend: 'screen',
+          onTop: true,
+        },
+      ),
+    );
+  }
+
+  // Optional 3D geodesic curve on simplex (e.g., temperature sweep!)
+  if (typeof trailFn === 'function') {
+    view.add(
+      curve3d(
+        (t) => {
+          const p = trailFn(t);
+          const b = bary(p);
+          const h = 0.22 + 0.85 * Math.exp(-(b[0] * b[0] + b[1] * b[1]) / 2.2);
+          return [b[0], b[1], h];
+        },
+        {
+          t: [0, 1],
+          samples: 64,
+          color: COSMOS.gold,
+          width: 3.6,
+          glow: 10,
+          blend: 'screen',
+          onTop: true,
+        },
+      ),
+    );
+  }
+
+  // Live probability beacon rising from barycentric point on simplex
+  view.add(
+    line3d(
+      () => {
+        const b = bary(probsFn());
+        return [b[0], b[1], 0];
+      },
+      () => {
+        const b = bary(probsFn());
+        return [b[0], b[1], 1.55];
+      },
+      {
+        color: COSMOS.gold,
+        width: 4.0,
+        glow: 12,
+        blend: 'screen',
+        onTop: true,
+      },
+    ),
+  );
+  view.add(
+    points3d(
+      () => {
+        const p = probsFn();
+        const b = bary(p);
+        return [
+          [b[0], b[1], 1.58],
+          [V[0][0], V[0][1], Math.max(0.08, p[0] * 2.55)],
+          [V[1][0], V[1][1], Math.max(0.08, p[1] * 2.55)],
+          [V[2][0], V[2][1], Math.max(0.08, p[2] * 2.55)],
+        ];
+      },
+      {
+        color: COSMOS.gold,
+        radius: 6.5,
+        glow: 12,
+        blend: 'screen',
+        onTop: true,
+      },
+    ),
+  );
+
+  return { view, V, bary, names };
+}
+
+/**
+ * Orbiting 3D Cross-Entropy Loss Landscape `L(z_target, z_comp) = ln(e^{z_t} + e^{z_c} + 1) - z_t`
+ * showing the steep linear penalty wall vs flat zero floor and a glowing descent trajectory.
+ */
+export function buildLossLandscape3d(
+  pointFn,
+  { x = 390, y = 25, theta = -0.78, phi = 1.04, distance = 15.2, unit = 108 } = {},
+) {
+  const lossZ = (zt, zc) => {
+    const m = Math.max(zt, zc, 0);
+    const lse = m + Math.log(Math.exp(zt - m) + Math.exp(zc - m) + Math.exp(-m));
+    return Math.min(3.2, (lse - zt) * 0.52);
+  };
+
+  const view = cinematic3d({
+    theta,
+    phi,
+    distance,
+    unit,
+    focus: [0, 0, 0.9],
+  }).at(x, y);
+
+  view.add(
+    surface((wx, wy) => lossZ(wx, wy), {
+      x: [-2.2, 3.2],
+      y: [-1.2, 3.4],
+      resolution: [38, 38],
+      colors: ['#0c2d2e', '#1a4f63', '#2d3f8f', '#6b2f8a', '#c93b6b', '#ffd166'],
+      mesh: '#6ee7b7',
+      meshOpacity: 0.14,
+      meshWidth: 0.55,
+      opacity: 0.88,
+    }),
+  );
+
+  // Glowing descent geodesic from (z_slept=1, z_ran=3) down to updated point
+  view.add(
+    curve3d(
+      (t) => {
+        const zt = 1 + (UPDATED[1] - 1) * t;
+        const zc = 3 + (UPDATED[0] - 3) * t;
+        return [zt, zc, lossZ(zt, zc) + 0.09];
+      },
+      {
+        t: [0, 1],
+        samples: 48,
+        color: COSMOS.emerald,
+        width: 4.2,
+        glow: 10,
+        blend: 'screen',
+        onTop: true,
+      },
+    ),
+  );
+
+  // Live glowing marker beacon on the surface
+  view.add(
+    line3d(
+      () => {
+        const [zt, zc] = pointFn();
+        return [zt, zc, lossZ(zt, zc)];
+      },
+      () => {
+        const [zt, zc] = pointFn();
+        return [zt, zc, lossZ(zt, zc) + 0.95];
+      },
+      {
+        color: COSMOS.gold,
+        width: 3.6,
+        glow: 10,
+        blend: 'screen',
+        onTop: true,
+      },
+    ),
+  );
+  view.add(
+    points3d(
+      () => {
+        const [zt, zc] = pointFn();
+        return [[zt, zc, lossZ(zt, zc) + 0.1]];
+      },
+      {
+        color: COSMOS.gold,
+        radius: 7.5,
+        glow: 14,
+        blend: 'screen',
+        onTop: true,
+      },
+    ),
+  );
+
+  return { view, lossZ };
+}
+
+/**
+ * Draw a clean 2D glowing `-ln(p)` curve with live moving marker (no box borders).
+ */
+export function buildNegLogCurve2d(
+  x0,
+  y0,
+  w,
+  h,
+  pRead,
+  {
+    maxLoss = 3.2,
+    opacity = 1,
+    markerColor = COSMOS.gold,
+    showBaseline = true,
+    xCaption = 'target probability p',
+  } = {},
+) {
+  const px = (p) => x0 + Math.max(0.02, Math.min(1, p)) * w;
+  const py = (l) => y0 + h - Math.min(maxLoss, Math.max(0, l)) * (h / maxLoss);
+
+  const curvePts = [];
+  for (let i = 0; i <= 72; i++) {
+    const p = 0.042 + (0.958 * i) / 72;
+    curvePts.push([px(p), py(-Math.log(p))]);
+  }
+  const pNow = Math.max(0.042, Math.min(1, pRead));
+  const lNow = -Math.log(pNow);
+  const mx = px(pNow);
+  const my = py(lNow);
+
+  const nodes = [
+    rule(x0, y0 + h, x0 + w, y0 + h, COSMOS.muted, 2.5).opacity(opacity * 0.8),
+    rule(x0, y0, x0, y0 + h, COSMOS.muted, 2.5).opacity(opacity * 0.8),
+    glowingTrail(curvePts, {
+      gradientColors: [COSMOS.rose, COSMOS.gold, COSMOS.emerald],
+      width: 4.5,
+      glow: 10,
+      opacity,
+    }),
+    txt('0', x0 - 24, y0 + h, 26, COSMOS.muted, 'mono', 'right').opacity(opacity),
+    txt('3 nats', x0 - 20, y0 + 8, 26, COSMOS.muted, 'mono', 'right').opacity(opacity),
+    txt('1.0', x0 + w, y0 + h + 32, 26, COSMOS.muted, 'mono', 'center').opacity(opacity),
+    txt(xCaption, x0 + w * 0.5, y0 + h + 34, 26, COSMOS.muted, 'sans', 'center').opacity(opacity),
+  ];
+
+  if (showBaseline) {
+    nodes.push(
+      line([mx, y0 + h], [mx, my], {
+        stroke: markerColor,
+        width: 2.2,
+        dash: [8, 6],
+      }).opacity(opacity * 0.75),
+      line([x0, my], [mx, my], {
+        stroke: markerColor,
+        width: 2.2,
+        dash: [8, 6],
+      }).opacity(opacity * 0.75),
+    );
+  }
+  nodes.push(glowDot(mx, my, { radius: 8.5, color: markerColor, glow: 14, opacity }));
+  return { nodes, mx, my, px, py };
+}
+
+/**
+ * Draw glowing score-ruler columns (used cleanly across early dog-example scenes with zero chrome).
+ */
+export function buildRulerBars(
+  left,
+  right,
+  baseY,
+  maxH,
+  scores,
+  probs,
+  {
+    minZ = -0.5,
+    maxZ = 3.5,
+    offset = 0,
+    shift = 0,
+    names = WORDS,
+    colors = WORD_COLOR,
+    barW = 92,
+    growScales = [1, 1, 1],
+    solidScales = [1, 1, 1],
+    readMode = 'share', // 'none' | 'weight' | 'share'
+    targetIdx = TARGET,
+    opacity = 1,
+    showTicks = true,
+  } = {},
+) {
+  const xOf = (z) => left + ((z - minZ) / (maxZ - minZ)) * (right - left);
+  const nodes = [
+    glowingTrail(
+      [
+        [left, baseY],
+        [right, baseY],
+      ],
+      { color: COSMOS.muted, width: 3.0, glow: 4, opacity: opacity * 0.75, core: false },
+    ),
+  ];
+  if (showTicks) {
+    for (const t of [0, 1, 2, 3]) {
+      const tx = xOf(t);
+      const val = t + offset - shift;
+      const lbl =
+        Math.abs(val) >= 100 ? String(Math.round(val)) : String(Math.round(val * 10) / 10);
+      nodes.push(
+        line([tx, baseY - 7], [tx, baseY + 12], { stroke: COSMOS.muted, width: 2.5 }).opacity(
+          opacity * 0.8,
+        ),
+        txt(lbl, tx, baseY + 42, 26, COSMOS.muted, 'mono', 'center').opacity(opacity * 0.9),
+      );
+    }
+  }
+  scores.forEach((z, i) => {
+    const cx = xOf(z);
+    const p = probs[i];
+    const h = Math.max(6, maxH * p * (growScales[i] ?? 1));
+    const fillOp = 0.08 + 0.68 * (solidScales[i] ?? 1);
+    nodes.push(
+      lumBar(cx, baseY - 12 - h / 2, barW, h, {
+        color: colors[i],
+        fillOpacity: fillOp,
+        strokeWidth: i === targetIdx ? 3.2 : 2.2,
+        glow: i === targetIdx ? 12 : 7,
+        radius: 7,
+        opacity,
+      }),
+      glowDot(cx, baseY, { radius: 7, color: colors[i], glow: 10, opacity }),
+      txt(names[i], cx, baseY + 86, 30, colors[i], 'sans', 'center').opacity(opacity),
+    );
+    if (readMode === 'share') {
+      nodes.push(
+        txt(fmtPct(p), cx, baseY - 38 - h, 28, colors[i], 'mono', 'center').opacity(opacity),
+      );
+    } else if (readMode === 'weight') {
+      const w = Math.exp(z + offset - shift);
+      const wStr = w >= 10 ? w.toFixed(1) : w.toFixed(3);
+      nodes.push(txt(wStr, cx, baseY - 38 - h, 28, colors[i], 'mono', 'center').opacity(opacity));
+    }
+  });
+  return { nodes, xOf };
+}
+
+/** Glowing directional arrow helper for clean motion diagrams. */
+export function glowArrow(
+  from,
+  to,
+  color = COSMOS.gold,
+  { width = 3.5, tip = 13, opacity = 1 } = {},
+) {
+  return arrow(from, to, { stroke: color, width, tip }).glow(6, color).opacity(opacity);
 }

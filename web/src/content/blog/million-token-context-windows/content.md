@@ -7,9 +7,9 @@
     "name": "LeetLLM Team"
   },
   "publishedAt": "2026-03-14",
-  "updatedAt": "2026-11-15",
-  "verifiedAt": "2026-11-15",
-  "refreshAfter": "2026-12-15",
+  "updatedAt": "2026-11-25",
+  "verifiedAt": "2026-11-25",
+  "refreshAfter": "2026-12-25",
   "excerpt": "Million-token windows can hold an entire codebase or document set; retrieval reliability still depends on the task and model. Measure effective context, watch length-based prices, and choose between full context and RAG.",
   "tags": [
     "Context Windows",
@@ -94,12 +94,12 @@ Budget the complete request. Source files share space with instructions, tool de
 
 For example, a 1,050,000-token window with 128,000 tokens reserved for output leaves 922,000 for input. If instructions and history already use 22,000, the corpus budget is 900,000. Treat this as a planning budget; confirm the provider's documented input limit before sending a request near the edge of the window.
 
-The selected routes below were checked on October 15, 2026. They show why you must read both capacity and billing rules. Dollar pairs are standard USD input/output prices per million tokens on the direct provider API, excluding cache discounts and other fees. This dated sample illustrates several available routes; check each provider's current catalog for newer models.
+The selected routes below were checked on November 25, 2026. They show why you must read both capacity and billing rules. Dollar pairs are standard USD input/output prices per million tokens on the direct provider API, excluding cache discounts and other fees. This dated sample illustrates several available routes; check each provider's current catalog for newer models.
 
 | Provider route | Documented capacity | Operational constraint |
 |---|---|---|
 | Claude Sonnet 5 (`claude-sonnet-5`) | 1M context; 128K maximum output on the regular Messages API[^anthropic2026sonnet5] | Active legacy model. 1M is billed at the same per-token rate as a short prompt (\$2 / \$10). Recount with the new tokenizer; use <span data-glossary="prefix-cache">prompt caching</span> for stable prefixes.[^anthropic2026pricing][^anthropic2026promptcaching] |
-| GPT-5.6 Sol (`gpt-5.6-sol`) | 1,050,000 context; 128K maximum output. Reserving the full output budget leaves 922K for input.[^openai2026gpt56sol] | Standard \$4 / \$20; above 272K input, **\$8 / \$30 for the full request**. Cache writes are 1.25x uncached input. These promotional rates are guaranteed at least through November 21, 2026.[^openai2026gpt56sol][^openai2026promptcaching] |
+| GPT-5.6 Sol (`gpt-5.6-sol`) | 1,050,000 context; 128K maximum output. Reserving the full output budget leaves 922K for input.[^openai2026gpt56sol] | Standard \$4 / \$20; above 272K input, **\$8 / \$30 for the full request**. Cache writes are 1.25x uncached input. Promotional pricing runs through November 30, 2026, ahead of GPT-5.6 Sol's scheduled December 23, 2026 retirement.[^openai2026gpt56sol][^openai2026promptcaching] |
 | Gemini 3.1 Pro Preview (`gemini-3.1-pro-preview`) | 1,048,576 input; 65,536 output[^google2026gemini31promodel] | Still preview. Prompts above 200K: \$4 / \$18 versus \$2 / \$12. Cache hits and storage are billed separately.[^google2026geminipricing][^google2026contextcaching] |
 | Grok 4.7 (`grok-4.7`) | 500K context[^xai2026models] | Standard \$2 / \$6; at or above 200K input, \$4 / \$12 for the whole request. Cached input also doubles from \$0.50 to \$1. Measure cache-hit rates with the exact prefixes in your workload.[^xai2026pricing][^xai2026promptcaching] |
 

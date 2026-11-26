@@ -1,184 +1,365 @@
-import { URLS } from '../../../films/ai-lab-coding-interview-python-systems/fixtures.mjs';
+// Scene 7: state-objects - "How much work did four pages take?"
+// Stage 0: Python state-ownership map (deque, heap, Counter, OrderedDict, monotonic clock, Condition, Event).
+// Stage 1: Single-worker graph work tally (V = 4 pages, E = 6 links -> strict prediction hold for +1 duplicate -> 7!).
+// Stage 2: Signature 3D Complexity Manifold (`buildComplexityManifold3d`, `surface`, `curve3d`, `orbitScene`)
+//          with MathJax `glowTex` equations comparing O(V + E) vs O(A V log V)!
+import { line } from 'vizmatic/stage';
 import {
-  appear,
-  arrow,
-  assertEqual,
-  boxOf,
-  codeBlock,
-  column,
-  dot,
-  draw,
-  dynamic,
-  fade,
-  fadeOut,
-  graph,
-  grid,
-  indicate,
-  lanes,
-  line,
-  morphCode,
-  place,
-  recolor,
-  rect,
-  row,
-  seq,
-  table,
-  to,
-} from 'vizmatic/stage';
-import { chip, display, heading, label, mono, namedBox, note, tint } from '../../kit-narrated.mjs';
-import {
-  BOARD,
-  COLOR,
-  context,
-  racePicture,
-  storePicture,
-  schedulePicture,
-  bucketPicture,
-  ledgerPicture,
-  workloadPicture,
+  COSMOS,
   CRAWL,
-  LEDGER,
-  BUCKET,
-  SCHEDULE_RETRY,
-  SCHEDULE_BLOCKED,
-  expiryState,
-  parserTrace,
-  mixedWorkSchedule,
+  ROLE,
+  URLS,
+  actorOrb,
+  ambientClock,
+  buildComplexityManifold3d,
+  cinemaAtmosphere,
+  glowArcArrow,
+  glowArrow,
+  glowPill,
+  glowTex,
+  guardedDynamic,
+  hexAlpha,
+  lowerFooter,
+  orbitScene,
+  playCue,
+  sceneHeading,
+  txt,
 } from '../parts.mjs';
 
-export default function scene(s, c) {
-  context(s, c);
+export default function stateObjects(s, c) {
+  const title = sceneHeading(['How much work did', 'four pages take?'], { accent: ROLE.workerB });
 
-  const [left, right] = BOARD.columns(2, 'wide');
-  const owners = place(
-    table(
-      [
-        { key: 'operation', sample: 'FIFO work' },
-        { key: 'owner', sample: 'OrderedDict' },
-      ],
-      [
-        { id: 'fifo', operation: 'FIFO work', owner: 'deque' },
-        { id: 'priority', operation: 'priority', owner: 'heap' },
-        { id: 'counts', operation: 'counts', owner: 'Counter' },
-        { id: 'recency', operation: 'recency', owner: 'OrderedDict' },
-        { id: 'time', operation: 'elapsed time', owner: 'clock' },
-      ],
-      { width: left.width, size: 34, maxRows: 5 },
-    ),
-    left,
-  );
-  const state = place(
-    table(
-      [
-        { key: 'field', sample: 'condition' },
-        { key: 'value', sample: 'predicate false', marks: true },
-      ],
-      [
-        { id: 'queue', field: 'queue head', value: '/start' },
-        { id: 'count', field: 'fetch count', value: 0 },
-        { id: 'lock', field: 'lock', value: 'claim' },
-        { id: 'condition', field: 'condition', value: 'predicate false' },
-        { id: 'event', field: 'stop event', value: 'clear' },
-      ],
-      { width: right.width, size: 34, maxRows: 5 },
-    ),
-    right,
-  );
-  const cost = place(note('Local graph: O(V + E) work, O(V) state'), BOARD, 'bottom');
-  const crawl = place(
-    graph(
-      CRAWL.order.map((url) => ({ id: url, label: new URL(url).pathname, width: 180, height: 90 })),
-      Object.entries(URLS.pages).flatMap(([from, links]) =>
-        links
-          .filter((link) => new URL(link, from).origin === new URL(from).origin)
-          .map((link) => ({ from, to: new URL(link, from).href.split('#')[0] })),
-      ),
-      { fit: true, width: left.width * 0.88, height: left.height * 0.75, labelSize: 34 },
-    ),
-    left,
-  );
-  const visits = place(
-    table(
-      [
-        { key: 'work', sample: 'retained URLs' },
-        { key: 'count', sample: 6 },
-      ],
-      [
-        { id: 'v', work: 'vertex pops', count: 0 },
-        { id: 'e', work: 'link checks', count: 0 },
-        { id: 'state', work: 'retained URLs', count: 1 },
-      ],
-      { width: right.width, size: 40, maxRows: 3, leading: 2.5 },
-    ),
-    right,
-  );
-  const scheduled = schedulePicture();
-  const heapCost = place(note('Heap: O(A V log V). Graph: O(V + E).'), BOARD, 'bottom');
-  s.add(owners, state);
-  c.on('ci-state-objects-0-build', () => s.play(indicate(owners, { scale: 1, duration: 0.35 })));
-  c.on('objects-deque', () =>
-    s.play(
-      owners.light('fifo', undefined, { duration: 0.3 }),
-      state.setCell('queue', 'value', '/guide', { duration: 0.5 }),
-    ),
-  );
-  c.on('objects-count', () =>
-    s.play(
-      owners.light('counts', undefined, { duration: 0.3 }),
-      state.setCell('count', 'value', 1, { duration: 0.5 }),
-    ),
-  );
-  c.on('objects-wake', () =>
-    s.play(
-      state.light('condition', undefined, { duration: 0.3 }),
-      state.setCell('condition', 'value', 'recheck', { duration: 0.5 }),
-    ),
-  );
-  c.on('objects-stop', () => s.play(state.setCell('event', 'value', 'set', { duration: 0.4 })));
-  c.swap('objects-cost', [owners, state], [crawl, visits, cost]);
-  c.on(
-    'objects-cost',
-    () => {
-      let inspected = 0;
-      CRAWL.order.forEach((url, index) => {
-        inspected += URLS.pages[url].length;
-        s.play(
-          crawl.setState(url, 'done', { duration: 0.45 }),
-          visits.setCell('v', 'count', index + 1, { duration: 0.45 }),
-          visits.setCell('e', 'count', inspected, { duration: 0.45 }),
-          visits.setCell('state', 'count', CRAWL.snapshots[index + 1].seen.length, {
-            duration: 0.45,
+  const amb = ambientClock(s, c);
+  const stage = s.value(0); // 0=state ownership, 1=4-page graph tally, 2=3D heap complexity
+  const litRow = s.value(0); // 1=deque, 2=counter, 3=condition, 4=event
+  const crawledCount = s.value(0); // 0..4
+  const showExtra = s.value(0);
+  const showSeven = s.value(0); // STRICTLY AFTER 'objects-seven'!
+  const manifoldMix = s.value(0); // 0 -> 1 morphing 3D complexity surface
+
+  const view3d = buildComplexityManifold3d(manifoldMix, { x: -370, y: 15 });
+  const eqGraph = glowTex('O(V + E)\\text{ work},\\quad O(V)\\text{ state}', {
+    x: 430,
+    y: -175,
+    size: 36,
+    color: COSMOS.cyan,
+    glow: 7,
+  });
+  const eqHeap = glowTex('O(A\\,V\\log V) + O(V + E)', {
+    x: 430,
+    y: 45,
+    size: 38,
+    color: COSMOS.gold,
+    glow: 8,
+  });
+
+  const baseLinks = CRAWL.order.reduce((acc, u) => acc + URLS.pages[u].length, 0); // 6
+
+  const layer = guardedDynamic(
+    () => 1,
+    (alpha) => {
+      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
+      const st = Math.round(stage.value);
+      const nodes = [];
+
+      if (st === 0) {
+        const lit = Math.round(litRow.value);
+        // Left: Data structure owners
+        nodes.push(
+          txt('PYTHON STATE OWNERS', -460, -280, 26, ROLE.workerB, 'mono', 'center').opacity(alpha),
+          txt('LIVE SYNC SIGNALS', 445, -280, 26, ROLE.focus, 'mono', 'center').opacity(alpha),
+          line([10, -250], [10, 250], { stroke: '#29375a', width: 2 }).opacity(alpha),
+        );
+
+        const leftRows = [
+          { y: -185, role: 'FIFO work', owner: 'collections.deque', hi: lit === 1 },
+          { y: -85, role: 'Priority', owner: 'heapq (min-heap)', hi: false },
+          { y: 15, role: 'Fetch counts', owner: 'collections.Counter', hi: lit === 2 },
+          { y: 115, role: 'Recency', owner: 'OrderedDict', hi: false },
+          { y: 215, role: 'Elapsed time', owner: 'injected monotonic()', hi: false },
+        ];
+        leftRows.forEach((r) => {
+          const col = r.hi ? ROLE.focus : ROLE.workerB;
+          nodes.push(
+            txt(r.role, -830, r.y, 26, r.hi ? ROLE.focus : COSMOS.muted, 'sans', 'left').opacity(
+              alpha,
+            ),
+            glowPill(r.owner, -320, r.y, col, {
+              size: 26,
+              fixedW: 470,
+              alpha,
+              glow: r.hi ? 12 : 5,
+            }),
+          );
+        });
+
+        const rightRows = [
+          {
+            y: -145,
+            name: 'queue head',
+            val: lit >= 1 ? '/guide (popped)' : '/start',
+            col: lit >= 1 ? ROLE.ok : ROLE.workerA,
+          },
+          {
+            y: -35,
+            name: 'fetch count',
+            val: lit >= 2 ? 'Counter: 1' : 'Counter: 0',
+            col: lit >= 2 ? ROLE.ok : COSMOS.muted,
+          },
+          {
+            y: 75,
+            name: 'Condition',
+            val: lit >= 3 ? 'recheck under lock' : 'wait for work',
+            col: lit >= 3 ? ROLE.focus : ROLE.workerB,
+          },
+          {
+            y: 185,
+            name: 'Stop Event',
+            val: lit >= 4 ? 'event.set() -> STOP' : 'clear',
+            col: lit >= 4 ? ROLE.fail : COSMOS.muted,
+          },
+        ];
+        rightRows.forEach((r) => {
+          nodes.push(
+            txt(r.name, 70, r.y, 26, COSMOS.muted, 'mono', 'left').opacity(alpha),
+            glowPill(r.val, 565, r.y, r.col, { size: 26, fixedW: 440, alpha, glow: 7 }),
+          );
+        });
+
+        nodes.push(
+          txt(
+            'Pick one clear owner per transition and always recheck Condition predicates under the lock.',
+            0,
+            345,
+            27,
+            COSMOS.ink,
+            'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      } else if (st === 1) {
+        // Stage 1: 4-node crawler graph + live V / E / State counters (strict prediction hold!)
+        const nDone = Math.round(crawledCount.value);
+        const extra = showExtra.value > 0.5;
+        const seven = showSeven.value > 0.5;
+
+        const vCount = Math.min(4, nDone);
+        let eCount = 0;
+        for (let i = 0; i < vCount; i++) eCount += URLS.pages[CRAWL.order[i]].length;
+        const displayedE = seven ? baseLinks + 1 : eCount;
+
+        // Constellation of the 4 reachable pages on the left
+        const pStart = [-670, -110];
+        const pGuide = [-260, -110];
+        const pApi = [-260, 145];
+        const pFaq = [-670, 145];
+
+        nodes.push(
+          txt('SINGLE-WORKER CRAWL GRAPH', -465, -275, 26, ROLE.workerB, 'mono', 'center').opacity(
+            alpha,
+          ),
+          glowArrow(pStart[0] + 75, pStart[1], pGuide[0] - 75, pGuide[1], ROLE.workerB, {
+            width: 3.2,
+            alpha,
+          }),
+          glowArrow(pStart[0] + 60, pStart[1] + 55, pApi[0] - 60, pApi[1] - 55, ROLE.workerB, {
+            width: 3,
+            alpha,
+          }),
+          glowArrow(
+            pGuide[0],
+            pGuide[1] + 72,
+            pApi[0],
+            pApi[1] - 72,
+            extra ? ROLE.focus : ROLE.ok,
+            {
+              width: extra ? 4.5 : 3.2,
+              alpha,
+            },
+          ),
+          glowArrow(pGuide[0] - 60, pGuide[1] + 55, pFaq[0] + 60, pFaq[1] - 55, ROLE.ok, {
+            width: 3,
+            alpha,
+          }),
+          glowArcArrow([pApi[0] - 55, pApi[1] - 65], [pStart[0] + 55, pStart[1] + 65], -85, {
+            color: COSMOS.muted,
+            width: 2.5,
+            alpha: 0.7 * alpha,
+          }),
+          actorOrb(pStart[0], pStart[1], 66, vCount >= 1 ? ROLE.ok : ROLE.workerA, '/start', '', {
+            alpha,
+            active: vCount === 1,
+          }),
+          actorOrb(pGuide[0], pGuide[1], 66, vCount >= 2 ? ROLE.ok : ROLE.workerA, '/guide', '', {
+            alpha,
+            active: vCount === 2 || extra,
+          }),
+          actorOrb(pApi[0], pApi[1], 66, vCount >= 3 ? ROLE.ok : ROLE.workerB, '/api', '', {
+            alpha,
+            active: vCount === 3,
+          }),
+          actorOrb(pFaq[0], pFaq[1], 66, vCount >= 4 ? ROLE.ok : ROLE.workerB, '/faq', '', {
+            alpha,
+            active: vCount === 4,
           }),
         );
-      });
-    },
-    0.55,
-  );
-  const more = place(mono('/guide returns   /api, /faq, /api', {size:42,color:'yellow'}), BOARD, 'top');
-  const linkCount = CRAWL.order.reduce((n,url) => n + URLS.pages[url].length,0);
-  assertEqual(linkCount,6,'original links inspected');
-  c.show('objects-extra',more);
-  c.after('objects-seven',()=>s.play(visits.setCell('e','count',linkCount+1),visits.light('e','count')));
-  c.swap(
-    'objects-attempts',
-    [crawl, visits, cost, more],
-    [scheduled.g, scheduled.heap, scheduled.title, heapCost],
-  );
-  c.on(
-    'objects-attempts',
-    () =>
-      s.play(
-        seq(
-          scheduled.heap.remove(['test'], { duration: 0.6 }),
-          scheduled.heap.append([{ id: 'retry', priority: 2, task: 'test', attempt: 1 }], {
-            duration: 0.6,
+
+        // Right: Counters table
+        nodes.push(
+          txt('WORK & STATE COUNTS', 435, -275, 26, ROLE.focus, 'mono', 'center').opacity(alpha),
+          txt('Vertex pops (V)', 110, -145, 28, COSMOS.muted, 'sans', 'left').opacity(alpha),
+          glowPill(String(vCount), 675, -145, ROLE.workerA, { size: 32, fixedW: 200, alpha }),
+
+          txt('Raw links checked (E)', 110, -20, 28, COSMOS.muted, 'sans', 'left').opacity(alpha),
+          glowPill(
+            extra && !seven ? '6 -> ?' : String(displayedE),
+            675,
+            -20,
+            seven ? ROLE.ok : extra ? ROLE.focus : ROLE.workerB,
+            {
+              size: 32,
+              fixedW: 200,
+              alpha,
+              glow: seven || extra ? 14 : 7,
+            },
+          ),
+
+          txt('Retained URLs (state)', 110, 105, 28, COSMOS.muted, 'sans', 'left').opacity(alpha),
+          glowPill(
+            String(vCount > 0 ? CRAWL.snapshots[vCount].seen.length : 1),
+            675,
+            105,
+            ROLE.record,
+            {
+              size: 32,
+              fixedW: 200,
+              alpha,
+            },
+          ),
+        );
+
+        if (extra) {
+          nodes.push(
+            glowPill('/guide adds duplicate /api (+1 link)', 435, 224, ROLE.focus, {
+              size: 26,
+              fixedW: 740,
+              alpha: alpha * (seven ? 1 : 0.8 + 0.2 * pulse),
+            }),
+          );
+        }
+
+        const capY = 345;
+        nodes.push(
+          txt(
+            seven
+              ? 'Only link checks rise from 6 to 7; vertex pops stay at 4. Work is O(V + E), state O(V).'
+              : extra
+                ? 'Suppose /guide returns one extra copy of /api. Which count changes?'
+                : 'Count queue pops (V) separately from raw callback links inspected (E).',
+            0,
+            capY,
+            extra && !seven ? 30 : 27,
+            seven ? ROLE.ok : extra ? ROLE.focus : COSMOS.muted,
+            extra && !seven ? 'serif' : 'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      } else {
+        // Stage 2: 3D Complexity Manifold + MathJax equations on the right
+        nodes.push(
+          txt('3D COMPLEXITY MANIFOLD', -370, -295, 26, ROLE.focus, 'mono', 'center').opacity(
+            alpha,
+          ),
+          txt('GRAPH VS RETRY-HEAP GROWTH', 430, -295, 26, ROLE.workerB, 'mono', 'center').opacity(
+            alpha,
+          ),
+          txt('Single-pass BFS crawl:', 430, -235, 26, COSMOS.muted, 'sans', 'center').opacity(
+            alpha,
+          ),
+          txt(
+            'Priority scheduler with <= A retries per task:',
+            430,
+            -35,
+            26,
+            COSMOS.muted,
+            'sans',
+            'center',
+          ).opacity(alpha),
+          glowPill('Each retry re-inserts into min-heap -> O(log V)', 430, 185, ROLE.focus, {
+            size: 26,
+            fixedW: 780,
+            alpha,
           }),
-          scheduled.heap.remove(['retry'], { duration: 0.6 }),
-          scheduled.heap.append([{ id: 'again', priority: 2, task: 'test', attempt: 2 }], {
-            duration: 0.6,
-          }),
+          txt(
+            'Long URLs or slow callbacks add constant factors even when V and E stay fixed.',
+            0,
+            345,
+            27,
+            COSMOS.muted,
+            'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      }
+
+      nodes.push(
+        lowerFooter(
+          'STATE OWNERSHIP & ASYMPTOTIC WORK',
+          st === 2
+            ? 'HEAP RETRIES: O(A V log V) + O(V + E)'
+            : showSeven.value > 0.5
+              ? 'V = 4 POPS  ·  E = 7 LINKS'
+              : 'DEQUE  ·  HEAP  ·  COUNTER  ·  CLOCK',
+          { accent: st === 2 ? ROLE.focus : ROLE.workerB, alpha },
         ),
-      ),
-    0.6,
+      );
+
+      return nodes;
+    },
+  );
+
+  s.add(cinemaAtmosphere(ROLE.workerB, ROLE.focus), title, layer);
+
+  playCue(s, c, 'ci-state-objects-0-build', () => s.play(litRow.to(0, { duration: 0.05 })), {
+    dur: 0.1,
+  });
+  playCue(s, c, 'objects-deque', () => s.play(litRow.to(1, { duration: 0.05 })), { dur: 0.1 });
+  playCue(s, c, 'objects-count', () => s.play(litRow.to(2, { duration: 0.05 })), { dur: 0.1 });
+  playCue(s, c, 'objects-wake', () => s.play(litRow.to(3, { duration: 0.05 })), { dur: 0.1 });
+  playCue(s, c, 'objects-stop', () => s.play(litRow.to(4, { duration: 0.05 })), { dur: 0.1 });
+
+  playCue(
+    s,
+    c,
+    'objects-cost',
+    (d) => s.play(stage.to(1, { duration: 0.05 }), crawledCount.to(4, { duration: d })),
+    { dur: 1.6 },
+  );
+  playCue(s, c, 'objects-extra', () => s.play(showExtra.to(1, { duration: 0.05 })), { dur: 0.1 });
+  // Strict prediction reveal ONLY AFTER 'objects-seven'!
+  playCue(s, c, 'objects-seven', () => s.play(showSeven.to(1, { duration: 0.05 })), {
+    after: true,
+    dur: 0.1,
+  });
+
+  // Stage 2: switch off Stage 1 BEFORE c.show fades in eqGraph/eqHeap/view3d (zero motion overlap!)
+  const attCue = c.cue('objects-attempts');
+  if (attCue) {
+    const preRel = Math.max(0.02, attCue.start - c.start - 0.16);
+    c.at(preRel, () => s.play(stage.to(2, { duration: 0.02 })));
+  }
+  c.show('objects-attempts', [view3d, eqGraph, eqHeap]);
+  playCue(
+    s,
+    c,
+    'objects-attempts',
+    (d, cue) => {
+      const orbitDur = Math.max(0.5, c.end - cue.start - 0.5);
+      s.play(
+        manifoldMix.to(1, { duration: d }),
+        view3d.orbit({ theta: -0.25, phi: 0.94 }, { duration: orbitDur }),
+      );
+    },
+    { dur: 2.0 },
   );
 }

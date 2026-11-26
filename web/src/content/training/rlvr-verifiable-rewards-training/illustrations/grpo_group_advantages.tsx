@@ -216,7 +216,7 @@ const illustration = defineIllustration((c: ThemeColors) => {
             {lbl(c, 'All R=1 or all R=0', 530, 296, 204, 22, 16, c.textPrimary, 700)}
             {lbl(c, 'σ = 0 → Â_i = 0.0', 530, 328, 204, 22, 16, warm, 800, 'left', true)}
             {lbl(c, 'No value critic', 530, 368, 204, 22, 16, green, 700)}
-            {lbl(c, 'Saves ~50% VRAM', 530, 396, 204, 22, 16, muted, 650)}
+            {lbl(c, 'Drops critic state', 530, 396, 204, 22, 16, muted, 650)}
         </Board>
     )
 })

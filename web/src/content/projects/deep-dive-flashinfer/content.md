@@ -224,6 +224,10 @@ def merge_state(
     """Reference merge; -inf with a zero vector represents an empty key set."""
     if not o_a or len(o_a) != len(o_b):
         raise ValueError("state vectors must have the same positive dimension")
+    if b_a == -math.inf and any(x != 0.0 for x in o_a):
+        raise ValueError("empty state (-inf) requires a zero vector")
+    if b_b == -math.inf and any(x != 0.0 for x in o_b):
+        raise ValueError("empty state (-inf) requires a zero vector")
     if b_a == -math.inf:
         return list(o_b), b_b
     if b_b == -math.inf:
@@ -243,6 +247,12 @@ assert abs(output[1] - 1 / 3) < 1e-12
 assert abs(log_sum_exp - (2 + math.log2(1.5))) < 1e-12
 assert merge_state([0., 0.], -math.inf, output, log_sum_exp) == (output, log_sum_exp)
 assert merge_state([0., 0.], -math.inf, [0., 0.], -math.inf) == ([0., 0.], -math.inf)
+try:
+    merge_state([2.0], -math.inf, [4.0], 0.0)
+except ValueError:
+    pass
+else:
+    raise AssertionError("non-zero vector paired with -inf was accepted")
 assert merge_state([1e308], 0.0, [1e308], 0.0)[0] == [1e308]
 print([round(value, 4) for value in output], round(log_sum_exp, 4))
 ```
@@ -579,7 +589,7 @@ Merging adds normalization mass from both states, double-counting the shared key
     "explanation": "Normalizing shares to 2/3 and 1/3 before scaling avoids overflow and gives ~1.4667e308. An empty state paired with −∞ must carry a zero vector, so [0] is valid and returns ([4], 0) while [2] is invalid."
   },
   {
-    "question": "Seven keys include the appended keys of three new queries. For zero-based local query row1 under bottom-right causality, which logical keys are visible and how does permuting physical page IDs affect that allowed set?",
+    "question": "Seven keys include the appended keys of three new queries. For zero-based local query row 1 under bottom-right causality, which logical keys are visible and how does permuting physical page IDs affect that allowed set?",
     "options": [
       "Keys 0..4; a page-ID permutation preserves this logical set.",
       "Keys 0..6; a page-ID permutation preserves this logical set.",

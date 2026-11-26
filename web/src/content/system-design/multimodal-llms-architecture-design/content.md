@@ -55,7 +55,7 @@ Pixels, audio spectrograms, and text tokens live in different coordinate systems
 
 ### CLIP symmetric InfoNCE loss
 
-For $N$ paired L2-normalized image and text embeddings $(I_i, T_j)$, CLIP builds the $N \times N$ scaled cosine <span data-glossary="logits">logit</span> matrix $z_{ij} = \exp(t) \cdot I_i^\top T_j = I_i^\top T_j / \tau$, where $t$ is a learned log-scale (initialized near $1/0.07$, clamped at $\exp(t) \le 100$).[^radford2021] The $N$ diagonal pairs are positives and the $N^2 - N$ off-diagonal pairs serve as in-batch negatives under symmetric InfoNCE <span data-glossary="cross-entropy">cross-entropy</span>:
+For $N$ paired L2-normalized image and text embeddings $(I_i, T_j)$, CLIP builds the $N \times N$ scaled cosine <span data-glossary="logits">logit</span> matrix $z_{ij} = \exp(t) \cdot I_i^\top T_j = I_i^\top T_j / \tau$, where $t$ is a learned log-scale (with $\exp(t)$ initialized at $1/0.07 \approx 14.3$, so $t \approx 2.66$, and clamped at $\exp(t) \le 100$).[^radford2021] The $N$ diagonal pairs are positives and the $N^2 - N$ off-diagonal pairs serve as in-batch negatives under symmetric InfoNCE <span data-glossary="cross-entropy">cross-entropy</span>:
 
 $$
 \mathcal{L}_{I \rightarrow T} = -\frac{1}{N}\sum_{i=1}^{N}\log\frac{\exp(z_{ii})}{\sum_{j=1}^{N}\exp(z_{ij})},
@@ -120,7 +120,7 @@ SigLIP /N: 1.386 | /N^2: 0.693
 
 ### Zero-shot classification and dual-encoder limits
 
-Embedding prompt templates (`"a photo of a {label}"`) gives **zero-shot classification** without training a new head: CLIP ViT-L/14@336px reached 76.2% ImageNet top-1, with 80-template prompt ensembling adding nearly +5 points.[^radford2021] Never trust single-candidate <span data-glossary="softmax">softmax</span> (`softmax([-10]) = [1.0]`); threshold raw cosine and top-1 vs top-2 margin.
+Embedding prompt templates (`"a photo of a {label}"`) gives **zero-shot classification** without training a new head: CLIP ViT-L/14@336px reached 76.2% ImageNet top-1, with prompt templates plus 80-template ensembling adding nearly +5 points over bare class names.[^radford2021] Never trust single-candidate <span data-glossary="softmax">softmax</span> (`softmax([-10]) = [1.0]`); threshold raw cosine and top-1 vs top-2 margin.
 
 Global pooling still hits four ceilings: no bounding-box localization or counting (requiring detectors like Grounding DINO[^liu2023groundingdino] or grounded VLMs), no text generation, weak attribute binding and multi-digit OCR (CLIP scores 88% on MNIST but 51% on SVHN),[^radford2021] and both web bias[^agarwal2021] and the geometric **modality gap** where image and text embeddings occupy distinct hypersphere cones.[^liang2022modalitygap] Generative VLMs solve this by stopping *before* pooling and handing spatial patch tokens to a decoder.
 

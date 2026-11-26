@@ -11,7 +11,7 @@ import {
 export const width = 720
 export const height = 396
 export const alt =
-    'Three observed pass rates and 95 percent Wilson score intervals share a 0.4 to 1.0 axis. Three of three passes has a lower bound of 0.438 despite 1.00 observed accuracy. Forty-nine of fifty spans 0.895 to 0.996, and 990 of 1000 spans 0.982 to 0.995.'
+    'Three observed pass rates and 95 percent Wilson score intervals share a 0.4 to 1.0 axis. Three of three passes has a lower bound of 0.439 despite 1.00 observed accuracy. Forty-nine of fifty spans 0.895 to 0.996, and 990 of 1000 spans 0.982 to 0.995.'
 
 const illustration = defineIllustration((base) => {
     const c = { ...base, shadow: 'transparent' }
@@ -27,12 +27,12 @@ const illustration = defineIllustration((base) => {
     const rows = [
         {
             label: '3 / 3',
-            low: 0.438,
+            low: 0.439,
             mid: 1.0,
             high: 1.0,
             midLabel: '1.00',
-            rangeLabel: '0.438',
-            rangeX: scaleX(0.438) - 4,
+            rangeLabel: '0.439',
+            rangeX: scaleX(0.439) - 4,
             rangeAlign: 'left' as const,
             rangeWidth: 88,
             color: getReadableColor('warning', c),

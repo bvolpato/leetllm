@@ -1,0 +1,1748 @@
+version: 1
+id: deep-dive-megatron
+title: Megatron and the Geometry of a Training Mesh
+source: projects/deep-dive-megatron/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Megatron-LM and Megatron Core
+    url: https://github.com/NVIDIA/Megatron-LM
+  - title: Megatron Core parallelism strategies
+    url: https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/parallelism-guide.html
+  - title: Pinned Megatron rank state
+    url: https://github.com/NVIDIA/Megatron-LM/blob/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/parallel_state.py
+  - title: Versioned optimizer serialization contract
+    url: https://docs.nvidia.com/megatron-core/developer-guide/0.18.0/apidocs/core/core.optimizer.distrib_optimizer.html
+  - title: Bridge checkpoint and Energon state
+    url: https://docs.nvidia.com/nemo/megatron-bridge/latest/training/checkpointing.html
+  - title: Transformer Engine FP8 and FP4
+    url: https://docs.nvidia.com/deeplearning/transformer-engine/examples/fp8_primer.html
+  - title: MoE parallel folding
+    url: https://arxiv.org/abs/2504.14960
+scenes:
+  - id: intro
+    title: Four workers saved the row. Two are reloading it.
+    visual: >-
+      Seven weights have landed in the new shards. The gold weight leaves its saved slot and pauses
+      above the last opening. Fixed column numbers and rank brackets let the viewer work out its
+      new address before it lands. A single nonzero input probes the reloaded row.
+    beats:
+      - say: >-
+          The gold weight is leaving rank three, slot zero. Four workers saved this row of weights,
+          two columns each.
+        hold: 0.6
+        visual_cues:
+          - id: intro-saved-pairs
+            phrase: "Four workers saved this row of weights"
+            targets: [saved-ranges]
+            linger: 0.3
+            caption_boundary: true
+          - id: intro-find-six
+            phrase: "The gold weight is leaving rank three, slot zero"
+            targets: [tracked-weight]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          Two workers now reload four columns each. Counting from zero, which rank and slot get
+          column six?
+        hold: 2.6
+        visual_cues:
+          - id: intro-new-layout
+            phrase: "Two workers now reload four columns each"
+            targets: [new-ranges]
+            linger: 0.3
+            caption_boundary: true
+          - id: intro-choose-owner
+            phrase: "which rank and slot get column six"
+            targets: [tracked-weight]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          Rank one. Its shard starts at column four. Subtract four from six. Slot two is the new
+          local index. The weight is still one point five.
+        caption_starts:
+          - "Slot two is the new local index"
+        hold: 0.9
+        visual_cues:
+          - id: intro-move
+            phrase: "Rank one"
+            targets: [tracked-weight]
+            linger: 0.3
+            caption_boundary: true
+          - id: intro-local-index
+            phrase: "Subtract four from six. Slot two is the new local index"
+            targets: [new-address]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          Give column six an input of two and every other column zero. With no bias, both layouts
+          give three. Now we can check the new layout with a single multiplication.
+        hold: 0.8
+        visual_cues:
+          - id: intro-probe
+            phrase: "Give column six an input of two and every other column zero"
+            targets: [probe]
+            linger: 0.3
+            caption_boundary: true
+          - id: intro-score
+            phrase: "both layouts give three"
+            targets: [probe]
+            linger: 0.3
+            caption_boundary: true
+  - id: diagnosis
+    title: Let the observed wall choose the first partition
+    visual: One supplied layer and its buffers retain byte identities as width, depth, activation or routing
+      pressure selects a different intervention.
+    beats:
+      - say: A worker that cannot store one wide matrix needs a different split from a worker waiting for a hot
+          expert. Tensor parallelism divides layer channels; pipeline parallelism divides layer ranges;
+          context parallelism divides sequence positions. Data replicas process independent samples. Expert
+          parallelism distributes sparse networks. Selective recomputation trades stored activations for
+          repeated forward arithmetic.
+        hold: 0.7
+        visual_cues:
+          - id: mg-diagnosis-b0
+            phrase: A worker that cannot store one wide matrix needs a different split from a worker waiting for a hot
+              expert. Tensor parallelism divides layer channels; pipeline parallelism divides layer ranges;
+              context parallelism divides sequence positions. Data replicas process independent samples.
+              Expert parallelism distributes sparse networks. Selective recomputation trades stored
+              activations for repeated forward arithmetic.
+            targets:
+              - mg-diagnosis-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Follow one sample through that choice. Its tensor shards cooperate inside layers, its activation crosses
+          pipeline boundaries, and its queries may consume remote context. Data parallelism supplies other
+          samples rather than shortening this sample’s path. Use the smallest supported combination that
+          removes the measured wall, then inspect the new wait.
+        hold: 0.7
+        visual_cues:
+          - id: mg-diagnosis-b1
+            phrase: Follow one sample through that choice. Its tensor shards cooperate inside layers, its activation
+              crosses pipeline boundaries, and its queries may consume remote context. Data parallelism
+              supplies other samples rather than shortening this sample’s path. Use the smallest supported
+              combination that removes the measured wall, then inspect the new wait.
+            targets:
+              - mg-diagnosis-mechanism
+            color: cyan
+            linger: 0.3
+  - id: source-contract
+    title: Where does Megatron build the rank map?
+    visual: The pinned rank generator uses four axis sizes. Core, the reference trainer and Bridge each own a different part of the run.
+    beats:
+      - say: Where does a rank get its neighbors? Megatron Core builds its groups from the axis sizes
+          and their order. The commit on screen is the version used for this map. Its extra weight
+          rematerialization factors are set to one, so the four axes below account for the whole
+          dense mesh.
+        hold: 0.7
+        visual_cues:
+          - id: mg-source-contract-b0
+            phrase: Where does a rank get its neighbors? Megatron Core builds its groups from the axis
+              sizes and their order. The commit on screen is the version used for this map. Its
+              extra weight rematerialization factors are set to one, so the four axes below
+              account for the whole dense mesh.
+            targets:
+              - mg-source-contract-mechanism
+            color: cyan
+            linger: 0.3
+      - say: If the peers look wrong, start in Core, where the layers, groups and pipeline schedules
+          live. For the tokenizer, data or launch arguments, open the reference trainer. For a
+          checkpoint conversion, look in Bridge. Record the versions on screen with the run so you
+          can reconstruct the same setup.
+        hold: 0.7
+        visual_cues:
+          - id: mg-source-contract-b1
+            phrase: If the peers look wrong, start in Core, where the layers, groups and pipeline
+              schedules live. For the tokenizer, data or launch arguments, open the reference
+              trainer. For a checkpoint conversion, look in Bridge. Record the versions on screen
+              with the run so you can reconstruct the same setup.
+            targets:
+              - mg-source-contract-mechanism
+            color: cyan
+            linger: 0.3
+  - id: small-lattice
+    title: Construct a small rank coordinate before expanding the world
+    visual: Eight ranks build from two tensor cells, two data rows and two pipeline planes; rank three stays
+      anchored through the sixty-four-rank expansion.
+    beats:
+      - say: "Begin with eight ranks: two tensor coordinates, two data coordinates and two pipeline coordinates.
+          Tensor varies fastest, then data, then pipeline. Rank three is tensor one, data one, pipeline zero.
+          Its tensor partner is two; its data partner is one; its pipeline partner is seven. Vary one
+          coordinate while retaining the others."
+        hold: 0.7
+        visual_cues:
+          - id: mg-small-lattice-b0
+            phrase: "Begin with eight ranks: two tensor coordinates, two data coordinates and two pipeline coordinates.
+              Tensor varies fastest, then data, then pipeline. Rank three is tensor one, data one, pipeline
+              zero. Its tensor partner is two; its data partner is one; its pipeline partner is seven. Vary
+              one coordinate while retaining the others."
+            targets:
+              - mg-small-lattice-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-small-coordinate
+            phrase: Rank three is tensor one, data one, pipeline zero.
+            targets:
+              - mg-small-lattice-mechanism
+            color: yellow
+            linger: 0.3
+          - id: mg-small-partners
+            phrase: Its tensor partner is two; its data partner is one; its pipeline partner is seven.
+            targets:
+              - mg-small-lattice-mechanism
+            color: yellow
+            linger: 0.3
+      - say: For the larger dense fixture, tensor four, context two, data four and pipeline two multiply to
+          sixty-four. The chosen strides are one, four, eight and thirty-two. A global rank equals tensor
+          coordinate plus four times context, plus eight times data, plus thirty-two times pipeline. Logical
+          adjacency still needs a launcher placement receipt before it implies a fast physical link.
+        hold: 0.7
+        visual_cues:
+          - id: mg-small-lattice-b1
+            phrase: For the larger dense fixture, tensor four, context two, data four and pipeline two multiply to
+              sixty-four. The chosen strides are one, four, eight and thirty-two. A global rank equals tensor
+              coordinate plus four times context, plus eight times data, plus thirty-two times pipeline.
+              Logical adjacency still needs a launcher placement receipt before it implies a fast physical
+              link.
+            targets:
+              - mg-small-lattice-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-world-sixty-four
+            phrase: multiply to sixty-four.
+            targets:
+              - mg-small-lattice-mechanism
+            color: yellow
+            linger: 0.3
+  - id: mesh
+    title: A rank is a coordinate in several communication groups
+    visual: Sixty-four ranks occupy TP columns and DP rows inside PP and CP facets. Rank three's tensor peers,
+      pipeline peer and data peers follow actual coordinate strides. The current peer coordinate and rank
+      equation explain each group.
+    beats:
+      - say: >
+          Factor this dense world into tensor shards, pipeline stages, context lanes and data replicas. Their
+          product assigns every rank once. In our chosen ordering, tensor coordinates change fastest.
+          Highlight rank three and follow the nearby tensor peers that cooperate on its layer arithmetic.
+        hold: 0.6
+        visual_cues:
+          - id: mesh-rank-three-peers
+            phrase: Highlight rank three and follow the nearby tensor peers that cooperate on its layer arithmetic
+            targets:
+              - mesh-selected-rank
+              - mesh-group-peers
+            color: yellow
+            linger: 0.5
+      - say: >
+          Change the selected group to pipeline peers. The partner now has a distant global rank number
+          because the pipeline coordinate changes on a larger stride. Rank numbering describes a logical
+          layout. The launcher must still place those ranks on suitable devices and physical links.
+        hold: 0.6
+        visual_cues:
+          - id: mesh-pipeline-peers
+            phrase: Change the selected group to pipeline peers
+            targets:
+              - mesh-selected-rank
+              - mesh-group-peers
+            color: cyan
+            linger: 0.5
+          - id: mesh-pipeline-stride
+            phrase: the pipeline coordinate changes on a larger stride
+            targets:
+              - mesh-coordinate-strides
+            color: yellow
+            linger: 0.5
+      - say: >
+          Finally highlight the data peers. They process independent examples while holding corresponding
+          model shards. Each operation communicates in the group that owns its data. Context parallelism adds
+          a sequence axis; sequence parallelism reuses tensor peers for selected activation work and adds no
+          extra world-size factor.
+        hold: 0.6
+        visual_cues:
+          - id: mesh-data-peers
+            phrase: Finally highlight the data peers
+            targets:
+              - mesh-selected-rank
+              - mesh-group-peers
+            color: cyan
+            linger: 0.5
+  - id: rank-algorithm
+    title: Decode a global rank and check its owning groups
+    visual: Rank twenty-seven passes through remainder and integer-division operations; selected groups preserve
+      its other coordinates.
+    beats:
+      - say: The numbering helper repeatedly takes the remainder by an axis size, then divides the remaining rank by
+          that size using integer division. For rank twenty-seven, the tensor remainder is three. After
+          division, context remainder is zero; data remainder is three; pipeline remainder is zero. Rebuilding
+          gives three plus twenty-four, or twenty-seven.
+        hold: 0.7
+        visual_cues:
+          - id: mg-rank-algorithm-b0
+            phrase: The numbering helper repeatedly takes the remainder by an axis size, then divides the remaining rank
+              by that size using integer division. For rank twenty-seven, the tensor remainder is three. After
+              division, context remainder is zero; data remainder is three; pipeline remainder is zero.
+              Rebuilding gives three plus twenty-four, or twenty-seven.
+            targets:
+              - mg-rank-algorithm-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-rank-rebuild
+            phrase: Rebuilding gives three plus twenty-four, or twenty-seven.
+            targets:
+              - mg-rank-algorithm-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Its tensor group is twenty-four through twenty-seven. Its pure data group is three, eleven, nineteen and
+          twenty-seven. Its pipeline partner is fifty-nine. The pinned rank generator builds groups from these
+          dimensions and rejects a world that does not divide by the model-parallel product. Independent batch
+          count uses pure data replicas; dense gradient ownership can include context peers.
+        hold: 0.7
+        visual_cues:
+          - id: mg-rank-algorithm-b1
+            phrase: Its tensor group is twenty-four through twenty-seven. Its pure data group is three, eleven, nineteen
+              and twenty-seven. Its pipeline partner is fifty-nine. The pinned rank generator builds groups
+              from these dimensions and rejects a world that does not divide by the model-parallel product.
+              Independent batch count uses pure data replicas; dense gradient ownership can include context
+              peers.
+            targets:
+              - mg-rank-algorithm-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-rank-tp-group
+            phrase: Its tensor group is twenty-four through twenty-seven.
+            targets:
+              - mg-rank-algorithm-mechanism
+            color: yellow
+            linger: 0.3
+          - id: mg-rank-dp-group
+            phrase: Its pure data group is three, eleven, nineteen and twenty-seven.
+            targets:
+              - mg-rank-algorithm-mechanism
+            color: yellow
+            linger: 0.3
+          - id: mg-rank-pp-group
+            phrase: Its pipeline partner is fifty-nine.
+            targets:
+              - mg-rank-algorithm-mechanism
+            color: yellow
+            linger: 0.3
+  - id: stored-shapes
+    title: Match mathematical shards to stored weight orientation
+    visual: The article H8/I16 tensor shapes transpose into actual PyTorch storage without changing channel
+      ownership.
+    beats:
+      - say: "The article’s larger MLP uses hidden width eight, intermediate width sixteen and four tensor shards. In
+          mathematical input-times-weight notation, each up shard is eight by four and each down shard is four
+          by eight. The source stores linear weights as output features by input features: four by eight, then
+          eight by four. The transpose preserves the same ownership."
+        hold: 0.7
+        visual_cues:
+          - id: mg-stored-shapes-b0
+            phrase: "The article’s larger MLP uses hidden width eight, intermediate width sixteen and four tensor shards.
+              In mathematical input-times-weight notation, each up shard is eight by four and each down shard
+              is four by eight. The source stores linear weights as output features by input features: four by
+              eight, then eight by four. The transpose preserves the same ownership."
+            targets:
+              - mg-stored-shapes-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-storage-transpose
+            phrase: four by eight, then eight by four.
+            targets:
+              - mg-stored-shapes-mechanism
+            color: yellow
+            linger: 0.3
+      - say: The article’s standard-library tanh approximation to GeLU computes the serial eight-coordinate output,
+          then sums four sharded partial vectors. Their maximum difference stays below ten to the minus twelve
+          for that supplied calculation. This checks CPU decomposition with biases, dropout, sequence
+          parallelism and backward omitted. Fused GPU kernels have their own rounding and tolerances.
+        hold: 0.7
+        visual_cues:
+          - id: mg-stored-shapes-b1
+            phrase: The article’s standard-library tanh approximation to GeLU computes the serial eight-coordinate output,
+              then sums four sharded partial vectors. Their maximum difference stays below ten to the minus
+              twelve for that supplied calculation. This checks CPU decomposition with biases, dropout,
+              sequence parallelism and backward omitted. Fused GPU kernels have their own rounding and
+              tolerances.
+            targets:
+              - mg-stored-shapes-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-stored-output-match
+            phrase: Their maximum difference stays below ten to the minus twelve for that supplied calculation.
+            targets:
+              - mg-stored-shapes-mechanism
+            color: yellow
+            linger: 0.3
+  - id: tensor
+    title: Keep intermediate channels local until partial outputs combine
+    visual: A two-coordinate input projects to four intermediate channels split across two ranks. Local GeLU
+      produces activation shards, matching down-projection rows produce two partial outputs, and their sum
+      matches the serial MLP.
+    beats:
+      - say: >
+          Split the output channels of a feed-forward layer's first projection. Each rank receives the same
+          input but owns different intermediate channels. Our small matrices calculate the four projected
+          coordinates explicitly. The two highlighted groups are real channel shards, rather than independent
+          data examples.
+        hold: 0.6
+        visual_cues:
+          - id: tensor-beat-1-focus-1
+            phrase: Each rank receives the same input but owns different intermediate channels
+            targets:
+              - tensor-up-map-row-row-slice-rank-2-rank-2-2
+            color: cyan
+            linger: 0.65
+          - id: tensor-project-coordinates
+            phrase: Our small matrices calculate the four projected coordinates explicitly
+            targets:
+              - tensor-up-map-row-row-slice-rank-2-rank-2-2
+              - tensor-projected-coordinates
+            color: yellow
+            linger: 0.5
+      - say: >
+          Apply GeLU separately to each local coordinate. An elementwise function needs no neighboring channel
+          values, so these shards can remain local. The following projection owns matching rows. Each rank
+          turns its local activation slice into a partial contribution to the final output vector.
+        hold: 0.6
+        visual_cues:
+          - id: tensor-local-gelu
+            phrase: Apply GeLU separately to each local coordinate
+            targets:
+              - tensor-projected-coordinates
+              - tensor-local-activations
+            color: cyan
+            linger: 0.5
+          - id: tensor-matching-down-rows
+            phrase: The following projection owns matching rows
+            targets:
+              - tensor-down-shards
+            color: yellow
+            linger: 0.5
+          - id: tensor-build-partials
+            phrase: Each rank turns its local activation slice into a partial contribution to the final output vector
+            targets:
+              - tensor-local-activations
+              - tensor-down-shards
+              - tensor-partial-vectors
+            color: green
+            linger: 0.5
+      - say: >
+          Sum the partial output vectors and compare with the serial calculation. They agree within numerical
+          precision. This column-then-row structure avoids gathering intermediate channels between the
+          projections. Other communication appears in backward or sequence-parallel variants, and a final
+          output bias belongs after the partial sums combine.
+        hold: 0.6
+        visual_cues:
+          - id: tensor-sum-output
+            phrase: Sum the partial output vectors and compare with the serial calculation
+            targets:
+              - tensor-partial-vectors
+              - tensor-summed-output
+            color: green
+            linger: 0.5
+          - id: tensor-serial-match
+            phrase: They agree within numerical precision
+            targets:
+              - tensor-summed-output
+              - tensor-serial-reference
+            color: green
+            linger: 0.45
+  - id: backward-bias
+    title: Reduce input gradients and add output bias once
+    visual: Two partial outputs first sum; one shared bias is added after reduction, with a visible duplicate-bias
+      failure.
+    beats:
+      - say: In the forward pass the ranks added their partial outputs. Now trace the arrows back
+          toward the input. Each column shard contributes to the gradient of that same input, so
+          those input-gradient contributions must combine. With sequence parallelism,
+          reduce-scatter and all-gather can take the place of some replicated reductions.
+        hold: 0.7
+        visual_cues:
+          - id: mg-backward-bias-b0
+            phrase: In the forward pass the ranks added their partial outputs. Now trace the arrows back
+              toward the input. Each column shard contributes to the gradient of that same input,
+              so those input-gradient contributions must combine. With sequence parallelism,
+              reduce-scatter and all-gather can take the place of some replicated reductions.
+            targets:
+              - mg-backward-bias-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-backward-sum
+            phrase: those input-gradient contributions must combine.
+            targets:
+              - mg-backward-bias-mechanism
+            color: yellow
+            linger: 0.3
+      - say: "The two shards return one and two. They share one output bias of three. Sum the partials and add the bias once. That gives six. Add the bias on both shards and the sum jumps to nine. The extra three is a second copy of the bias. For attention, check that the query heads and key/value groups divide across the tensor ranks, or use a supported replication scheme."
+        caption_starts:
+          - "That gives six"
+          - "the sum jumps to nine"
+        hold: 0.7
+        visual_cues:
+          - id: mg-backward-bias-b1
+            phrase: "The two shards return one and two. They share one output bias of three. Sum the partials and add the bias once. That gives six. Add the bias on both shards and the sum jumps to nine. The extra three is a second copy of the bias. For attention, check that the query heads and key/value groups divide across the tensor ranks, or use a supported replication scheme."
+            targets:
+              - mg-backward-bias-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-bias-six
+            phrase: "That gives six"
+            targets:
+              - mg-backward-bias-mechanism
+            color: yellow
+            linger: 0.3
+          - id: mg-bias-nine
+            phrase: the sum jumps to nine
+            targets:
+              - mg-backward-bias-mechanism
+            color: yellow
+            linger: 0.3
+  - id: pipeline
+    title: How much work reaches each pipeline?
+    visual: >-
+      Numbered microbatches move through two stage lanes. Two fixed-scale schedules keep the same
+      64 examples and two examples per microbatch. Each train of microbatches has an idle cell at
+      either end. The shorter run ends at its own fifth tick.
+    beats:
+      - say: >-
+          One pair of examples enters the early layers. Treat the pair as one microbatch. The late layers
+          have to wait for its activation. One tick later, they take the pair and the early layers have
+          nothing left to do. Those two empty slots are the pipeline bubble.
+        hold: 0.8
+        visual_cues:
+          - id: pipe-first-stage
+            phrase: "enters the early layers"
+            targets: [first-wave]
+            linger: 0.3
+            caption_boundary: true
+          - id: pipe-handoff
+            phrase: "One tick later, they take the pair"
+            targets: [first-wave]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          Now share sixty-four examples among four data replicas. Each gets sixteen examples, or eight
+          pairs. Follow the numbers on one replica. As the late layers take pair one, the early layers
+          start pair two. Counting across both stages, two of eighteen slots are idle. That's one ninth.
+        hold: 1
+        visual_cues:
+          - id: pipe-eight-pairs
+            phrase: "eight pairs"
+            targets: [four-replicas]
+            linger: 0.3
+            caption_boundary: true
+          - id: pipe-eight-wave
+            phrase: "As the late layers take pair one, the early layers start pair two"
+            targets: [four-replicas]
+            linger: 0.3
+            caption_boundary: true
+          - id: pipe-eight-idle
+            phrase: "two of eighteen slots are idle"
+            targets: [four-replicas]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          Keep the sixty-four examples and the pair size. Double the number of data replicas to eight.
+          Look at the empty schedule below the first one. How many pairs will reach each replica now, and
+          what fraction of its stage slots will be idle?
+        hold: 2.6
+        visual_cues:
+          - id: pipe-change-dp
+            phrase: "Double the number of data replicas to eight"
+            targets: [eight-replicas]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          Each replica gets eight examples, so only four pairs go through. The last pair leaves after
+          five ticks. Two of ten slots are idle. One fifth of the slots now sit idle, up from one ninth,
+          even though this forward wave finishes sooner. Tensor and context ranks help on the same
+          examples. Only data replicas split this batch. To learn the actual step time, include backward
+          work, stage imbalance and communication.
+        caption_starts:
+          - "One fifth of the slots"
+        hold: 1.2
+        visual_cues:
+          - id: pipe-four-pairs
+            phrase: "only four pairs go through"
+            targets: [eight-replicas]
+            linger: 0.3
+            caption_boundary: true
+          - id: pipe-short-wave
+            phrase: "The last pair leaves after five ticks"
+            targets: [eight-replicas]
+            linger: 0.3
+            caption_boundary: true
+          - id: pipe-four-idle
+            phrase: "Two of ten slots are idle"
+            targets: [eight-replicas]
+            linger: 0.3
+            caption_boundary: true
+  - id: microbatch-budget
+    title: Derive independent microbatches before predicting a bubble
+    visual: The same global examples are allocated across replicas before stage fill is constructed.
+    beats:
+      - say: Microbatches per replica equal global batch divided by the product of microbatch size and pure data
+          degree. The article’s sixty-four examples, microbatch two and data degree four give eight. At
+          sequence length two thousand forty-eight, that update contains one hundred thirty-one thousand
+          seventy-two token positions before padding and loss masks. Tensor and context copies add no
+          independent examples.
+        hold: 0.7
+        visual_cues:
+          - id: mg-microbatch-budget-b0
+            phrase: Microbatches per replica equal global batch divided by the product of microbatch size and pure data
+              degree. The article’s sixty-four examples, microbatch two and data degree four give eight. At
+              sequence length two thousand forty-eight, that update contains one hundred thirty-one thousand
+              seventy-two token positions before padding and loss masks. Tensor and context copies add no
+              independent examples.
+            targets:
+              - mg-microbatch-budget-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-micro-eight
+            phrase: give eight.
+            targets:
+              - mg-microbatch-budget-mechanism
+            color: yellow
+            linger: 0.3
+          - id: mg-token-budget
+            phrase: one hundred thirty-one thousand seventy-two token positions
+            targets:
+              - mg-microbatch-budget-mechanism
+            color: yellow
+            linger: 0.3
+      - say: For equal stages and a non-interleaved idealization, idle fraction is pipeline stages minus one, divided
+          by the quantity microbatches plus pipeline stages minus one. Bubble time relative to useful compute
+          instead divides pipeline stages minus one by microbatches. With two stages and eight microbatches
+          these are one ninth and one eighth. Different denominators describe the same idealized schedule.
+        hold: 0.7
+        visual_cues:
+          - id: mg-microbatch-budget-b1
+            phrase: For equal stages and a non-interleaved idealization, idle fraction is pipeline stages minus one,
+              divided by the quantity microbatches plus pipeline stages minus one. Bubble time relative to
+              useful compute instead divides pipeline stages minus one by microbatches. With two stages and
+              eight microbatches these are one ninth and one eighth. Different denominators describe the same
+              idealized schedule.
+            targets:
+              - mg-microbatch-budget-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-bubble-ratios
+            phrase: these are one ninth and one eighth.
+            targets:
+              - mg-microbatch-budget-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Follow microbatch zero through the early and late layers, then follow its gradient back.
+          A one-forward-one-backward schedule warms up, alternates forward and backward work, then
+          drains. Virtual pipeline chunks can fill more idle slots, at the cost of extra
+          transfers. The count assumes whole microbatches and equal stage times. If the batch
+          ramps up or packing changes the work in a microbatch, time the schedule again.
+        hold: 0.7
+        visual_cues:
+          - id: mg-microbatch-budget-b2
+            phrase: Follow microbatch zero through the early and late layers, then follow its gradient
+              back. A one-forward-one-backward schedule warms up, alternates forward and backward
+              work, then drains. Virtual pipeline chunks can fill more idle slots, at the cost of
+              extra transfers. The count assumes whole microbatches and equal stage times. If the
+              batch ramps up or packing changes the work in a microbatch, time the schedule again.
+            targets:
+              - mg-microbatch-budget-mechanism
+            color: cyan
+            linger: 0.3
+  - id: data-ownership
+    title: Shard state inside the existing data domain
+    visual: One model-parallel shard repeats across data peers; optimizer, gradient and parameter ownership change
+      in sequence.
+    beats:
+      - say: Data parallelism repeats corresponding model shards while processing independent examples. Megatron-FSDP
+          changes ownership inside that existing domain. The named strategies shard optimizer state; then
+          optimizer state and gradients; then optimizer state, gradients and parameters. Those choices add no
+          new ranks to the dense world-size product.
+        hold: 0.7
+        visual_cues:
+          - id: mg-data-ownership-b0
+            phrase: Data parallelism repeats corresponding model shards while processing independent examples.
+              Megatron-FSDP changes ownership inside that existing domain. The named strategies shard
+              optimizer state; then optimizer state and gradients; then optimizer state, gradients and
+              parameters. Those choices add no new ranks to the dense world-size product.
+            targets:
+              - mg-data-ownership-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-fsdp-owned
+            phrase: then optimizer state, gradients and parameters.
+            targets:
+              - mg-data-ownership-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Hierarchical optimizer instances can divide a synchronization domain into smaller sharding domains plus
+          outer replication. A dense parameter repeated over data and context peers can therefore have a
+          different optimizer denominator from an expert parameter. Inspect the actual parameter group,
+          context degree and instance count before applying a memory equation. Changing ownership does not by
+          itself prove a shorter update.
+        hold: 0.7
+        visual_cues:
+          - id: mg-data-ownership-b1
+            phrase: Hierarchical optimizer instances can divide a synchronization domain into smaller sharding domains
+              plus outer replication. A dense parameter repeated over data and context peers can therefore
+              have a different optimizer denominator from an expert parameter. Inspect the actual parameter
+              group, context degree and instance count before applying a memory equation. Changing ownership
+              does not by itself prove a shorter update.
+            targets:
+              - mg-data-ownership-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-optimizer-domains
+            phrase: smaller sharding domains plus outer replication.
+            targets:
+              - mg-data-ownership-mechanism
+            color: yellow
+            linger: 0.3
+  - id: context
+    title: Which keys can the query at six read?
+    visual: >-
+      Eight positions stay fixed across two context peers. The query owns four local values. Three
+      remote values cross into their matching global columns. A fourth lies beyond the query and
+      stays behind the causal boundary. The running sum and count change on arrival.
+    beats:
+      - say: >-
+          Put a query at position six. It can look back and include itself. We've placed the keys on
+          two workers. All allowed keys have the same score here, so each one gets an equal vote.
+          The blue values live on the query's worker. They add to twenty-one. With only those four
+          keys, its running average is five and a
+          quarter.
+        hold: 0.7
+        visual_cues:
+          - id: ctx-find-query
+            phrase: "Put a query at position six"
+            targets: [query-marker]
+            linger: 0.3
+            caption_boundary: true
+          - id: ctx-local-sum
+            phrase: "With only those four keys"
+            targets: [attention-result]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          The other worker holds four more values. One of them is ninety. Which positions should cross
+          into this query's average? Use the position numbers above the empty slots.
+        hold: 2.5
+        visual_cues:
+          - id: ctx-remote-options
+            phrase: "Which positions should cross"
+            targets: [remote-values]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          Watch the count below the line. Bring over the two at position three. Now the four at position
+          four. Finally, the two at position five. The four local keys and three
+          remote keys give twenty-nine divided by seven, about four point one four. Ninety stays out.
+          Position seven lies in the query's future.
+        hold: 1
+        visual_cues:
+          - id: ctx-receive-three
+            phrase: "Bring over the two at position three"
+            targets: [remote-values, attention-result]
+            linger: 0.3
+            caption_boundary: true
+          - id: ctx-receive-four
+            phrase: "Now the four at position four"
+            targets: [remote-values, attention-result]
+            linger: 0.3
+            caption_boundary: true
+          - id: ctx-receive-five
+            phrase: "Finally, the two at position five"
+            targets: [remote-values, attention-result]
+            linger: 0.3
+            caption_boundary: true
+          - id: ctx-full-mean
+            phrase: "twenty-nine divided by seven"
+            targets: [attention-result]
+            linger: 0.3
+            caption_boundary: true
+          - id: ctx-mask
+            phrase: "Position seven lies in the query's future"
+            targets: [future-value]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          If each worker sent just its average and you gave each worker half the vote, you'd get about
+          three point nine six. Look at the four blue positions and the three pink ones. With equal
+          scores, the local mean needs four sevenths of the vote and the remote mean needs three
+          sevenths. With unequal scores, use the softmax normalization mass of each part. Context
+          parallelism changes where the keys live. Their global positions still determine which ones this
+          query can read.
+        hold: 1
+        visual_cues:
+          - id: ctx-equal-peers
+            phrase: "half the vote"
+            targets: [mean-comparison]
+            linger: 0.3
+            caption_boundary: true
+          - id: ctx-masses
+            phrase: "four sevenths of the vote and the remote mean needs three sevenths"
+            targets: [mean-comparison]
+            linger: 0.3
+            caption_boundary: true
+  - id: sequence-role
+    title: Separate sequence-parallel activation work from remote attention
+    visual: The same token positions alternate between TP activation shards and CP context ownership; no fake
+      independent examples appear.
+    beats:
+      - say: Sequence parallelism reuses tensor peers for selected sequence-dimension activation work such as
+          LayerNorm and dropout. It adds no world-size factor. Context parallelism adds sequence-owning peers,
+          while attention still consumes remote legal keys and values. Balanced implementations may assign
+          noncontiguous chunks so that causal work is more even than a simple early-half, late-half split.
+        hold: 0.7
+        visual_cues:
+          - id: mg-sequence-role-b0
+            phrase: Sequence parallelism reuses tensor peers for selected sequence-dimension activation work such as
+              LayerNorm and dropout. It adds no world-size factor. Context parallelism adds sequence-owning
+              peers, while attention still consumes remote legal keys and values. Balanced implementations may
+              assign noncontiguous chunks so that causal work is more even than a simple early-half, late-half
+              split.
+            targets:
+              - mg-sequence-role-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-sp-chunks
+            phrase: It adds no world-size factor.
+            targets:
+              - mg-sequence-role-mechanism
+            color: yellow
+            linger: 0.3
+          - id: mg-cp-remote
+            phrase: attention still consumes remote legal keys and values.
+            targets:
+              - mg-sequence-role-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Megatron recommends sequence parallelism with tensor parallelism. Its supported
+          combination of tensor and expert parallelism requires it when both degrees exceed one.
+          For context parallelism, the keys can travel by point-to-point exchange, all-gather,
+          all-to-all or a hierarchy of links. The guide suggests trying it on sequences of eight
+          thousand tokens or more. Measure the exchange at your sequence length and check the
+          supported shapes if the context degree changes.
+        hold: 0.7
+        visual_cues:
+          - id: mg-sequence-role-b1
+            phrase: Megatron recommends sequence parallelism with tensor parallelism. Its supported
+              combination of tensor and expert parallelism requires it when both degrees exceed
+              one. For context parallelism, the keys can travel by point-to-point exchange,
+              all-gather, all-to-all or a hierarchy of links. The guide suggests trying it on
+              sequences of eight thousand tokens or more. Measure the exchange at your sequence
+              length and check the supported shapes if the context degree changes.
+            targets:
+              - mg-sequence-role-mechanism
+            color: cyan
+            linger: 0.3
+  - id: experts
+    title: How do expert ranks share a layer?
+    visual: Token T3 dispatches to two selected experts and combines their outputs using unequal router weights. A
+      second view calculates attention and folded expert factorizations of the same two-hundred-fifty-six-rank
+      world.
+    beats:
+      - say: >-
+          The router sends token T-three to two experts on different ranks. Expert two returns two
+          in the first coordinate. Expert seven returns four in the second. The router gives the
+          blue branch three quarters of the weight and the pink branch one quarter. What vector
+          goes back to T-three?
+        caption_starts:
+          - "What vector goes back to T-three"
+        hold: 2.2
+        visual_cues:
+          - id: experts-beat-1-focus-1
+            phrase: The router sends token T-three
+            targets:
+              - experts-source-token-t3
+            color: cyan
+            linger: 0.65
+          - id: experts-beat-1-focus-2
+            phrase: to two experts on different ranks
+            targets:
+              - experts-expert-2-2-0
+            color: yellow
+            linger: 0.65
+      - say: >-
+          Take three quarters of the blue two. One and a half goes in the first coordinate.
+          Take one quarter of the pink four. One goes in the second coordinate.
+          Add those contributions at the original position of T-three.
+          Now route eight tokens. Each still picks two experts. Watch how often expert two gets
+          picked as the routes change. All eight tokens now need that one expert.
+        caption_starts:
+          - "One and a half goes in the first coordinate"
+          - "Take one quarter of the pink four"
+          - "One goes in the second coordinate"
+          - "All eight tokens"
+        hold: 0.6
+        visual_cues:
+          - id: experts-weighted-combination
+            phrase: Take three quarters of the blue two. One and a half goes in the first coordinate
+            targets:
+              - experts-blue-weight
+              - experts-expert-2-2-0
+              - experts-weighted-result
+            color: green
+            linger: 0.5
+          - id: experts-second-contribution
+            phrase: Take one quarter of the pink four. One goes in the second coordinate
+            targets: [experts-pink-weight, experts-expert-7, experts-weighted-result]
+            color: pink
+            linger: 0.3
+          - id: experts-batch
+            phrase: Now route eight tokens
+            targets: [experts-skew-population]
+            color: yellow
+            linger: 0.3
+            caption_boundary: true
+          - id: experts-skew-assignments
+            phrase: Watch how often expert two gets picked as the routes change
+            targets:
+              - experts-skew-population
+              - experts-derived-load
+            color: pink
+            linger: 0.5
+      - say: >-
+          Both grids use the same two hundred fifty-six workers. Attention splits its projection
+          matrices four ways. On the expert grid, each expert keeps its matrix in one piece, and sixty-four
+          ranks share the experts within a pipeline stage. This is parallel folding. The two
+          layouts must agree on the pipeline stages and support the routes for each token and the
+          checkpoint mapping.
+        hold: 0.6
+        visual_cues:
+          - id: experts-same-rank-world
+            phrase: Both grids use the same two hundred fifty-six workers
+            targets:
+              - experts-attention-world
+              - experts-folded-world
+            color: cyan
+            linger: 0.5
+          - id: experts-folded-ownership
+            phrase: each expert keeps its matrix in one piece
+            targets:
+              - experts-folded-world
+            color: pink
+            linger: 0.5
+  - id: expert-capacity
+    title: Keep assignments, capacity and token identity separate
+    visual: Eight persistent tokens retain two assignments each while a skewed expert queue grows; a dropped
+      assignment does not erase the source token.
+    beats:
+      - say: Two selected experts create two assignments per token. Permutation groups those assignment rows for
+          expert execution; combine restores each source position with its router weights. Capacity dropping
+          may remove an overflowing assignment, while a dropless dispatcher retains uneven work. The source
+          token can still have other selected or residual paths. Count assignments and affected tokens
+          separately.
+        hold: 0.7
+        visual_cues:
+          - id: mg-expert-capacity-b0
+            phrase: Two selected experts create two assignments per token. Permutation groups those assignment rows for
+              expert execution; combine restores each source position with its router weights. Capacity
+              dropping may remove an overflowing assignment, while a dropless dispatcher retains uneven work.
+              The source token can still have other selected or residual paths. Count assignments and affected
+              tokens separately.
+            targets:
+              - mg-expert-capacity-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-drop-assignment
+            phrase: Capacity dropping may remove an overflowing assignment
+            targets:
+              - mg-expert-capacity-mechanism
+            color: yellow
+            linger: 0.3
+      - say: A hot expert is a queue even when total tokens and total assignments stay fixed. Capacity, balancing
+          loss, grouped GEMM and overlap address different costs. Read per-expert counts alongside dispatch
+          and combine time. A small expert divided into too many tensor shards can lose efficient matrix size
+          while retaining collective cost; changing pipeline depth alone does not repair that imbalance.
+        hold: 0.7
+        visual_cues:
+          - id: mg-expert-capacity-b1
+            phrase: A hot expert is a queue even when total tokens and total assignments stay fixed. Capacity, balancing
+              loss, grouped GEMM and overlap address different costs. Read per-expert counts alongside
+              dispatch and combine time. A small expert divided into too many tensor shards can lose efficient
+              matrix size while retaining collective cost; changing pipeline depth alone does not repair that
+              imbalance.
+            targets:
+              - mg-expert-capacity-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-hot-expert
+            phrase: A hot expert is a queue even when total tokens and total assignments stay fixed.
+            targets:
+              - mg-expert-capacity-mechanism
+            color: yellow
+            linger: 0.3
+  - id: folded-grid
+    title: Refactor the same ranks into an expert grid
+    visual: Attention and expert coordinates regroup one fixed population rather than spawning another world.
+    beats:
+      - say: "The article’s attention grid uses tensor four, context two, data eight and pipeline four: two hundred
+          fifty-six ranks. Its expert grid uses expert tensor one, expert sixty-four, expert data one and
+          pipeline four: the same two hundred fifty-six. Expert data means copies of a given expert shard. It
+          need not equal attention’s data degree."
+        hold: 0.7
+        visual_cues:
+          - id: mg-folded-grid-b0
+            phrase: "The article’s attention grid uses tensor four, context two, data eight and pipeline four: two hundred
+              fifty-six ranks. Its expert grid uses expert tensor one, expert sixty-four, expert data one and
+              pipeline four: the same two hundred fifty-six. Expert data means copies of a given expert shard.
+              It need not equal attention’s data degree."
+            targets:
+              - mg-folded-grid-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-folded-population
+            phrase: the same two hundred fifty-six.
+            targets:
+              - mg-folded-grid-mechanism
+            color: yellow
+            linger: 0.3
+      - say: The pinned implementation constructs separate dense and expert rank generators, with context one in the
+          expert generator. Their pipeline groups must match. Folding can break the older
+          expert-degree-at-most-data-degree constraint, but a correct product is only a first check. Expert
+          count, tensor shapes, routing metadata, checkpoint keys and physical placement must also be
+          compatible.
+        hold: 0.7
+        visual_cues:
+          - id: mg-folded-grid-b1
+            phrase: The pinned implementation constructs separate dense and expert rank generators, with context one in
+              the expert generator. Their pipeline groups must match. Folding can break the older
+              expert-degree-at-most-data-degree constraint, but a correct product is only a first check.
+              Expert count, tensor shapes, routing metadata, checkpoint keys and physical placement must also
+              be compatible.
+            targets:
+              - mg-folded-grid-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-matched-pipeline
+            phrase: Their pipeline groups must match.
+            targets:
+              - mg-folded-grid-mechanism
+            color: yellow
+            linger: 0.3
+  - id: optimizer
+    title: The state denominator is the actual sharding group
+    visual: A conventional BF16/FP32 ledger keeps six replicated bytes and partitions twelve optimizer bytes.
+      Group sizes two, four and eight change the allocation strip and per-parameter total; a separate
+      token-weighting case exposes unequal local sample support.
+    beats:
+      - say: >
+          Computation ownership and optimizer storage are related choices. In this conventional recipe, model
+          and gradient buffers retain six bytes per assigned parameter. Twelve further bytes belong to the
+          master weight and Adam moments. A distributed optimizer partitions that second block across its
+          actual sharding group.
+        hold: 0.6
+        visual_cues:
+          - id: mg-optimizer-first-total
+            phrase: A distributed optimizer partitions that second block across its actual sharding group
+            targets:
+              - optimizer-id-replicated-label-bf16-parameters-fp32-main-gradients-value-s-repl
+            color: green
+            linger: 0.45
+          - id: optimizer-beat-1-focus-1
+            phrase: Twelve further bytes belong to the master weight and Adam moments
+            targets:
+              - optimizer-id-replicated-label-bf16-parameters-fp32-main-gradients-value-s-repl
+            color: cyan
+            linger: 0.65
+      - say: >
+          Increase the group size and watch the optimizer-owned share shrink. Dense weights can repeat across
+          context peers as well as data peers, so the group may be larger than the pure data degree.
+          Activations and temporary buffers remain outside this persistent-state formula.
+        hold: 0.6
+        visual_cues:
+          - id: mg-optimizer-increased-total
+            phrase: Increase the group size and watch the optimizer-owned share shrink
+            targets:
+              - optimizer-id-replicated-label-bf16-parameters-fp32-main-gradients-value-s-repl
+            color: green
+            linger: 0.45
+          - id: optimizer-beat-2-focus-1
+            phrase: Dense weights can repeat across context peers as well as data peers
+            targets:
+              - optimizer-id-replicated-label-bf16-parameters-fp32-main-gradients-value-s-repl
+            color: cyan
+            linger: 0.65
+      - say: >
+          Reduction must also preserve the intended objective. One replica averages one valid token while
+          another averages three. An equal average of those local means gives a different gradient from the
+          global token mean. A correct collective and equal tensor shapes cannot detect a wrongly weighted
+          loss.
+        hold: 0.7
+        visual_cues:
+          - id: optimizer-beat-3-focus-1
+            phrase: One replica averages one valid token while another averages three
+            targets:
+              - optimizer-replica-token-gradients
+            color: cyan
+            linger: 0.65
+          - id: optimizer-beat-3-focus-2
+            phrase: An equal average of those local means gives a different gradient from the global token mean
+            targets:
+              - optimizer-math-ext-rank-mean-rac-2-qquad-ext-token-mean-rac
+            color: yellow
+            linger: 0.65
+  - id: objective-weighting
+    title: How much should each replica contribute?
+    visual: The original unequal-token failure extends into an explicit global objective and an equal-weight SGD
+      update.
+    beats:
+      - say: The blue replica has one valid token with gradient ten. The pink replica has three, each
+          with gradient zero. Count the four tokens together. Ten divided by four gives two point
+          five. Giving each replica half the vote would give five. When context peers hold pieces
+          of one sample, count each valid token once.
+        caption_starts:
+          - "Ten divided by four"
+          - "Giving each replica half the vote"
+        hold: 0.7
+        visual_cues:
+          - id: mg-objective-weighting-b0
+            phrase: The blue replica has one valid token with gradient ten. The pink replica has three,
+              each with gradient zero. Count the four tokens together. Ten divided by four gives
+              two point five. Giving each replica half the vote would give five. When context
+              peers hold pieces of one sample, count each valid token once.
+            targets:
+              - mg-objective-weighting-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-objective-normalize
+            phrase: Ten divided by four gives two point five
+            targets:
+              - mg-objective-weighting-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Now give two replicas equal weight and follow the first column. Their gradients are one
+          and three. The mean is two. With a learning rate of one tenth, the weight moves from one
+          to point eight. Each owner runs that same SGD update on its slice. Join the slices and
+          the four weights are point eight, one point six, two point four and three point two.
+        hold: 0.7
+        visual_cues:
+          - id: mg-objective-weighting-b1
+            phrase: Now give two replicas equal weight and follow the first column. Their gradients are
+              one and three. The mean is two. With a learning rate of one tenth, the weight moves
+              from one to point eight. Each owner runs that same SGD update on its slice. Join the
+              slices and the four weights are point eight, one point six, two point four and three
+              point two.
+            targets:
+              - mg-objective-weighting-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-sgd-updated
+            phrase: point eight, one point six, two point four and three point two
+            targets:
+              - mg-objective-weighting-mechanism
+            color: yellow
+            linger: 0.3
+  - id: optimizer-step
+    title: Follow the owned gradient through update and gather
+    visual: A complete four-position buffer is reduce-scattered, updated on two owners and rebuilt for the next
+      forward.
+    beats:
+      - say: Begin with complete local gradient buffers. Reduce-scatter combines corresponding contributions and
+          returns an owned reduced slice. Each owner updates its FP thirty-two main parameters and optimizer
+          moments. It casts the updated model slice to the recipe’s model dtype, then all-gather rebuilds the
+          model-parameter buffer needed by the next forward. Scaling must match the declared objective.
+        hold: 0.7
+        visual_cues:
+          - id: mg-optimizer-step-b0
+            phrase: Begin with complete local gradient buffers. Reduce-scatter combines corresponding contributions and
+              returns an owned reduced slice. Each owner updates its FP thirty-two main parameters and
+              optimizer moments. It casts the updated model slice to the recipe’s model dtype, then all-gather
+              rebuilds the model-parameter buffer needed by the next forward. Scaling must match the declared
+              objective.
+            targets:
+              - mg-optimizer-step-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-reduce-scatter
+            phrase: returns an owned reduced slice.
+            targets:
+              - mg-optimizer-step-mechanism
+            color: yellow
+            linger: 0.3
+          - id: mg-all-gather
+            phrase: all-gather rebuilds the model-parameter buffer needed by the next forward.
+            targets:
+              - mg-optimizer-step-mechanism
+            color: yellow
+            linger: 0.3
+      - say: For the conventional BF sixteen parameter and FP thirty-two main-gradient recipe, two plus four bytes
+          remain replicated. Four bytes for the master parameter and eight for two Adam moments are shardable.
+          Persistent bytes per assigned parameter are six plus twelve divided by the actual sharding degree.
+          One decimal gigabyte is one billion bytes. At data four and context two, one optimizer instance
+          gives degree eight and seven point five bytes. Activations and temporary peaks remain additional.
+        hold: 0.7
+        visual_cues:
+          - id: mg-optimizer-step-b1
+            phrase: For the conventional BF sixteen parameter and FP thirty-two main-gradient recipe, two plus four bytes
+              remain replicated. Four bytes for the master parameter and eight for two Adam moments are
+              shardable. Persistent bytes per assigned parameter are six plus twelve divided by the actual
+              sharding degree. One decimal gigabyte is one billion bytes. At data four and context two, one
+              optimizer instance gives degree eight and seven point five bytes. Activations and temporary
+              peaks remain additional.
+            targets:
+              - mg-optimizer-step-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-seven-half-bytes
+            phrase: degree eight and seven point five bytes.
+            targets:
+              - mg-optimizer-step-mechanism
+            color: yellow
+            linger: 0.3
+  - id: recovery
+    title: Which columns are still missing?
+    visual: >-
+      The opening's two layouts return. Old tensor rank two is late. Its global columns stay empty
+      while rank three's gold value remains at six. The two delayed values land at their saved
+      offsets. The single-column probe runs again after completion.
+    beats:
+      - say: >-
+          Here is the opening row again. This time only three saved shards have arrived. You can still
+          read the gold weight and double it to get three. Before publishing this checkpoint, find the
+          two global columns the new reader is missing.
+        hold: 2.3
+        visual_cues:
+          - id: recover-probe
+            phrase: "read the gold weight"
+            targets: [tracked-weight]
+            linger: 0.3
+            caption_boundary: true
+          - id: recover-gap
+            phrase: "find the two global columns"
+            targets: [new-ranges]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          Four and five are empty. Saved rank three has already delivered columns six and seven. If you
+          simply joined the files that arrived, the gold weight would slide into column four. Keep the
+          gap. Here comes the file from saved rank two. Its metadata places both values back at their
+          global offsets.
+        hold: 1.1
+        visual_cues:
+          - id: recover-offsets
+            phrase: "Four and five are empty"
+            targets: [missing-file]
+            linger: 0.3
+            caption_boundary: true
+          - id: recover-fill
+            phrase: "Its metadata places both values back at their global offsets"
+            targets: [missing-file]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          All eight values are in place. Once the required files and metadata are complete, check that
+          the format supports the requested change. On this row, replay the opening input. Both layouts
+          give three. To test a training restart, take one more step from the saved example and compare
+          the updated weight with an uninterrupted run.
+        hold: 0.9
+        visual_cues:
+          - id: recover-fixed-probe
+            phrase: "replay the opening input"
+            targets: [probe]
+            linger: 0.3
+            caption_boundary: true
+          - id: recover-fixed-score
+            phrase: "Both layouts give three"
+            targets: [probe]
+            linger: 0.3
+            caption_boundary: true
+  - id: resume-state
+    title: What moves the weight on the next step?
+    visual: >-
+      Two copies of the same saved weight start at the same mark. The saved momentum contributes
+      to one update and disappears from the other. Two markers on one scale preserve the size and
+      direction of each step.
+    beats:
+      - say: >-
+          Try a small momentum example before going back to the gold weight. Both copies start at two.
+          Both see a gradient of one. The first copy restores its saved velocity of point four. The
+          second reloads just the weight and starts its velocity at zero. Which copy will take the longer
+          step?
+        hold: 2.2
+        visual_cues:
+          - id: resume-old-motion
+            phrase: "saved velocity of point four"
+            targets: [reference-lane]
+            linger: 0.3
+            caption_boundary: true
+          - id: resume-zero-motion
+            phrase: "starts its velocity at zero"
+            targets: [candidate-lane]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          Keep half of the old velocity and add the gradient. The first copy carries point two into this
+          step, so its new velocity is one point two. Subtract a tenth of that from two and the weight
+          reaches one point eight eight. The second carries zero. It steps down by a tenth to one point
+          nine. Both gave the same forward result before this step. A real restart also needs the
+          iteration, scheduler, random state and position in the data stream.
+        hold: 1.1
+        visual_cues:
+          - id: resume-full-step
+            phrase: "the weight reaches one point eight eight"
+            targets: [reference-lane]
+            linger: 0.3
+            caption_boundary: true
+          - id: resume-reset-step
+            phrase: "It steps down by a tenth to one point nine"
+            targets: [candidate-lane]
+            linger: 0.3
+            caption_boundary: true
+  - id: checkpoint-formats
+    title: Check each recovery component against the requested migration
+    visual: Global tensor positions, optimizer representation and data-stream state have separate compatibility
+      outcomes.
+    beats:
+      - say: The versioned optimizer API distinguishes a buffer-based data-parallel-reshardable representation from a
+          parameter-shaped fully-reshardable representation. The first permits its documented data-axis
+          changes; its name does not grant a tensor-degree change. Model architecture and the requested
+          checkpoint format still bound what a full job can migrate.
+        hold: 0.7
+        visual_cues:
+          - id: mg-checkpoint-formats-b0
+            phrase: The versioned optimizer API distinguishes a buffer-based data-parallel-reshardable representation from
+              a parameter-shaped fully-reshardable representation. The first permits its documented data-axis
+              changes; its name does not grant a tensor-degree change. Model architecture and the requested
+              checkpoint format still bound what a full job can migrate.
+            targets:
+              - mg-checkpoint-formats-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-format-dp
+            phrase: The first permits its documented data-axis changes
+            targets:
+              - mg-checkpoint-formats-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Bridge’s current Energon contract keys stream state by pure data rank. Context peers share that stream
+          file. If the selected saved-state directory exists but the new rank’s file is missing, restoration
+          raises instead of silently changing order. A completely absent state root has a different documented
+          restart-from-beginning behavior. Check the actual selected checkpoint and data cursor rather than
+          inferring them from a weight manifest.
+        hold: 0.7
+        visual_cues:
+          - id: mg-checkpoint-formats-b1
+            phrase: Bridge’s current Energon contract keys stream state by pure data rank. Context peers share that stream
+              file. If the selected saved-state directory exists but the new rank’s file is missing,
+              restoration raises instead of silently changing order. A completely absent state root has a
+              different documented restart-from-beginning behavior. Check the actual selected checkpoint and
+              data cursor rather than inferring them from a weight manifest.
+            targets:
+              - mg-checkpoint-formats-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-missing-cursor
+            phrase: restoration raises instead of silently changing order.
+            targets:
+              - mg-checkpoint-formats-mechanism
+            color: yellow
+            linger: 0.3
+          - id: mg-absent-cursor
+            phrase: restart-from-beginning behavior.
+            targets:
+              - mg-checkpoint-formats-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Three shards have finished writing. The last writer is still busy. Publish the
+          checkpoint once all required shards and their metadata are complete. Use checksums to
+          catch damaged bytes and the saved run configuration to check the new layout. Load
+          checkpoints from a trusted source. Converting the model weights gives you a model to
+          run. To continue training, restore its optimizer and data stream as well.
+        hold: 0.7
+        visual_cues:
+          - id: mg-checkpoint-formats-b2
+            phrase: Three shards have finished writing. The last writer is still busy. Publish the
+              checkpoint once all required shards and their metadata are complete. Use checksums
+              to catch damaged bytes and the saved run configuration to check the new layout. Load
+              checkpoints from a trusted source. Converting the model weights gives you a model to
+              run. To continue training, restore its optimizer and data stream as well.
+            targets:
+              - mg-checkpoint-formats-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-save-complete
+            phrase: all required shards and their metadata are complete
+            targets:
+              - mg-checkpoint-formats-mechanism
+            color: yellow
+            linger: 0.3
+  - id: precision-recipes
+    title: Choosing a precision recipe
+    visual: An outlier raises the current maximum from four to thirty-two. The next picture groups
+      operands into blocks of thirty-two, each with its own scale.
+    beats:
+      - say: The largest magnitude in the previous tensor was four. Look at the last value in this
+          one. It jumps to thirty-two. With delayed scaling, Transformer Engine uses the preceding
+          history to choose a scale. Current scaling uses the largest magnitude in this tensor, so
+          it sees the jump immediately. The recipe also specifies the supported operations,
+          hardware and accumulation precision.
+        hold: 0.7
+        visual_cues:
+          - id: mg-precision-recipes-b0
+            phrase: The largest magnitude in the previous tensor was four. Look at the last value in
+              this one. It jumps to thirty-two. With delayed scaling, Transformer Engine uses the
+              preceding history to choose a scale. Current scaling uses the largest magnitude in
+              this tensor, so it sees the jump immediately. The recipe also specifies the
+              supported operations, hardware and accumulation precision.
+            targets:
+              - mg-precision-recipes-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-current-amax
+            phrase: Current scaling uses the largest magnitude in this tensor
+            targets:
+              - mg-precision-recipes-mechanism
+            color: yellow
+            linger: 0.3
+      - say: MXFP eight uses a scale per thirty-two-value block. Each blue group gets its own scale.
+          NVFP four uses smaller blocks and adds training safeguards. Both rely on compatible
+          hardware and kernels. For memory planning, count the master weights, gradients and Adam
+          moments at the precision the optimizer actually stores.
+        hold: 0.7
+        visual_cues:
+          - id: mg-precision-recipes-b1
+            phrase: MXFP eight uses a scale per thirty-two-value block. Each blue group gets its own
+              scale. NVFP four uses smaller blocks and adds training safeguards. Both rely on
+              compatible hardware and kernels. For memory planning, count the master weights,
+              gradients and Adam moments at the precision the optimizer actually stores.
+            targets:
+              - mg-precision-recipes-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-block-scales
+            phrase: a scale per thirty-two-value block
+            targets:
+              - mg-precision-recipes-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Keep the BF sixteen result for a fixed batch. Compare the candidate’s logits, loss and
+          gradients or its next update against that reference, using the tolerance for the recipe.
+          Then check a validation slice and reload the checkpoint. Run the same workload on the
+          target GPUs to measure the speed of a recipe that passes.
+        hold: 0.7
+        visual_cues:
+          - id: mg-precision-recipes-b2
+            phrase: Keep the BF sixteen result for a fixed batch. Compare the candidate’s logits, loss
+              and gradients or its next update against that reference, using the tolerance for the
+              recipe. Then check a validation slice and reload the checkpoint. Run the same
+              workload on the target GPUs to measure the speed of a recipe that passes.
+            targets:
+              - mg-precision-recipes-mechanism
+            color: cyan
+            linger: 0.3
+  - id: mfu-receipt
+    title: Which operations count toward model FLOPs utilization?
+    visual: Useful model work and extra recomputation occupy distinct ledgers over the same elapsed interval.
+    beats:
+      - say: Model FLOPs utilization divides useful model FLOPs per second by the selected hardware peak. Useful model
+          arithmetic excludes extra activation recomputation. A hardware-work numerator may count that
+          recomputation. For a supplied toy interval, useful work forty, extra recomputation ten and capacity
+          one hundred give model utilization forty percent and hardware-work utilization fifty percent.
+        hold: 0.7
+        visual_cues:
+          - id: mg-mfu-receipt-b0
+            phrase: Model FLOPs utilization divides useful model FLOPs per second by the selected hardware peak. Useful
+              model arithmetic excludes extra activation recomputation. A hardware-work numerator may count
+              that recomputation. For a supplied toy interval, useful work forty, extra recomputation ten and
+              capacity one hundred give model utilization forty percent and hardware-work utilization fifty
+              percent.
+            targets:
+              - mg-mfu-receipt-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-mfu-forty-fifty
+            phrase: model utilization forty percent and hardware-work utilization fifty percent.
+            targets:
+              - mg-mfu-receipt-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Megatron’s H one hundred study fixed the batch at one thousand one hundred fifty-two
+          sequences and spread it over more GPUs. At ninety-six GPUs the team reported forty-seven
+          percent model FLOPs utilization. At four thousand six hundred eight GPUs it reported
+          forty-two percent. The team measured scaling with a fixed vocabulary, sequence length
+          and overlap configuration. For a comparable ratio, use the same FLOP convention and
+          precision peak. To assess learning, track validation loss over training.
+        hold: 0.7
+        visual_cues:
+          - id: mg-mfu-receipt-b1
+            phrase: Megatron’s H one hundred study fixed the batch at one thousand one hundred fifty-two
+              sequences and spread it over more GPUs. At ninety-six GPUs the team reported
+              forty-seven percent model FLOPs utilization. At four thousand six hundred eight GPUs
+              it reported forty-two percent. The team measured scaling with a fixed vocabulary,
+              sequence length and overlap configuration. For a comparable ratio, use the same FLOP
+              convention and precision peak. To assess learning, track validation loss over
+              training.
+            targets:
+              - mg-mfu-receipt-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-baseline-mfu
+            phrase: the team reported forty-seven percent
+            targets: [mg-mfu-receipt-mechanism]
+            color: blue
+            linger: 0.3
+            caption_boundary: true
+          - id: mg-reported-mfu
+            phrase: At four thousand six hundred eight GPUs it reported forty-two percent
+            caption_boundary: true
+            targets:
+              - mg-mfu-receipt-mechanism
+            color: yellow
+            linger: 0.3
+  - id: measured-trace
+    title: Time completed work and inspect the actual blocked edge
+    visual: The same fixed workload keeps enqueue, device completion, communication path and repeated timing
+      window distinct.
+    beats:
+      - say: Freeze global examples, token positions, loss masks, microbatch, precision and code identity before
+          comparing meshes. CUDA stream calls are asynchronous. A host timer around enqueue measures
+          submission, not necessarily completed device work. Use compatible device-event or synchronized
+          timing boundaries, warmup and repeated windows. Record memory high-water marks and the slow
+          communication tail alongside step time.
+        hold: 0.7
+        visual_cues:
+          - id: mg-measured-trace-b0
+            phrase: Freeze global examples, token positions, loss masks, microbatch, precision and code identity before
+              comparing meshes. CUDA stream calls are asynchronous. A host timer around enqueue measures
+              submission, not necessarily completed device work. Use compatible device-event or synchronized
+              timing boundaries, warmup and repeated windows. Record memory high-water marks and the slow
+              communication tail alongside step time.
+            targets:
+              - mg-measured-trace-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-completed-work
+            phrase: Use compatible device-event or synchronized timing boundaries
+            targets:
+              - mg-measured-trace-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Nsight Systems locates host gaps, streams, launches and overlapping stages. Nsight Compute examines a
+          selected kernel’s memory, arithmetic and occupancy behavior. Active warps alone do not diagnose a
+          link stall. NCCL operation time, algorithm bandwidth and bus bandwidth have different denominators;
+          keep operation, payload and rank count beside the number.
+        hold: 0.7
+        visual_cues:
+          - id: mg-measured-trace-b1
+            phrase: Nsight Systems locates host gaps, streams, launches and overlapping stages. Nsight Compute examines a
+              selected kernel’s memory, arithmetic and occupancy behavior. Active warps alone do not diagnose
+              a link stall. NCCL operation time, algorithm bandwidth and bus bandwidth have different
+              denominators; keep operation, payload and rank count beside the number.
+            targets:
+              - mg-measured-trace-mechanism
+            color: cyan
+            linger: 0.3
+      - say: If every layer slows after raising tensor degree, inspect whether those tensor peers cross a slow
+          physical link. Pipeline idle lanes suggest insufficient independent microbatches or stage imbalance.
+          Context stalls suggest remote-context exchange; expert tails suggest skew or dispatch congestion; a
+          data-state memory win can expose reduce-scatter or all-gather tails. Change one causal input and
+          keep the workload matched.
+        hold: 0.7
+        visual_cues:
+          - id: mg-measured-trace-b2
+            phrase: If every layer slows after raising tensor degree, inspect whether those tensor peers cross a slow
+              physical link. Pipeline idle lanes suggest insufficient independent microbatches or stage
+              imbalance. Context stalls suggest remote-context exchange; expert tails suggest skew or dispatch
+              congestion; a data-state memory win can expose reduce-scatter or all-gather tails. Change one
+              causal input and keep the workload matched.
+            targets:
+              - mg-measured-trace-mechanism
+            color: cyan
+            linger: 0.3
+          - id: mg-slow-link
+            phrase: those tensor peers cross a slow physical link.
+            targets:
+              - mg-measured-trace-mechanism
+            color: yellow
+            linger: 0.3
+  - id: research-ownership
+    title: Where Megatron’s parallel strategies came from
+    visual: Paired matrix cuts, scheduling and sequence-memory reductions remain attached to their research
+      contribution and implementation owner.
+    beats:
+      - say: The tensor-parallel paper pairs column and row cuts to avoid an unnecessary intermediate exchange. Later
+          cluster work composes tensor, pipeline and data parallelism with schedules. Sequence parallelism and
+          selective recomputation address activation memory and redundant work. Parallel folding gives
+          attention and experts different mappings. Use each paper to predict communication, then trace the
+          pinned code that performs it.
+        hold: 0.7
+        visual_cues:
+          - id: mg-research-ownership-b0
+            phrase: The tensor-parallel paper pairs column and row cuts to avoid an unnecessary intermediate exchange.
+              Later cluster work composes tensor, pipeline and data parallelism with schedules. Sequence
+              parallelism and selective recomputation address activation memory and redundant work. Parallel
+              folding gives attention and experts different mappings. Use each paper to predict communication,
+              then trace the pinned code that performs it.
+            targets:
+              - mg-research-ownership-mechanism
+            color: cyan
+            linger: 0.3
+      - say: NVIDIA leads the project. If you change how a layer is partitioned, discuss the design
+          with the maintainers, run the tests and sign off the contribution. When distributing the
+          code, check the repository license, file-specific terms and third-party notices. The
+          weights, tokenizer, datasets and any commercial product you use have their own terms.
+        hold: 0.7
+        visual_cues:
+          - id: mg-research-ownership-b1
+            phrase: NVIDIA leads the project. If you change how a layer is partitioned, discuss the
+              design with the maintainers, run the tests and sign off the contribution. When
+              distributing the code, check the repository license, file-specific terms and
+              third-party notices. The weights, tokenizer, datasets and any commercial product you
+              use have their own terms.
+            targets:
+              - mg-research-ownership-mechanism
+            color: cyan
+            linger: 0.3
+  - id: fit-boundary
+    title: When does training need a mesh?
+    visual: A cluster-scale training need is compared with a single-device adaptation need using explicit memory
+      and operational evidence.
+    beats:
+      - say: This stack is useful when you control a cluster and need the parallel training and recovery machinery
+          enough to manage its topology. Builders and conversion paths can support new dense, MoE, multimodal
+          or hybrid models, but each model needs compatible shapes and state mapping. Version skew and
+          combinatorial launch choices become real debugging work.
+        hold: 0.7
+        visual_cues:
+          - id: mg-fit-boundary-b0
+            phrase: This stack is useful when you control a cluster and need the parallel training and recovery machinery
+              enough to manage its topology. Builders and conversion paths can support new dense, MoE,
+              multimodal or hybrid models, but each model needs compatible shapes and state mapping. Version
+              skew and combinatorial launch choices become real debugging work.
+            targets:
+              - mg-fit-boundary-mechanism
+            color: cyan
+            linger: 0.3
+      - say: If the model already fits on one GPU, you can iterate there without coordinating a mesh.
+          When you do change the mesh, replay a fixed batch and compare its gradient or next
+          update. Check token routes and global positions where they matter. Then run a short
+          validation slice and test the restart. If a kernel shows a memory or synchronization
+          error, investigate it with Compute Sanitizer.
+        hold: 0.7
+        visual_cues:
+          - id: mg-fit-boundary-b1
+            phrase: If the model already fits on one GPU, you can iterate there without coordinating a
+              mesh. When you do change the mesh, replay a fixed batch and compare its gradient or
+              next update. Check token routes and global positions where they matter. Then run a
+              short validation slice and test the restart. If a kernel shows a memory or
+              synchronization error, investigate it with Compute Sanitizer.
+            targets:
+              - mg-fit-boundary-mechanism
+            color: cyan
+            linger: 0.3
+  - id: earned-return
+    title: Can the new mesh resume this step?
+    visual: >-
+      Column six from the opening feeds a one-weight training step. The next-example cursor and
+      the arithmetic stay in view above a common weight scale. Restoring velocity and then the
+      data cursor changes the actual input and movement on that scale.
+    beats:
+      - say: >-
+          Both runs start at the gold weight, one point five. It now lives on rank one. Every
+          other input is zero. On the saved next example, the input to column six is two. The
+          target is two. The prediction is three. For half the squared error, subtract the target
+          from the prediction and multiply by the input. Each run keeps half its old velocity and
+          uses a learning rate of one tenth. The uninterrupted run saved a velocity of point
+          eight. The restart has zero. Where will the two weights land after one step?
+        hold: 3.2
+        visual_cues:
+          - id: end-saved-example
+            phrase: "the input to column six is two"
+            targets: [stream]
+            linger: 0.3
+            caption_boundary: true
+          - id: end-probe-result
+            phrase: "The prediction is three"
+            targets: [probe-output]
+            linger: 0.3
+            caption_boundary: true
+          - id: end-gradient-rule
+            phrase: "subtract the target from the prediction and multiply by the input"
+            targets: [step-rule]
+            linger: 0.3
+            caption_boundary: true
+          - id: end-history
+            phrase: "saved a velocity of point eight"
+            targets: [reference-lane]
+            linger: 0.3
+            caption_boundary: true
+          - id: end-predict
+            phrase: "Where will the two weights land"
+            targets: [weight-scale]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          The two weights must agree within one thousandth to pass this check. Three minus two,
+          times two, gives a gradient of two. Half the saved velocity contributes another point
+          four. Move the uninterrupted weight left by point two four. One point two six is its new
+          value. With the velocity reset, the restart subtracts just point two. One point three is
+          the restarted weight. Both predicted three before the update. Their weights are now four
+          hundredths apart. Restore the missing velocity.
+        caption_starts:
+          - "One point two six is its new value"
+          - "One point three is the restarted weight"
+        hold: 1.3
+        visual_cues:
+          - id: mg-fresh-gradient
+            phrase: "gives a gradient of two"
+            targets: [step-rule]
+            linger: 0.3
+            caption_boundary: true
+          - id: mg-fresh-full
+            phrase: "Move the uninterrupted weight left by point two four. One point two six"
+            targets: [reference-lane]
+            linger: 0.3
+            caption_boundary: true
+          - id: mg-fresh-reset
+            phrase: "With the velocity reset, the restart subtracts just point two. One point three"
+            targets: [candidate-lane]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          Start again at the saved weight. This time both runs have the right velocity. Move only the
+          restart's data cursor back one example. Its input is now one and the target is still two. Will
+          the restarted weight move left or right of one point five?
+        hold: 2.8
+        visual_cues:
+          - id: mg-fresh-old-input
+            phrase: "Move only the restart's data cursor back one example"
+            targets: [stream]
+            linger: 0.3
+            caption_boundary: true
+          - id: end-direction
+            phrase: "left or right of one point five"
+            targets: [weight-scale]
+            linger: 0.3
+            caption_boundary: true
+      - say: >-
+          On the older example the prediction is one point five, below the target. Its gradient is
+          minus one half. Add the carried point four and the velocity is minus one tenth.
+          Subtract that negative step. The weight moves right. One point five one is its new value.
+          That's a quarter of a unit away from the reference. Advance to the saved example. Run that
+          step again from the same saved weight. Both marks line up. One point two six is the next
+          weight in both runs. After a reshard, comparing the next update checks the weight, the
+          optimizer history and the data position together.
+        caption_starts:
+          - "One point five one is its new value"
+          - "Both marks line up"
+          - "One point two six is the next weight in both runs"
+        hold: 1.6
+        visual_cues:
+          - id: mg-fresh-stale-result
+            phrase: "The weight moves right. One point five one"
+            targets: [candidate-lane]
+            linger: 0.3
+            caption_boundary: true
+          - id: mg-fresh-cursor-repair
+            phrase: "Advance to the saved example"
+            targets: [stream]
+            linger: 0.3
+            caption_boundary: true
+          - id: end-rerun
+            phrase: "Run that step again from the same saved weight"
+            targets: [candidate-lane]
+            linger: 0.3
+            caption_boundary: true

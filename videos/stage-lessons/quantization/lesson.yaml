@@ -1,0 +1,1742 @@
+version: 1
+id: quantization
+title: "Model Quantization: Which File Can Route the Parcel?"
+opening: lesson
+source: fundamentals/model-quantization-gptq-awq-gguf/content.md
+voice: af_heart
+scenes:
+  - id: intro
+    title: Where does this weight land?
+    visual: >-
+      A weight hangs between the only two nearby marks on a four-bit grid. Follow its snap to the
+      nearest mark, read the bits for that mark, then watch the change travel into one multiplication.
+    beats:
+      - say: >-
+          This model weight is point seven three. Our four-bit grid has a mark at every tenth.
+          Which mark is closest?
+        hold: 2.1
+        visual_cues:
+          - id: original-weight
+            phrase: "This model weight is point seven three"
+            targets: [weight-marker]
+            color: blue
+      - say: >-
+          Point seven. Count tenths from zero and that mark has code seven. We store it as four bits.
+          Reading that code gives us the nearest mark. Choosing one of those marks is quantization.
+          The distance the dot moved, three hundredths, is the rounding error.
+        hold: 0.6
+        caption_starts:
+          - "We store it as four bits"
+          - "The distance the dot moved"
+        visual_cues:
+          - id: compact-code
+            phrase: "Point seven. Count tenths"
+            targets: [weight-marker]
+            color: cyan
+            caption_boundary: true
+          - id: stored-bits
+            phrase: "We store it as four bits"
+            targets: [stored-code]
+            color: cyan
+      - say: >-
+          Multiply both weights by the same input, one and a half. The output moves from one point zero
+          nine five to one point zero five. The input multiplied the rounding error by one and a half, too.
+        hold: 0.8
+        visual_cues:
+          - id: changed-computation
+            phrase: "The output moves from one point zero nine five to one point zero five"
+            targets: [product-step]
+            color: cyan
+            caption_boundary: true
+  - id: payload
+    title: Where do the missing bytes go?
+    visual: The same fourteen weight cells retain their identities while sixteen bits become four. The cells
+      occupy a quarter of the width; a real scale strip and distinct runtime allocations then join the budget.
+    beats:
+      - say: >-
+          Now store seven billion weights. One sixteen-bit weight takes two bytes. Lay those weights
+          end to end and they fill this fourteen-gigabyte row.
+        visual_cues:
+          - id: full-weight-payload
+            phrase: fill this fourteen-gigabyte row
+            targets:
+              - full-weight-payload
+            color: blue
+          - id: weight-storage
+            phrase: two bytes
+            targets:
+              - payload-b-mathrm-payload-frac-n-b-8
+            color: yellow
+        hold: 0.5
+      - say: >-
+          Take just the codes. Watch the same cells travel into a row a quarter as wide. Each weight now
+          gets four bits. The number of weights stays fixed.
+        visual_cues:
+          - id: compact-weight-payload
+            phrase: Watch the same cells travel
+            targets:
+              - packed-weight-payload
+            color: cyan
+        hold: 0.5
+      - say: >-
+          To recover a value from a code, store scales alongside the row. Activations, workspace and
+          attention memory still need space when the model runs.
+        visual_cues:
+          - id: scale-metadata
+            phrase: store scales
+            targets:
+              - scale-metadata
+            color: yellow
+          - id: runtime-resources
+            phrase: Activations, workspace and attention memory
+            targets:
+              - runtime-memory
+            color: pink
+        hold: 0.5
+  - id: budget-inventory
+    title: Count the complete weight inventory
+    visual: >-
+      Compare four payloads for 27 billion weights on one decimal GB axis. Add the FP16 scale bytes to
+      the four-bit row. The 24 GB line marks the capacity left for other allocations.
+    beats:
+      - say: >-
+          Try a larger model with twenty-seven billion weights. Sixteen bits per weight means fifty-four
+          decimal gigabytes. At eight bits, it needs twenty-seven. At four bits, thirteen and a half. Three
+          bits brings the payload down to just over ten. Keep the unit consistent. A gigabyte is a billion
+          bytes. A gibibyte is two to the thirtieth bytes.
+        hold: 0.7
+        visual_cues:
+          - id: budget-inventory-build-0
+            phrase: Keep the unit consistent
+            targets:
+              - budget-inventory-state-0
+            color: blue
+            linger: 0.5
+          - id: budget-bits-16
+            phrase: fifty-four decimal gigabytes
+            targets:
+              - budget-inventory-state-0
+            color: blue
+            linger: 0.4
+          - id: budget-bits-8
+            phrase: At eight bits, it needs twenty-seven
+            targets:
+              - budget-inventory-state-0
+            color: cyan
+            linger: 0.4
+          - id: budget-bits-4
+            phrase: At four bits, thirteen and a half
+            targets:
+              - budget-inventory-state-0
+            color: green
+            linger: 0.4
+          - id: budget-bits-3
+            phrase: Three bits brings the payload down to just over ten
+            targets:
+              - budget-inventory-state-0
+            color: pink
+            linger: 0.4
+      - say: >-
+          Now add one two-byte scale for every hundred twenty-eight weights. The yellow sliver adds about
+          four tenths of a gigabyte. Codes and scales together take just under fourteen gigabytes, or about
+          thirteen gibibytes. This assumes full groups. Partial groups, zero-points and tensors kept at
+          higher precision can all add bytes.
+        hold: 0.7
+        visual_cues:
+          - id: budget-inventory-build-1
+            phrase: Now add one two-byte scale
+            targets:
+              - budget-inventory-state-1
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Draw the line at twenty-four gigabytes. We have about ten left for everything else. On a real
+          model such as Qwen three point six, the twenty-seven-billion language model also comes with a
+          vision encoder and a mix of layer types. Measure the remaining allocations, including cache and
+          temporary buffers, at the context length you intend to serve.
+        hold: 0.7
+        visual_cues:
+          - id: budget-inventory-build-2
+            phrase: Measure the remaining allocations
+            targets:
+              - budget-inventory-state-2
+            color: yellow
+            linger: 0.5
+  - id: grid
+    title: Which mark will the code name?
+    visual: On a magnified part of an unsigned four-bit grid, the source weight moves from 0.73 to 0.76.
+      The cursor waits between marks before a second dot snaps right. Its gap to the source stays on the ruler.
+    beats:
+      - say: Here’s the ruler from our first multiplication, enlarged. We’re using unsigned four-bit codes
+          with zero-point zero. Each integer step is one tenth. You can see why point seven three was
+          closer to point seven than to point eight.
+        hold: 0.6
+        visual_cues:
+          - id: grid-scale
+            phrase: Each integer step is one tenth
+            targets: [grid-spacing]
+            color: blue
+      - say: Slide the weight three hundredths to the right. It’s now point seven six. On this same grid,
+          which integer code will we store?
+        hold: 2.1
+        visual_cues:
+          - id: new-weight
+            phrase: Slide the weight three hundredths to the right
+            targets: [raw-weight]
+            color: blue
+          - id: ask-code
+            phrase: which integer code will we store
+            targets: [grid-code]
+            color: yellow
+      - say: Store eight. Reading that code back gives point eight. This time the reconstructed weight
+          sits four hundredths above the original. Packing can preserve the code exactly. The loss happened
+          when we chose the mark.
+        hold: 0.8
+        visual_cues:
+          - id: nearest-level
+            phrase: Store eight
+            targets: [grid-code]
+            color: cyan
+            caption_boundary: true
+          - id: rounding-gap
+            phrase: four hundredths above the original
+            targets: [rounding-residual]
+            color: yellow
+      - say: To encode a weight on a shifted grid, divide by the scale, round, add the zero-point and clip
+          to the available codes. To read the value back, subtract the zero-point and multiply by the scale.
+          Let’s build a ruler that also covers negative weights.
+        hold: 0.5
+        visual_cues:
+          - id: codec-steps
+            phrase: To encode a weight on a shifted grid
+            targets: [encode-decode]
+            color: cyan
+  - id: affine-range
+    title: Which integer represents real zero?
+    visual: Follow 0.73 to its nearest level and watch out-of-range inputs stop at the endpoints.
+      Switch to signed labels while holding the decoded real values in place.
+    beats:
+      - say: >-
+          Let’s build a ruler that puts real zero at an integer mark. Start with a real interval of positive
+          width that includes zero. Divide its width by the number of gaps between codes. That’s the scale.
+          To locate zero, round the lower real bound divided by the scale, then subtract it from the minimum
+          integer code. Clip the result to the code range. That code is the zero-point.
+        hold: 0.7
+        visual_cues:
+          - id: affine-range-build-0
+            phrase: subtract it from the minimum integer code
+            targets:
+              - affine-range-state-0
+            color: blue
+            linger: 0.5
+      - say: >-
+          Our ruler runs from minus one to two. Sixteen unsigned codes give us fifteen gaps, each point two
+          wide. Start at minus one and take five steps to reach zero. The zero-point is five. When we read
+          any code, subtract five and multiply by point two to recover its value.
+        hold: 0.7
+        visual_cues:
+          - id: affine-range-build-1
+            phrase: The zero-point is five
+            targets:
+              - affine-range-state-1
+            color: blue
+            linger: 0.5
+      - say: >-
+          Follow point seven three down its column. Divide by point two, round to four, then add five to
+          store code nine. Reading it back gives point eight. Follow three down the last column. It’s past
+          the end of the ruler, so the last code gives us two. The left endpoint clips minus two in the same
+          way. A format also specifies how to round a tie and what positive scale to use when every value is
+          zero.
+        hold: 0.7
+        visual_cues:
+          - id: affine-range-build-2
+            phrase: Reading it back gives point eight
+            targets:
+              - affine-column-3
+            color: cyan
+            linger: 0.5
+          - id: upper-clamp
+            phrase: the last code gives us two
+            targets: [affine-column-5]
+            color: pink
+          - id: lower-clamp
+            phrase: clips minus two in the same way
+            targets: [affine-column-0]
+            color: pink
+      - say: >-
+          Keep the real ruler and change its labels from unsigned to signed four-bit integers. Every label
+          shifts down eight. The zero-point becomes minus three. The same code offset gives the same real
+          value in each column. A symmetric grid sets its zero-point to zero. An asymmetric grid can land
+          there too. With a shared nonzero offset, subtract it in the dot product. A kernel can fold that
+          correction into reconstruction.
+        hold: 0.7
+        visual_cues:
+          - id: affine-range-build-3
+            phrase: The zero-point becomes minus three
+            targets:
+              - affine-range-state-3
+            color: yellow
+            linger: 0.5
+  - id: pack
+    title: Two little codes share one byte
+    visual: Five signed code tiles keep their binary identities while pairing into byte slots. The odd final code
+      earns a visible padding nibble. Decoding sends those same codes back to the original positions, where
+      reconstructed values can be compared.
+    beats:
+      - say: >-
+          We’ve chosen a code for each weight. Now we can pack them. Two four-bit codes fit inside one byte,
+          with every code preserved exactly.
+        visual_cues:
+          - id: preserve-code
+            phrase: two four-bit codes fit inside one byte
+            targets:
+              - packing-codes
+            color: cyan
+          - id: code-packing
+            phrase: every code preserved exactly
+            targets:
+              - packing-codes
+            color: green
+        hold: 0.5
+      - say: >-
+          Slide each pair into its byte. Each half is called a nibble. Our fifth code gets a padded partner.
+        visual_cues:
+          - id: pair-nibbles
+            phrase: Slide each pair into its byte
+            targets:
+              - packed-bytes
+            color: cyan
+          - id: padding-nibble
+            phrase: a padded partner
+            targets:
+              - padding-nibble
+            color: yellow
+        hold: 0.5
+      - say: >-
+          Read back those bytes using the stored scale and code count. Stop after the fifth code. The
+          recovered values return to their original positions.
+        visual_cues:
+          - id: decode-codes
+            phrase: using the stored scale and code count
+            targets:
+              - pack-s-frac-2-4-7-quad-n-5
+            color: yellow
+          - id: shared-metadata
+            phrase: recovered values return to their original positions
+            targets:
+              - reconstructed-weights
+            color: blue
+        hold: 0.5
+  - id: codec-contract
+    title: Keep the reconstruction contract with the bytes
+    visual: The decoder recovers five weights from C0 F7 02. Change only the stored count to seven. The
+      unchanged three payload bytes fall one byte short, so the decoder rejects the file.
+    beats:
+      - say: >-
+          Open the three code bytes. In this signed format, the minus-eight pattern is reserved, so the
+          usable codes run from minus seven to seven. Python rounds ties to even. Read the low half of each
+          byte first. In C zero that gives zero, then minus four. F seven gives seven, then minus one. The
+          last byte starts with two. Our count is five, so decoding stops before the pad.
+        hold: 0.7
+        visual_cues:
+          - id: codec-contract-build-0
+            phrase: the minus-eight pattern is reserved
+            targets:
+              - codec-contract-state-0
+            color: blue
+            linger: 0.5
+      - say: >-
+          The count takes four bytes, the scale takes eight, and the codes take three. That’s fifteen bytes
+          total. Now change just the stored count from five to seven. Seven codes need four payload bytes.
+          We still have three, so the decoder rejects the file. It also rejects an invalid scale, the
+          reserved code or a reconstruction that overflows. To measure storage, count these encoded bytes. A
+          Python list of the same integers occupies a different layout.
+        hold: 0.7
+        visual_cues:
+          - id: codec-contract-build-1
+            phrase: fifteen bytes total
+            targets:
+              - codec-contract-state-1
+            color: cyan
+            linger: 0.5
+          - id: change-count
+            phrase: change just the stored count from five to seven
+            targets: [codec-contract-state-1]
+            color: yellow
+          - id: reject-short-payload
+            phrase: the decoder rejects the file
+            targets: [codec-contract-state-1]
+            color: pink
+            caption_boundary: true
+  - id: granularity
+    title: One giant weight stretches the ruler
+    visual: The outlier expands a shared range and visibly collapses small-weight markers. Row and group
+      boundaries then localize its influence, separating the same retained markers again. Metadata cost is
+      introduced only after that payoff.
+    beats:
+      - say: Put one giant weight among these small ones. A shared ruler must reach all the way to that outlier. Watch
+          the small weights collapse onto the same mark.
+        visual_cues:
+          - id: outlier-range
+            phrase: one giant weight
+            targets:
+              - outlier-weight
+            color: yellow
+          - id: collapse-small
+            phrase: small weights collapse onto the same mark
+            targets:
+              - small-weight-separation
+            color: red
+        hold: 0.5
+      - say: Give each row its own ruler. The outlier stretches only its row, and the other rows recover their detail.
+          These rows are channels, giving us per-channel scales.
+        visual_cues:
+          - id: row-scales
+            phrase: Give each row its own ruler
+            targets:
+              - row-scale-groups
+            color: blue
+          - id: local-grid
+            phrase: other rows recover their detail
+            targets:
+              - small-weight-separation
+            color: cyan
+        hold: 0.5
+      - say: Smaller groups contain the damage even further. Each new ruler costs another scale. We trade extra
+          metadata for finer control over the weights.
+        visual_cues:
+          - id: group-scales
+            phrase: Smaller groups contain the damage
+            targets:
+              - local-scale-groups
+            color: cyan
+          - id: scale-overhead
+            phrase: Each new ruler costs another scale
+            targets:
+              - granularity-frac-16-128-0-125-mathrm-bits-weight
+            color: yellow
+        hold: 0.5
+  - id: group-sum
+    title: Keep each scale beside its own partial sum
+    visual: >-
+      The first pair of codes gives a partial of 6 with scale 0.25. The second gives 2 with scale 2.
+      Their scaled contributions extend the output bar by 1.5 and 4.
+    beats:
+      - say: >-
+          The two blue codes share one scale. Under each code is the input it multiplies. Two times four
+          gives eight. Subtract two and we get integer partial six. In pink, three times minus one plus one
+          times five gives partial two. Keep the groups apart for one more step.
+        hold: 0.7
+        visual_cues:
+          - id: group-sum-build-0
+            phrase: integer partial six
+            targets:
+              - group-sum-state-0
+            color: blue
+            linger: 0.5
+          - id: group-first-partial
+            phrase: integer partial six
+            targets:
+              - group-sum-state-0
+            color: blue
+            linger: 0.4
+          - id: group-second-partial
+            phrase: gives partial two
+            targets:
+              - group-sum-state-0
+            color: pink
+            linger: 0.4
+      - say: >-
+          Scale each partial where it belongs. A quarter of six gives one point five. Two times two gives
+          four. Their output is five point five. If we added the two partials first and used the blue scale
+          for both, we’d get two instead.
+        hold: 0.7
+        visual_cues:
+          - id: group-sum-build-1
+            phrase: Their output is five point five
+            targets:
+              - group-sum-state-1
+            color: cyan
+            linger: 0.5
+          - id: group-first-scale
+            phrase: gives one point five
+            targets:
+              - group-sum-state-1
+            color: blue
+            linger: 0.4
+          - id: group-second-scale
+            phrase: Two times two gives four
+            targets:
+              - group-sum-state-1
+            color: pink
+            linger: 0.4
+      - say: >-
+          A kernel can scale each group’s partial sum or reconstruct each weight before multiplying. Both
+          paths need to know which group owns each scale. Preserve group indices, dimensions, scale
+          precision and any zero-points when you export the weights.
+        hold: 0.7
+        visual_cues:
+          - id: group-sum-build-2
+            phrase: Preserve group indices
+            targets:
+              - group-sum-state-2
+            color: yellow
+            linger: 0.5
+  - id: output
+    title: The same rounding error can matter differently
+    visual: Two equal weight errors multiply a quiet input and an active input. The input bars grow first; their
+      computed output errors grow next on a common scale. The larger outcome is withheld until the prediction
+      is earned.
+    beats:
+      - say: >-
+          A weight multiplies an input value called an activation. The layer adds those products. Suppose a
+          weight moves by five hundredths. Which rounding error matters more, the one on an input of a tenth
+          or the one on an input of two?
+        visual_cues:
+          - id: linear-product
+            phrase: layer adds those products
+            targets:
+              - output-y-wx
+            color: blue
+          - id: input-error
+            phrase: which rounding error matters more
+            targets:
+              - output-delta-y-j-w-j-hat-w-j-x-j
+            color: yellow
+        hold: 1.1
+      - say: >-
+          First multiply by the quiet input, one tenth. The output barely moves. Five hundredths times a
+          tenth gives five thousandths.
+        visual_cues:
+          - id: quiet-input
+            phrase: multiply by the quiet input
+            targets:
+              - input-0
+            color: cyan
+          - id: quiet-output
+            phrase: The output barely moves
+            targets:
+              - layer-output-0
+            color: green
+        hold: 0.5
+      - say: >-
+          Now use the active input, two. The same change to the weight moves the output by a tenth. That’s
+          twenty times the effect. To decide where accuracy matters, we need the inputs the layer actually
+          sees.
+        visual_cues:
+          - id: active-input
+            phrase: Now use the active input
+            targets:
+              - input-1
+            color: yellow
+          - id: large-output
+            phrase: twenty times the effect
+            targets:
+              - layer-output-1
+            color: yellow
+        hold: 0.5
+  - id: curvature
+    title: Learn which channels move together
+    visual: >-
+      The columns (5, 1) and (4, 1) each contribute a doubled outer product. Their sum builds the
+      Hessian. The diagonal shows channel energy and the off-diagonal shows the cross-products.
+    beats:
+      - say: >-
+          Run a few examples through the model and collect the inputs at this layer. That’s calibration.
+          Here are two examples for a two-weight layer. Read down the columns. The first is five and one.
+          The next is four and one.
+        visual_cues:
+          - id: calibration-samples
+            phrase: Here are two examples
+            targets:
+              - calibration-inputs
+            color: blue
+          - id: calibration-loss
+            phrase: two-weight layer
+            targets:
+              - curvature-mathcal-l-wx-hat-w-x-f-2
+            color: yellow
+        hold: 0.5
+      - say: >-
+          Multiply each column by its transpose, double that outer product, and add the two contributions.
+          The result is the Hessian for this squared output error. Its diagonal records channel energy. The
+          off-diagonal adds the cross-products, twice five times one plus twice four times one. Both
+          examples activate the second channel alongside the first.
+        visual_cues:
+          - id: build-curvature
+            phrase: double that outer product, and add
+            targets:
+              - hessian-matrix
+            color: blue
+          - id: channel-energy
+            phrase: diagonal records channel energy
+            targets:
+              - hessian-diagonal
+            color: yellow
+          - id: channel-relationships
+            phrase: twice five times one plus twice four times one
+            targets:
+              - hessian-off-diagonal
+            color: cyan
+        hold: 0.5
+      - say: >-
+          If we round one weight down, another weight may compensate. Keep these same inputs and see whether
+          it can recover what the first weight lost.
+        visual_cues:
+          - id: shared-correction
+            phrase: another weight may compensate
+            targets:
+              - hessian-off-diagonal
+            color: cyan
+          - id: calibrated-limit
+            phrase: these same inputs
+            targets:
+              - calibration-inputs
+            color: blue
+        hold: 0.5
+  - id: gptq
+    title: Where should the free weight land?
+    visual: >-
+      Each calibration input has a ruler centered on its source output. Nearest rounding stays in blue.
+      Rounding only the first weight creates two different shortfalls. A common shift moves both cyan
+      outputs, then the last code snaps into place. The signed gaps feed two separate sums of squares.
+    beats:
+      - say: >-
+          Keep those two calibration inputs. Five times the first weight plus the second gives six point
+          six one. On the next row, four replaces five, so the target is five point four one. Round both
+          weights to their nearest whole numbers. One and one give outputs of six and five. Read each
+          signed gap as output minus target. Both blue marks fall short.
+        hold: 0.8
+        visual_cues:
+          - id: source-products
+            phrase: "Five times the first weight plus the second"
+            targets: [calibration-outputs]
+            color: yellow
+          - id: nearest-rounding
+            phrase: "Round both weights to their nearest whole numbers"
+            targets: [weight-pairs]
+            color: blue
+      - say: >-
+          Start again from the source weights. Round just the first weight down to one. That costs the top
+          row one whole unit of output and the bottom row eight tenths. The second weight still multiplies
+          one on both rows. What could we add to that weight to split the difference?
+        hold: 2.2
+        visual_cues:
+          - id: round-first-weight
+            phrase: "Round just the first weight down to one"
+            targets: [calibration-outputs]
+            color: cyan
+          - id: two-shortfalls
+            phrase: "What could we add to that weight to split the difference"
+            targets: [gptq-decision]
+            color: yellow
+      - say: >-
+          Add nine tenths, halfway between those two shortfalls. Both outputs move by the same amount. One
+          lands a tenth below its target and the other a tenth above. The free weight has moved from point
+          six one to one point five one. Which whole number is closer now?
+        hold: 1.8
+        visual_cues:
+          - id: compensate-free-weight
+            phrase: "Add nine tenths"
+            targets: [calibration-outputs]
+            color: cyan
+            caption_boundary: true
+          - id: nearest-free-code
+            phrase: "Which whole number is closer now"
+            targets: [gptq-decision]
+            color: yellow
+      - say: >-
+          Two. Fix the second weight there. The top output moves to seven, the bottom to six. Compare
+          their distances from the targets with the blue marks. One miss gets smaller and the other gets
+          bigger. Square the gaps and add them. The sum drops by four hundredths. GPTQ uses the curvature
+          of the layer’s output error to make this correction while the other weights are still free.
+        hold: 0.9
+        visual_cues:
+          - id: round-adjusted-weight
+            phrase: "Two. Fix the second weight there"
+            targets: [calibration-outputs]
+            color: cyan
+            caption_boundary: true
+          - id: compare-output-errors
+            phrase: "The sum drops by four hundredths"
+            targets: [gptq-decision]
+            color: cyan
+            caption_boundary: true
+  - id: held-out
+    title: Try the same codes on two fresh inputs
+    visual: >-
+      The two weight pairs and the target-centered output rulers stay in place. The new inputs turn on one
+      channel at a time. Both candidates hit the same point on the first row. On the second row their
+      distances from 0.61 separate before the held-out sums appear.
+    beats:
+      - say: >-
+          Keep both pairs of codes exactly as they are. Change only the inputs. One, zero selects the
+          first weight by itself. Zero, one selects the second. Which pair stays closer to the source on
+          these two fresh inputs?
+        hold: 2.1
+        visual_cues:
+          - id: keep-codes
+            phrase: "Keep both pairs of codes exactly as they are"
+            targets: [fixed-pairs]
+            color: blue
+          - id: isolate-channels
+            phrase: "Zero, one selects the second"
+            targets: [fresh-inputs]
+            color: yellow
+      - say: >-
+          On the first row both pairs return one. They make the same mistake there. On the second row the
+          source returns point six one. Nearest rounding returns one, and the compensated pair returns
+          two. Which pair has less error now?
+        hold: 1.6
+        visual_cues:
+          - id: first-alone
+            phrase: "both pairs return one"
+            targets: [fresh-inputs]
+            color: blue
+            caption_boundary: true
+          - id: second-alone
+            phrase: "the compensated pair returns two"
+            targets: [fresh-inputs]
+            color: cyan
+            caption_boundary: true
+      - say: >-
+          Nearest rounding wins on these inputs. Its squared gaps add to about point one nine, against
+          nearly two for the compensated pair. The correction helped when both channels fired together.
+          Here the second weight acts alone. Choose calibration inputs that resemble traffic, then reload
+          the file and test on separate requests with the same tokenizer, prompt and decoding settings.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-score
+            phrase: "Nearest rounding wins on these inputs"
+            targets: [fresh-evidence]
+            color: blue
+            caption_boundary: true
+  - id: factor-order
+    title: Update the still-free coordinates
+    visual: Fix the first weight and remove its row and column from the Hessian. Invert the remaining
+      four and compare the result with the old full inverse. Then follow the upper factor and block update.
+    beats:
+      - say: >-
+          Go back to the two calibration inputs. We found the best shift by splitting the difference. For
+          more weights GPTQ gets the shift from an inverse matrix. Let e be the weight minus its rounded
+          value. Take the corresponding column of the inverse and divide by its diagonal entry. Subtract e
+          times that ratio from each free weight. Here the ratio is minus four and a half. Subtracting a
+          fifth times that negative number raises the neighbor by point nine.
+        hold: 0.8
+        visual_cues:
+          - id: factor-order-build-0
+            phrase: raises the neighbor by point nine
+            targets:
+              - factor-order-state-0
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Which matrix do we invert after we fix a weight? Keep just the still-free row and column in the
+          Hessian. Here the remaining Hessian is just four. Its inverse is a quarter. The twenty point five
+          came from inverting both coordinates together. Using it after the first weight is fixed would
+          solve the wrong problem.
+        hold: 0.7
+        caption_starts:
+          - "Keep just the still-free row and column"
+        visual_cues:
+          - id: fix-coordinate
+            phrase: Keep just the still-free row and column
+            targets: [factor-order-state-1]
+            color: blue
+          - id: factor-order-build-1
+            phrase: the remaining Hessian is just four
+            targets:
+              - factor-order-state-1
+            color: blue
+            linger: 0.5
+          - id: invert-free
+            phrase: Its inverse is a quarter
+            targets: [factor-order-state-1]
+            color: cyan
+            caption_boundary: true
+      - say: >-
+          The reference implementation handles dead columns, adds damping to the Hessian and forms an upper
+          Cholesky factor of its inverse. The factor’s transpose times the factor gives that damped inverse.
+          Its rows let GPTQ apply the corrections in order. Strictly positive damping makes an exact
+          positive-semidefinite Hessian positive definite. Relative damping can be zero, and
+          finite-precision factorization still needs checking.
+        hold: 0.7
+        visual_cues:
+          - id: factor-order-build-2
+            phrase: forms an upper Cholesky factor
+            targets:
+              - factor-order-state-2
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Look at the two rows of errors on this separate worksheet. Each rounded column changes the weights
+          still free within its block. After the block, multiply the saved errors by the part of the factor
+          that connects to later columns. Subtract that product from those columns in one operation.
+          Batching saves repeated updates to the later columns. Each rounding decision within the block
+          still depends on the one before it.
+        hold: 0.7
+        visual_cues:
+          - id: factor-order-build-3
+            phrase: After the block
+            targets:
+              - factor-order-state-3
+            color: yellow
+            linger: 0.5
+  - id: gptq-layout
+    title: Record activation order and packed compatibility
+    visual: Two calibration channels separate uncentered energy from variance. A column permutation retains
+      original group identities; a compatibility table requires an actual exporter/packing/kernel match.
+    beats:
+      - say: >-
+          Both blue inputs are five. Their variance is zero because they never change, yet their squares add
+          to fifty. The two cyan inputs vary around zero, but their squares add to just two. GPTQ’s
+          activation order ranks columns by the diagonal of the Hessian, twice each sum of squares. Blue
+          goes first. At that point more weights are still free to compensate.
+        hold: 0.7
+        visual_cues:
+          - id: gptq-layout-build-0
+            phrase: Blue goes first
+            targets:
+              - gptq-layout-state-0
+            color: blue
+            linger: 0.5
+      - say: >-
+          Follow column two as it returns to its stored slot. With static groups, each column keeps its
+          original scale group while GPTQ changes the processing order, then restores the output ordering. A
+          loader uses those group indices, the group size and the zero-points to reconstruct the weights.
+          Record the exporter revision so you can reload and test the same layout.
+        hold: 0.7
+        visual_cues:
+          - id: gptq-layout-build-1
+            phrase: restores the output ordering
+            targets:
+              - gptq-layout-state-1
+            color: cyan
+            linger: 0.5
+      - say: The Transformers guide inspected on November sixth, twenty twenty-six, uses GPTQModel and states that
+          AutoGPTQ is no longer supported there. It also warns that GPTQModel’s asymmetric representation is
+          not backward-compatible with legacy AutoGPTQ checkpoints, and some kernels do not support it. Treat
+          that as a versioned compatibility question. Match the saved representation to a supported loader and
+          actual kernel before comparing performance.
+        hold: 0.7
+        visual_cues:
+          - id: gptq-layout-build-2
+            phrase: Match the saved representation
+            targets:
+              - gptq-layout-state-2
+            color: yellow
+            linger: 0.5
+  - id: awq
+    title: Stretch before you round
+    visual: Activation magnitudes identify the sensitive channel. Reciprocal weight/input changes preserve a live
+      product while the learner predicts its value. Only then does rounding disturb the original grid while
+      the transformed contribution stays aligned; measured toy error bars compare the complete vectors.
+    beats:
+      - say: >-
+          Look at these two channels. AWQ measures average activation magnitudes across four examples. The
+          taller channel averages nine. The other averages one. Follow the taller one on a single input. Its
+          weight is point three and its input is ten.
+        visual_cues:
+          - id: activation-magnitudes
+            phrase: measures average activation magnitudes
+            targets:
+              - activation-channels
+            color: blue
+          - id: salient-channel
+            phrase: The taller channel averages nine
+            targets:
+              - activation-channels
+            color: yellow
+        hold: 0.5
+      - say: >-
+          Multiply this weight by eight and divide its input by eight. The weight reaches two point four and
+          its input reaches one and a quarter. What happens to the product?
+        visual_cues:
+          - id: rescale-pair
+            phrase: Multiply this weight by eight and divide its input by eight
+            targets:
+              - rescaled-channel
+            color: blue
+        hold: 1.9
+      - say: The product is still three. Multiplying the weight by eight canceled dividing the input by
+          eight. The grid now sees a weight of two point four, so rounding will act on a different number.
+        hold: 0.6
+        visual_cues:
+          - id: fixed-product
+            phrase: The product is still three
+            targets: [awq-readout-2, awq-readout-10]
+            color: yellow
+            caption_boundary: true
+      - say: >-
+          Now round both versions. On the original grid the contribution drops to about two point eight six.
+          On the transformed grid it stays at three. The other channel shares that grid, so its error also
+          counts. AWQ compares calibration output error across candidate scales. It can also clip weights.
+        visual_cues:
+          - id: round-rescaled
+            phrase: Now round
+            targets:
+              - rescaled-channel
+            color: cyan
+          - id: calibration-search
+            phrase: calibration output error
+            targets:
+              - awq-calibration-error
+            color: green
+        hold: 0.5
+  - id: awq-search
+    title: Protect a channel while measuring its neighbor
+    visual: >-
+      Plot calibration error for factors 1, 2, 4 and 8. Add factor 32 on the same axes. A separate
+      sweep shows the reference search over 20 exponents.
+    beats:
+      - say: >-
+          Try factors one, two and four. They all bring the first weight back to two sevenths, so all three
+          points sit at the same height. Factor eight reconstructs point three exactly. The second weight
+          moves up from two to about two point zero six. Across all four calibration inputs that trade cuts
+          mean squared error from about seventeen thousandths to three thousandths.
+        hold: 0.7
+        visual_cues:
+          - id: awq-search-build-0
+            phrase: Factor eight reconstructs point three exactly
+            targets:
+              - awq-search-state-0
+            color: blue
+            linger: 0.5
+      - say: >-
+          Test factor eight on the inputs held back before the search. Its remaining error comes from the
+          second channel. These inputs multiply that error by just a half, giving mean squared error of
+          about eight ten-thousandths. Now extend the toy sweep to thirty-two. Watch how much protecting the
+          first weight costs its neighbor. Use the whole output error to choose, then check the choice on
+          fresh data.
+        hold: 0.7
+        visual_cues:
+          - id: awq-search-build-1
+            phrase: Now extend the toy sweep
+            targets:
+              - awq-search-state-1
+            color: cyan
+            linger: 0.5
+      - say: >-
+          The reference search raises each channel’s mean absolute activation to a power. It tries twenty
+          exponents from zero through point nine five, clamps and normalizes the scales, and restores the
+          weights between trials. Clipping comes separately. Depending on the graph, a preceding
+          normalization or linear layer can absorb the inverse scaling. For a linear layer that includes its
+          bias. Other paths use an explicit scaling operation.
+        hold: 0.7
+        visual_cues:
+          - id: awq-search-build-2
+            phrase: twenty exponents
+            targets:
+              - awq-search-state-2
+            color: yellow
+            linger: 0.5
+  - id: precision-sweep
+    title: Measure output error on fixed held-out columns
+    visual: >-
+      Reconstruct the same four weights on 2-, 4- and 8-bit grids. Compare squared output errors on
+      three held-out inputs and count the ideal code bytes for each precision.
+    beats:
+      - say: >-
+          Start with these four weights. Round each one on a two-bit, a four-bit and an eight-bit grid. The
+          two-bit grid uses only three codes, minus one, zero and one. With a step of two, their marks
+          are minus two, zero and two. The first and last weights both land on zero. Look across their
+          rows. On the finer grids you can still tell those two weights apart.
+        hold: 0.7
+        visual_cues:
+          - id: precision-sweep-build-0
+            phrase: The two-bit grid uses only
+            targets:
+              - precision-sweep-state-0
+            color: blue
+            linger: 0.5
+      - say: >-
+          Run three held-out inputs through the layer on each grid. Compute all three output residuals by
+          subtracting each rounded output from its source output, then average their squares. On the
+          two-bit grid the mean squared error is about one. Four bits brings it down to about seven
+          hundredths. On the eight-bit grid it falls to about two ten-thousandths.
+        hold: 0.7
+        visual_cues:
+          - id: precision-sweep-build-1
+            phrase: Compute all three output residuals
+            targets:
+              - precision-sweep-state-1
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Packing four weights at four bits each takes two bytes for the codes. Eight bits takes four bytes
+          and gave the smallest output error on these inputs. The CPU used floating-point arrays to simulate
+          all three grids. A model file also stores its scales. What happens when a kernel reads the packed
+          weights?
+        hold: 0.7
+        visual_cues:
+          - id: precision-sweep-build-2
+            phrase: Packing four weights at four bits each
+            targets:
+              - precision-sweep-state-2
+            color: yellow
+            linger: 0.5
+  - id: kernel-path
+    title: Follow the bytes into the multiply
+    visual: Two strips count weight traffic for one million weights. Both kernels read the same codes.
+      The standalone path adds an FP16 write and an FP16 read. The bracket measures the extra traffic.
+    beats:
+      - say: >-
+          A million four-bit weights take half a megabyte of codes. Watch the fused kernel read the codes.
+          It reads their scales too, then unpacks each weight where it multiplies a sixteen-bit activation.
+          That is the W four A sixteen path shown here. The multiply uses floating point.
+        hold: 0.7
+        visual_cues:
+          - id: kernel-path-build-0
+            phrase: Watch the fused kernel read the codes
+            targets:
+              - kernel-path-state-0
+            color: blue
+            linger: 0.5
+      - say: >-
+          Start with the same half megabyte. This time a separate kernel writes the full sixteen-bit weights
+          to device memory. That write moves two megabytes. The multiply reads those weights back. Another
+          two megabytes. How much extra weight traffic did the second path add?
+        hold: 1.8
+        caption_starts:
+          - "That write moves two megabytes"
+          - "The multiply reads those weights back"
+          - "How much extra weight traffic"
+        visual_cues:
+          - id: kernel-path-build-1
+            phrase: That write moves two megabytes
+            targets:
+              - kernel-path-state-1
+            color: cyan
+            linger: 0.5
+          - id: weight-readback
+            phrase: "The multiply reads those weights back"
+            targets: [readback]
+            color: pink
+      - say: >-
+          Four extra megabytes for the same multiply. The standalone path moved four and a half megabytes of
+          codes and weights in total. The Ascend study timed a W four A sixteen path that exchanged
+          reconstructed weights through global memory. The study reported up to one point four eight
+          times native FP sixteen speed. To compare kernels on your device, time them at your model’s matrix
+          shapes.
+        hold: 0.7
+        caption_starts:
+          - "The standalone path moved"
+          - "The Ascend study timed"
+          - "The study reported up to"
+        visual_cues:
+          - id: kernel-path-build-2
+            phrase: Four extra megabytes for the same multiply
+            targets:
+              - kernel-path-state-2
+            color: yellow
+            linger: 0.5
+          - id: ascend-result
+            phrase: "The study reported up to one point four eight times native FP sixteen speed"
+            targets: [timed-kernel]
+            color: yellow
+  - id: roofline
+    title: Use rate ceilings to choose a measurement
+    visual: >-
+      Mark one FLOP per byte against the A100 and H100 dense rooflines. A separate H100 calculation
+      compares the ideal time to read the original and compressed weights once per output step.
+    beats:
+      - say: For the simplified small-batch dense linear work, assume each active weight is read once and supplies one
+          multiply-add, counted as two floating-point operations. BF16 then gives about one FLOP per weight
+          byte. The A one hundred eighty-gigabyte SXM specification lists two thousand thirty-nine gigabytes
+          per second and three hundred twelve dense FP16 teraFLOPS. Their ridge is about one hundred
+          fifty-three FLOPs per byte. At intensity one, the bandwidth ceiling is about point six five percent
+          of that compute peak.
+        hold: 0.7
+        visual_cues:
+          - id: roofline-build-0
+            phrase: one FLOP per weight byte
+            targets:
+              - roofline-state-0
+            color: blue
+            linger: 0.5
+      - say: >-
+          On the H one hundred SXM, the nominal memory bandwidth is three point three five terabytes per
+          second. Compare it with the dense BF sixteen peak, about nine hundred ninety teraFLOPS. The higher
+          advertised peak includes sparsity. At one FLOP per byte, bandwidth caps this calculation at about
+          a third of one percent of the dense peak.
+        hold: 0.7
+        visual_cues:
+          - id: roofline-build-1
+            phrase: The higher advertised peak includes sparsity
+            targets:
+              - roofline-state-1
+            color: cyan
+            linger: 0.5
+      - say: Read fifty-four gigabytes of weights at the ideal H one hundred rate and the weight-only floor is about
+          sixteen milliseconds, or sixty-two tokens per second for one stream under those assumptions. Read
+          thirteen point nine two two gigabytes instead and that ceiling becomes about two hundred forty-one.
+          Unpacking, cache reads, attention, other operations and scheduling still need time. As weights are
+          reused across more rows, arithmetic intensity changes; prefill and decode deserve separate
+          measurements.
+        hold: 0.7
+        visual_cues:
+          - id: roofline-build-2
+            phrase: the weight-only floor
+            targets:
+              - roofline-state-2
+            color: yellow
+            linger: 0.5
+  - id: precision-roles
+    title: Choose weights, activations and cache separately
+    visual: Three owned precision controls alter separate weight, activation and cache allocations. A SmoothQuant
+      paired transform moves range without altering the real-valued product; versioned backend restrictions
+      remain explicit.
+    beats:
+      - say: >-
+          Keep three precision decisions separate. W four A sixteen sets four bits for weights and sixteen
+          for activations. The attention cache has its own format. Supported integer W eight A eight and W
+          four A four kernels also quantize activations, so check what that rounding does to outputs. FP
+          eight uses floating-point formats and scaling on hardware that supports them. Time each path at
+          your workload.
+        hold: 0.7
+        visual_cues:
+          - id: precision-roles-build-0
+            phrase: Keep three precision decisions separate
+            targets:
+              - precision-roles-state-0
+            color: blue
+            linger: 0.5
+      - say: Activation outliers can stretch a shared grid. SmoothQuant uses an equivalent paired rescaling to
+          transfer some of that difficulty from activations into weights before W-eight-A-eight quantization.
+          Like the earlier identity, its pre-quantization real-valued product is preserved by multiplying and
+          dividing corresponding channels. Which graph operations absorb scaling, and what finite precision
+          changes, depend on the implementation. Evaluate the transformed, quantized artifact on held-out
+          tasks.
+        hold: 0.7
+        visual_cues:
+          - id: precision-roles-build-1
+            phrase: transfer some of that difficulty
+            targets:
+              - precision-roles-state-1
+            color: cyan
+            linger: 0.5
+      - say: Cache quantization needs independent support. The vLLM guide inspected on November sixth, twenty
+          twenty-six, describes FP8 cache types and calibration. Per-attention-head scaling is restricted to
+          its Flash Attention pathway and the documented calibration route. Check the release, backend and
+          supported scheme you actually deploy. Smaller weight codes create more free capacity without
+          changing any user’s cache bytes unless you separately change that cache representation.
+        hold: 0.7
+        visual_cues:
+          - id: precision-roles-build-2
+            phrase: Cache quantization needs independent support
+            targets:
+              - precision-roles-state-2
+            color: yellow
+            linger: 0.5
+  - id: pool-subtraction
+    title: The cache pool grows by subtraction
+    visual: >-
+      Keep the 80 GB device, 8 GB reserve and cache bytes per user fixed. Reducing the weights from 54
+      to 13.92 GB grows the memory-only user limit from 53 to 173. Including recurrent state changes
+      those limits to 36 and 119.
+    beats:
+      - say: >-
+          Start with eighty gigabytes and set eight aside. Fifty-four gigabytes of weights leaves eighteen
+          for cache. Replace the weights with the four-bit version at thirteen point nine two gigabytes. Now
+          the cache can use fifty-eight point zero eight. The pool grows about three point two three times.
+          The card and the reserve stayed fixed.
+        hold: 0.7
+        visual_cues:
+          - id: pool-subtraction-build-0
+            phrase: The pool grows about three point two three times
+            targets:
+              - pool-subtraction-state-0
+            color: blue
+            linger: 0.5
+      - say: >-
+          A user caches both a key and a value for every saved position. Multiply the layer count, heads,
+          head dimension and positions shown here. At two bytes per element, each user needs about three
+          hundred thirty-six decimal megabytes. Divide each pool by that same cost and round down. Integer
+          division yields fifty-three users with the original weights and one hundred seventy-three with the
+          compact weights. Include the recurrent state and those limits become thirty-six and one hundred
+          nineteen.
+        hold: 0.7
+        visual_cues:
+          - id: pool-subtraction-build-1
+            phrase: Integer division yields fifty-three
+            targets:
+              - pool-subtraction-state-1
+            color: cyan
+            linger: 0.5
+      - say: No user’s cache got smaller. On a larger card the same weight saving grows the leftover pool by a
+          different factor. Also, fitting more users adds work. Reading one hundred seventy-three full caches
+          plus thirteen point nine two gigabytes of weights at three point three five terabytes per second
+          already gives an idealized floor near twenty-one point five milliseconds per step. Measure the
+          actual latency and admission policy at the proposed concurrency.
+        hold: 0.7
+        visual_cues:
+          - id: pool-subtraction-build-2
+            phrase: fitting more users adds work
+            targets:
+              - pool-subtraction-state-2
+            color: yellow
+            linger: 0.5
+  - id: gguf
+    title: Choose the numbers, then pack the artifact
+    visual: >-
+      Follow codes and scale metadata into typed tensors in a GGUF file. One Q4_K block occupies 128 +
+      12 + 4 bytes. A compatible runtime reads the encodings and places layers on the CPU or GPU.
+    beats:
+      - say: We have chosen approximate weight values. They still need an address and a packing recipe. GGUF is a
+          container for typed tensors, tokenizer information and model metadata.
+        visual_cues:
+          - id: choose-method
+            phrase: chosen approximate weight values
+            targets:
+              - gguf-readout
+            color: blue
+          - id: stored-artifact
+            phrase: GGUF is a container
+            targets:
+              - gguf-artifact
+            color: yellow
+        hold: 0.5
+      - say: A Q four K block carries codes plus shared scale and minimum metadata. Counting all those bytes gives
+          four and a half bits per weight. The file can also mix tensor encodings.
+        visual_cues:
+          - id: typed-encodings
+            phrase: codes plus shared scale and minimum metadata
+            targets:
+              - gguf-artifact
+            color: blue
+          - id: metadata-bits
+            phrase: Counting all those bytes
+            targets:
+              - gguf-frac-144-times8-256-4-5-mathrm-bits-weight
+            color: yellow
+        hold: 0.5
+      - say: A compatible runtime reads those encodings. Some tensors can stay at higher precision. The algorithm
+          chooses values; the tensor encoding and container describe how the runtime recovers them.
+        visual_cues:
+          - id: mixed-encodings
+            phrase: higher precision
+            targets:
+              - gguf-artifact
+            color: blue
+          - id: compatible-runtime
+            phrase: compatible runtime reads those encodings
+            targets:
+              - gguf-runtime
+            color: pink
+        hold: 0.5
+      - say: >-
+          The engine places layers on the CPU or GPU. Mapping the file gives the runtime an address for its
+          data. Follow one tensor from that address through a page read and, on a discrete GPU, a device
+          transfer.
+        visual_cues:
+          - id: layer-placement
+            phrase: places layers
+            targets:
+              - layer-placement
+            color: blue
+          - id: cpu-gpu
+            phrase: CPU or GPU
+            targets:
+              - layer-placement
+            color: yellow
+        hold: 0.5
+  - id: container-layout
+    title: Separate a mapped address from resident bytes
+    visual: A GGUF header, typed metadata, tensor descriptors and aligned payload offsets retain a concrete byte
+      order. Mapping creates an address range; page reads then populate resident memory, and a distinct
+      transfer places tensors on a discrete GPU.
+    beats:
+      - say: Enlarge the container. GGUF stores a header, typed key-value metadata, tensor descriptors and aligned
+          payload data. A tensor descriptor carries its name, dimensions, encoding and offset. Architecture
+          and tokenizer metadata can include normalization constants, positional settings, vocabulary, special
+          tokens and a chat template. A reader still needs support for the architecture, required keys,
+          encodings and format version. Self-description provides information to a compatible loader.
+        hold: 0.7
+        visual_cues:
+          - id: container-layout-build-0
+            phrase: A tensor descriptor carries
+            targets:
+              - container-layout-state-0
+            color: blue
+            linger: 0.5
+      - say: The specification’s default alignment is thirty-two bytes, with an alignment metadata override.
+          Memory-mapping can let a compatible CPU path view file-backed data without an initial copy into a
+          separate host buffer. The pages still have to be read and become resident. A discrete GPU generally
+          needs a device transfer. Track mapping, page residency, transfers and the first completed request
+          separately when measuring a cold load.
+        hold: 0.7
+        visual_cues:
+          - id: container-layout-build-1
+            phrase: The pages still have to be read
+            targets:
+              - container-layout-state-1
+            color: cyan
+            linger: 0.5
+  - id: q4k-unpack
+    title: Recover a value from its superblock owners
+    visual: >-
+      Count 128 code bytes, 12 local coefficient bytes and 4 super-scale bytes in a 256-weight Q4_K
+      block. Follow one code and both sets of coefficients through reconstruction. Inspect the tensor
+      types selected by a model preset.
+    beats:
+      - say: One Q-four-K superblock holds two hundred fifty-six weights, arranged as eight sub-blocks of thirty-two.
+          Four-bit codes use one hundred twenty-eight bytes. Each sub-block has a six-bit scale coefficient
+          and a six-bit minimum coefficient. Eight such pairs use ninety-six bits, or twelve bytes. Two FP16
+          super-scales add four bytes. Together that is one hundred forty-four bytes, or four point five bits
+          per weight.
+        hold: 0.7
+        visual_cues:
+          - id: q4k-unpack-build-0
+            phrase: Together that is one hundred forty-four bytes
+            targets:
+              - q4k-unpack-state-0
+            color: blue
+            linger: 0.5
+          - id: q4k-code-owners
+            phrase: eight sub-blocks of thirty-two
+            targets:
+              - q4k-unpack-state-0
+            color: cyan
+            linger: 0.4
+          - id: q4k-coefficients
+            phrase: Eight such pairs use ninety-six bits
+            targets:
+              - q4k-unpack-state-0
+            color: yellow
+            linger: 0.4
+          - id: q4k-super-factors
+            phrase: Two FP16 super-scales add four bytes
+            targets:
+              - q4k-unpack-state-0
+            color: pink
+            linger: 0.4
+      - say: The reconstruction has the form d times local scale coefficient times code, minus d-minimum times local
+          minimum coefficient. For a supplied arithmetic example, take d point one, scale coefficient three,
+          code five, d-minimum point two and minimum coefficient two. The value is one point five minus point
+          four, or one point one. That offset need not be an integer zero-point on the code grid. Preserve the
+          format’s actual reconstruction rule.
+        hold: 0.7
+        visual_cues:
+          - id: q4k-unpack-build-1
+            phrase: or one point one
+            targets:
+              - q4k-unpack-state-1
+            color: cyan
+            linger: 0.5
+      - say: Q-four-K is a tensor encoding; Q-four-K-M is a model-level preset. The pinned quantizer primarily chooses
+          Q-four-K and upgrades selected projections, with architecture-specific exceptions. The file can
+          therefore mix tensor types. Inspect its emitted tensor inventory rather than assigning four point
+          five bits to every model parameter from the filename. Container bytes, tensor precision, runtime
+          support and quality are separate observations.
+        hold: 0.7
+        visual_cues:
+          - id: q4k-unpack-build-2
+            phrase: The file can therefore mix tensor types
+            targets:
+              - q4k-unpack-state-2
+            color: yellow
+            linger: 0.5
+  - id: offload-count
+    title: Give every placed block an explicit owner
+    visual: >-
+      In the pinned 40-block example, blocks 17 through 39 and the output layer move to the GPU. The
+      input stays on the CPU. A separate four-block budget fits blocks 1, 2 and 3 after a 2,000 MB
+      reserve.
+    beats:
+      - say: The article pins a particular llama.cpp layer-counting contract. For forty repeating blocks and a request
+          for twenty-four GPU layers, the trailing selection starts at forty plus one minus twenty-four, or
+          seventeen. Blocks seventeen through thirty-nine contribute twenty-three repeating blocks; the output
+          layer supplies the twenty-fourth slot. Input assignment stays on CPU in this pinned source.
+          Installed-version help, overrides and allocation logs decide your actual placement.
+        hold: 0.7
+        visual_cues:
+          - id: offload-count-build-0
+            phrase: the output layer supplies the twenty-fourth slot
+            targets:
+              - offload-count-state-0
+            color: blue
+            linger: 0.5
+      - say: >-
+          Try four blocks on a six-thousand-megabyte device. Set aside two thousand megabytes for everything
+          else. Load from the trailing end. Five hundred, fifteen hundred and two thousand fill the four
+          thousand megabytes available. Block zero remains on CPU.
+        hold: 0.7
+        visual_cues:
+          - id: offload-count-build-1
+            phrase: Block zero remains on CPU
+            targets:
+              - offload-count-state-1
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Split execution adds CPU work and transfers to the latency budget. Follow the activation from the
+          last CPU block to the first GPU block. The backend schedules that transfer and places the cache.
+          Its kernel trace shows which instructions ran. Compare placements with the same requests and check
+          both timing and task quality.
+        hold: 0.7
+        visual_cues:
+          - id: offload-count-build-2
+            phrase: Split execution adds CPU work
+            targets:
+              - offload-count-state-2
+            color: yellow
+            linger: 0.5
+  - id: artifact-lineage
+    title: Evaluate the file that will actually load
+    visual: An immutable high-precision source branches into separately encoded candidates. Each file has its own
+      digest and reload path; tokenizer/template/backend checks and optional multimodal components remain
+      attached.
+    beats:
+      - say: Conversion and quantization are separate operations. The documented workflow first converts a supported
+          source checkpoint to a high-precision GGUF, then runs the quantizer to produce the selected preset.
+          Retain the high-precision source so another preset starts from that source. Requantizing an already
+          rounded artifact can compound error. Record source revision, converter, quantizer, tensor types and
+          the digest of the actual saved file.
+        hold: 0.7
+        visual_cues:
+          - id: artifact-lineage-build-0
+            phrase: Retain the high-precision source
+            targets:
+              - artifact-lineage-state-0
+            color: blue
+            linger: 0.5
+      - say: Reload that saved artifact before evaluating it. Testing an earlier in-memory object bypasses the export
+          and reconstruction path you need to trust. Match the tokenizer, chat template, prompts and decoding
+          policy, while recording each path’s actual backend and kernels. A shared seed does not guarantee
+          identical text across numerical implementations. Keep the raw outputs and failures so a different
+          result can be traced to the correct version.
+        hold: 0.7
+        visual_cues:
+          - id: artifact-lineage-build-1
+            phrase: Reload that saved artifact
+            targets:
+              - artifact-lineage-state-1
+            color: cyan
+            linger: 0.5
+      - say: >-
+          A multimodal model may need a separate encoder or projector to handle images or audio. Budget
+          every component the service loads, and try a request in each modality it promises. Keep those
+          results with the saved artifact.
+        hold: 0.7
+        visual_cues:
+          - id: artifact-lineage-build-2
+            phrase: Budget every component
+            targets:
+              - artifact-lineage-state-2
+            color: yellow
+            linger: 0.5
+  - id: benchmark
+    title: Does the smaller artifact earn its place?
+    visual: "Meaningful decode traffic and prefill weight reuse occupy separate beats. The camera then gives the
+      full frame to a constructed eight-GiB device budget: actual seven-billion-weight code and scale bytes
+      plus other runtime memory and a KV allocation. A proposed doubling invites a prediction before the cache
+      grows across the boundary; reducing it restores fit."
+    beats:
+      - say: Small-batch decoding often spends substantial time reading weights. Four-bit codes cut those bytes, while
+          unpacking and scaling add work. The faster path depends on the kernel and hardware.
+        visual_cues:
+          - id: decode-reads
+            phrase: Four-bit codes cut those bytes
+            targets:
+              - decode-weight-traffic
+            color: blue
+          - id: unpack-scale
+            phrase: unpacking and scaling add work
+            targets:
+              - benchmark-unpack-codes-apply-scales
+            color: yellow
+        hold: 0.5
+      - say: During prefill, many prompt positions reuse each weight block. Watch one block serve several positions.
+          Reuse changes the balance between memory traffic and computation, so measure the two phases
+          separately.
+        visual_cues:
+          - id: prefill-reuse
+            phrase: Watch one block serve several positions
+            targets:
+              - prefill-weight-reuse
+            color: cyan
+          - id: phase-balance
+            phrase: Reuse changes the balance
+            targets:
+              - prefill-weight-reuse
+            color: yellow
+        hold: 0.5
+      - say: Our constructed device budget now holds compressed weights, other runtime memory and the attention cache.
+          Double the cache for a longer context. Will this same artifact still fit?
+        visual_cues:
+          - id: attention-memory
+            phrase: holds compressed weights, other runtime memory and the attention cache
+            targets:
+              - runtime-budget
+            color: pink
+          - id: context-growth
+            phrase: Double the cache for a longer context
+            targets:
+              - context-budget
+            color: yellow
+        hold: 1.2
+      - say: The longer context crosses the limit.
+        visual_cues:
+          - id: budget-overflow
+            phrase: longer context crosses the limit
+            targets:
+              - context-budget
+            color: red
+        hold: 1.2
+      - say: >-
+          Restore the shorter context. The two-gibibyte cache fits again beside the same weights. We can now
+          test fresh-task quality and collect measured timing on the requests the service will handle.
+        visual_cues:
+          - id: restore-context
+            phrase: Restore the shorter context
+            targets:
+              - context-budget
+            color: green
+          - id: matched-models
+            phrase: fresh-task quality
+            targets:
+              - budget-result
+            color: blue
+          - id: quality-time-memory
+            phrase: measured timing
+            targets:
+              - budget-result
+            color: green
+        hold: 0.5
+  - id: paired-evaluation
+    title: Did the parcel reach the right dock?
+    visual: >-
+      Compare two replies to one parcel request, then score a held-out trial. Each model has a square for
+      every requested reply. Parsing colors one subset. Checking the destination recolors only successful
+      routes. Fifteen of file A’s replies parse but fail the task. Cold loading, time to first token and
+      delivered token gaps stay distinct.
+    beats:
+      - say: >-
+          A customer asks for dock seven. Both replies parse as JSON. Read the dock numbers. The source
+          sends the parcel to seven. Four-bit file A sends it to one. That counts as a failed delivery.
+          Perplexity measures token likelihood on a fixed dataset with a given tokenizer and context policy.
+          Here each requested dock gives us a task we can score directly.
+        hold: 0.6
+        caption_starts:
+          - "The source sends the parcel to seven"
+          - "Four-bit file A sends it to one"
+        visual_cues:
+          - id: check-dock
+            phrase: "Four-bit file A sends it to one"
+            targets: [parcel-replies]
+            color: cyan
+          - id: paired-evaluation-build-0
+            phrase: "Perplexity measures token likelihood"
+            targets: [paired-evaluation-state-0]
+            color: blue
+      - say: >-
+          Give each model the same hundred held-out parcel requests. These are example counts. The source
+          gives ninety parse-valid outputs and eighty-five fully correct results. File A gives ninety-five
+          parse-valid outputs but only eighty fully correct results. Fifteen replies that parsed still
+          failed the task. Count every request, including anything rejected or cut short. Correct
+          destinations fell from eighty-five to eighty percent.
+        hold: 1.1
+        visual_cues:
+          - id: paired-evaluation-build-1
+            phrase: "same hundred held-out parcel requests"
+            targets: [paired-evaluation-state-1]
+            color: blue
+          - id: paired-source-parse
+            phrase: "ninety parse-valid outputs"
+            targets: [paired-evaluation-state-1]
+            color: blue
+          - id: paired-source-task
+            phrase: "eighty-five fully correct results"
+            targets: [paired-evaluation-state-1]
+            color: green
+          - id: paired-candidate-parse
+            phrase: "ninety-five parse-valid outputs"
+            targets: [paired-evaluation-state-1]
+            color: cyan
+          - id: paired-candidate-task
+            phrase: "eighty fully correct results"
+            targets: [paired-evaluation-state-1]
+            color: green
+          - id: paired-conclusion
+            phrase: "from eighty-five to eighty percent"
+            targets: [paired-evaluation-state-1]
+            color: yellow
+            caption_boundary: true
+      - say: >-
+          Now time the same requests. Record cold loading and compilation separately from warm runs. Time
+          to first token includes queueing. After the first token arrives, measure the gaps the reader
+          experiences. Count output tokens across users for throughput, and record peak memory at the
+          intended batch sizes and context lengths. Keep stop reasons beside the times. A truncated reply
+          can be fast and still leave a parcel unrouted. Repeat stochastic runs and report their task
+          scores as well.
+        hold: 0.6
+        visual_cues:
+          - id: paired-evaluation-build-2
+            phrase: "Time to first token includes queueing"
+            targets: [paired-evaluation-state-2]
+            color: blue
+  - id: diagnose
+    title: Use the symptom to choose the next observation
+    visual: >-
+      For a failed JSON task, follow the reload, template and decoding checks. For slow decoding or
+      prompt ingestion, the picture identifies the placement, kernel and request measurements that can
+      distinguish causes.
+    beats:
+      - say: >-
+          Suppose the source routes a parcel correctly and the saved candidate fails. First verify the saved
+          artifact and rerun the request with the same tokenizer, chat template and decoding constraints. If
+          matching the template fixes it, you have found a cause you can reproduce. If failures cluster on
+          traffic missing from calibration, try calibration inputs from that domain. Score the new file on
+          separate requests.
+        hold: 0.7
+        visual_cues:
+          - id: diagnose-build-0
+            phrase: First verify the saved artifact
+            targets:
+              - diagnose-state-0
+            color: blue
+            linger: 0.5
+      - say: >-
+          If decode slows down after compression, inspect actual device placement and kernel dispatch.
+          Compare traces from the two files on the same workload. Look for time spent unpacking, reading the
+          cache or waiting in a queue. If the trace shows a full weight matrix written out and read back,
+          try a supported fused kernel and time the same requests again.
+        hold: 0.7
+        visual_cues:
+          - id: diagnose-build-1
+            phrase: inspect actual device placement
+            targets:
+              - diagnose-state-1
+            color: cyan
+            linger: 0.5
+      - say: If prompt ingestion is slow, determine whether arithmetic, attention, conversion or scheduling is
+          limiting. A supported W-eight-A-eight or FP8 experiment can be useful when arithmetic is the
+          bottleneck and quality stays acceptable. If most TTFT comes from queueing, changing weight precision
+          may leave that delay intact. Change one plausible mechanism, retain a control, and use the resulting
+          evidence to decide the next step.
+        hold: 0.7
+        visual_cues:
+          - id: diagnose-build-2
+            phrase: determine whether arithmetic
+            targets:
+              - diagnose-state-2
+            color: yellow
+            linger: 0.5
+  - id: fresh-quantization
+    title: Which four-bit file can run the parcel service?
+    visual: >-
+      Known cache and runtime allocations fill part of each eight-gigabyte bay. The two weight packages
+      compete for the remaining space. File B can touch the limit with a smaller cache. Restore the
+      required cache, magnify both allocations around the limit, and bring back file A’s parcel score for
+      the release decision.
+    beats:
+      - say: >-
+          Return to the parcel service. Its two candidate files each encode six billion weights. The
+          device has eight decimal gigabytes. Reserve four for the cache the service needs and three
+          quarters of a gigabyte for everything else in this worksheet. A uses four-bit codes with one
+          two-byte scale per sixty-four weights. B uses complete Q four K blocks at four and a half bits
+          per weight, metadata included. Which file fits beside the required cache?
+        hold: 3
+        visual_cues:
+          - id: fresh-quantization-build-0
+            phrase: "Which file fits beside the required cache"
+            targets: [fresh-quantization-state-0]
+            color: yellow
+      - say: >-
+          A needs three gigabytes for codes. Divide six billion by sixty-four and allow two bytes per
+          group. The scales add just under two tenths of a gigabyte. Add the cache and other
+          allocations. A fits with sixty-two and a half megabytes to spare. B uses three and three
+          eighths gigabytes for its complete blocks. With the same cache and other allocations,
+          B exceeds the limit by a hundred twenty-five megabytes.
+        hold: 0.9
+        visual_cues:
+          - id: a-code-bytes
+            phrase: A needs three gigabytes for codes
+            targets: [fresh-quantization-state-1]
+            color: cyan
+          - id: a-scale-bytes
+            phrase: The scales add just under two tenths of a gigabyte
+            targets: [fresh-quantization-state-1]
+            color: yellow
+          - id: b-block-bytes
+            phrase: three and three eighths gigabytes for its complete blocks
+            targets: [fresh-quantization-state-1]
+            color: pink
+          - id: fresh-quantization-build-1
+            phrase: "Add the cache and other allocations"
+            targets: [fresh-quantization-state-1]
+            color: blue
+          - id: fresh-a-total
+            phrase: "A fits with sixty-two and a half megabytes to spare"
+            targets: [fresh-quantization-state-1]
+            color: cyan
+            caption_boundary: true
+          - id: fresh-b-total
+            phrase: "B exceeds the limit by a hundred twenty-five megabytes"
+            targets: [fresh-quantization-state-1]
+            color: pink
+            caption_boundary: true
+      - say: >-
+          Could B load on this device at all? Try a smaller cache for B alone. Drop its cache to three
+          point eight seven five gigabytes. The total reaches eight gigabytes exactly. That leaves zero
+          headroom, and the service wanted the larger cache.
+        hold: 1
+        caption_starts:
+          - "Try a smaller cache for B alone"
+        visual_cues:
+          - id: fresh-quantization-build-2
+            phrase: "Try a smaller cache for B alone"
+            targets: [fresh-quantization-state-2]
+            color: yellow
+          - id: fresh-cache-input
+            phrase: "to three point eight seven five gigabytes"
+            targets: [fresh-quantization-state-2]
+            color: pink
+            caption_boundary: true
+          - id: fresh-cache-boundary
+            phrase: "The total reaches eight gigabytes exactly"
+            targets: [fresh-quantization-state-2]
+            color: yellow
+            caption_boundary: true
+      - say: >-
+          Put back the required four-gigabyte cache. The service needs at least eighty-five correct
+          destinations per hundred requests. File A got eighty. File B still needs a task trial.
+          Which file meets both requirements?
+        hold: 2.5
+        caption_starts:
+          - "The service needs"
+          - "File A got eighty"
+          - "Which file meets both requirements"
+        visual_cues:
+          - id: restore-required-cache
+            phrase: "Put back the required four-gigabyte cache"
+            targets: [release-budget]
+            color: yellow
+          - id: apply-task-minimum
+            phrase: "at least eighty-five correct destinations per hundred requests"
+            targets: [release-tasks]
+            color: cyan
+      - say: >-
+          Hold both files. File A needs five more correct deliveries per hundred. File B needs another
+          hundred twenty-five megabytes to hold the required cache. For the next candidate, reload the saved
+          file and route the same parcels. Measure peak memory and token timing at the context length and
+          concurrency you plan to serve.
+        hold: 1.2
+        caption_starts:
+          - "File A needs five more correct deliveries per hundred"
+          - "File B needs another hundred twenty-five megabytes"
+          - "For the next candidate"
+        visual_cues:
+          - id: service-decision
+            phrase: "Hold both files"
+            targets: [release-verdict]
+            color: yellow
+            caption_boundary: true
+          - id: delivery-shortfall
+            phrase: "File A needs five more correct deliveries per hundred"
+            targets: [release-tasks]
+            color: yellow
+          - id: memory-shortfall
+            phrase: "File B needs another hundred twenty-five megabytes"
+            targets: [release-budget]
+            color: yellow

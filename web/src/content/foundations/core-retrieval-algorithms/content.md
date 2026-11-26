@@ -36,7 +36,7 @@
 
 Ask `How do I rotate an API key?` and search might return the quota dashboard instead of the rotation steps. The language model then writes a fluent paragraph about daily rate limits. Nothing crashed, yet the passage explaining rotation never entered the prompt.
 
-In [Clustering and PCA](/learn/clustering-pca-representation-learning), we examined vector geometry and compared cosine similarity with dot products. Retrieval puts that geometry to work on a concrete problem: given millions of technical passages, surface the exact few that answer a developer's question within milliseconds.
+In [Embedding Similarity & Quantization](/learn/embeddings-cosine-dot-product-quantization), we examined vector geometry and compared cosine similarity with dot products. Retrieval puts that geometry to work on a concrete problem: given millions of technical passages, surface the exact few that answer a developer's question within milliseconds.
 
 Four short passages are enough to trace every stage by hand:
 
@@ -47,7 +47,7 @@ Four short passages are enough to trace every stage by hand:
 | `d3` | "Change a project display name in workspace settings." | Not relevant |
 | `d4` | "API key <span data-glossary="quota">quota</span> dashboard. Usage limits reset daily." | Lexical distractor |
 
-Passage `d4` repeats the exact phrase `API key` while solving the wrong problem. Passage `d2` explains rotation cleanly without mentioning `API`, `key`, or `rotate`. Every mechanism in this lesson (BM25, dense vectors, hybrid fusion, MMR, two-stage reranking, and ANN indexes) addresses a specific link in that chain.
+Passage `d4` repeats the exact phrase `API key` while solving the wrong problem. Passage `d2` explains rotation cleanly without mentioning `API`, `key`, or `rotate`. Every mechanism here (BM25, dense vectors, hybrid fusion, MMR, two-stage reranking, and ANN indexes) addresses a specific link in that chain.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Comparison of sparse BM25 and dense cosine search on four documentation passages. BM25 scores d1 at 1.61 and d4 at 1.39 while paraphrase d2 scores 0.00. Dense cosine places d2 closest to query q at 0.994 ahead of d1 at 0.957, d4 at 0.625, and d3 at 0.123." />
@@ -170,7 +170,7 @@ $$
 \mathrm{RRF}(d) = \sum_{\ell \in L} \frac{1}{k + r_\ell(d)}
 $$
 
-where $r_\ell(d)$ is 1-indexed rank in lane $\ell$ ($0$ if absent). The standard constant $k = 60$ (used in the original paper and Elasticsearch's `rank_constant` default[^cormack2009][^elastic2026rrf]) favors multi-lane consensus over a single lane's rank 1.
+where $r_\ell(d)$ is the 1-indexed rank in lane $\ell$, and the term is omitted (contributes $0$) when $d$ is absent from lane $\ell$. The standard constant $k = 60$ (used in the original paper and Elasticsearch's `rank_constant` default[^cormack2009][^elastic2026rrf]) favors multi-lane consensus over a single lane's rank 1.
 
 <figure>
   <img src="illustrations/_generated/hybrid_pipeline_dark.png" alt="RRF pipeline combining BM25 [d1, d4] and dense [d2, d1, d4]. At k=60, dual-lane consensus keeps d4 (0.0320) ahead of single-lane d2 (0.0164), so top-2 drops d2; at k=0, d2 (1.000) overtakes d4 (0.833)." />
@@ -245,7 +245,7 @@ Why split search into two stages instead of scoring every document with one stro
 | Architecture | Precomputed offline | Online work per candidate | Role in funnel |
 |---|---|---|---|
 | **Bi-encoder** (`E_Q(q) · E_D(d)`) | One vector $\mathbf{e}_d \in \mathbb{R}^D$ per chunk | Single dot product / ANN hop | Stage 1 recall (millions -> top 50 to 200) |
-| **Late interaction** (ColBERT[^thakur2021]) | Per-token vectors per chunk | MaxSim token matrix sum | Middle ground: finer lexical matching, larger index |
+| **Late interaction** (ColBERT[^khattab2020]) | Per-token vectors per chunk | MaxSim token matrix sum | Middle ground: finer lexical matching, larger index |
 | **Cross-encoder**[^nogueira2019] | Raw text only | Full transformer pass on `[CLS] q [SEP] d [SEP]` | Stage 2 precision (top 50 -> top 5 to 10) |
 
 In a bi-encoder, query and document tokens never attend to one another inside the encoder. A **cross-encoder** concatenates query and candidate together (`[CLS] Query [SEP] Document [SEP]`), letting full self-attention inspect negations, version qualifiers, and parameter mismatches.[^nogueira2019]
@@ -257,7 +257,7 @@ Remember two hard limits in stage 2:
 2. **Raw logits are uncalibrated:** A sigmoid score of $0.95$ needs held-out calibration before acting as a relevance probability or abstention cutoff.[^guo2017]
 
 <figure>
-  <img src="illustrations/_generated/shortlist_cascade_dark.png" alt="Retrieval and reranking cascade. RRF (k=60) produces [d1, d4, d2]. A K=2 cutoff drops d2 so the cross-encoder leaves d1 (0.782) first; K=3 retains d2 so its score (0.953) promotes it to rank 1." />
+  <img src="illustrations/_generated/shortlist_cascade_dark.png" alt="Retrieval and reranking cascade. RRF (k=60) produces [d1, d4, d2]. A K=2 cutoff drops d2 so the cross-encoder leaves d1 (0.810) first; K=3 retains d2 so its score (0.952) promotes it to rank 1." />
   <figcaption>With RRF k=60, a K=2 shortlist drops d2 before reranking. Widening stage 1 to K=3 retains d2 so the cross-encoder lifts it to rank 1.</figcaption>
 </figure>
 
@@ -354,7 +354,7 @@ Exact flat search multiplies $N \times D$ floats per query: $10^6$ float32 vecto
 | **PQ**[^jegou2011] | Quantizes $M$ subvectors to $2^{n_{\text{bits}}}$ centroids ($D=1536, M=96, 8$-bit: 6,144 B -> 96 B, -98.44% payload[^faiss2026indexes][^faiss2026pqImplementation]). | $M$, bits/code | Composes as IVF-PQ / HNSW-PQ; quantization adds distance error. |
 
 <figure>
-  <img src="illustrations/_generated/ann_index_knobs_dark.png" alt="Clustered IVF benchmark on 1,000 16D vectors across 20 Voronoi cells. Raising nprobe from 1 to 8 lifts Recall@10 from 0.584 to 0.974 at under 42% of flat scan checks; nprobe=20 reaches 1.000 at 1,020 checks." />
+  <img src="illustrations/_generated/ann_index_knobs_dark.png" alt="Clustered IVF benchmark on 1,000 16D vectors across 20 Voronoi cells. Raising nprobe from 1 to 8 lifts Recall@10 from 0.672 to 0.978 at 41.7% of flat scan checks; nprobe=20 reaches 1.000 at 1,020 checks." />
   <figcaption>Increasing IVF nprobe sweeps adjacent Voronoi cells to lift Recall@10 rapidly while staying far below flat-scan work; probing all 20 cells adds 20 centroid checks (1,020 total).</figcaption>
 </figure>
 
@@ -464,15 +464,15 @@ No. A reranker only reorders candidates it receives. Raise `nprobe` or `efSearch
     "explanation": "MMR(B) = 0.5(0.94) - 0.5(0.99) = -0.025, while MMR(C) = 0.5(0.80) - 0.5(0.20) = 0.300, so C wins."
   },
   {
-    "question": "Three cross-encoder pairs have token lengths 32, 64, and 96. Counting T^2 attention entries only, how does naive max-length padding compare to unpadded ragged batching?",
+    "question": "Three cross-encoder pairs have token lengths 16, 48, and 80. Counting T^2 attention entries only, how does naive max-length padding compare to unpadded ragged batching?",
     "options": [
-      "27,648 padded versus 14,336 unpadded.",
-      "14,336 padded versus 27,648 unpadded.",
-      "12,288 padded versus 6,144 unpadded.",
-      "27,648 padded versus 18,432 unpadded."
+      "19,200 padded versus 8,960 unpadded.",
+      "8,960 padded versus 19,200 unpadded.",
+      "19,200 padded versus 12,800 unpadded.",
+      "14,400 padded versus 8,960 unpadded."
     ],
-    "answer": "27,648 padded versus 14,336 unpadded.",
-    "explanation": "Padded computes 3 * 96^2 = 27,648 entries; ragged batching computes 32^2 + 64^2 + 96^2 = 14,336."
+    "answer": "19,200 padded versus 8,960 unpadded.",
+    "explanation": "Padded computes 3 * 80^2 = 19,200 entries; ragged batching computes 16^2 + 48^2 + 80^2 = 256 + 2,304 + 6,400 = 8,960."
   },
   {
     "question": "Five passages have descending similarity: a (v2, 0.99), b (v1, 0.98), c (v2, 0.97), d (v1, 0.96), e (v2, 0.95). For version v2 and K = 2, what do post-filtering after global top-2 versus pre-filtering return?",

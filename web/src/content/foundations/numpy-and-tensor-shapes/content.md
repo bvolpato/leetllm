@@ -188,7 +188,7 @@ Mean pooling (even masked) is permutation-invariant: `"the red fox"` and `"fox r
 
 ## Reshape, transpose, views, and copies
 
-Turning `(2, 3, 4)` into `(2, 4, 3)` works with either `reshape` or `transpose`, yet their contents disagree completely. Follow element `3` (feature `d3` of token `the`): `reshape` walks the flat C-order buffer and re-chunks it into rows of three, parking `3` beside `4` (feature `d0` of `red`). `transpose` permutes axes by swapping <span data-glossary="array-stride">strides</span> from `(16, 4)` to `(4, 16)` bytes so `3` stays at feature `d3` of `the`.[^numpyStrides2026] On a 1-D vector `(3,)`, `v.T` stays `(3,)`.
+Turning `(2, 3, 4)` into `(2, 4, 3)` works with either `reshape` or `transpose`, yet their contents disagree completely. Follow element `3` (feature `d3` of token `the`): `reshape` walks the flat C-order buffer and re-chunks it into rows of three, parking `3` beside `4` (feature `d0` of `red`). `transpose` permutes axes by swapping the last two `float32` <span data-glossary="array-stride">strides</span> from `(16, 4)` to `(4, 16)` bytes (full strides `(48, 16, 4)` to `(48, 4, 16)`) so `3` stays at feature `d3` of `the`.[^numpyStrides2026] On a 1-D vector `(3,)`, `v.T` stays `(3,)`.
 
 <figure>
   <img src="illustrations/_generated/reshape_vs_transpose_dark.png" alt="Snippet 0 has rows the [0, 1, 2, 3], red [4, 5, 6, 7], and fox [8, 9, 10, 11]. Reshape to (4, 3) chunks the C-order stream, placing 3 beside 4. Transpose swaps strides from (16, 4) to (4, 16) bytes and keeps 3 at feature d3 of token the." />
@@ -346,25 +346,25 @@ Use `single[None, :, :]` to create `(1, 3, 4)`. When slicing from an existing ba
     "explanation": "Right-aligned broadcasting attaches bare `(4,)` to the feature axis, putting `[3, 6, 9, 12]` across row 0. Adding `[:, None]` creates `(4, 1)` so each token's offset repeats across its features."
   },
   {
-    "question": "A padded batch `x` has shape `(2, 4, 8)`, where snippet 0 holds two real tokens followed by two zero-padded rows. Why does `x.mean(axis=1)` distort snippet 0, and how do you fix it?",
+    "question": "A padded batch `x` has shape `(2, 4, 8)`, where snippet 0 holds one real token followed by three zero-padded rows. Why does `x.mean(axis=1)` distort snippet 0, and how do you fix it?",
     "options": [
-      "It averages features instead of tokens; switch to `x.mean(axis=-1, keepdims=True)`.",
-      "It divides by all 4 slots including zero padding, halving the real mean; mask with `valid[:, :, None]`, sum over `axis=1`, and divide by `valid.sum(axis=1, keepdims=True)`.",
-      "It drops the batch axis; slice `x[0:1].mean(axis=1)` to skip padded entries.",
-      "Zero padding leaves the mean unchanged because zeros add nothing to the numerator."
+      "It averages features instead of tokens; replace with `x.mean(axis=-1, keepdims=True)` and drop the mask.",
+      "It divides by all 4 slots, quartering the mean; mask with `valid[:, :, None]` and divide by real token counts.",
+      "It drops the batch axis from the result; slice `x[0:1].mean(axis=1)` so padded rows stay excluded.",
+      "Zero padding leaves the average unchanged because adding zero rows does not change the denominator."
     ],
-    "answer": "It divides by all 4 slots including zero padding, halving the real mean; mask with `valid[:, :, None]`, sum over `axis=1`, and divide by `valid.sum(axis=1, keepdims=True)`.",
-    "explanation": "Zero rows still inflate the denominator from 2 to 4. Masking padded positions and dividing by each snippet's real token count yields the unbiased mean."
+    "answer": "It divides by all 4 slots, quartering the mean; mask with `valid[:, :, None]` and divide by real token counts.",
+    "explanation": "Zero rows still inflate the denominator from 1 to 4, quartering the real token vector. Masking padded positions with `valid[:, :, None]` and dividing by `valid.sum(axis=1, keepdims=True)` yields the unbiased mean."
   },
   {
     "question": "For `x = np.arange(120).reshape(2, 5, 12)`, you want 3 heads of shape `(B, H, T, head_dim) = (2, 3, 5, 4)`. Why does `x.reshape(2, 3, 5, 4)` corrupt the values?",
     "options": [
-      "`reshape` copies the buffer while `transpose` returns a view.",
-      "Direct `reshape` re-chunks flat memory across tokens; first `reshape(2, 5, 3, 4)` to split each token's features, then `transpose(0, 2, 1, 3)`.",
-      "`reshape` cannot add a fourth axis; you must `transpose` `(B, T, D)` first.",
-      "Direct `reshape` works whenever `D` is divisible by `H`."
+      "Because `reshape` always allocates a new buffer while `transpose` preserves values only for 2-D arrays.",
+      "Because it re-chunks flat memory across tokens; first `reshape(2, 5, 3, 4)`, then `transpose(0, 2, 1, 3)`.",
+      "Because `reshape` cannot add a fourth axis directly; you must `transpose` `(B, T, D)` before splitting.",
+      "Because `reshape` only succeeds when `T` equals `head_dim`; otherwise trailing features get dropped."
     ],
-    "answer": "Direct `reshape` re-chunks flat memory across tokens; first `reshape(2, 5, 3, 4)` to split each token's features, then `transpose(0, 2, 1, 3)`.",
+    "answer": "Because it re-chunks flat memory across tokens; first `reshape(2, 5, 3, 4)`, then `transpose(0, 2, 1, 3)`.",
     "explanation": "`reshape(B, T, H, head_dim)` carves each token vector into head chunks, and `transpose(0, 2, 1, 3)` moves the head axis beside the batch axis without mixing tokens."
   },
   {

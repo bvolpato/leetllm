@@ -1,0 +1,1482 @@
+version: 1
+id: gpu-compilers-kernel-languages
+title: From Kernel Source to Executable Evidence
+opening: lesson
+source: fundamentals/gpu-compilers-kernel-languages/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: NVIDIA CUDA Compiler Driver NVCC
+    url: https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/
+  - title: Parallel Thread Execution ISA
+    url: https://docs.nvidia.com/cuda/parallel-thread-execution/
+  - title: CUDA Binary Utilities
+    url: https://docs.nvidia.com/cuda/cuda-binary-utilities/
+  - title: NVVM IR Specification
+    url: https://docs.nvidia.com/cuda/nvvm-ir-spec/
+  - title: libNVVM API
+    url: https://docs.nvidia.com/cuda/libnvvm-api/
+  - title: NVIDIA Hopper Tuning Guide
+    url: https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html
+  - title: NVIDIA Ada Tuning Guide
+    url: https://docs.nvidia.com/cuda/ada-tuning-guide/index.html
+  - title: NVIDIA Blackwell Tuning Guide
+    url: https://docs.nvidia.com/cuda/blackwell-tuning-guide/index.html
+  - title: CUDA Programming Guide
+    url: https://docs.nvidia.com/cuda/cuda-programming-guide/
+  - title: How to Improve CUDA Kernel Performance with Shared Memory Register Spilling
+    url: https://developer.nvidia.com/blog/how-to-improve-cuda-kernel-performance-with-shared-memory-register-spilling/
+  - title: C/C++ Language Extensions
+    url: https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html
+  - title: NVRTC
+    url: https://docs.nvidia.com/cuda/nvrtc/
+  - title: nvJitLink
+    url: https://docs.nvidia.com/cuda/nvjitlink/
+  - title: Triton File Cache Source
+    url: https://github.com/triton-lang/triton/blob/ee07f7ff302740dbb858b84c7c1ea9f1d1ffc782/python/triton/runtime/cache.py
+  - title: CUDA Environment Variables
+    url: https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/environment-variables.html
+  - title: "Triton Programming Guide: Introduction"
+    url: https://triton-lang.org/main/programming-guide/chapter-1/introduction.html
+  - title: Vector Addition
+    url: https://triton-lang.org/main/getting-started/tutorials/01-vector-add.html
+  - title: Triton NVIDIA Backend Compiler Source
+    url: https://github.com/triton-lang/triton/blob/ee07f7ff302740dbb858b84c7c1ea9f1d1ffc782/third_party/nvidia/backend/compiler.py
+  - title: Triton Language and Compiler
+    url: https://github.com/triton-lang/triton
+  - title: CUTLASS and CuTe Documentation
+    url: https://docs.nvidia.com/cutlass/latest/overview.html
+  - title: Writing Tile Kernels
+    url: https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/writing-tile-kernels.html
+  - title: "Pallas: a JAX Kernel Language"
+    url: https://docs.jax.dev/en/latest/pallas/
+  - title: Pallas Changelog
+    url: https://docs.jax.dev/en/latest/pallas/CHANGELOG.html
+  - title: About Neuron Kernel Interface
+    url: https://awsdocs-neuron.readthedocs-hosted.com/en/latest/nki/get-started/about/index.html
+scenes:
+  - id: intro
+    title: Which build can write the sum?
+    visual: Two native images face the same GPU. Both runs should write the sum shown above the chip.
+      The matching image reaches its output slot. The other stops at the loader.
+    beats:
+      - say: Slot one should hold minus one and three quarters. Look at the GPU.
+          Its compute capability is twelve point zero. Build A targets twelve point zero. Build B targets
+          nine point zero. Both carry PTX that the driver could compile. Switch that fallback off.
+          Which build can still write the sum?
+        hold: 2.5
+        visual_cues:
+          - id: expected
+            phrase: Slot one should hold minus one and three quarters
+            targets:
+              - reference
+            color: cyan
+            linger: 0.45
+          - id: device
+            phrase: Look at the GPU. Its compute capability is twelve point zero
+            targets:
+              - chip
+            color: cyan
+            linger: 0.45
+          - id: targets
+            phrase: Build A targets twelve point zero. Build B targets nine point zero
+            targets:
+              - track-a
+              - track-b
+            color: cyan
+            linger: 0.45
+          - id: native-only
+            phrase: Switch that fallback off
+            targets:
+              - fallback
+            color: yellow
+            linger: 0.45
+      - say: Send both images to the loader. Build A writes minus one and three quarters. Build B stops at
+          image selection. Its native code targets a different major compute capability. Its output slot
+          stays empty. Let’s open A’s native image and follow one store.
+        caption_starts:
+          - Build A writes
+          - Build B stops
+        hold: 0.85
+        visual_cues:
+          - id: approach
+            phrase: Send both images to the loader
+            targets:
+              - track-a
+              - track-b
+            color: cyan
+            linger: 0.45
+          - id: write-a
+            phrase: Build A writes minus one and three quarters
+            targets:
+              - track-a
+            color: green
+            linger: 0.45
+          - id: stop-b
+            phrase: Build B stops at image selection
+            targets:
+              - track-b
+            color: pink
+            linger: 0.45
+          - id: inspect-a
+            phrase: follow one store
+            targets:
+              - track-a
+            color: cyan
+            linger: 0.45
+  - id: artifacts
+    title: Follow the value written to slot one
+    visual: The source and a PTX sketch accumulate four aligned operations. Each operation moves a concrete
+      value. A target cubin supplies the physical register names in the native column.
+    beats:
+      - say: Stay with build A and look at index one. Load the quarter from x. Load negative two from y. Add the
+          two values, then store their sum in output slot one. The middle column is a sketch of those
+          steps in PTX, a virtual instruction set. The names that start with a percent sign tell us which
+          value the next instruction reads. We still need the target build to find out where those values
+          land.
+        hold: 0.75
+        visual_cues:
+          - id: load-x
+            phrase: Load the quarter from x
+            targets:
+              - operations
+            color: cyan
+            linger: 0.45
+          - id: load-y
+            phrase: Load negative two from y
+            targets:
+              - operations
+            color: cyan
+            linger: 0.45
+          - id: virtual-add
+            phrase: Add the two values
+            targets:
+              - operations
+            color: cyan
+            linger: 0.45
+          - id: virtual-store
+            phrase: store their sum in output slot one
+            targets:
+              - operations
+            color: green
+            linger: 0.45
+          - id: virtual-values
+            phrase: names that start with a percent sign
+            targets:
+              - operations
+            color: cyan
+            linger: 0.45
+      - say: Open the disassembly of the native image. This build loads the inputs into registers four
+          and seven. Its floating-point add writes register nine. Follow nine into the store. There’s our
+          sum in output slot one. If you rebuild for another GPU, open that cubin to see which
+          instructions and registers its compiler chose.
+        hold: 0.75
+        visual_cues:
+          - id: native-open
+            phrase: Open the disassembly of the native image
+            targets:
+              - operations
+            color: cyan
+            linger: 0.45
+          - id: native-load
+            phrase: loads the inputs into registers four and seven
+            targets:
+              - operations
+            color: cyan
+            linger: 0.45
+          - id: native-add
+            phrase: floating-point add writes register nine
+            targets:
+              - operations
+            color: cyan
+            linger: 0.45
+          - id: native-store
+            phrase: Follow nine into the store
+            targets:
+              - operations
+            color: green
+            linger: 0.45
+  - id: host-device-package
+    title: Keep the host path separate from each device image
+    visual: Host code and device code take separate compilation paths. The pictured package retains a native
+      sm_90 cubin and compute_90 PTX.
+    beats:
+      - say: Look inside vector add dot C U. Main runs on the CPU. The add kernel runs on the GPU. The
+          compiler driver separates them. It sends main to a C plus plus compiler, then packages
+          requested device images inside the host object. That bundle is called a fatbinary. Here it
+          carries native code for S M ninety and virtual code for compute ninety.
+        hold: 0.7
+        visual_cues:
+          - id: split-host-device
+            phrase: separates them
+            targets:
+              - package-paths
+            color: cyan
+            linger: 0.55
+          - id: package-images
+            phrase: packages requested device images
+            targets:
+              - package-paths
+            color: cyan
+            linger: 0.55
+      - say: Follow PTX into the cubin. The assembler reads the virtual instructions in PTX, allocates
+          physical registers and writes encoded instructions and metadata into a cubin. That file uses
+          the ELF format. SASS is the human-readable disassembly of those instructions. One route into
+          PTX starts with NVVM IR, a GPU-specific form of LLVM IR. A module must satisfy NVVM’s rules for
+          libNVVM to compile it.
+        hold: 0.7
+        visual_cues:
+          - id: assemble-target
+            phrase: allocates physical registers
+            targets:
+              - artifact-boundaries
+            color: cyan
+            linger: 0.55
+          - id: disassemble-view
+            phrase: SASS is the human-readable disassembly
+            targets:
+              - artifact-boundaries
+            color: cyan
+            linger: 0.55
+      - say: Different frontends expose different intermediate files. CUDA Tile uses Tile IR. When you
+          have a PTX file, read its two header lines. The target names the GPU features it needs. An
+          ordinary target can work on a compatible later GPU. An architecture-specific A suffix or a
+          family-specific F suffix narrows that choice. A driver must also understand the PTX ISA
+          version. Here that’s nine point two.
+        hold: 0.7
+        visual_cues:
+          - id: ptx-driver-version
+            phrase: A driver must also understand the PTX ISA version
+            targets:
+              - compatibility-header
+            color: cyan
+            linger: 0.55
+  - id: captured-native
+    title: What can the native listing establish?
+    visual: Four byte offsets in the captured sm_120 disassembly connect two inputs to register R9 and the
+      output store. The resource report and numerical checks describe separate properties of that build.
+    beats:
+      - say: The recorded build uses CUDA thirteen point two on a device with compute capability twelve point
+          zero. The cubin is marked S M one twenty. The standalone PTX file has two labels. Its target is
+          S M ninety, and its instruction set version is nine point two. One label names the features the
+          code assumes. The other tells you which PTX syntax the driver has to understand.
+        hold: 0.7
+        visual_cues:
+          - id: capture-labels
+            phrase: The recorded build
+            targets:
+              - native-build-labels
+            color: cyan
+            linger: 0.55
+      - say: Read the native byte offsets down the left. At index one the two global loads bring a quarter into
+          register four and negative two into register seven. An earlier predicate makes invalid indices
+          exit before these loads. Where is the sum just before the store?
+        hold: 2.2
+        visual_cues:
+          - id: capture-inputs
+            phrase: At index one
+            targets:
+              - native-values
+            color: cyan
+            linger: 0.55
+          - id: load-r4
+            phrase: the two global loads bring a quarter into register four and negative two into register seven
+            targets:
+              - native-values
+            color: cyan
+            linger: 0.55
+      - say: The add writes minus one and three quarters to register nine. The store at hexadecimal offset one
+          five zero copies that register to output slot one. Those offsets and the source line mapping tie
+          the instructions to this particular build.
+        caption_starts:
+          - to register nine
+        hold: 0.75
+        visual_cues:
+          - id: add-r9
+            phrase: The add writes minus one and three quarters to register nine
+            targets:
+              - native-values
+            color: cyan
+            linger: 0.55
+            caption_boundary: true
+          - id: store-r9
+            phrase: copies that register to output slot one
+            targets:
+              - native-values
+            color: cyan
+            linger: 0.55
+      - say: The assembler reports twelve registers, zero stack bytes and zero spill loads or stores for
+          this kernel. Now run the addition. The executable passes lengths one, two hundred fifty-five,
+          two hundred fifty-six, two hundred fifty-seven and one thousand. Each run starts with NaNs in
+          the output. A skipped store leaves a NaN where we expect a finite sum. All five shapes match
+          their references, and memcheck reports zero errors.
+        hold: 0.7
+        visual_cues:
+          - id: resource-twelve
+            phrase: twelve registers
+            targets:
+              - native-report
+            color: cyan
+            linger: 0.55
+          - id: shape-fixtures
+            phrase: passes lengths one
+            targets:
+              - native-fixtures
+            color: cyan
+            linger: 0.55
+  - id: loader
+    title: Select a compatible image before launching work
+    visual: Three explicit loader cases traverse compatible-native, usable-PTX/JIT, and missing-image
+      branches, holding each branch for the corresponding narration.
+    beats:
+      - say: The loader first looks for a compatible native image. When usable PTX is available instead, the
+          driver can compile it for a supported target. That path can add work to the first request.
+          Compatibility depends on the exact architecture features, PTX version, and driver support
+          recorded with the package.
+        hold: 0.65
+        visual_cues:
+          - id: loader-native-path
+            phrase: The loader first looks for a compatible native image
+            targets:
+              - loader-compatible-native-image
+              - loader-s-result
+            color: blue
+            linger: 0.5
+          - id: loader-ptx-path
+            phrase: When usable PTX is available instead
+            targets:
+              - loader-compatible-native-image
+              - loader-usable-ptx
+              - loader-s-result
+            color: yellow
+            linger: 0.5
+          - id: loader-first-request-work
+            phrase: the driver can compile it for a supported target. That path can add work to the first
+              request
+            targets:
+              - loader-first-compile-work
+              - loader-s-result
+            color: green
+            linger: 0.5
+      - say: Now remove both compatible options. Execution stops at image selection, so kernel performance
+          counters cannot diagnose this failure. Inspect the packaged images and target information.
+          Test the native-only and forced-PTX paths in separate processes, and separate compilation,
+          loading, first launch, and warm execution in the cold-start trace.
+        hold: 0.65
+        visual_cues:
+          - id: loader-missing-images
+            phrase: Now remove both compatible options
+            targets:
+              - loader-compatible-native-image
+              - loader-usable-ptx
+              - loader-s-result
+            color: pink
+            linger: 0.5
+  - id: actual-loader-cases
+    title: Which path did the loader exercise?
+    visual: Fresh processes on the same compute capability 12.0 device exercise native and PTX loading on
+      build A, build B and a package with its PTX removed.
+    beats:
+      - say: These are the captured runs behind our opening. Build A carries an S M one twenty cubin and compute
+          ninety PTX. Normal mode and native-only mode pass all five shapes on the same twelve point zero
+          GPU. Now ignore the native image. Forced PTX with the driver disk cache disabled also passes.
+          Each mode starts in a fresh process with conflicting JIT flags removed. It takes that last run
+          to establish that this driver can compile the fallback.
+        hold: 0.7
+        visual_cues:
+          - id: target-branches
+            phrase: Normal mode and native-only mode pass all five shapes
+            targets:
+              - loader-cases
+            color: cyan
+            linger: 0.55
+            caption_boundary: true
+          - id: forced-target-ptx
+            phrase: Forced PTX with the driver disk cache disabled also passes
+            targets:
+              - loader-cases
+            color: cyan
+            linger: 0.55
+            caption_boundary: true
+      - say: Build B changes just the native image to S M ninety. Keep the device and the compute ninety PTX.
+          Forced PTX succeeds. Now disable PTX compilation and the run reports, PTX JIT compilation was
+          disabled. That’s where B stopped in the opening. Finally remove the PTX from B and restore
+          normal mode. The loader reports, no kernel image is available for execution on the device. None
+          of those switches changed the addition.
+        hold: 0.7
+        visual_cues:
+          - id: hopper-ptx
+            phrase: Forced PTX succeeds
+            targets:
+              - loader-cases
+            color: cyan
+            linger: 0.55
+            caption_boundary: true
+          - id: disabled-jit-error
+            phrase: PTX JIT compilation was disabled
+            targets:
+              - loader-cases
+            color: cyan
+            linger: 0.55
+            caption_boundary: true
+          - id: missing-image-error
+            phrase: no kernel image is available for execution on the device
+            targets:
+              - loader-cases
+            color: cyan
+            linger: 0.55
+            caption_boundary: true
+      - say: Build B stopped at the loader. Open its host executable with cuobjdump to inventory or
+          extract images. For a closer look, give nvdisasm the extracted cubin. It shows the native
+          instructions and where registers are live. In the recorded check, passing the host executable
+          directly to nvdisasm produced an input error. Save the exact message with the file that
+          produced it.
+        hold: 0.7
+        visual_cues:
+          - id: extract-cubin
+            phrase: inventory or extract images
+            targets:
+              - image-inventory
+            color: cyan
+            linger: 0.55
+  - id: register-lifetimes
+    title: Separate virtual values from simultaneous physical storage
+    visual: Extending a value’s last use changes the number of overlapping live values. A second example rounds a warp allocation and fits complete blocks into a register file.
+    beats:
+      - say: Watch when each value is still needed. A is needed from operation zero through three, B from
+          two through six, and C from four through seven. By the time C arrives, A’s last use is over.
+          They can reuse one slot. B stays live across the handoff, so give it the second slot.
+        hold: 0.7
+        visual_cues:
+          - id: lifetime-a
+            phrase: A is needed from operation zero through three
+            targets:
+              - lifetime-intervals
+            color: cyan
+            linger: 0.55
+          - id: lifetime-b
+            phrase: B from two through six
+            targets:
+              - lifetime-intervals
+            color: cyan
+            linger: 0.55
+          - id: lifetime-c
+            phrase: C from four through seven
+            targets:
+              - lifetime-intervals
+            color: cyan
+            linger: 0.55
+          - id: reuse-slot
+            phrase: reuse one slot
+            targets:
+              - physical-slots
+            color: cyan
+            linger: 0.55
+      - say: Now extend A’s last use through operation five. B and C stay where they were. At operations
+          four and five, all three values are live at once. Now each needs its own slot. Look for that
+          extra overlap in a cubin’s liveness listing. The build’s resource report tells you how many
+          registers the assembler actually allocated.
+        hold: 0.7
+        visual_cues:
+          - id: extend-a
+            phrase: extend A’s last use through operation five
+            targets:
+              - lifetime-intervals
+            color: cyan
+            linger: 0.55
+          - id: third-live
+            phrase: all three values are live at once
+            targets:
+              - physical-slots
+            color: cyan
+            linger: 0.55
+      - say: How many blocks fit when each thread uses thirty-two registers? Thirty-two threads in a warp
+          request one thousand twenty-four. In this model we round that per-warp demand upward in units
+          of two hundred fifty-six. This warp fills four units exactly. Multiply by eight warps per
+          block. Eight of those blocks fill the register file and reach the sixty-four-warp limit.
+        hold: 0.7
+        visual_cues:
+          - id: rounded-demand
+            phrase: round that per-warp demand upward
+            targets:
+              - rounded-demand
+            color: cyan
+            linger: 0.55
+  - id: registers
+    title: How the register file fills
+    visual: A magnified warp allocation and a fixed register file show how demand rounds up, how whole
+      blocks fit, and how demand can rise again within the same allocation.
+    beats:
+      - say: Here’s the register file we just filled. Each block has eight warps, and all eight blocks fit. Look
+          inside one warp. Its thirty-two threads each need thirty-two registers. They fill four
+          allocation units exactly. Now give each thread one more register. The warp needs one thousand
+          fifty-six. Those extra thirty-two registers open a fifth unit. Each warp now takes one thousand
+          two hundred eighty registers, so one block takes ten thousand two hundred forty. With the same
+          register file, can a seventh block still fit?
+        hold: 2.4
+        visual_cues:
+          - id: register-initial-allocation
+            phrase: Look inside one warp
+            targets:
+              - warp-allocation
+            color: cyan
+            linger: 0.45
+          - id: register-add-one
+            phrase: give each thread one more register
+            targets:
+              - warp-allocation
+            color: yellow
+            linger: 0.45
+          - id: round-unit
+            phrase: open a fifth unit
+            targets:
+              - warp-allocation
+            color: yellow
+            linger: 0.45
+          - id: block-footprint
+            phrase: one block takes ten thousand two hundred forty
+            targets:
+              - register-file
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Six whole blocks fit. Try sliding a seventh into the space at the right. Only four thousand
+          ninety-six registers are free. The block needs all ten thousand two hundred forty before any of
+          its warps can join. Six blocks give us forty-eight resident warps out of a possible sixty-four.
+          Now raise the demand to forty registers per thread. Look at that fifth unit again. Does a block
+          have to leave?
+        hold: 2.3
+        visual_cues:
+          - id: register-fewer-blocks
+            phrase: Six whole blocks fit
+            targets:
+              - register-file
+            color: green
+            linger: 0.45
+            caption_boundary: true
+          - id: try-seventh
+            phrase: sliding a seventh into the space at the right
+            targets:
+              - register-file
+            color: yellow
+            linger: 0.45
+          - id: free-registers
+            phrase: four thousand ninety-six registers are free
+            targets:
+              - register-file
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+          - id: register-forty
+            phrase: raise the demand to forty registers per thread
+            targets:
+              - warp-allocation
+            color: yellow
+            linger: 0.45
+      - say: All six can stay. Forty times thirty-two fills the fifth unit exactly. We used its empty space, so
+          the block allocation stayed the same. At forty-one registers per thread we cross the next step.
+          The larger blocks leave room for five. This counts blocks that can reside together under our
+          assumptions. On a real target, shared memory or another hardware limit may bind first. Before
+          setting a register cap, check the build for spills and time the warmed kernel. Better reuse can
+          make fewer resident warps faster.
+        hold: 1
+        visual_cues:
+          - id: same-step
+            phrase: All six can stay
+            targets:
+              - register-file
+            color: green
+            linger: 0.45
+            caption_boundary: true
+          - id: register-next
+            phrase: At forty-one registers per thread
+            targets:
+              - warp-allocation
+            color: yellow
+            linger: 0.45
+          - id: five-blocks
+            phrase: The larger blocks leave room for five
+            targets:
+              - register-file
+            color: green
+            linger: 0.45
+            caption_boundary: true
+          - id: register-resource-reports
+            phrase: check the build for spills and time the warmed kernel
+            targets:
+              - register-file
+            color: cyan
+            linger: 0.45
+  - id: spill-workload
+    title: A spill changes accesses and can consume another residency budget
+    visual: A thread repeatedly stores and reloads a four-byte value. A separate example places spills in a finite shared-memory budget.
+    beats:
+      - say: Watch one thread spill a value to local memory, then read it back. In this loop, one
+          four-byte spill store and one four-byte spill load execute twenty times per thread. That
+          requests one hundred sixty bytes per thread. Local memory is backed by device memory. Its
+          accesses can hit in cache, so count the requests here and measure traffic to device memory on
+          the GPU.
+        hold: 0.7
+        visual_cues:
+          - id: spill-accesses
+            phrase: one four-byte spill store and one four-byte spill load
+            targets:
+              - spill-loop
+            color: cyan
+            linger: 0.55
+          - id: spill-iterations
+            phrase: execute twenty times
+            targets:
+              - spill-loop
+            color: cyan
+            linger: 0.55
+          - id: spill-total
+            phrase: one hundred sixty bytes per thread
+            targets:
+              - spill-total
+            color: cyan
+            linger: 0.55
+      - say: The assembler gives you the static spill report. Multiply each access width by its execution
+          count to get the requested bytes. If you cap registers, the compiler may change which values
+          spill and which instructions run. It raises a cap below the ABI minimum to that minimum. A
+          launch with more threads per block than its declared maximum fails. Time the warmed kernel to
+          see what the cap actually changed.
+        hold: 0.7
+        visual_cues:
+          - id: static-dynamic
+            phrase: Multiply each access width by its execution count
+            targets:
+              - spill-report
+            color: cyan
+            linger: 0.55
+          - id: launch-maximum
+            phrase: more threads per block than its declared maximum fails
+            targets:
+              - spill-report
+            color: cyan
+            linger: 0.55
+      - say: CUDA thirteen added an option for whole-program compilation that uses shared memory before
+          local fallback for spills. Extra shared storage can reduce resident blocks. This option
+          excludes dynamic shared memory and warp register reallocation. Explicit launch bounds help
+          predict the allocation. Compare the two builds’ register, stack, spill and shared-memory
+          reports, then measure the warmed kernels on the target.
+        hold: 0.7
+        visual_cues:
+          - id: shared-spill
+            phrase: shared memory before local fallback
+            targets:
+              - spill-storage
+            color: cyan
+            linger: 0.55
+          - id: shared-residency
+            phrase: Extra shared storage can reduce resident blocks
+            targets:
+              - spill-storage
+            color: cyan
+            linger: 0.55
+  - id: identity
+    title: Which version of the addition did the cache return?
+    visual: Two lookups see the same main file and different included header bytes. One lookup sends nine to
+      the output after the scale changes. The other follows the miss through recompilation to eighteen.
+    beats:
+      - say: Here the kernel also multiplies its sum by a scale from a header file. Four plus five is nine. The
+          scale is one, so we store nine. Save that compiled operation in a cache. The next build uses the
+          same main file and the same two inputs. Change just the header to scale two. If the lookup
+          checks only the main file, what value will the cached operation write?
+        hold: 2.4
+        visual_cues:
+          - id: cache-original
+            phrase: The scale is one, so we store nine
+            targets:
+              - cache-recipe
+            color: green
+            linger: 0.45
+            caption_boundary: true
+          - id: cache-save
+            phrase: Save that compiled operation
+            targets:
+              - cache-lookups
+            color: cyan
+            linger: 0.45
+          - id: cache-header
+            phrase: Change just the header to scale two
+            targets:
+              - cache-recipe
+            color: yellow
+            linger: 0.45
+      - say: It still writes nine. The executable it retrieved has one baked in. Look up the same build using
+          the included header bytes as part of the key. The changed bytes make this a miss. Compile the
+          new scale, then give the rebuilt operation four and five. This time it writes eighteen. Carry
+          every dependency that changes the generated code or its validity into this key. Check the
+          artifact’s own digest and its device compatibility before you load it.
+        hold: 0.85
+        visual_cues:
+          - id: stale-result
+            phrase: It still writes nine
+            targets:
+              - cache-lookups
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+          - id: lookup-header
+            phrase: using the included header bytes as part of the key
+            targets:
+              - cache-lookups
+            color: cyan
+            linger: 0.45
+          - id: header-miss
+            phrase: The changed bytes make this a miss
+            targets:
+              - cache-lookups
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+          - id: compile-header
+            phrase: Compile the new scale
+            targets:
+              - cache-lookups
+            color: cyan
+            linger: 0.45
+          - id: rebuilt-result
+            phrase: This time it writes eighteen
+            targets:
+              - cache-lookups
+            color: green
+            linger: 0.45
+            caption_boundary: true
+  - id: manifest-contract
+    title: A reproducible recipe includes every code-generation dependency
+    visual: The CPU exercise changes ten inputs to a compilation recipe. Two arrays with the same length but different strides select different source addresses.
+    beats:
+      - say: The header changed the kernel. What else could change it? Record the source and its
+          included files, the compiler version, the flags in order and the targets. Include the tensor
+          layout the kernel assumes. Block size, number of warps and pipeline stages belong in the key
+          when they affect the compiled code. The same goes for a tensor value baked in at compile time.
+          Keep the digest of the finished bytes and the device compatibility information alongside the recipe.
+        hold: 0.7
+        visual_cues:
+          - id: recipe-fields
+            phrase: the source and its included files
+            targets:
+              - manifest-fields
+            color: cyan
+            linger: 0.55
+          - id: meta-parameters
+            phrase: number of warps and pipeline stages
+            targets:
+              - manifest-fields
+            color: cyan
+            linger: 0.55
+      - say: This CPU check changes ten inputs one at a time. The identical recipe hits the cache. Each
+          changed recipe misses. Look at the two arrays below. Each contains a thousand elements.
+          One has stride one and the other stride two. At logical index one, the first kernel reads
+          offset one. The second array needs offset two. Reusing the first kernel would read the wrong
+          element.
+        hold: 0.7
+        visual_cues:
+          - id: mutate-inputs
+            phrase: changes ten inputs one at a time
+            targets:
+              - manifest-mutations
+            color: cyan
+            linger: 0.55
+          - id: stride-addresses
+            phrase: stride one and the other stride two
+            targets:
+              - stride-addresses
+            color: cyan
+            linger: 0.55
+      - say: Follow the include in the main file. That header includes another header. To build the
+          key, discover nested includes and record their resolved paths and contents. With NVRTC
+          precompiled headers, the caller checks whether an included file has changed. Keep a validated
+          copy of the build inputs so a later edit to a nested object cannot change the recorded recipe.
+          Verify the artifact’s digest before loading it.
+        hold: 0.7
+        visual_cues:
+          - id: dependency-discovery
+            phrase: discover nested includes
+            targets:
+              - dependency-tree
+            color: cyan
+            linger: 0.55
+  - id: publication
+    title: Publish a completed artifact before readers can select it
+    visual: Eight private bytes accumulate before publication makes a complete file visible. A cooperating lock can reduce duplicate compilation.
+    beats:
+      - say: Several workers may encounter the same missing specialization. Duplicate compilation wastes
+          resources, while incomplete-file visibility is a separate problem. Build into a unique
+          temporary location, validate the result, then publish under a filesystem operation with
+          the required atomic visibility semantics. Readers should select a complete artifact for
+          the exact recipe.
+        hold: 0.65
+        visual_cues:
+          - id: publication-beat-1-focus-1
+            phrase: Readers should select a complete artifact for the exact recipe
+            targets:
+              - publication-s-published-public-complete-artifact-public-absent
+            color: cyan
+            linger: 0.65
+          - id: publication-beat-1-focus-2
+            phrase: Duplicate compilation wastes resources, while incomplete-file visibility is a separate
+              problem
+            targets:
+              - publication-grid-publication
+            color: yellow
+            linger: 0.65
+      - say: Atomic visibility and durability have different contracts. A cooperating lock can reduce
+          duplicate compilation when writers recheck the key after acquiring it. Shared storage,
+          filesystem semantics, failed writers, and timeouts need explicit handling. Preserve a bad
+          artifact and its provenance before deciding which of those mechanisms caused a load error.
+        hold: 0.65
+        visual_cues:
+          - id: publication-beat-2-focus-1
+            phrase: Preserve a bad artifact and its provenance before deciding which of those mechanisms caused
+              a load error
+            targets:
+              - publication-s-published-public-complete-artifact-public-absent
+            color: cyan
+            linger: 0.65
+          - id: publication-beat-2-focus-2
+            phrase: Shared storage, filesystem semantics, failed writers, and timeouts need explicit handling
+            targets:
+              - publication-grid-publication
+            color: yellow
+            linger: 0.65
+  - id: cache-cooperation
+    title: Can a reader use what the writers published?
+    visual: Two writers can publish complete files. A crash between two replacements leaves the reader with
+      new kernel bytes and the old digest. The warmup example checks both recipe identity and access to
+      storage.
+    beats:
+      - say: Watch the private file fill while the public file stays intact. This version of Triton gives
+          each writer a unique process-and-UUID temporary directory. The writer closes the finished file,
+          then publishes with os dot replace. With atomic replacement on the same filesystem, a reader
+          opens either the whole old file or the whole new one. This path skips the compilation lock and
+          file sync. Two writers can do the same work, and surviving a power loss needs a durability
+          step.
+        hold: 0.7
+        visual_cues:
+          - id: private-temp
+            phrase: unique process-and-UUID temporary directory
+            targets:
+              - publication-bytes
+            color: cyan
+            linger: 0.55
+          - id: atomic-replace
+            phrase: publishes with os dot replace
+            targets:
+              - publication-bytes
+            color: cyan
+            linger: 0.55
+      - say: Two writers can still compile the same missing recipe and both finish. To avoid that second build,
+          have each writer take a lock. It rechecks the exact key after acquiring the lock. If the first
+          writer published while the second waited, the second can use that entry. The writers have to
+          cooperate, and a failed writer or a timeout needs a recovery procedure.
+        hold: 0.7
+        visual_cues:
+          - id: duplicate-builds
+            phrase: Two writers can still compile
+            targets:
+              - writer-lanes
+            color: cyan
+            linger: 0.55
+          - id: recheck-key
+            phrase: rechecks the exact key after acquiring the lock
+            targets:
+              - writer-lanes
+            color: cyan
+            linger: 0.55
+      - say: Now the reader needs a pair of files. The metadata records a digest of the kernel bytes it belongs
+          with. Start with version A in both places. The two digests match. Replace just the kernel with
+          version B. The writer crashes before it can replace the metadata. Both files are complete.
+          Compare the digest of the bytes we opened with the one the metadata expects. They differ. Reject
+          this pair and recover a complete set for the intended recipe. Replacing each file atomically
+          still left a gap between the two replacements.
+        hold: 0.9
+        visual_cues:
+          - id: pair-a
+            phrase: Start with version A in both places
+            targets:
+              - group-artifacts
+            color: cyan
+            linger: 0.45
+          - id: pair-match
+            phrase: The two digests match
+            targets:
+              - group-artifacts
+            color: green
+            linger: 0.45
+          - id: group-crash
+            phrase: Replace just the kernel with version B
+            targets:
+              - group-artifacts
+            color: yellow
+            linger: 0.45
+          - id: group-compare
+            phrase: They differ
+            targets:
+              - group-artifacts
+            color: pink
+            linger: 0.45
+      - say: A worker can reuse a warm entry when it asks for the same recipe in a cache it can reach. Rank zero
+          has warmed target A in shared storage. A worker asking for A in an empty private cache misses. A
+          worker sharing the cache but asking for target B also misses. The matching worker in shared
+          storage hits. This CPU example checks the lookups. To investigate an invalid ELF header on a
+          real filesystem, preserve the failed bytes, path, recipe and writer logs before testing for a
+          wrong artifact or an incomplete publication.
+        hold: 0.7
+        visual_cues:
+          - id: warm-scope
+            phrase: Rank zero has warmed target A
+            targets:
+              - cache-ranks
+            color: cyan
+            linger: 0.45
+          - id: private-miss
+            phrase: A in an empty private cache misses
+            targets:
+              - cache-ranks
+            color: cyan
+            linger: 0.45
+          - id: target-miss
+            phrase: asking for target B also misses
+            targets:
+              - cache-ranks
+            color: cyan
+            linger: 0.45
+          - id: shared-hit
+            phrase: The matching worker in shared storage hits
+            targets:
+              - cache-ranks
+            color: cyan
+            linger: 0.45
+  - id: request-clock
+    title: What did the first request pay for?
+    visual: Two first requests share one clock. The native path skips PTX compilation. Both paths pay the
+      same application cache cost. The warm interval begins separately.
+    beats:
+      - say: A request can arrive before the GPU code is ready. If the service starts with CUDA
+          source, NVRTC can produce PTX, cubin or link-time optimization IR depending on the target and
+          options. Its CUDA thirteen point four Tile path produces Tile IR. Given PTX, the driver can
+          compile a native image. When device code needs linking, nvJitLink can combine supported
+          inputs into one cubin.
+        hold: 0.7
+        visual_cues:
+          - id: compiler-producers
+            phrase: NVRTC can produce PTX, cubin
+            targets:
+              - compiler-producers
+            color: cyan
+            linger: 0.55
+          - id: link-cubin
+            phrase: nvJitLink can combine
+            targets:
+              - compiler-producers
+            color: cyan
+            linger: 0.55
+      - say: Take the fallback we disabled for build B and allow the driver to compile its PTX. Here’s an
+          example clock. Initialization takes ten milliseconds. Loading the module takes five. Compiling
+          PTX takes sixty. The service spends two publishing its ready entry and one on the first launch.
+          That adds up to seventy-eight milliseconds. Replay with a compatible native image. Keep the load
+          and the application cache work the same. Without the compilation step the total is eighteen
+          milliseconds. A native image can still load lazily on first use. Record the phase where the time
+          went.
+        hold: 0.7
+        visual_cues:
+          - id: cold-init
+            phrase: Initialization takes ten milliseconds
+            targets:
+              - cold-clock
+            color: cyan
+            linger: 0.55
+          - id: cold-jit
+            phrase: Compiling PTX takes sixty
+            targets:
+              - cold-clock
+            color: cyan
+            linger: 0.55
+          - id: cold-total
+            phrase: seventy-eight milliseconds
+            targets:
+              - cold-clock
+            color: cyan
+            linger: 0.55
+            caption_boundary: true
+          - id: native-omit
+            phrase: Without the compilation step the total is eighteen milliseconds
+            targets:
+              - cold-clock
+            color: cyan
+            linger: 0.55
+            caption_boundary: true
+          - id: cold-load
+            phrase: Loading the module takes five
+            targets:
+              - cold-clock
+            color: cyan
+            linger: 0.55
+          - id: cold-publish
+            phrase: two publishing its ready entry
+            targets:
+              - cold-clock
+            color: cyan
+            linger: 0.55
+          - id: cold-launch
+            phrase: one on the first launch
+            targets:
+              - cold-clock
+            color: cyan
+            linger: 0.55
+      - say: Start the cold clock in a fresh process. Record its cache state and loader mode. Then warm
+          this specialization and time a separately synchronized interval. Record whether that timer
+          includes the launch, waiting or synchronization. A driver upgrade can invalidate the driver’s
+          compute cache. The application has its own cache keys. If the first request is too slow,
+          use the long phase on its trace to choose what to precompile, warm or load ahead of time.
+        hold: 0.7
+        visual_cues:
+          - id: separate-warm
+            phrase: separately synchronized interval
+            targets:
+              - warm-clock
+            color: cyan
+            linger: 0.55
+  - id: ownership
+    title: Who owns the last four offsets?
+    visual: Twelve candidate indices line up with ten actual outputs. Individual scalar thread positions and
+      a blocked program share the same memory boundary.
+    beats:
+      - say: Lay out ten output slots. For this small example, each block covers four positions. In CUDA C plus
+          plus, one thread works out its own index. Thread one in block two starts eight places in and
+          moves over one. It owns index nine. In Triton, one program forms all four offsets together. Look
+          at the last program. Which of its offsets may load both inputs and write an output?
+        hold: 2.4
+        visual_cues:
+          - id: thread-index
+            phrase: Thread one in block two
+            targets:
+              - owners
+            color: cyan
+            linger: 0.45
+          - id: index-nine
+            phrase: It owns index nine
+            targets:
+              - owners
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: program-span
+            phrase: one program forms all four offsets together
+            targets:
+              - owners
+            color: yellow
+            linger: 0.45
+      - say: Eight and nine. Trace them down to the two output slots. Ten and eleven have no slots underneath
+          them. The same less-than test guards both input loads and the store. CUDA can apply it in each
+          thread. Triton can apply it as a mask across the four offsets, leaving thread assignment to the
+          compiler. That makes Triton a natural fit if the work you need to control is the masked block.
+          Let’s see which threads a real compilation assigns.
+        hold: 0.85
+        visual_cues:
+          - id: valid-tail
+            phrase: Eight and nine
+            targets:
+              - addresses
+            color: green
+            linger: 0.45
+            caption_boundary: true
+          - id: trace-stores
+            phrase: Trace them down to the two output slots
+            targets:
+              - addresses
+            color: green
+            linger: 0.45
+          - id: blocked-mask
+            phrase: as a mask across the four offsets
+            targets:
+              - owners
+            color: cyan
+            linger: 0.45
+  - id: triton-lowering
+    title: How does a thread read its two values?
+    visual: Follow the first two threads in a 256-element Triton block. Thread zero reads its adjacent
+      floats from x with two separately guarded PTX loads at byte offsets zero and four.
+    beats:
+      - say: Here’s what Triton three point nine produced for our vector add. Follow the code from Triton
+          IR through Triton GPU IR and LLVM IR to PTX and the cubin. In the first IR, arith dot add f
+          adds two tensors of two hundred fifty-six floats. The compiler widens the program index to
+          sixty-four bits before multiplying. The less-than mask reaches both loads and the store.
+        hold: 0.7
+        visual_cues:
+          - id: triton-stages
+            phrase: In the first IR, arith dot add f
+            targets:
+              - lowering-stages
+            color: cyan
+            linger: 0.55
+          - id: triton-mask
+            phrase: less-than mask reaches both loads and the store
+            targets:
+              - lowering-mask
+            color: cyan
+            linger: 0.55
+      - say: Look at the first two threads in block zero. The GPU layout assigns two elements per thread.
+          Thread zero owns offsets zero and one. Thread one owns two and three. Four warps of thirty-two
+          threads cover all two hundred fifty-six elements. Now follow thread zero into the PTX. The
+          first load reads one float from x. The second reads the next float, four bytes later. Each load
+          has its own guard. The compiler emits two more loads for y. To measure memory transactions and
+          bandwidth, profile this kernel on the GPU.
+        hold: 0.7
+        visual_cues:
+          - id: two-per-thread
+            phrase: two elements per thread
+            targets:
+              - thread-layout
+            color: cyan
+            linger: 0.55
+          - id: triton-loads
+            phrase: The first load reads one float from x
+            targets:
+              - thread-loads
+              - thread-layout
+            color: cyan
+            linger: 0.55
+          - id: next-float
+            phrase: The second reads the next float, four bytes later
+            targets:
+              - thread-loads
+              - thread-layout
+            color: cyan
+            linger: 0.55
+      - say: This Triton build uses fourteen registers per thread, zero spills and zero shared bytes. The
+          CUDA build uses twelve registers. Both pass the same numerical checks. Time the two kernels on
+          the same GPU to compare their speed. To find the Triton cubin we just inspected, follow its
+          NVIDIA backend. After lowering to PTX, the backend invokes the toolkit assembler and reads back
+          the cubin.
+        hold: 0.7
+        visual_cues:
+          - id: triton-report
+            phrase: fourteen registers
+            targets:
+              - triton-report
+            color: cyan
+            linger: 0.55
+          - id: toolkit-assembler
+            phrase: invokes the toolkit assembler
+            targets:
+              - lowering-stages
+            color: cyan
+            linger: 0.55
+  - id: ownership-boundaries
+    title: What does a full block test miss?
+    visual: A CPU check enumerates candidate addresses under an inclusive guard. Adding one output creates a
+      second block. The first excess address disappears when the comparison changes.
+    beats:
+      - say: Try this guard on a CPU, where we can list every address it would touch. It admits an index if it’s
+          less than or equal to the length. Start with two hundred fifty-six elements and a block width of
+          two hundred fifty-six. The only block ends at index two hundred fifty-five. Every address
+          matches the reference. Keep the guard and the block width. Add one element. Now a second block
+          starts at two hundred fifty-six. What’s the first address this guard would touch outside the
+          array?
+        hold: 2.5
+        visual_cues:
+          - id: full-shape
+            phrase: Start with two hundred fifty-six elements
+            targets:
+              - tail-positions
+            color: cyan
+            linger: 0.45
+          - id: full-pass
+            phrase: Every address matches the reference
+            targets:
+              - tail-positions
+            color: green
+            linger: 0.45
+            caption_boundary: true
+          - id: tail-257
+            phrase: Add one element
+            targets:
+              - tail-positions
+            color: yellow
+            linger: 0.45
+          - id: second-block
+            phrase: a second block starts at two hundred fifty-six
+            targets:
+              - tail-positions
+            color: cyan
+            linger: 0.45
+      - say: Index two hundred fifty-seven slips through. It equals the length. In the full block test, no
+          thread ever tried that comparison at the endpoint. Now change the guard to strictly less than on
+          both loads and the store. Enumerate the same addresses again. Two hundred fifty-seven are valid,
+          and two hundred fifty-five stay masked. Every index in the array occurs exactly once.
+        hold: 0.9
+        visual_cues:
+          - id: bad-inclusive
+            phrase: Index two hundred fifty-seven slips through
+            targets:
+              - tail-positions
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+          - id: fix-guard
+            phrase: strictly less than on both loads and the store
+            targets:
+              - tail-positions
+            color: yellow
+            linger: 0.45
+          - id: fixed-counts
+            phrase: Two hundred fifty-seven are valid, and two hundred fifty-five stay masked
+            targets:
+              - tail-positions
+            color: green
+            linger: 0.45
+            caption_boundary: true
+      - say: The CPU check tells us which addresses the formula selects. On the GPU, use distinct, finite inputs
+          and compare every output with its reference. The CUDA fixture fills output with NaN before
+          launch. A skipped store leaves that marker behind, so require every result to be finite as well.
+          The Triton wrapper checks the device, shape, data type, autograd requirements and strides before
+          launch.
+        hold: 0.7
+        visual_cues:
+          - id: poison-write
+            phrase: fills output with NaN before launch
+            targets:
+              - poison-output
+            color: cyan
+            linger: 0.45
+          - id: missed-store
+            phrase: A skipped store leaves that marker behind
+            targets:
+              - poison-output
+            color: pink
+            linger: 0.45
+          - id: wrapper-guards
+            phrase: checks the device, shape, data type, autograd requirements and strides
+            targets:
+              - wrapper-guards
+            color: cyan
+            linger: 0.45
+      - say: At the signed thirty-two-bit limit, adding the block width minus one to the length would overflow
+          before the division. Divide first. You get eight million three hundred eighty-eight thousand six
+          hundred seven full blocks and a remainder of two hundred fifty-five. Add one block for that
+          remainder. The padded count is one past the signed limit, so form the indices in a wide type.
+          There’s just one masked lane. We can check the arithmetic without allocating that buffer.
+        hold: 0.75
+        visual_cues:
+          - id: wide-overflow
+            phrase: would overflow before the division
+            targets:
+              - wide-arithmetic
+            color: pink
+            linger: 0.45
+          - id: wide-ceiling
+            phrase: Add one block for that remainder
+            targets:
+              - wide-arithmetic
+            color: cyan
+            linger: 0.45
+  - id: control-surfaces
+    title: Choose the owner of an actual data movement or layout
+    visual: Small tensors show which operations each author controls, from a CUDA thread address and CuTe layout to a JAX block specification and a transfer into Neuron SBUF.
+    beats:
+      - say: Who places these sixteen values? With CUDA C plus plus, you write the per-thread addresses
+          and control synchronization, memory spaces and intrinsics. In Triton you describe a block and
+          the compiler maps it to threads. Look at the four yellow groups on the right. CuTe expresses
+          hierarchical tensor layouts like this one, down to the copy and matrix multiply-accumulate
+          operations. CUTLASS uses these building blocks. CuTe’s Python DSL also exposes that hierarchy.
+        hold: 0.7
+        visual_cues:
+          - id: thread-addresses
+            phrase: per-thread addresses
+            targets:
+              - control-geometry
+            color: cyan
+            linger: 0.55
+          - id: cute-layout
+            phrase: Look at the four yellow groups on the right
+            targets:
+              - control-geometry
+            color: cyan
+            linger: 0.55
+      - say: Here’s a block acting collectively on a four-by-four CUDA tile. Add one and you get a new
+          tile. The original is immutable. The compiler maps the work to threads. Tile dimensions are
+          compile-time powers of two. CUDA Tile C plus plus needs toolkit thirteen point three or later.
+          Our thirteen point two build used the scalar-thread interface. Both models can coexist on
+          supported NVIDIA hardware.
+        hold: 0.7
+        visual_cues:
+          - id: tile-collective
+            phrase: block acting collectively
+            targets:
+              - control-geometry
+            color: cyan
+            linger: 0.55
+          - id: tile-version
+            phrase: thirteen point three or later
+            targets:
+              - control-version
+            color: cyan
+            linger: 0.55
+      - say: In Pallas, JAX references, grids and block specifications describe which slice each program
+          gets. Program zero takes the upper left square. GPU and TPU backends have their own APIs and
+          transformation rules. On Neuron, NKI lets you choose where the data moves. Copy the four values
+          from HBM into SBUF, add one on a NeuronCore engine, then store outputs back in HBM. Two became
+          three. If a library already does the job, start there. Choose a lower-level interface when you
+          need control over a step like this copy.
+        hold: 0.7
+        visual_cues:
+          - id: pallas-grid
+            phrase: JAX references, grids and block specifications
+            targets:
+              - pallas-grid
+            color: cyan
+            linger: 0.55
+          - id: neuron-move
+            phrase: from HBM into SBUF
+            targets:
+              - neuron-movement
+            color: cyan
+            linger: 0.55
+          - id: neuron-store
+            phrase: then store outputs
+            targets:
+              - neuron-movement
+            color: cyan
+            linger: 0.55
+  - id: first-failing-boundary
+    title: Where did the store stop?
+    visual: Two fresh CPU checks use the same inclusive guard and blocks of 128. A fixed address ruler shows
+      the last two slots of a 768-element output. Adding one slot launches another block. Changing the
+      guard removes its excess access.
+    beats:
+      - say: An older JAX tutorial stops at a Pallas call. There is no compiler output yet. JAX zero
+          point eleven deprecated the Pallas Triton backend. Version zero point eleven point two removed
+          the old Mosaic GPU pallas call and the old dot operation. Match the tutorial to its JAX and
+          backend versions, migrate the call and its indexing, then inspect the lowering.
+        hold: 0.7
+        visual_cues:
+          - id: api-rejection
+            phrase: There is no compiler output yet
+            targets:
+              - failure-boundaries
+            color: cyan
+            linger: 0.45
+      - say: Move the failure one step further. For a frontend rejection, save the smallest failing source and
+          the compiler log. If assembly fails, save the PTX header and the assembler version. If image
+          selection fails, do what we did for build B and inspect the package against the device and
+          driver. Once a kernel runs, rising register use calls for both cubins and a target profile. Now
+          our image loads. Use blocks of one hundred twenty-eight. At length seven hundred sixty-eight the
+          inclusive guard passes the index check. The last block ends exactly at the end of the array.
+          Keep the block width and add one output. A new block starts at index seven hundred sixty-eight.
+          The guard still says less than or equal to the length. Which index would it access outside the
+          output?
+        hold: 3
+        visual_cues:
+          - id: frontend-stop
+            phrase: For a frontend rejection
+            targets:
+              - failure-boundaries
+            color: cyan
+            linger: 0.45
+          - id: assembler-stop
+            phrase: If assembly fails
+            targets:
+              - failure-boundaries
+            color: cyan
+            linger: 0.45
+          - id: loader-stop
+            phrase: If image selection fails
+            targets:
+              - failure-boundaries
+            color: cyan
+            linger: 0.45
+          - id: runtime-stop
+            phrase: Once a kernel runs
+            targets:
+              - failure-boundaries
+            color: cyan
+            linger: 0.45
+          - id: fresh-premises
+            phrase: Use blocks of one hundred twenty-eight
+            targets:
+              - fresh-tail
+            color: yellow
+            linger: 0.45
+          - id: fresh-full
+            phrase: the inclusive guard passes the index check
+            targets:
+              - fresh-tail
+            color: yellow
+            linger: 0.45
+          - id: fresh-change
+            phrase: add one output
+            targets:
+              - fresh-tail
+            color: yellow
+            linger: 0.45
+          - id: fresh-start
+            phrase: A new block starts at index seven hundred sixty-eight
+            targets:
+              - fresh-tail
+            color: yellow
+            linger: 0.45
+          - id: fresh-question
+            phrase: Which index would it access outside the output
+            targets:
+              - fresh-tail
+            color: yellow
+            linger: 0.45
+      - say: Index seven hundred sixty-nine is the extra address. The final block starts with a legal
+          write to slot seven hundred sixty-eight. The next lane equals the length and points past the
+          output. Seven blocks create eight hundred ninety-six lane positions. Try the strict comparison
+          on both loads and the store. Only the first lane in the last block is valid. Its other one
+          hundred twenty-seven lanes stay masked. Check the indices in order against zero through seven
+          hundred sixty-eight. On the GPU, compare the rebuilt kernel’s output with the reference and run
+          the memory checker on this shape. In the next lesson we’ll follow the threads that own a tile
+          of a matrix product.
+        hold: 1.4
+        visual_cues:
+          - id: fresh-illegal
+            phrase: Index seven hundred sixty-nine is the extra address
+            targets:
+              - fresh-tail
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+          - id: fresh-store
+            phrase: a legal write to slot seven hundred sixty-eight
+            targets:
+              - fresh-tail
+            color: green
+            linger: 0.45
+          - id: fresh-seven
+            phrase: Seven blocks create eight hundred ninety-six lane positions
+            targets:
+              - fresh-tail
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: fresh-repair
+            phrase: Try the strict comparison on both loads and the store
+            targets:
+              - fresh-tail
+            color: yellow
+            linger: 0.45
+          - id: fresh-tail-complete
+            phrase: Its other one hundred twenty-seven lanes stay masked
+            targets:
+              - fresh-tail
+            color: green
+            linger: 0.45
+            caption_boundary: true
+          - id: check-all
+            phrase: Check the indices in order against zero through seven hundred sixty-eight
+            targets:
+              - fresh-tail
+            color: green
+            linger: 0.45
+          - id: gpu-test
+            phrase: On the GPU, compare the rebuilt kernel’s output with the reference
+            targets:
+              - fresh-tail
+            color: cyan
+            linger: 0.45

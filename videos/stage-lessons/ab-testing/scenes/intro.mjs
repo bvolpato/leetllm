@@ -1,191 +1,241 @@
+// Scene 01 (intro): "Does the runbook back this answer?"
+// Runbook requirement vs assistant "Alone" claim -> strict prediction withholding -> dual tally (1 grounding fail + 1 resolved) -> A/B split + +0.50 pp guardrail budget.
 import {
-  boxOf,
-  column,
-  draw,
-  group,
-  line,
-  linear,
-  place,
-  polygon,
-  rect,
-  row,
-  to,
-} from 'vizmatic/stage';
-import { area, chip, heading, label, mono, note } from '../../kit-narrated.mjs';
+  BAD_COLOR,
+  COSMOS,
+  CTRL_COLOR,
+  GOOD_COLOR,
+  TRT_COLOR,
+  WARN_COLOR,
+  aura,
+  glowArrow,
+  glowDot,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  rule,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
 
 export default function intro(s, c) {
-  const [documents, scoreRow, questionRow] = area.rows([3.7, 1, 0.8], 'normal');
-  const [chat, page] = documents.columns(2, 'wide');
-  const [chatHead, reply, action] = chat.inset('wide').rows([1, 2.3, 1.3], 'tight');
-  const [pageHead, excerptSlot, pageFoot] = page.inset('wide').rows([1, 2.3, 1.3], 'tight');
-  const bubble = rect(chat.width, chat.height, {
-    radius: 32,
-    fill: 'surface',
-    stroke: 'blue',
-    width: 4,
-  }).moveTo(chat.point('center'));
-  const tail = polygon(
-    [
-      [chat.left + 50, chat.bottom - 2],
-      [chat.left + 50, chat.bottom + 20],
-      [chat.left + 85, chat.bottom - 2],
-    ],
-    { fill: 'blue', stroke: null },
-  );
-  const paper = rect(page.width, page.height, {
-    radius: 8,
-    fill: 'surface',
-    stroke: 'dim',
-    width: 3,
-  }).moveTo(page.point('center'));
-  const spine = line([page.left + 18, page.top], [page.left + 18, page.bottom], {
-    stroke: 'cyan',
-    width: 6,
-  });
-  const tabX = page.right - 85;
-  const bookmark = polygon(
-    [
-      [tabX, page.top],
-      [tabX + 40, page.top],
-      [tabX + 40, page.top + 80],
-      [tabX + 20, page.top + 64],
-      [tabX, page.top + 80],
-    ],
-    { fill: 'cyan', stroke: null },
-  );
-  const alone = label('alone', { size: 54 });
-  const answer = place(
-    column(
-      [
-        row([label('“Acknowledgement', { size: 54 }), alone], { gap: 20 }),
-        label('authorizes rollback.”', { size: 54 }),
-      ],
-      { gap: 'normal' },
-    ),
-    reply,
-    'left',
-  );
-  const excerpt = place(
-    column(
-      [label('“Rollback requires', { size: 54 }), label('owner acknowledgement.”', { size: 54 })],
-      { gap: 'normal' },
-    ),
-    excerptSlot,
-    'left',
-  );
-  const buttonStyle = { size: 37, minWidth: 360, height: 1.8, round: true };
-  const button = place(
-    chip('Mark usable', { ...buttonStyle, fill: 'blue', color: 'bg' }),
-    action,
-    'left',
-  );
-  const marked = place(
-    chip('Marked usable', { ...buttonStyle, stroke: 'blue', color: 'blue' }),
-    action,
-    'left',
-  );
-  const tip = boxOf(button).point('bottom right');
-  const click = [tip[0] - 22, tip[1] - 14];
-  const pointer = polygon(
-    [
-      [0, 0],
-      [8, 62],
-      [23, 45],
-      [38, 69],
-      [51, 61],
-      [36, 38],
-      [59, 35],
-    ],
-    {
-      fill: 'ink',
-      stroke: 'bg',
-      width: 3,
-    },
-  ).at(click[0] + 206, click[1] + 62);
-  const pageLines = [0.78, 0.57].map((fraction, i) => {
-    const y = pageFoot.cy + i * 21 - 10;
-    return line([pageFoot.left, y], [pageFoot.left + pageFoot.width * fraction, y], {
-      stroke: 'gridStrong',
-      width: 4,
-    });
-  });
-  const documentsOn = group(
-    bubble,
-    tail,
-    paper,
-    spine,
-    bookmark,
-    ...pageLines,
-    answer,
-    excerpt,
-    place(label('Incident assistant   ·   rewrite', { size: 38, color: 'blue' }), chatHead, 'left'),
-    place(label('Payment runbook', { size: 38, color: 'cyan' }), pageHead, 'left'),
-  );
-  const openingQuestion = heading(c.title);
-  const question = place(
-    label('Which word turns a requirement into permission?', {
-      size: 48,
-      color: 'yellow',
-    }),
-    questionRow,
-  );
-  const word = boxOf(alone);
-  const underline = line([word.left, word.bottom + 10], [word.right, word.bottom + 10], {
-    stroke: 'yellow',
-    width: 6,
-  });
-  const [outcomeSlot, auditSlot] = scoreRow.columns(2, 'wide');
-  const audit = place(chip('1 grounding failure', { size: 39, color: 'yellow' }), auditSlot);
-  const observed = place(
-    column(
-      [
-        chip('1 resolved incident', { size: 39, color: 'green' }),
-        note('Usable at 8 min   ·   no new page through 10'),
-      ],
-      { gap: 'tight' },
-    ),
-    outcomeSlot,
-  );
+  const phase = s.value(0);
+  const showMarked = s.value(0);
+  const showSource = s.value(0);
+  const showAsk = s.value(0);
+  const showAlone = s.value(0);
+  const showAudit = s.value(0);
+  const showResolved = s.value(0);
+  const showSplit = s.value(0);
+  const showBudget = s.value(0);
 
-  const opening = [openingQuestion, documentsOn, button, pointer];
-  s.add(...opening);
-  // The cursor is already moving when the brand cuts to the answer.
-  for (const node of opening) node.track('opacity').step(0, 1);
-  s.play(
-    to(pointer, (p) => p.at(...click)),
-    { duration: c.cue('marked').start, ease: linear },
-  );
-  c.swap('marked', button, marked, { lead: 0 });
-  c.hide('source', pointer);
-  c.show('ask', question);
-  c.hide('alone', question, { lead: 0 });
-  c.show('alone', draw(underline), { lead: 0 });
-  c.show('audit', audit, { after: true });
-  c.show('resolved', observed, { after: true });
+  const bgAura = aura(0, 20, 640, '#133a4a36', '#3a183b22');
+  const title = heroTitle(['Does the Runbook', 'Back This Answer?'], {
+    x: -855,
+    y: -430,
+    size: 54,
+    lineHeight: 62,
+    accent: CTRL_COLOR,
+    eyebrow: 'EXPERIMENT DESIGN · OPENING CASE',
+  });
 
-  const [raw, rewrite] = documents.columns(2, 'wide');
-  const arms = [
-    place(
-      column([label('Control', { color: 'cyan' }), note('Search the original question')], {
-        gap: 'tight',
+  const live = guardedDynamic(s.value(1), () => {
+    const pulse = 0.72 + 0.28 * Math.sin(phase.value * 2.8);
+    const nodes = [
+      // Left: Runbook source sentence (always present as quiet skeleton from t=0)
+      txt('RUNBOOK POLICY (SOURCE)', -855, -245, 26, CTRL_COLOR, 'mono', 'left').opacity(
+        0.55 + 0.45 * showSource.value,
+      ),
+      lumBar(-430, -145, 840, 118, {
+        color: CTRL_COLOR,
+        fillOpacity: 0.14,
+        glow: 7,
+        opacity: 0.55 + 0.45 * showSource.value,
       }),
-      raw,
-    ),
-    place(
-      column([label('Treatment', { color: 'blue' }), note('Rewrite the search query')], {
-        gap: 'tight',
+      txt(
+        '“Rollback requires owner acknowledgement.”',
+        -820,
+        -162,
+        30,
+        COSMOS.ink,
+        'serif',
+        'left',
+      ).opacity(0.65 + 0.35 * showSource.value),
+      txt(
+        'Status: names ONE necessary requirement',
+        -820,
+        -112,
+        26,
+        COSMOS.muted,
+        'mono',
+        'left',
+      ).opacity(0.55 + 0.45 * showSource.value),
+
+      // Right: Assistant reply + minute-8 usable stamp
+      txt('ASSISTANT REPLY (MIN 8)', 45, -245, 26, WARN_COLOR, 'mono', 'left').opacity(
+        0.55 + 0.45 * showMarked.value,
+      ),
+      lumBar(450, -145, 810, 118, {
+        color: showAlone.value > 0.5 ? BAD_COLOR : WARN_COLOR,
+        fillOpacity: 0.14,
+        glow: 8,
+        opacity: 0.55 + 0.45 * showMarked.value,
       }),
-      rewrite,
-    ),
-  ];
-  const lock = place(label('Same runbook index, prompt, generator and decoder'), scoreRow);
-  const budget = place(
-    mono('Grounding limit   +0.50 percentage points', {
-      size: 44,
-      color: 'yellow',
-    }),
-    questionRow,
-  );
-  c.swapAll('split', [heading('Should we ship the query rewrite?'), arms, lock]);
-  c.show('budget', budget);
+      txt('“Acknowledgement', 80, -162, 30, COSMOS.ink, 'serif', 'left'),
+      txt('alone', 345, -162, 32, showAlone.value > 0.5 ? BAD_COLOR : COSMOS.ink, 'serif', 'left'),
+      txt('authorizes rollback.”', 445, -162, 30, COSMOS.ink, 'serif', 'left'),
+      txt(
+        showMarked.value > 0.3
+          ? 'OK: Engineer clicked USABLE at minute 8'
+          : 'Minute 8 reply pending review',
+        80,
+        -112,
+        26,
+        GOOD_COLOR,
+        'mono',
+        'left',
+      ).opacity(0.5 + 0.5 * showMarked.value),
+    ];
+
+    if (showAlone.value > 0.02) {
+      nodes.push(
+        rule(345, -142, 422, -142, BAD_COLOR, 4.5 + 1.2 * pulse)
+          .glow(9, BAD_COLOR)
+          .opacity(showAlone.value),
+      );
+    }
+
+    // Center: Two separate counters receiving the SAME answer
+    const splitOp = Math.max(0.35, showAudit.value, showResolved.value);
+    nodes.push(
+      txt(
+        'SAME ANSWER ENTERS TWO SEPARATE COUNTS',
+        -855,
+        10,
+        26,
+        COSMOS.cyan,
+        'mono',
+        'left',
+      ).opacity(splitOp),
+      lumBar(-430, 105, 830, 100, {
+        color: BAD_COLOR,
+        fillOpacity: showAudit.value > 0.4 ? 0.2 : 0.08,
+        glow: showAudit.value > 0.4 ? 9 : 4,
+        opacity: 0.45 + 0.55 * showAudit.value,
+      }),
+      txt(
+        showAudit.value > 0.5
+          ? 'BLINDED AUDIT:  +1 GROUNDING FAILURE'
+          : 'BLINDED AUDIT:  grounding check pending',
+        -815,
+        105,
+        28,
+        BAD_COLOR,
+        'mono',
+        'left',
+      ).opacity(0.45 + 0.55 * showAudit.value),
+
+      lumBar(450, 105, 810, 100, {
+        color: GOOD_COLOR,
+        fillOpacity: showResolved.value > 0.4 ? 0.2 : 0.08,
+        glow: showResolved.value > 0.4 ? 9 : 4,
+        opacity: 0.45 + 0.55 * showResolved.value,
+      }),
+      txt(
+        showResolved.value > 0.5
+          ? 'MIN-10 METRIC:  +1 RESOLVED INCIDENT'
+          : 'MIN-10 METRIC:  usable + no new page',
+        80,
+        105,
+        28,
+        GOOD_COLOR,
+        'mono',
+        'left',
+      ).opacity(0.45 + 0.55 * showResolved.value),
+    );
+
+    // Bottom: Non-overlapping prediction prompt -> A/B randomized split + +0.50 pp budget
+    const askOp = showAsk.value * Math.max(0, 1 - showAlone.value * 2.6);
+    if (askOp > 0.02) {
+      nodes.push(
+        txt(
+          'Which single word turns a requirement into permission?',
+          -855,
+          290,
+          34,
+          WARN_COLOR,
+          'serif',
+          'left',
+        )
+          .glow(7, WARN_COLOR)
+          .opacity(askOp),
+      );
+    }
+
+    const ansOp =
+      Math.max(0, (showAlone.value - 0.45) / 0.55) * Math.max(0, 1 - showSplit.value * 2.6);
+    if (ansOp > 0.02) {
+      nodes.push(
+        txt(
+          '“Alone.”  One requirement became full permission: +1 resolved AND +1 grounding failure.',
+          -855,
+          290,
+          30,
+          BAD_COLOR,
+          'sans',
+          'left',
+        )
+          .glow(6, BAD_COLOR)
+          .opacity(ansOp),
+      );
+    }
+
+    const abOp = Math.max(0, (showSplit.value - 0.45) / 0.55);
+    if (abOp > 0.02) {
+      nodes.push(
+        glowDot(-780, 290, { radius: 10, color: COSMOS.ink, glow: 8, opacity: abOp }),
+        txt('Eligible', -780, 336, 26, COSMOS.muted, 'mono').opacity(abOp),
+        glowArrow([-745, 275], [-565, 240], CTRL_COLOR, { opacity: abOp }),
+        glowArrow([-745, 305], [-565, 340], TRT_COLOR, { opacity: abOp }),
+        txt('CONTROL: Raw query', -540, 238, 28, CTRL_COLOR, 'mono', 'left').opacity(abOp),
+        txt('TREATMENT: Query rewrite', -540, 340, 28, TRT_COLOR, 'mono', 'left').opacity(abOp),
+        txt(
+          'Same index, prompt, model & decoder',
+          35,
+          238,
+          26,
+          COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(abOp),
+        txt(
+          'Grounding failure budget:  Δ upper bound < +0.50 pp',
+          35,
+          340,
+          28,
+          WARN_COLOR,
+          'mono',
+          'left',
+        )
+          .glow(7, WARN_COLOR)
+          .opacity(Math.max(0.25, showBudget.value) * abOp),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  tweenCue(s, c, 'marked', showMarked, 1, { duration: 0.45 });
+  tweenCue(s, c, 'source', showSource, 1, { duration: 0.45 });
+  tweenCue(s, c, 'ask', showAsk, 1, { duration: 0.45 });
+  tweenCue(s, c, 'alone', showAlone, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'audit', showAudit, 1, { duration: 0.45 });
+  tweenCue(s, c, 'resolved', showResolved, 1, { duration: 0.45 });
+  tweenCue(s, c, 'split', showSplit, 1, { duration: 0.55 });
+  tweenCue(s, c, 'budget', showBudget, 1, { duration: 0.45 });
 }

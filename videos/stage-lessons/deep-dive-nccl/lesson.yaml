@@ -1,0 +1,2034 @@
+version: 1
+id: deep-dive-nccl
+title: Following a Gradient Through NCCL
+source: projects/deep-dive-nccl/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: NCCL collective operations
+    url: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html
+  - title: NCCL CUDA stream semantics
+    url: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/streams.html
+  - title: NCCL tests bandwidth interpretation
+    url: https://github.com/NVIDIA/nccl-tests/blob/master/doc/PERFORMANCE.md
+  - title: NCCL group and nonblocking enqueue semantics
+    url: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/groups.html
+  - title: NCCL 2.32.3 launch-event contract
+    url: https://github.com/NVIDIA/nccl/blob/v2.32.3-1/src/nccl.h.in
+  - title: Pinned NCCL source
+    url: https://github.com/NVIDIA/nccl/tree/5067397c2676d5aed50042fc39e5c8ee96eb0027
+scenes:
+  - id: intro
+    title: One weight in slot 2
+    visual: Pull slot 2 from each GPU into a four-term sum. Return the sum to the GPUs that update the
+      weight, then open their buffers to compare replicated and sharded updates.
+    beats:
+      - say: Pull the gradient for one weight from each GPU. Each GPU is a rank with its own training
+          examples. Add the four values in slot two. Their sum is three thousand three hundred thirty-three.
+          Each GPU updates a full copy of the model. Which ranks need that sum?
+        hold: 2.3
+        visual_cues:
+          - id: intro-column
+            phrase: Pull the gradient for one weight from each GPU
+            targets:
+              - intro-column
+          - id: intro-terms
+            phrase: Add the four values in slot two
+            targets:
+              - intro-column
+          - id: intro-sum
+            phrase: Their sum is three thousand three hundred thirty-three
+            targets:
+              - intro-equation
+            caption_boundary: true
+          - id: intro-destination
+            phrase: Each GPU updates a full copy of the model
+            targets:
+              - intro-outputs
+      - say: All four ranks need it. Do the same addition in each slot and give every rank the full result. That's a
+          sum all-reduce. On NVIDIA GPUs, NCCL coordinates the exchange. The training code chooses the
+          reduction and any scaling.
+        hold: 0.8
+        visual_cues:
+          - id: intro-all-reduce
+            phrase: All four ranks need it
+            targets:
+              - intro-outputs
+            caption_boundary: true
+          - id: nc-intro-b1-s1
+            phrase: give every rank the full result
+            targets:
+              - intro-outputs
+            caption_boundary: true
+      - say: Change the optimizer. Each rank now updates just the weight in its own numbered slot. Look down the
+          third output column again. Which copy of that gradient does the optimizer still need?
+        hold: 2.3
+        visual_cues:
+          - id: intro-sharded
+            phrase: Each rank now updates just the weight in its own numbered slot
+            targets:
+              - intro-outputs
+          - id: intro-which-copy
+            phrase: Which copy of that gradient
+            targets:
+              - intro-outputs
+      - say: Keep the copy on rank two. The other ranks keep their own slots. That placement is called
+          reduce-scatter. Now we know what belongs in each output buffer. We still need to find out when it's
+          safe to read it.
+        hold: 0.8
+        visual_cues:
+          - id: intro-owner
+            phrase: Keep the copy on rank two
+            targets:
+              - intro-outputs
+            caption_boundary: true
+          - id: intro-shards
+            phrase: The other ranks keep their own slots
+            targets:
+              - intro-outputs
+  - id: ownership-contract
+    title: Choose the collective from who needs which values
+    visual: Keep the four rank vectors. Isolate rank-index shards, a root-only result, and one full sum. Apply
+      ncclAvg once and show the erroneous second division as a separate counterfactual.
+    beats:
+      - say: "Let's change who receives the result while the four inputs stay fixed. With all-reduce, the complete
+          sum appears in every row. Reduce sends that sum to just one root, while broadcast copies the root's
+          original input to everyone. With reduce-scatter, follow the diagonal: rank zero gets slot zero, rank
+          one gets slot one, and so on. All-gather copies each of those slots into the same position on every
+          rank. Every copy keeps the value its owner supplied."
+        hold: 0.6
+        visual_cues:
+          - id: nc-ownership-contract-b0-s0
+            phrase: Let's change who receives the result while the four inputs stay fixed.
+            targets:
+              - nc-ownership-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-ownership-contract-b0-s1
+            phrase: With all-reduce, the complete sum appears in every row.
+            targets:
+              - nc-ownership-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-ownership-contract-b0-s2
+            phrase: Reduce sends that sum to just one root, while broadcast copies the root's original input to
+              everyone.
+            targets:
+              - nc-ownership-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-ownership-contract-b0-s3
+            phrase: "With reduce-scatter, follow the diagonal: rank zero gets slot zero, rank one gets slot one, and so
+              on."
+            targets:
+              - nc-ownership-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-ownership-contract-b0-s4
+            phrase: All-gather copies each of those slots into the same position on every rank.
+            targets:
+              - nc-ownership-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-ownership-contract-b0-s5
+            phrase: Every copy keeps the value its owner supplied.
+            targets:
+              - nc-ownership-contract-mechanism
+            color: cyan
+            linger: 0.3
+      - say: "There is one more choice for slot two: what should the four contributions mean? For an equal-rank
+          average, divide the sum by four to get eight hundred thirty-three point two five. You can ask NCCL
+          to average for you. Divide that average by four again and the gradient shrinks to a quarter of the
+          value you wanted. Use the scaling that matches the training objective."
+        hold: 0.6
+        caption_starts:
+          - "For an equal-rank average"
+        visual_cues:
+          - id: nc-ownership-contract-b1-s0
+            phrase: "There is one more choice for slot two: what should the four contributions mean?"
+            targets:
+              - nc-ownership-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-ownership-contract-b1-s1
+            phrase: For an equal-rank average, divide the sum by four to get eight hundred thirty-three point two five.
+            targets:
+              - nc-ownership-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-ownership-contract-b1-s2
+            phrase: You can ask NCCL to average for you.
+            targets:
+              - nc-ownership-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-ownership-contract-b1-s3
+            phrase: Divide that average by four again and the gradient shrinks to a quarter of the value you wanted.
+            targets:
+              - nc-ownership-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-ownership-contract-b1-s4
+            phrase: Use the scaling that matches the training objective.
+            targets:
+              - nc-ownership-contract-mechanism
+            color: cyan
+            linger: 0.3
+  - id: rank-bootstrap
+    title: A rank is an identity inside this communicator
+    visual: Map the four ranks to GPUs 2, 0, 3 and 1. Hold on the broadcast root before tracing its device.
+      Finish by showing one host thread enter all four initializers.
+    beats:
+      - say: A launcher such as torchrun, MPI or Slurm starts the processes. Their bootstrap code shares one
+          communicator ID before the ranks initialize. Follow each rank down to the CUDA device that will
+          handle its calls. Within this communicator each rank needs a distinct device.
+          The broadcast asks for root two. Which GPU holds its input?
+        hold: 2.3
+        caption_starts:
+          - "The broadcast asks for root two."
+        visual_cues:
+          - id: nc-rank-bootstrap-b0-s0
+            phrase: A launcher such as torchrun, MPI or Slurm starts the processes.
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-rank-bootstrap-b0-s1
+            phrase: Their bootstrap code shares one communicator ID before the ranks initialize.
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-rank-bootstrap-b0-s2
+            phrase: Follow each rank down to the CUDA device that will handle its calls.
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-rank-bootstrap-b0-s3
+            phrase: Within this communicator each rank needs a distinct device.
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-rank-bootstrap-b0-s4
+            phrase: The broadcast asks for root two. Which GPU holds its input?
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+      - say: GPU three holds the input. Follow the line from rank two. The root argument selects a rank in
+          this communicator. Move that rank to a different GPU and the same argument selects the new device.
+        hold: 0.6
+        visual_cues:
+          - id: nc-rank-bootstrap-b1-s1
+            phrase: GPU three holds the input.
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-rank-bootstrap-b1-s2
+            phrase: The root argument selects a rank in this communicator.
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-rank-bootstrap-b1-s3
+            phrase: Move that rank to a different GPU and the same argument selects the new device.
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Use ncclCommInitAll for a list of GPUs inside one process. Across hosts, share the
+          communicator ID and initialize each rank. If one host thread initializes several ranks, group
+          those calls so the thread reaches every GPU. All four ranks can then finish initialization.
+        hold: 0.6
+        visual_cues:
+          - id: nc-rank-bootstrap-b2-s0
+            phrase: Use ncclCommInitAll for a list of GPUs inside one process.
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-rank-bootstrap-b2-s1
+            phrase: Across hosts, share the communicator ID and initialize each rank.
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-rank-bootstrap-b2-s2
+            phrase: If one host thread initializes several ranks, group those calls so the thread reaches
+              every GPU.
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-rank-bootstrap-b2-s3
+            phrase: All four ranks can then finish initialization.
+            targets:
+              - nc-rank-bootstrap-mechanism
+            color: cyan
+            linger: 0.3
+  - id: agreement
+    title: A communicator executes an ordered group program
+    visual: Four per-rank operation logs agree on their first call. A broadcast mismatch then appears at the
+      second sequence position on rank two; restoring the matching all-gather lets every row advance.
+    beats:
+      - say: >
+          A communicator identifies the participating ranks and their devices. Every rank must enter
+          compatible operations in the same order. Our first sequence position agrees on the operation, count
+          and dtype. This shared contract is what allows the library to coordinate the participants.
+        hold: 0.6
+        visual_cues:
+          - id: agreement-communicator
+            phrase: A communicator identifies the participating ranks and their devices
+            targets:
+              - agreement-contract-0
+              - agreement-contract-1
+            color: cyan
+            linger: 0.6
+          - id: agreement-ordered
+            phrase: Our first sequence position agrees on the operation, count and dtype
+            targets:
+              - agreement-contract-2
+              - agreement-contract-3
+            color: cyan
+            linger: 0.6
+          - id: nc-agreement-b0-s0
+            phrase: A communicator identifies the participating ranks and their devices.
+            targets:
+              - nc-agreement-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-agreement-b0-s1
+            phrase: Every rank must enter compatible operations in the same order.
+            targets:
+              - nc-agreement-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-agreement-b0-s2
+            phrase: Our first sequence position agrees on the operation, count and dtype.
+            targets:
+              - nc-agreement-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-agreement-b0-s3
+            phrase: This shared contract is what allows the library to coordinate the participants.
+            targets:
+              - nc-agreement-mechanism
+            color: cyan
+            linger: 0.3
+      - say: >
+          At the next position, one rank calls a different collective. The others can wait even when every
+          physical link is healthy. Compare the earliest operation-log divergence before interpreting peer
+          timeouts as a network failure. A missing rank or an earlier allocation failure can create a similar
+          wait.
+        hold: 0.7
+        visual_cues:
+          - id: agreement-mismatch
+            phrase: At the next position, one rank calls a different collective
+            targets:
+              - agreement-next-2
+            color: cyan
+            linger: 0.6
+          - id: agreement-compare
+            phrase: Compare the earliest operation-log divergence
+            targets:
+              - agreement-next-1
+              - agreement-next-2
+            color: cyan
+            linger: 0.6
+          - id: nc-agreement-b1-s0
+            phrase: At the next position, one rank calls a different collective.
+            targets:
+              - nc-agreement-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-agreement-b1-s1
+            phrase: The others can wait even when every physical link is healthy.
+            targets:
+              - nc-agreement-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-agreement-b1-s2
+            phrase: Compare the earliest operation-log divergence before interpreting peer timeouts as a network failure.
+            targets:
+              - nc-agreement-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-agreement-b1-s3
+            phrase: A missing rank or an earlier allocation failure can create a similar wait.
+            targets:
+              - nc-agreement-mechanism
+            color: cyan
+            linger: 0.3
+      - say: >
+          Repair the mismatched call and the ordered program agrees again. Streams cannot repair a
+          disagreement about which operation the group is performing. Frameworks build process groups and
+          bucket schedules above NCCL partly to keep this distributed instruction sequence consistent.
+        hold: 0.6
+        visual_cues:
+          - id: agreement-repair
+            phrase: Repair the mismatched call and the ordered program agrees again
+            targets:
+              - agreement-next-2
+            color: cyan
+            linger: 0.6
+          - id: agreement-agreed
+            phrase: this distributed instruction sequence consistent
+            targets:
+              - agreement-next-0
+              - agreement-next-1
+              - agreement-next-3
+            color: cyan
+            linger: 0.6
+          - id: nc-agreement-b2-s0
+            phrase: Repair the mismatched call and the ordered program agrees again.
+            targets:
+              - nc-agreement-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-agreement-b2-s1
+            phrase: Streams cannot repair a disagreement about which operation the group is performing.
+            targets:
+              - nc-agreement-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-agreement-b2-s2
+            phrase: Frameworks build process groups and bucket schedules above NCCL partly to keep this distributed
+              instruction sequence consistent.
+            targets:
+              - nc-agreement-mechanism
+            color: cyan
+            linger: 0.3
+  - id: alltoall-layout
+    title: Where do the expert tokens go?
+    visual: A 3×3 matrix of named payloads transposes from source-owned rows to destination-owned columns. Then
+      pad unequal counts explicitly before showing grouped send/receive alternative.
+    beats:
+      - say: Suppose the three GPUs are sending tokens to different experts. Each source cuts its row into
+          equal-sized chunks, one for each destination. Read down the middle column for destination one. In
+          source order it holds two, twenty and two hundred. Deliver each destination's column in that order,
+          keeping every value separate. That's an all-to-all exchange.
+        hold: 0.6
+        visual_cues:
+          - id: nc-alltoall-layout-b0-s0
+            phrase: Suppose the three GPUs are sending tokens to different experts.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-alltoall-layout-b0-s1
+            phrase: Each source cuts its row into equal-sized chunks, one for each destination.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-alltoall-layout-b0-s2
+            phrase: Read down the middle column for destination one.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-alltoall-layout-b0-s3
+            phrase: In source order it holds two, twenty and two hundred.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-alltoall-layout-b0-s4
+            phrase: Deliver each destination's column in that order, keeping every value separate.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Now look at just one source with six tokens to send. Its three destinations need two tokens, one token
+          and three tokens. Pad the first two groups until every destination gets space for three. Six useful
+          tokens now occupy nine positions on the wire.
+        hold: 0.6
+        visual_cues:
+          - id: nc-alltoall-layout-b1-s0
+            phrase: Now look at just one source with six tokens to send.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-alltoall-layout-b1-s1
+            phrase: Its three destinations need two tokens, one token and three tokens.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-alltoall-layout-b1-s2
+            phrase: Pad the first two groups until every destination gets space for three.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-alltoall-layout-b1-s3
+            phrase: Six useful tokens now occupy nine positions on the wire.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+      - say: To avoid those three padding positions, the runtime can use matched sends and receives or another
+          variable-size exchange. The peer and count must agree at both ends. Group the sends with their
+          matching receives so the exchange can make progress. These peer counts come from the expert routing
+          decisions in the framework.
+        hold: 0.6
+        visual_cues:
+          - id: nc-alltoall-layout-b2-s0
+            phrase: To avoid those three padding positions, the runtime can use matched sends and receives or another
+              variable-size exchange.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-alltoall-layout-b2-s1
+            phrase: The peer and count must agree at both ends.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-alltoall-layout-b2-s2
+            phrase: Group the sends with their matching receives so the exchange can make progress.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-alltoall-layout-b2-s3
+            phrase: These peer counts come from the expert routing decisions in the framework.
+            targets:
+              - nc-alltoall-layout-mechanism
+            color: cyan
+            linger: 0.3
+  - id: ring
+    title: Follow slot 2 around the ring
+    visual: Follow one numbered packet clockwise around four stationary ranks. The incoming sum lands before the
+      destination adds its local value. Each addition marks one new contributor.
+    beats:
+      - say: Start at rank three with its contribution of three thousand in slot two. Send it to rank zero. Rank
+          zero adds its own three. The packet now holds three thousand three. Other slots travel on the other
+          links at the same time.
+        hold: 0.6
+        visual_cues:
+          - id: ring-hop-0
+            phrase: Send it to rank zero
+            targets:
+              - ring-rail
+          - id: ring-add-0
+            phrase: adds its own three. The packet now holds three thousand three
+            targets:
+              - ring-add
+            caption_boundary: true
+      - say: That partial sum travels to rank one. Add thirty here and the packet holds three thousand thirty-three.
+          The highlighted ranks tell you whose gradients are already in the packet. Who still has a
+          contribution to make?
+        hold: 1.9
+        visual_cues:
+          - id: ring-hop-1
+            phrase: That partial sum travels to rank one
+            targets:
+              - ring-rail
+          - id: ring-add-1
+            phrase: Add thirty here and the packet holds three thousand thirty-three
+            targets:
+              - ring-add
+            caption_boundary: true
+          - id: ring-whose
+            phrase: Who still has a contribution to make
+            targets:
+              - ring-add
+      - say: Rank two has the last three hundred. Bring the packet down to rank two. Add three hundred and the sum
+          reaches three thousand three hundred thirty-three. The packet has reached the owner of slot two. A
+          sharded optimizer can use that gradient once the reduce-scatter completes on its stream.
+        hold: 1
+        visual_cues:
+          - id: ring-hop-2
+            phrase: Bring the packet down to rank two
+            targets:
+              - ring-rail
+          - id: ring-add-2
+            phrase: Add three hundred and the sum reaches three thousand three hundred thirty-three
+            targets:
+              - ring-add
+            caption_boundary: true
+          - id: ring-owner
+            phrase: the owner of slot two
+            targets:
+              - ring-rail
+  - id: gather
+    title: Who else needs a copy?
+    visual: Keep the same ring at the reduce-scatter boundary. Deliver copies to the other three ranks,
+      preserving the value at every sender. Collect the completed slots in rank order.
+    beats:
+      - say: Now suppose every replica needs the whole gradient. Rank two keeps its finished slot and sends a copy
+          to rank three. Watch what happens to the number when it arrives. Both ranks hold the same sum.
+        hold: 0.7
+        caption_starts:
+          - "Both ranks hold the same sum."
+        visual_cues:
+          - id: gather-copy-0
+            phrase: sends a copy to rank three
+            targets:
+              - ring-rail
+          - id: gather-count
+            phrase: Both ranks hold the same sum
+            targets:
+              - ring-add
+      - say: Rank three sends a copy to rank zero. Three ranks now hold this slot inside the running collective.
+          The number of copies changed. Each application reader still waits for the collective to finish writing.
+        hold: 0.6
+        visual_cues:
+          - id: gather-copy-1
+            phrase: Rank three sends a copy to rank zero
+            targets:
+              - ring-rail
+          - id: gather-count-three
+            phrase: Three ranks now hold this slot
+            targets:
+              - ring-add
+      - say: Rank zero sends the last copy to rank one. The other completed slots have traveled alongside this one.
+          Read them in rank order and each rank has the whole vector. That's all-gather. Together the two
+          phases give the all-reduce result. If an optimizer updates just its shard, it can skip this gradient
+          gather. Any later gather of updated weights moves a different buffer.
+        hold: 0.9
+        visual_cues:
+          - id: gather-copy-2
+            phrase: Rank zero sends the last copy to rank one
+            targets:
+              - ring-rail
+          - id: gather-vector
+            phrase: each rank has the whole vector
+            targets:
+              - ring-add
+            caption_boundary: true
+  - id: traffic-bound
+    title: How many bytes leave one GPU?
+    visual: Count outgoing four-byte chunks on rank 2 in each phase. Keep its input size and its separate
+      receive count in view as the example becomes the ring formula.
+    beats:
+      - say: Rank two starts with four floats, each thirty-two bits wide. Each one fills a four-byte chunk. During
+          reduce-scatter it sends three chunks to its neighbor. During all-gather it sends three more.
+          Six sends at four bytes each give twenty-four bytes sent. Rank two also receives twenty-four
+          bytes from its other neighbor.
+        hold: 0.6
+        caption_starts:
+          - "Six sends at four bytes each"
+          - "Rank two also receives"
+        visual_cues:
+          - id: nc-traffic-bound-b0-s0
+            phrase: Rank two starts with four floats, each thirty-two bits wide. Each one fills a four-byte chunk.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-traffic-bound-b0-s1
+            phrase: During reduce-scatter it sends three chunks to its neighbor.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-traffic-bound-b0-s2
+            phrase: During all-gather it sends three more.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-traffic-bound-b0-s3
+            phrase: Six sends at four bytes each give twenty-four bytes sent.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-traffic-bound-b0-s4
+            phrase: Rank two also receives twenty-four bytes from its other neighbor.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+      - say: With k ranks and M input bytes per rank, each chunk holds M divided by k bytes. Each phase
+          sends one chunk in each of k minus one steps. Double that step count for both phases, then
+          multiply by the chunk size to get bytes sent. In our four-rank ring, that's one and a half
+          times the input.
+        hold: 0.6
+        visual_cues:
+          - id: nc-traffic-bound-b1-s0
+            phrase: With k ranks and M input bytes per rank, each chunk holds M divided by k bytes.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-traffic-bound-b1-s1
+            phrase: Each phase sends one chunk in each of k minus one steps.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-traffic-bound-b1-s2
+            phrase: Double that step count for both phases, then multiply by the chunk size to get bytes sent.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-traffic-bound-b1-s3
+            phrase: In our four-rank ring, that's one and a half times the input.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+      - say: For large messages, the ring reaches the bandwidth bound in the point-to-point model. A switch
+          that adds values in flight can change the traffic. Each round also takes time to start, and
+          each rank spends time adding values. Our small integers add exactly. With floating-point
+          gradients, changing the order of addition can change the low bits.
+        hold: 0.6
+        visual_cues:
+          - id: nc-traffic-bound-b2-s0
+            phrase: For large messages, the ring reaches the bandwidth bound in the point-to-point model. A
+              switch that adds values in flight can change the traffic.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-traffic-bound-b2-s1
+            phrase: Each round also takes time to start, and each rank spends time adding values.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-traffic-bound-b2-s2
+            phrase: Our small integers add exactly. With floating-point gradients, changing the order of
+              addition can change the low bits.
+            targets:
+              - nc-traffic-bound-mechanism
+            color: cyan
+            linger: 0.3
+  - id: double-tree
+    title: Shorten depth while balancing forwarding work
+    visual: Construct complementary four-rank trees with internal ranks0/1 and2/3, half-payload ownership on each.
+      Keep no rank internal on both, then compare depth with ring hops.
+    beats:
+      - say: A tree reduces startup depth as the rank count grows. In a binary tree, an internal rank
+          forwards more traffic than a leaf. NCCL’s historical double-tree design divides the payload
+          between complementary trees. Each forwarding rank in our picture is a leaf in the other
+          tree. All four share the work, and the tree depth grows logarithmically.
+        hold: 0.6
+        visual_cues:
+          - id: nc-double-tree-b0-s0
+            phrase: A tree reduces startup depth as the rank count grows.
+            targets:
+              - nc-double-tree-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-double-tree-b0-s1
+            phrase: In a binary tree, an internal rank forwards more traffic than a leaf.
+            targets:
+              - nc-double-tree-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-double-tree-b0-s2
+            phrase: NCCL’s historical double-tree design divides the payload between complementary trees.
+            targets:
+              - nc-double-tree-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-double-tree-b0-s3
+            phrase: Each forwarding rank in our picture is a leaf in the other tree. All four share the
+              work, and the tree depth grows logarithmically.
+            targets:
+              - nc-double-tree-mechanism
+            color: cyan
+            linger: 0.3
+      - say: NCCL chooses both an algorithm and a protocol. The hardware and the collective determine
+          which plans are available, including CollNet, NVLS and PAT. Simple, LL and LL128 are
+          protocols for moving the data. Each still produces the requested reduction. Forcing LL128 on
+          unsupported hardware can corrupt data. After comparing protocols, restore automatic
+          selection.
+        hold: 0.6
+        visual_cues:
+          - id: nc-double-tree-b1-s0
+            phrase: NCCL chooses both an algorithm and a protocol.
+            targets:
+              - nc-double-tree-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-double-tree-b1-s1
+            phrase: The hardware and the collective determine which plans are available, including CollNet,
+              NVLS and PAT.
+            targets:
+              - nc-double-tree-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-double-tree-b1-s2
+            phrase: Simple, LL and LL128 are protocols for moving the data. Each still produces the
+              requested reduction.
+            targets:
+              - nc-double-tree-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-double-tree-b1-s3
+            phrase: Forcing LL128 on unsupported hardware can corrupt data.
+            targets:
+              - nc-double-tree-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-double-tree-b1-s4
+            phrase: After comparing protocols, restore automatic selection.
+            targets:
+              - nc-double-tree-mechanism
+            color: cyan
+            linger: 0.3
+  - id: cost
+    title: Which schedule finishes first?
+    visual: Give two hypothetical schedules identical transfer volumes on one time axis. Count starts, hold the
+      round marks still, and grow only the transfer term. Ask for a prediction at one decimal megabyte.
+    beats:
+      - say: Try two schedules on paper. Each start costs two microseconds. Count six starts for the ring and four
+          for the tree. Give each rank one decimal kilobyte of input. Assume both schedules move one and a
+          half times that many bytes, at the rates beside the tracks. Those bytes barely extend either track.
+          The tree finishes about four microseconds earlier.
+        hold: 1
+        visual_cues:
+          - id: cost-starts
+            phrase: Count six starts for the ring and four for the tree
+            targets:
+              - cost-tracks
+          - id: cost-small
+            phrase: Those bytes barely extend either track
+            targets:
+              - cost-tracks
+          - id: cost-first
+            phrase: The tree finishes about four microseconds earlier
+            targets:
+              - cost-totals
+            caption_boundary: true
+      - say: Raise the input to two hundred kilobytes. Both schedules now move three hundred kilobytes. Watch the
+          transfer time grow while the starts stay put. The ring spends six microseconds moving bytes and the
+          tree spends ten. Both finish at eighteen.
+        hold: 0.8
+        visual_cues:
+          - id: cost-mid-size
+            phrase: Raise the input to two hundred kilobytes
+            targets:
+              - cost-size
+          - id: cost-mid-fill
+            phrase: Watch the transfer time grow while the starts stay put
+            targets:
+              - cost-tracks
+          - id: cost-tie
+            phrase: Both finish at eighteen
+            targets:
+              - cost-totals
+            caption_boundary: true
+      - say: Now give each rank one decimal megabyte. That's one and a half megabytes to move in each schedule. The
+          ring moves fifty gigabytes per second and the tree moves thirty. Which one finishes first, including
+          startup?
+        hold: 2.4
+        visual_cues:
+          - id: cost-big-size
+            phrase: one decimal megabyte
+            targets:
+              - cost-size
+          - id: cost-guess
+            phrase: Which one finishes first, including startup
+            targets:
+              - cost-tracks
+      - say: The ring finishes first. Its transfer takes thirty microseconds, on top of twelve to start. The tree
+          needs fifty for the transfer and eight to start. That's forty-two against fifty-eight microseconds.
+          Multiply rounds by time per start, then add bytes moved divided by bandwidth. On your own GPUs,
+          leave automatic selection on and measure the path NCCL chooses at your message size.
+        hold: 0.9
+        visual_cues:
+          - id: cost-large
+            phrase: Its transfer takes thirty microseconds
+            targets:
+              - cost-ring
+          - id: cost-tree
+            phrase: The tree needs fifty for the transfer
+            targets:
+              - cost-tree-track
+          - id: cost-result
+            phrase: That's forty-two against fifty-eight microseconds
+            targets:
+              - cost-totals
+            caption_boundary: true
+          - id: cost-rule
+            phrase: Multiply rounds by time per start, then add bytes moved divided by bandwidth
+            targets:
+              - cost-tracks
+  - id: group-enqueue
+    title: When does the group reach the GPU queue?
+    visual: Place call return, GroupEnd success, in-progress polling, enqueue and completed GPU writes on
+      separate host/device lanes. Include two differently ordered communicators in the same global instruction
+      rows.
+    beats:
+      - say: A CUDA stream queues work in order, but a group can defer when that work reaches the queue. GroupEnd
+          closes the batch of calls. On a blocking communicator, a successful GroupEnd tells you that the work
+          has been enqueued. If you check the stream before the group closes, you can miss work that NCCL has
+          yet to post.
+        hold: 0.6
+        visual_cues:
+          - id: nc-group-enqueue-b0-s0
+            phrase: A CUDA stream queues work in order, but a group can defer when that work reaches the queue.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-group-enqueue-b0-s1
+            phrase: GroupEnd closes the batch of calls.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-group-enqueue-b0-s2
+            phrase: On a blocking communicator, a successful GroupEnd tells you that the work has been enqueued.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-group-enqueue-b0-s3
+            phrase: If you check the stream before the group closes, you can miss work that NCCL has yet to post.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+      - say: In this nonblocking run, GroupEnd returns in progress at two milliseconds. Poll the communicator for
+          success or an error. Here the poll reports successful enqueue at four. Now you can use a CUDA
+          completion check on the stream, and here the writes finish at nine. A reader needs that last event.
+        hold: 0.6
+        visual_cues:
+          - id: nc-group-enqueue-b1-s0
+            phrase: In this nonblocking run, GroupEnd returns in progress at two milliseconds.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-group-enqueue-b1-s1
+            phrase: Poll the communicator for success or an error. Here the poll reports successful enqueue at four.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-group-enqueue-b1-s2
+            phrase: Now you can use a CUDA completion check on the stream, and here the writes finish at nine.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-group-enqueue-b1-s3
+            phrase: A reader needs that last event.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Follow the two streams into one group. All ranks enter the calls in the same order, even when
+          the group uses several communicators. NCCL waits for earlier work on both streams before it
+          launches the grouped kernel. Later work on either stream waits for that kernel to finish.
+        hold: 0.6
+        visual_cues:
+          - id: nc-group-enqueue-b2-s0
+            phrase: Follow the two streams into one group.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-group-enqueue-b2-s1
+            phrase: All ranks enter the calls in the same order, even when the group uses several
+              communicators.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-group-enqueue-b2-s2
+            phrase: NCCL waits for earlier work on both streams before it launches the grouped kernel.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-group-enqueue-b2-s3
+            phrase: Later work on either stream waits for that kernel to finish.
+            targets:
+              - nc-group-enqueue-mechanism
+            color: cyan
+            linger: 0.3
+  - id: launch-event
+    title: What does the launch event tell the reader?
+    visual: A caller-owned launch event changes the host launch milestone while the output lease remains closed.
+      Place the separate communication-stream completion event after actual writes.
+    beats:
+      - say: NCCL two point thirty-two point three adds an event that reports the kernel launch. In this trace the
+          launch marker is at four milliseconds. The collective still has five milliseconds of writes ahead of
+          it. The reader on another stream waits for the writes to finish at nine.
+        hold: 0.6
+        visual_cues:
+          - id: nc-launch-event-b0-s0
+            phrase: NCCL two point thirty-two point three adds an event that reports the kernel launch.
+            targets:
+              - nc-launch-event-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-launch-event-b0-s1
+            phrase: In this trace the launch marker is at four milliseconds.
+            targets:
+              - nc-launch-event-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-launch-event-b0-s2
+            phrase: The collective still has five milliseconds of writes ahead of it.
+            targets:
+              - nc-launch-event-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-launch-event-b0-s3
+            phrase: The reader on another stream waits for the writes to finish at nine.
+            targets:
+              - nc-launch-event-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Each rank creates its own launch event with timing disabled. All ranks supply an event or all
+          supply null, and a group supports at most one non-null event per communicator. Keep the event
+          alive through queued waits and captured-graph executions. On CUDA versions before twelve point
+          three, NCCL records this event before launch. The reader still waits for the event recorded
+          after the writes.
+        hold: 0.6
+        visual_cues:
+          - id: nc-launch-event-b1-s0
+            phrase: Each rank creates its own launch event with timing disabled.
+            targets:
+              - nc-launch-event-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-launch-event-b1-s1
+            phrase: All ranks supply an event or all supply null, and a group supports at most one non-null event per
+              communicator.
+            targets:
+              - nc-launch-event-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-launch-event-b1-s2
+            phrase: Keep the event alive through queued waits and captured-graph executions.
+            targets:
+              - nc-launch-event-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-launch-event-b1-s3
+            phrase: On CUDA versions before twelve point three, NCCL records this event before launch.
+            targets:
+              - nc-launch-event-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-launch-event-b1-s4
+            phrase: The reader still waits for the event recorded after the writes.
+            targets:
+              - nc-launch-event-mechanism
+            color: cyan
+            linger: 0.3
+  - id: streams
+    title: When can rank 2 read its shard?
+    visual: Keep the producer, communication, independent compute and the waiting reader on a shared clock. Stop
+      at ordinary host return, then unlock the reader at write completion.
+    beats:
+      - say: Back to rank two's gradient. Here's an example trace of a reduce-scatter. At one millisecond the
+          producer finishes its input. Communication can start reading. The host call returns just after that,
+          at one point two. Look at the output on rank two. Could another stream safely read the shard now?
+        hold: 2.1
+        visual_cues:
+          - id: streams-input
+            phrase: At one millisecond the producer finishes its input
+            targets:
+              - streams-trace
+          - id: streams-host
+            phrase: at one point two
+            targets:
+              - streams-trace
+          - id: streams-ask
+            phrase: Could another stream safely read the shard now
+            targets:
+              - streams-reader
+      - say: The shard is still being written. On an ordinary blocking communicator, a successful host return tells
+          you the work was enqueued. Meanwhile, independent backward work runs from two to six milliseconds.
+          It uses a different buffer, so these two streams can overlap.
+        hold: 0.7
+        visual_cues:
+          - id: streams-wait
+            phrase: The shard is still being written
+            targets:
+              - streams-reader
+            caption_boundary: true
+          - id: streams-overlap
+            phrase: independent backward work runs from two to six milliseconds
+            targets:
+              - streams-trace
+      - say: The last write finishes at seven milliseconds. Record a completion event after that work on the
+          communication stream. Have the reader wait on the event. Now rank two can read its reduced shard.
+          Keep the buffer alive through that read. In a real trace, shared GPU resources can stretch either
+          bar.
+        hold: 1
+        visual_cues:
+          - id: streams-complete
+            phrase: The last write finishes at seven milliseconds
+            targets:
+              - streams-trace
+          - id: streams-release
+            phrase: Now rank two can read its reduced shard
+            targets:
+              - streams-reader
+            caption_boundary: true
+  - id: buffer-lifetime
+    title: Who still uses this allocation?
+    visual: Track the same buffer B from producer write through communication read/write and dependent reader.
+      Reject overwrite/free before completion, then separately guard parameter readers.
+    beats:
+      - say: Keep one buffer identity through the whole timeline. Its producer finishes before communication reads
+          the input. Communication finishes its writes before the dependent consumer reads the result. The
+          allocation and its relevant contents must stay valid while those reads and writes are outstanding.
+          Reusing or freeing storage at host return can violate that lifetime.
+        hold: 0.6
+        visual_cues:
+          - id: nc-buffer-lifetime-b0-s0
+            phrase: Keep one buffer identity through the whole timeline.
+            targets:
+              - nc-buffer-lifetime-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-buffer-lifetime-b0-s1
+            phrase: Its producer finishes before communication reads the input.
+            targets:
+              - nc-buffer-lifetime-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-buffer-lifetime-b0-s2
+            phrase: Communication finishes its writes before the dependent consumer reads the result.
+            targets:
+              - nc-buffer-lifetime-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-buffer-lifetime-b0-s3
+            phrase: The allocation and its relevant contents must stay valid while those reads and writes are
+              outstanding.
+            targets:
+              - nc-buffer-lifetime-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-buffer-lifetime-b0-s4
+            phrase: Reusing or freeing storage at host return can violate that lifetime.
+            targets:
+              - nc-buffer-lifetime-mechanism
+            color: cyan
+            linger: 0.3
+      - say: The optimizer wants to update weight W using gradient g. The gradient write finishes at six
+          milliseconds. The backward kernel keeps reading the old weight until nine. With both dependencies in
+          place, the update can start at nine.
+        hold: 0.6
+        visual_cues:
+          - id: nc-buffer-lifetime-b1-s0
+            phrase: The optimizer wants to update weight W using gradient g.
+            targets:
+              - nc-buffer-lifetime-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-buffer-lifetime-b1-s1
+            phrase: The gradient write finishes at six milliseconds.
+            targets:
+              - nc-buffer-lifetime-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-buffer-lifetime-b1-s2
+            phrase: The backward kernel keeps reading the old weight until nine.
+            targets:
+              - nc-buffer-lifetime-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-buffer-lifetime-b1-s3
+            phrase: With both dependencies in place, the update can start at nine.
+            targets:
+              - nc-buffer-lifetime-mechanism
+            color: cyan
+            linger: 0.3
+  - id: topology-matrix
+    title: A topology symbol describes a path class
+    visual: Read the four GPU rows of the article’s illustrative topology matrix. Follow GPU0 to GPU1, NIC0 and
+      GPU2, and keep the achieved rate open until the path is measured.
+    beats:
+      - say: The driver can show you which devices are close to one another. Read from GPU zero across to GPU one. N
+          V four means four bonded NVLinks. On the same row, P I X marks a path through at most one PCIe
+          switch. P X B crosses multiple switches, and P H B crosses a host bridge. S Y S crosses a NUMA
+          boundary, whereas NODE stays within one NUMA node.
+        hold: 0.6
+        visual_cues:
+          - id: nc-topology-matrix-b0-s0
+            phrase: The driver can show you which devices are close to one another.
+            targets:
+              - nc-topology-matrix-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-topology-matrix-b0-s1
+            phrase: Read from GPU zero across to GPU one. N V four means four bonded NVLinks.
+            targets:
+              - nc-topology-matrix-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-topology-matrix-b0-s2
+            phrase: On the same row, P I X marks a path through at most one PCIe switch. P X B crosses multiple
+              switches, and P H B crosses a host bridge.
+            targets:
+              - nc-topology-matrix-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-topology-matrix-b0-s3
+            phrase: S Y S crosses a NUMA boundary, whereas NODE stays within one NUMA node.
+            targets:
+              - nc-topology-matrix-mechanism
+            color: cyan
+            linger: 0.3
+      - say: The matrix summarizes paths between devices. Use CPU and NUMA affinities to see which placements are
+          worth testing. GPU zero and GPU one have four bonded NVLinks here, but we still need a measurement
+          to fill in the bandwidth field. Check the route NCCL selected and measure the workload on it.
+        hold: 0.6
+        visual_cues:
+          - id: nc-topology-matrix-b1-s0
+            phrase: The matrix summarizes paths between devices.
+            targets:
+              - nc-topology-matrix-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-topology-matrix-b1-s1
+            phrase: Use CPU and NUMA affinities to see which placements are worth testing.
+            targets:
+              - nc-topology-matrix-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-topology-matrix-b1-s2
+            phrase: GPU zero and GPU one have four bonded NVLinks here, but we still need a measurement to fill in the
+              bandwidth field.
+            targets:
+              - nc-topology-matrix-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-topology-matrix-b1-s3
+            phrase: Check the route NCCL selected and measure the workload on it.
+            targets:
+              - nc-topology-matrix-mechanism
+            color: cyan
+            linger: 0.3
+      - say: For repeatable inventories, use documented query selectors and CSV output rather than scraping a
+          formatted terminal table. Record GPU identity, driver, CUDA, NCCL, host and rank mapping alongside
+          the topology. Changes in any of these can change a comparison’s meaning even when the message size
+          stays fixed.
+        hold: 0.6
+        visual_cues:
+          - id: nc-topology-matrix-b2-s0
+            phrase: For repeatable inventories, use documented query selectors and CSV output rather than scraping a
+              formatted terminal table.
+            targets:
+              - nc-topology-matrix-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-topology-matrix-b2-s1
+            phrase: Record GPU identity, driver, CUDA, NCCL, host and rank mapping alongside the topology.
+            targets:
+              - nc-topology-matrix-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-topology-matrix-b2-s2
+            phrase: Changes in any of these can change a comparison’s meaning even when the message size stays fixed.
+            targets:
+              - nc-topology-matrix-mechanism
+            color: cyan
+            linger: 0.3
+  - id: network-path
+    title: Which link carries slot 2?
+    visual: Carry slot 2 between two hosts through their NICs. Replay the sending side through a peer GPU while
+      the fabric and destination stay fixed.
+    beats:
+      - say: Inside host A, rank two can reach a peer GPU over NVLink, possibly through an NVSwitch. Move the
+          destination to host B and the transfer needs a network interface on each host. Follow the yellow dot
+          down PCIe, through the sending NIC, across the fabric and back up to the receiving GPU. Placement,
+          link health and competing traffic can all affect this route.
+        hold: 0.6
+        visual_cues:
+          - id: nc-network-path-b0-s0
+            phrase: Inside host A, rank two can reach a peer GPU over NVLink, possibly through an NVSwitch.
+            targets:
+              - nc-network-path-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-network-path-b0-s1
+            phrase: Move the destination to host B and the transfer needs a network interface on each host.
+            targets:
+              - nc-network-path-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-network-path-b0-s2
+            phrase: Follow the yellow dot down PCIe, through the sending NIC, across the fabric and back up to the
+              receiving GPU.
+            targets:
+              - nc-network-path-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-network-path-b0-s3
+            phrase: Placement, link health and competing traffic can all affect this route.
+            targets:
+              - nc-network-path-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Suppose the peer GPU has a better path to the sending NIC. On this route the chunk travels through the
+          peer before it reaches the NIC, a forwarding scheme called PXN. With GPUDirect RDMA on an eligible
+          path, the NIC accesses GPU memory directly and the payload can skip the usual host staging copy.
+          Check the transport log for the selected route and use counters to measure what the links carried.
+        hold: 0.6
+        visual_cues:
+          - id: nc-network-path-b1-s0
+            phrase: Suppose the peer GPU has a better path to the sending NIC.
+            targets:
+              - nc-network-path-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-network-path-b1-s1
+            phrase: On this route the chunk travels through the peer before it reaches the NIC, a forwarding scheme
+              called PXN.
+            targets:
+              - nc-network-path-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-network-path-b1-s2
+            phrase: With GPUDirect RDMA on an eligible path, the NIC accesses GPU memory directly and the payload can
+              skip the usual host staging copy.
+            targets:
+              - nc-network-path-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-network-path-b1-s3
+            phrase: Check the transport log for the selected route and use counters to measure what the links carried.
+            targets:
+              - nc-network-path-mechanism
+            color: cyan
+            linger: 0.3
+  - id: source-tour
+    title: Follow responsibilities through the pinned source
+    visual: Follow one collective through its source map. Highlight the proxy source when a transport needs
+      the host to advance the transfer.
+    beats:
+      - say: Use the pinned NCCL revision in the article to follow this call through the source. If a rank is
+          missing at startup, start with initialization and bootstrap. If the route surprises you, graph
+          search finds the candidates and tuning chooses the algorithm, protocol and channel plan. Moving the
+          same tensor to another host can give the tuner different candidates.
+        hold: 0.6
+        visual_cues:
+          - id: nc-source-tour-b0-s0
+            phrase: Use the pinned NCCL revision in the article to follow this call through the source.
+            targets:
+              - nc-source-tour-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-source-tour-b0-s1
+            phrase: If a rank is missing at startup, start with initialization and bootstrap.
+            targets:
+              - nc-source-tour-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-source-tour-b0-s2
+            phrase: If the route surprises you, graph search finds the candidates and tuning chooses the algorithm,
+              protocol and channel plan.
+            targets:
+              - nc-source-tour-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-source-tour-b0-s3
+            phrase: Moving the same tensor to another host can give the tuner different candidates.
+            targets:
+              - nc-source-tour-mechanism
+            color: cyan
+            linger: 0.3
+      - say: The collective API and enqueue code show how the host checks the arguments and builds the
+          work. The device primitives copy values and add them for a sum. Transport code sets up the
+          connections. Some transports use a host proxy to keep data moving. If a transfer stalls in
+          that proxy, the highlighted file shows how the host advances it.
+        hold: 0.6
+        visual_cues:
+          - id: nc-source-tour-b1-s0
+            phrase: The collective API and enqueue code show how the host checks the arguments and builds
+              the work.
+            targets:
+              - nc-source-tour-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-source-tour-b1-s1
+            phrase: The device primitives copy values and add them for a sum.
+            targets:
+              - nc-source-tour-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-source-tour-b1-s2
+            phrase: Transport code sets up the connections. Some transports use a host proxy to keep data
+              moving.
+            targets:
+              - nc-source-tour-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-source-tour-b1-s3
+            phrase: If a transfer stalls in that proxy, the highlighted file shows how the host advances it.
+            targets:
+              - nc-source-tour-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Debug and RAS code supply diagnostics. The nccl_device and gin areas expose device-initiated
+          communication and GPU networking, which have a different entry point from an ordinary host
+          all-reduce call. Trace a concrete operation and its selected plan rather than searching for one
+          universal all-reduce loop.
+        hold: 0.6
+        visual_cues:
+          - id: nc-source-tour-b2-s0
+            phrase: Debug and RAS code supply diagnostics.
+            targets:
+              - nc-source-tour-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-source-tour-b2-s1
+            phrase: The nccl_device and gin areas expose device-initiated communication and GPU networking, which have a
+              different entry point from an ordinary host all-reduce call.
+            targets:
+              - nc-source-tour-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-source-tour-b2-s2
+            phrase: Trace a concrete operation and its selected plan rather than searching for one universal all-reduce
+              loop.
+            targets:
+              - nc-source-tour-mechanism
+            color: cyan
+            linger: 0.3
+  - id: system-shapes
+    title: Choose the measurement from the traffic shape
+    visual: Use the same bytes split into large DP buckets, repeated small TP reductions, sharded gathers,
+      pipeline peer transfers and variable expert dispatch. Preserve framework ownership of layouts and
+      schedules.
+    beats:
+      - say: Data parallelism commonly reduces gradient buckets. Fully sharded training reduces gradient shards and
+          gathers parameter views. Tensor parallelism can add small reductions or gathers in every layer;
+          pipeline parallelism sends activations and gradients between stages. Expert parallelism exchanges
+          routed tokens. These shapes create different startup, byte-volume and imbalance costs.
+        hold: 0.6
+        visual_cues:
+          - id: nc-system-shapes-b0-s0
+            phrase: Data parallelism commonly reduces gradient buckets.
+            targets:
+              - nc-system-shapes-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-system-shapes-b0-s1
+            phrase: Fully sharded training reduces gradient shards and gathers parameter views.
+            targets:
+              - nc-system-shapes-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-system-shapes-b0-s2
+            phrase: Tensor parallelism can add small reductions or gathers in every layer; pipeline parallelism sends
+              activations and gradients between stages.
+            targets:
+              - nc-system-shapes-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-system-shapes-b0-s3
+            phrase: Expert parallelism exchanges routed tokens.
+            targets:
+              - nc-system-shapes-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-system-shapes-b0-s4
+            phrase: These shapes create different startup, byte-volume and imbalance costs.
+            targets:
+              - nc-system-shapes-mechanism
+            color: cyan
+            linger: 0.3
+      - say: The framework still owns groups, tensor layouts, sharding and overlap policy. For example,
+          tensor parallelism can split one layer across several GPUs. A small reduction repeated in
+          every layer may be sensitive to launch latency, while a few large buckets emphasize
+          bandwidth and overlap. Count the operations at each message size in your training trace.
+        hold: 0.6
+        visual_cues:
+          - id: nc-system-shapes-b1-s0
+            phrase: The framework still owns groups, tensor layouts, sharding and overlap policy.
+            targets:
+              - nc-system-shapes-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-system-shapes-b1-s1
+            phrase: For example, tensor parallelism can split one layer across several GPUs.
+            targets:
+              - nc-system-shapes-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-system-shapes-b1-s2
+            phrase: A small reduction repeated in every layer may be sensitive to launch latency, while a few large
+              buckets emphasize bandwidth and overlap.
+            targets:
+              - nc-system-shapes-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-system-shapes-b1-s3
+            phrase: Count the operations at each message size in your training trace.
+            targets:
+              - nc-system-shapes-mechanism
+            color: cyan
+            linger: 0.3
+  - id: receipt
+    title: What does six milliseconds cost the step?
+    visual: Keep the isolated four-rank benchmark row fixed. Place its six milliseconds after compute, then move
+      the same interval four milliseconds earlier on a shared ruler. Mark the part beyond compute.
+    beats:
+      - say: Scale from four numbers to a gradient buffer of two hundred fifty-six mebibytes per rank. In this
+          example a four-rank sum all-reduce takes six milliseconds. Divide the logical bytes by that time.
+          You get about forty-four point seven four decimal gigabytes per second. That's the algorithmic
+          bandwidth.
+        hold: 0.6
+        visual_cues:
+          - id: receipt-algorithm
+            phrase: forty-four point seven four decimal gigabytes per second
+            targets:
+              - receipt-row
+            caption_boundary: true
+      - say: Remember the six sends of a quarter buffer each. For four ranks the traffic factor is one and a half.
+          Multiply the algorithmic bandwidth by that factor. The bus score is about sixty-seven point one one
+          gigabytes per second. That's how NCCL tests normalizes this all-reduce. For bytes on a particular
+          link, use hardware counters.
+        hold: 0.7
+        visual_cues:
+          - id: receipt-factor
+            phrase: the traffic factor is one and a half
+            targets:
+              - receipt-row
+          - id: receipt-bus
+            phrase: sixty-seven point one one gigabytes per second
+            targets:
+              - receipt-row
+            caption_boundary: true
+      - say: Put the transfer after eight milliseconds of compute. The step ends at fourteen. Now suppose the bucket
+          is ready four milliseconds earlier, with independent compute still running. Start the same
+          six-millisecond transfer there. Four milliseconds fit behind compute. Only two milliseconds of
+          communication stick out past it.
+        hold: 0.8
+        visual_cues:
+          - id: receipt-serial
+            phrase: The step ends at fourteen
+            targets:
+              - receipt-schedules
+          - id: receipt-shift
+            phrase: Start the same six-millisecond transfer there
+            targets:
+              - receipt-schedules
+          - id: nc-receipt-b2-s1
+            phrase: Only two milliseconds of communication stick out past it
+            targets:
+              - receipt-schedules
+            caption_boundary: true
+      - say: Eight milliseconds of compute plus two of waiting gives ten for the step. The benchmark row is
+          identical in both schedules. The completion event moved four milliseconds closer to the start.
+          Measure that event and the end of the real step to see how much overlap survives contention.
+        hold: 0.9
+        visual_cues:
+          - id: receipt-step
+            phrase: ten for the step
+            targets:
+              - receipt-schedules
+            caption_boundary: true
+          - id: receipt-fixed
+            phrase: The benchmark row is identical in both schedules
+            targets:
+              - receipt-row
+  - id: benchmark-contract
+    title: What did the benchmark check?
+    visual: Construct the unexecuted four-GPU nccl-tests command, convert256MiB to bytes/elements, then separate
+      correctness/timing evidence and the nearest-rank tail statistic.
+    beats:
+      - say: To time this all-reduce on your own GPUs, keep the payload at two hundred fifty-six
+          mebibytes per rank. One process drives four GPUs from one thread. The first five runs warm
+          them up. Time the next twenty iterations. The recipe asks for one correctness check and sets
+          a sixty-second timeout.
+        hold: 0.6
+        visual_cues:
+          - id: nc-benchmark-contract-b0-s0
+            phrase: To time this all-reduce on your own GPUs, keep the payload at two hundred fifty-six
+              mebibytes per rank.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-benchmark-contract-b0-s1
+            phrase: One process drives four GPUs from one thread. The first five runs warm them up.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-benchmark-contract-b0-s2
+            phrase: Time the next twenty iterations. The recipe asks for one correctness check and sets a
+              sixty-second timeout.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Multiply the mebibytes by one thousand twenty-four twice to get the byte count on the first line. Each
+          float takes four bytes, so divide that count by four to get the number of elements. The example
+          timer reports six thousand microseconds, or point zero zero six seconds. Divide bytes by seconds,
+          then by a billion for decimal gigabytes per second.
+        hold: 0.6
+        visual_cues:
+          - id: nc-benchmark-contract-b1-s0
+            phrase: Multiply the mebibytes by one thousand twenty-four twice to get the byte count on the first line.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-benchmark-contract-b1-s1
+            phrase: Each float takes four bytes, so divide that count by four to get the number of elements.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-benchmark-contract-b1-s2
+            phrase: The example timer reports six thousand microseconds, or point zero zero six seconds.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-benchmark-contract-b1-s3
+            phrase: Divide bytes by seconds, then by a billion for decimal gigabytes per second.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Zero wrong elements means the checked output matched the expected values. Record the check
+          mode for both the in-place and out-of-place buffers. Use the training trace to check how
+          long those buffers stay in use. For a nearest-rank percentile, sort the times. Multiply the
+          percentile fraction by the sample count and round up to a whole number. Count to that position
+          starting at one.
+          With twenty samples, the ninety-ninth percentile is the maximum. Collect more timings to see
+          how often steps reach that tail.
+        hold: 0.6
+        caption_starts:
+          - "With twenty samples, the ninety-ninth percentile is the maximum."
+        visual_cues:
+          - id: nc-benchmark-contract-b2-s0
+            phrase: Zero wrong elements means the checked output matched the expected values.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-benchmark-contract-b2-s1
+            phrase: Record the check mode for both the in-place and out-of-place buffers. Use the training
+              trace to check how long those buffers stay in use.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-benchmark-contract-b2-s2
+            phrase: Multiply the percentile fraction by the sample count and round up to a whole number.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-benchmark-contract-b2-s3
+            phrase: With twenty samples, the ninety-ninth percentile is the maximum.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-benchmark-contract-b2-s4
+            phrase: Collect more timings to see how often steps reach that tail.
+            targets:
+              - nc-benchmark-contract-mechanism
+            color: cyan
+            linger: 0.3
+  - id: inplace-offset
+    title: An in-place shard starts at its rank offset
+    visual: Use actual shared-memory float array and rank2 view at byte8. Advance a typed element ruler before
+      contrasting the erroneous base-address input; retain full buffer identity.
+    beats:
+      - say: In-place all-reduce can use equal send and receive pointers. Reduce-scatter and all-gather have a
+          different layout contract. The rank’s local block begins at rank times per-rank element count inside
+          the full buffer. A typed pointer advances in elements; multiply by the dtype’s bytes per element to
+          obtain its byte offset.
+        hold: 0.6
+        visual_cues:
+          - id: nc-inplace-offset-b0-s0
+            phrase: In-place all-reduce can use equal send and receive pointers.
+            targets:
+              - nc-inplace-offset-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-inplace-offset-b0-s1
+            phrase: Reduce-scatter and all-gather have a different layout contract.
+            targets:
+              - nc-inplace-offset-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-inplace-offset-b0-s2
+            phrase: The rank’s local block begins at rank times per-rank element count inside the full buffer.
+            targets:
+              - nc-inplace-offset-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-inplace-offset-b0-s3
+            phrase: A typed pointer advances in elements; multiply by the dtype’s bytes per element to obtain its byte
+              offset.
+            targets:
+              - nc-inplace-offset-mechanism
+            color: cyan
+            linger: 0.3
+      - say: In this CPU example, rank two takes a one-float view into the array. The offset is two
+          elements, or eight bytes. Write three thousand three hundred thirty-three through the view.
+          The value changes in the original array. If all-gather reads from the base address, it picks
+          up one hundred from the first slot. Give it the address at byte eight and it picks up rank
+          two's gradient.
+        hold: 0.6
+        visual_cues:
+          - id: nc-inplace-offset-b1-s0
+            phrase: In this CPU example, rank two takes a one-float view into the array.
+            targets:
+              - nc-inplace-offset-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-inplace-offset-b1-s1
+            phrase: The offset is two elements, or eight bytes.
+            targets:
+              - nc-inplace-offset-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-inplace-offset-b1-s2
+            phrase: Write three thousand three hundred thirty-three through the view. The value changes in the
+              original array.
+            targets:
+              - nc-inplace-offset-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-inplace-offset-b1-s3
+            phrase: If all-gather reads from the base address, it picks up one hundred from the first slot.
+            targets:
+              - nc-inplace-offset-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-inplace-offset-b1-s4
+            phrase: Give it the address at byte eight and it picks up rank two's gradient.
+            targets:
+              - nc-inplace-offset-mechanism
+            color: cyan
+            linger: 0.3
+  - id: diagnostic-evidence
+    title: Find the first differing call
+    visual: Run the article's CPU log comparison on two rank-2 edits. Scan the same sequence columns to see how
+      a count difference at step 0 and a root difference at step 1 give distinct results.
+    beats:
+      - say: "Each rank recorded two calls: a sum all-reduce, then a broadcast. The CPU checker compares the tuples
+          one step at a time. Change just the count on rank two from four floats to three. Where does the
+          first disagreement occur?"
+        hold: 1.8
+        visual_cues:
+          - id: log-count
+            phrase: Change just the count on rank two from four floats to three
+            targets:
+              - log-table
+      - say: At step zero. The operation names match, but the counts differ. Reset the count to four and change the
+          broadcast root on rank two from zero to one. The checker passes the first column. Now it stops at
+          step one. Drop the second call altogether and it still stops at one. Swap the original two calls
+          instead and it stops at zero.
+        hold: 0.7
+        visual_cues:
+          - id: log-first
+            phrase: At step zero
+            targets:
+              - log-table
+            caption_boundary: true
+          - id: log-reset
+            phrase: Reset the count to four
+            targets:
+              - log-table
+          - id: log-root
+            phrase: change the broadcast root on rank two from zero to one
+            targets:
+              - log-table
+          - id: log-scan
+            phrase: passes the first column
+            targets:
+              - log-table
+          - id: log-second
+            phrase: it stops at step one
+            targets:
+              - log-table
+            caption_boundary: true
+          - id: log-missing
+            phrase: Drop the second call altogether and it still stops at one
+            targets:
+              - log-table
+            caption_boundary: true
+          - id: log-swap
+            phrase: Swap the original two calls instead and it stops at zero
+            targets:
+              - log-table
+            caption_boundary: true
+      - say: That index tells you which calls to inspect. Agreement alone can't tell you whether you chose the right
+          operation for the model. In a live job, keep the earliest local error on each rank, along with its
+          device, communicator and sequence. Start with warnings. If you need more detail, capture
+          initialization, network and graph logs separately for each process. For container startup failures,
+          check shared memory and locked-memory limits.
+        hold: 0.7
+        visual_cues:
+          - id: log-evidence
+            phrase: which calls to inspect
+            targets:
+              - log-table
+          - id: log-warn
+            phrase: Start with warnings
+            targets:
+              - log-detail
+      - say: If every rank launched the kernel, compare progress counters. A kernel that stalled after launch leaves
+          different evidence from a missing call. NCCL two point thirty-two point three also reports important
+          nonfatal fallbacks. On mixed versions, keep the warning level and add attention notices through the
+          separate levels setting. Older releases can turn off logging if you set attention as the main level.
+          Remove experimental algorithm and protocol overrides once you've made the comparison.
+        hold: 0.8
+        visual_cues:
+          - id: log-progress
+            phrase: compare progress counters
+            targets:
+              - log-detail
+          - id: log-levels
+            phrase: keep the warning level and add attention notices through the separate levels setting
+            targets:
+              - log-detail
+          - id: log-restore
+            phrase: Remove experimental algorithm and protocol overrides
+            targets:
+              - log-detail
+  - id: platform-scope
+    title: A valid interface still has platform limits
+    visual: Distinct MIG devices keep distinct rank identities while NVLink/NVLS paths close. A separate TLS
+      boundary encloses NCCL-owned sockets and leaves plugin traffic uncolored.
+    beats:
+      - say: The versioned guide describes experimental communicator support for distinct MIG instances
+          beginning in two point thirty-one, with a CUDA thirteen or newer driver. These instances
+          remain distinct CUDA devices. The documented path does not support NVLink peer-to-peer or
+          NVLS and requires Multi-Node NVLink to be disabled. Measure performance on the MIG devices
+          with those paths disabled.
+        hold: 0.6
+        visual_cues:
+          - id: nc-platform-scope-b0-s0
+            phrase: The versioned guide describes experimental communicator support for distinct MIG instances beginning
+              in two point thirty-one, with a CUDA thirteen or newer driver.
+            targets:
+              - nc-platform-scope-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-platform-scope-b0-s1
+            phrase: These instances remain distinct CUDA devices.
+            targets:
+              - nc-platform-scope-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-platform-scope-b0-s2
+            phrase: The documented path does not support NVLink peer-to-peer or NVLS and requires Multi-Node NVLink to be
+              disabled.
+            targets:
+              - nc-platform-scope-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-platform-scope-b0-s3
+            phrase: Measure performance on the MIG devices with those paths disabled.
+            targets:
+              - nc-platform-scope-mechanism
+            color: cyan
+            linger: 0.3
+      - say: NCCL two point thirty-two point three adds optional TLS for its own socket traffic. Build NCCL
+          with OpenSSL three and enable TLS through the encryption API for those sockets. If the bytes
+          travel through an external transport or network plugin, configure encryption there as well.
+        hold: 0.6
+        visual_cues:
+          - id: nc-platform-scope-b1-s0
+            phrase: NCCL two point thirty-two point three adds optional TLS for its own socket traffic.
+            targets:
+              - nc-platform-scope-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-platform-scope-b1-s1
+            phrase: Build NCCL with OpenSSL three and enable TLS through the encryption API for those sockets.
+            targets:
+              - nc-platform-scope-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-platform-scope-b1-s2
+            phrase: If the bytes travel through an external transport or network plugin, configure encryption
+              there as well.
+            targets:
+              - nc-platform-scope-mechanism
+            color: cyan
+            linger: 0.3
+  - id: project-evidence
+    title: Bind source claims and performance claims to their evidence
+    visual: Place immutable source pin, per-file license notices, DCO and benchmark receipt beside the same
+      chunk. Keep historical paper model and actual hardware measurement as separate evidence layers.
+    beats:
+      - say: NCCL is an NVIDIA-led public-source project with community contributions. Read the pinned
+          contribution guidance and sign-off requirements; discuss major changes through the project’s
+          requested process. Most source uses Apache two, some files retain BSD terms, and borrowed
+          code keeps its own notices. When you redistribute a file, check its license and the notices
+          on its dependencies.
+        hold: 0.6
+        visual_cues:
+          - id: nc-project-evidence-b0-s0
+            phrase: NCCL is an NVIDIA-led public-source project with community contributions.
+            targets:
+              - nc-project-evidence-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-project-evidence-b0-s1
+            phrase: Read the pinned contribution guidance and sign-off requirements; discuss major changes through the
+              project’s requested process.
+            targets:
+              - nc-project-evidence-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-project-evidence-b0-s2
+            phrase: Most source uses Apache two, some files retain BSD terms, and borrowed code keeps its own notices.
+            targets:
+              - nc-project-evidence-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-project-evidence-b0-s3
+            phrase: When you redistribute a file, check its license and the notices on its dependencies.
+            targets:
+              - nc-project-evidence-mechanism
+            color: cyan
+            linger: 0.3
+      - say: The ring bandwidth analysis and the historical double-tree design explain different parts of NCCL. A
+          fabric that reduces data inside a switch can move different amounts from our point-to-point ring. To
+          compare two measured runs, record the hardware and software, workload, data type and path,
+          equivalent baseline and correctness checks. Here we ran three CPU programs to check the ring, the
+          buffer offset and the rank logs. The GPU timing was supplied.
+        hold: 0.6
+        visual_cues:
+          - id: nc-project-evidence-b1-s0
+            phrase: The ring bandwidth analysis and the historical double-tree design explain different parts of NCCL.
+            targets:
+              - nc-project-evidence-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-project-evidence-b1-s1
+            phrase: A fabric that reduces data inside a switch can move different amounts from our point-to-point ring.
+            targets:
+              - nc-project-evidence-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-project-evidence-b1-s2
+            phrase: To compare two measured runs, record the hardware and software, workload, data type and path,
+              equivalent baseline and correctness checks.
+            targets:
+              - nc-project-evidence-mechanism
+            color: cyan
+            linger: 0.3
+          - id: nc-project-evidence-b1-s3
+            phrase: Here we ran three CPU programs to check the ring, the buffer offset and the rank logs. The GPU
+              timing was supplied.
+            targets:
+              - nc-project-evidence-mechanism
+            color: cyan
+            linger: 0.3
+  - id: synthesis
+    title: Three ranks timed out. Where would you look?
+    visual: Align four rank logs at step 8. Show the three timeout reports first, then uncover the earlier
+      per-rank record and the point where rank 2 never entered. Keep network evidence separate.
+    beats:
+      - say: Three ranks timed out in the same collective at step eight. The job spans two hosts. A successful
+          transfer would use both network interfaces and the fabric between them. Which rank's earlier log
+          would you open first?
+        hold: 2.2
+        visual_cues:
+          - id: synth-peers
+            phrase: Three ranks timed out
+            targets:
+              - synth-log
+          - id: synth-question
+            phrase: Which rank's earlier log would you open first
+            targets:
+              - synth-log
+      - say: Open rank two's log. While the others entered the collective, rank two was trying to allocate its
+          buffer. Its allocation failed before it could enter. Follow its row to the right. There's no
+          matching call for its peers to meet.
+        hold: 0.9
+        visual_cues:
+          - id: synth-open
+            phrase: Open rank two's log
+            targets:
+              - synth-log
+          - id: synth-oom
+            phrase: Its allocation failed before it could enter
+            targets:
+              - synth-log
+            caption_boundary: true
+      - say: Start with that allocation failure. If all ranks enter instead, compare the communicator, sequence and
+          tensor arguments. If they match and progress still stalls, test the selected route on the same hosts
+          and ranks. There's one more way to get a bad gradient even when every call agrees.
+        hold: 0.8
+        visual_cues:
+          - id: synth-first
+            phrase: Start with that allocation failure
+            targets:
+              - synth-log
+  - id: fresh-first-event
+    title: Step 19 on the same four ranks
+    visual: Compare a broken trace with a separately supplied replay on one clock. Expose the two early reads in
+      order, then place the reader at the actual end of the replay's writes.
+    beats:
+      - say: Use the opening gradients again at step nineteen. All four ranks request the same sum reduce-scatter.
+          In the first run, rank three is still writing its
+          input until four milliseconds. Communication reads it at three and finishes its output at seven.
+          Rank two reads the shard at five. In the replay below, the producer still finishes at four.
+          Communication runs from four to eight. Which read would you fix first in the original? Where's the
+          earliest safe place for rank two's reader in the replay?
+        hold: 3
+        visual_cues:
+          - id: fresh-input
+            phrase: rank three is still writing its input until four milliseconds
+            targets:
+              - fresh-trace
+          - id: fresh-comm
+            phrase: Communication reads it at three and finishes its output at seven
+            targets:
+              - fresh-trace
+          - id: fresh-read
+            phrase: Rank two reads the shard at five
+            targets:
+              - fresh-trace
+          - id: fresh-replay
+            phrase: Communication runs from four to eight
+            targets:
+              - fresh-trace
+          - id: fresh-predict
+            phrase: Which read would you fix first in the original
+            targets:
+              - fresh-trace
+      - say: Fix the read at three. It can pick up a value left by the previous step while rank three is still
+          writing this one. Make the communication stream wait for the producer's event. Now look at the
+          replay. The last write lands at eight. Rank two can read at eight, once its stream waits for that
+          completion. It already owns the slot, so it can use the gradient without gathering the other three.
+          Megatron uses those same ownership and readiness rules across groups of GPUs.
+        hold: 1.8
+        caption_starts:
+          - "The last write lands at eight."
+        visual_cues:
+          - id: fresh-first
+            phrase: Fix the read at three
+            targets:
+              - fresh-trace
+            caption_boundary: true
+          - id: fresh-depend
+            phrase: wait for the producer's event
+            targets:
+              - fresh-trace
+          - id: fresh-finish
+            phrase: The last write lands at eight
+            targets:
+              - fresh-trace
+          - id: fresh-release
+            phrase: Rank two can read at eight, once its stream waits for that completion
+            targets:
+              - fresh-trace
+            caption_boundary: true

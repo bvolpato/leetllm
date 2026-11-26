@@ -353,26 +353,26 @@ A teammate writes: "Model B wins because its pass@5 hit 64% while Model A's pass
 ```mastery-quiz
 [
   {
-    "question": "A checkpoint passes 0 of 10 independent tasks. Why is the Wilson score 95% interval preferred over the Wald interval here?",
+    "question": "A checkpoint passes 0 of 12 independent tasks. Why is the Wilson score 95% interval preferred over the Wald interval here?",
     "options": [
-      "Wald collapses to [0.000, 0.000], whereas Wilson keeps a nonzero upper bound (about 0.278) reflecting small-sample uncertainty.",
-      "Wald produces a wider interval than Wilson at 0/10, making small benchmarks look too noisy.",
-      "Wilson guarantees a 95% Bayesian posterior probability that the true rate lies below 0.278.",
-      "Wilson removes the need to keep the 10 tasks independent."
+      "Wald collapses to [0.000, 0.000], whereas Wilson keeps a nonzero upper bound (about 0.243) reflecting small-sample uncertainty.",
+      "Wald produces a wider interval than Wilson at 0/12, making small benchmarks look too noisy.",
+      "Wilson guarantees a 95% Bayesian posterior probability that the true rate lies below 0.243.",
+      "Wilson removes the need to keep the 12 tasks independent."
     ],
-    "answer": "Wald collapses to [0.000, 0.000], whereas Wilson keeps a nonzero upper bound (about 0.278) reflecting small-sample uncertainty.",
-    "explanation": "At 0/10, Wald standard error sqrt(p_hat*(1-p_hat)/n) is zero, collapsing to a point. Wilson inverts a score test using candidate rates, giving [0.000, 0.278] while remaining a frequentist confidence procedure."
+    "answer": "Wald collapses to [0.000, 0.000], whereas Wilson keeps a nonzero upper bound (about 0.243) reflecting small-sample uncertainty.",
+    "explanation": "At 0/12, Wald standard error sqrt(p_hat*(1-p_hat)/n) is zero, collapsing to a point. Wilson inverts a score test using candidate rates, giving z^2 / (n + z^2) ≈ 0.243 as the upper bound while remaining a frequentist confidence procedure."
   },
   {
-    "question": "Starting from Beta(2, 2), an agent passes 8 of 10 independent tasks. What are the posterior distribution, MLE, MAP, and posterior mean?",
+    "question": "Starting from Beta(3, 3), an agent passes 7 of 10 independent tasks. What are the posterior distribution, MLE, MAP, and posterior mean?",
     "options": [
-      "Beta(10, 4); MLE = 0.800; MAP = 0.750; posterior mean = 0.714.",
-      "Beta(10, 4); MLE = 0.800; MAP = 0.714; posterior mean = 0.750.",
-      "Beta(8, 2); MLE = 0.800; MAP = 0.750; posterior mean = 0.714.",
-      "Beta(10, 4); MLE = 0.714; MAP = 0.750; posterior mean = 0.800."
+      "Beta(10, 6); MLE = 0.700; MAP = 0.643; posterior mean = 0.625.",
+      "Beta(10, 6); MLE = 0.700; MAP = 0.625; posterior mean = 0.643.",
+      "Beta(7, 3); MLE = 0.700; MAP = 0.643; posterior mean = 0.625.",
+      "Beta(10, 6); MLE = 0.625; MAP = 0.643; posterior mean = 0.700."
     ],
-    "answer": "Beta(10, 4); MLE = 0.800; MAP = 0.750; posterior mean = 0.714.",
-    "explanation": "Beta-Binomial conjugacy gives Beta(2+8, 2+2) = Beta(10, 4). MLE is 8/10 = 0.800, MAP mode is (10-1)/(10+4-2) = 0.750, and posterior mean is 10/14 = 0.714."
+    "answer": "Beta(10, 6); MLE = 0.700; MAP = 0.643; posterior mean = 0.625.",
+    "explanation": "Beta-Binomial conjugacy gives Beta(3+7, 3+3) = Beta(10, 6). MLE is 7/10 = 0.700, MAP mode is (10-1)/(10+6-2) = 9/14 ≈ 0.643, and posterior mean is 10/16 = 0.625."
   },
   {
     "question": "Both models have marginal variance 0.25 and shared-task covariance 0.15. Comparing 50 paired tasks against two unpaired 50-task batches, what are the paired and unpaired mean-difference variances?",

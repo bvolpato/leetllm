@@ -23,7 +23,7 @@ interface GroupSpec {
 const GROUPS: readonly GroupSpec[] = [
     {
         topic: 'Finance',
-        excerpt: 'Yields & bonds',
+        excerpt: 'Orders & hedging',
         tone: 'blue',
         p1: [1.0, 1.0],
         p2: [1.2, 1.8],
@@ -35,7 +35,7 @@ const GROUPS: readonly GroupSpec[] = [
     },
     {
         topic: 'Vision',
-        excerpt: 'Residual & conv',
+        excerpt: 'ViTs & convs',
         tone: 'purple',
         p1: [4.0, 4.2],
         p2: [5.0, 3.8],
@@ -47,7 +47,7 @@ const GROUPS: readonly GroupSpec[] = [
     },
     {
         topic: 'Systems',
-        excerpt: 'Cache & warps',
+        excerpt: 'Tiling & warps',
         tone: 'green',
         p1: [8.0, 1.0],
         p2: [9.0, 1.8],

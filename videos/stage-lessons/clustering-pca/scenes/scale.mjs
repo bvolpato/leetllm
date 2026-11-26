@@ -1,222 +1,194 @@
+// Scene 11 (scale): "A change of units changes the neighbors"
+// Raw units (length 100..900 swamps topic ±3) -> z-score standardization flips nearest neighbor back to billing!
 import {
-  place,
-  column,
-  row,
-  grid,
-  beside,
-  boxOf,
-  line,
-  arrow,
-  circle,
-  dot,
-  rect,
-  group,
-  dynamic,
-  to,
-  draw,
-  indicate,
-  recolor,
-  fade,
-  matrix,
-  tex,
-  stateGrid,
-  appear,
-  decimal,
-  barChart,
-  scatter,
-} from 'vizmatic/stage';
-import {
-  area,
-  heading,
-  label,
-  note,
-  mono,
-  para,
-  namedBox,
-  chip,
-  tint,
-} from '../../kit-narrated.mjs';
-import {
-  IDS,
-  COLORS,
-  STATE,
-  left,
-  right,
-  ribbon,
-  body,
-  foot,
-  cloud,
-  identity,
-  messageKey,
-  rings,
-  links,
-  scoreBars,
-  liveNumber,
-  xy,
-  messages,
-  labels,
-  seeds,
-  centroids,
-  pca,
-  query,
-  clusterTrials,
-  transferDocuments,
-  transferQuery,
-  scaleFixture,
-  means,
-  stds,
-  inertia,
-  initialInertia,
-  updatedInertia,
-  coarseDistances,
-  distance,
-  mix,
-  silhouette,
-  lloyd,
-  seedMass,
-  emptyCenterRepair,
-  energyRows,
-  scaleCalculation,
-  cosine,
-  validateModel,
+  COSMOS,
+  DANGER_COLOR,
+  QUERY_COLOR,
+  SCALE_CALC,
+  aura,
+  glowTex,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  rule,
+  runAmbientPhase,
+  tweenCue,
+  txt,
 } from '../parts.mjs';
 
-export default function scene(s, c) {
-  const model = scaleCalculation();
-  const indices = [0, 1, 3],
-    names = indices.map((i) => model.rows[i].id);
-  const raw = indices.map((i) => model.rows[i].raw);
-  const scaled = indices.map((i) => model.rows[i].standardized);
-  const [overview, detail] = left.columns([3, 2], 'wide');
-  const m = cloud(overview, {
-    coords: raw,
-    names,
-    equal: true,
-    x: [-300, 300],
-    y: [-20, 580],
-    sides: ['under', 'right', 'over'],
-    xLabel: 'topic',
-    yLabel: 'characters',
+const PAIR_BILL = SCALE_CALC.pairs[0]; // B100 -> B500
+const PAIR_REL = SCALE_CALC.pairs[1]; // B100 -> D110
+
+export default function scale(s, c) {
+  const phase = s.value(0);
+  const showRaw = s.value(0);
+  const showWinRaw = s.value(0);
+  const stdAmt = s.value(0);
+  const showDiv = s.value(0);
+  const showRow = s.value(0);
+  const showRecomp = s.value(0);
+  const showWinner = s.value(0);
+  const showContract = s.value(0);
+  const showClear = s.value(0);
+
+  const bgAura = aura(0, 20, 620, '#3a183b2c', '#133a4a18');
+  const title = heroTitle(['A Change of Units', 'Changes the Neighbors'], {
+    x: -855,
+    y: -430,
+    size: 52,
+    lineHeight: 60,
+    accent: COSMOS.cyan,
+    eyebrow: 'FEATURE SCALING & STANDARDIZATION',
   });
-  const zoom = cloud(detail, {
-    coords: [raw[0], raw[2]],
-    names: [names[0], names[2]],
-    equal: true,
-    x: [-9, 9],
-    y: [96, 114],
-    sides: ['under', 'over'],
-    xLabel: 'topic',
-    yLabel: 'characters',
-    heightRatio: 0.5,
+
+  const eqZ = glowTex('z_{ij} = \\frac{x_{ij} - \\mu_j}{\\sigma_j}', {
+    x: 495,
+    y: -315,
+    size: 46,
+    color: COSMOS.cyan,
+    glow: 7,
   });
-  const zoomName = place(note('Raw pair: enlarged'), detail, 'top');
-  const z = cloud(left, {
-    coords: [],
-    names: [],
-    equal: true,
-    x: [-1.7, 1.7],
-    y: [-1.6, 0.6],
-    xLabel: 'standardized topic',
-    yLabel: 'standardized length',
-  });
-  const [a, b, d] = right.rows([2, 2, 1], 'normal');
-  const bars = scoreBars(a, ['B500', 'D110'], [0, 0], {
-    max: Math.max(...model.pairs.map((p) => p.raw)),
-    colors: ['cyan', 'pink'],
-    height: Math.max(40, a.height - 165),
-  });
-  const zbars = scoreBars(a, ['B500', 'D110'], [0, 0], {
-    max: Math.max(...model.pairs.map((p) => p.standardized)),
-    colors: ['cyan', 'pink'],
-  });
-  [...bars.readouts, ...zbars.readouts].forEach((n) => n.set('opacity', 0));
-  const steps = b.rows(2, 'wide');
-  const subtract = raw[0].map((v, j) =>
-    place(
-      column(
-        [
-          note(j === 0 ? 'B100: topic' : 'B100: characters'),
-          mono(`${v} − ${means[j]} = ${(v - means[j]).toFixed(1)}`, { size: 32 }),
-        ],
-        { gap: 'tight' },
+
+  const live = guardedDynamic(s.value(1), () => {
+    const isStd = showRecomp.value > 0.5;
+    const nodes = [
+      txt(
+        isStd ? 'STANDARDIZED UNITS (MEAN 0, STD 1)' : 'RAW FEATURE TABLE (TOPIC vs CHAR LENGTH)',
+        -855,
+        -245,
+        26,
+        isStd ? COSMOS.emerald : DANGER_COLOR,
+        'mono',
+        'left',
       ),
-      steps[j],
-    ),
-  );
-  const divide = scaled[0].map((v, j) =>
-    place(
-      column(
-        [
-          note(j === 0 ? 'B100: standardized topic' : 'B100: standardized length'),
-          mono(`${(raw[0][j] - means[j]).toFixed(1)} / ${stds[j].toFixed(3)} = ${v.toFixed(3)}`, {
-            size: 32,
-          }),
-        ],
-        { gap: 'tight' },
-      ),
-      steps[j],
-    ),
-  );
-  const rawResult = place(label('Nearest: D110', { color: 'yellow', size: 36 }), d);
-  const result = place(label('Nearest: B500', { color: 'yellow', size: 36 }), d);
-  const rawName = place(note('Raw distance'), a, 'top');
-  const zName = place(note('Standardized distance'), a, 'top');
-  const units = place(
-    note('Raw views use equal coordinate units. The inset enlarges the close pair.'),
-    foot,
-  );
-  const standard = place(note('New axes: the same rows after the stored transform'), foot);
-  const zoomLink = line(zoom.p(raw[0]), zoom.p(raw[2]), { stroke: 'yellow', width: 4 }).zIndex(-2);
-  s.add(
-    units,
-    rawName,
-    heading(c.title),
-    place(note('Separate metadata fixture. Three retained rows.'), ribbon),
-    m.chart,
-    zoom.chart,
-    zoomName,
-    bars,
-  );
-  c.on('raw', () => s.play(bars.update(model.pairs.map((p) => p.raw))));
-  c.show('raw', zoomLink);
-  c.after('raw', () => s.play(...bars.readouts.map((n) => fade(n, 1))), 1.3);
-  c.show('winnerraw', rawResult, { after: true });
-  c.hide('transform', rawResult);
-  c.show('transform', subtract);
-  c.swap('divide', subtract, divide, { after: true });
-  c.swap('divide', [m.chart, zoom.chart, zoomName, zoomLink, units], [z.chart, standard], {
-    after: true,
-  });
-  c.after(
-    'divide',
-    () =>
-      s.play(
-        ...names.map((name, i) =>
-          z.chart.insert(
-            {
-              name,
-              color: 'ink',
-              x: scaled[i][0],
-              y: scaled[i][1],
-              side: i === 0 ? 'under' : i === 1 ? 'over' : 'right',
-            },
-            { from: m.chart.point(name), duration: 2 },
-          ),
+      // Three focused rows from SCALE_CALC
+      txt('MESSAGE', -855, -172, 26, COSMOS.muted, 'mono', 'left'),
+      txt('RAW [topic, chars]', -505, -172, 26, COSMOS.muted, 'mono', 'left'),
+      txt('Z-SCORED [z_topic, z_chars]', -135, -172, 26, COSMOS.muted, 'mono', 'left'),
+      rule(-855, -142, 420, -142, COSMOS.rule, 2),
+    ];
+
+    const focusIdx = [0, 1, 3]; // B100, B500, D110
+    const labelsText = ['B100 (anchor)', 'B500 (same topic)', 'D110 (other topic)'];
+    const rowCols = [QUERY_COLOR, COSMOS.emerald, DANGER_COLOR];
+
+    focusIdx.forEach((ri, k) => {
+      const r = SCALE_CALC.rows[ri];
+      const y = -82 + k * 66;
+      nodes.push(
+        txt(labelsText[k], -855, y, 26, rowCols[k], 'mono', 'left'),
+        txt(
+          `[${r.raw[0].toFixed(1)},  ${r.raw[1].toFixed(0)}]`,
+          -505,
+          y,
+          28,
+          COSMOS.ink,
+          'mono',
+          'left',
         ),
+        txt(
+          `[${r.standardized[0].toFixed(2)},  ${r.standardized[1].toFixed(2)}]`,
+          -135,
+          y,
+          28,
+          COSMOS.cyan,
+          'mono',
+          'left',
+        ).opacity(Math.max(0.25, showRow.value)),
+      );
+    });
+
+    // Side-by-side distance bars: Raw (Left) vs Standardized (Right)
+    const barY1 = 152;
+    const barY2 = 222;
+    nodes.push(
+      txt('RAW DISTANCES FROM B100', -855, 92, 26, DANGER_COLOR, 'mono', 'left').opacity(
+        0.45 + 0.55 * showRaw.value,
       ),
-    0.6,
-  );
-  c.on('row', () => s.play(...divide.map((n) => indicate(n, { scale: 1 }))), 0.8);
-  c.swap('recompute', bars, zbars);
-  c.swap('recompute', rawName, zName);
-  c.after('recompute', () =>
-    s.play(
-      zbars.update(model.pairs.map((p) => p.standardized)),
-      z.chart.nearest('B100', 1, { among: ['B500', 'D110'] }),
-    ),
-  );
-  c.after('recompute', () => s.play(...zbars.readouts.map((n) => fade(n, 1))), 1.3);
-  c.show('winner', result, { after: true });
-  c.on('contract', () => s.play(...divide.map((n) => indicate(n, { scale: 1 }))));
-  c.on('clear-search', () => s.play(z.chart.nearest('B100', 0)));
+      lumBar(-855 + 210, barY1, 420, 38, { color: COSMOS.emerald, fillOpacity: 0.68, glow: 7 }),
+      txt(`to B500: ${PAIR_BILL.raw.toFixed(1)}`, -415, barY1, 26, COSMOS.emerald, 'mono', 'left'),
+      lumBar(-855 + 14, barY2, 28, 38, { color: DANGER_COLOR, fillOpacity: 0.78, glow: 8 }),
+      txt(
+        `to D110: ${PAIR_REL.raw.toFixed(1)}  ${showWinRaw.value > 0.5 ? '← WRONG WINNER!' : ''}`,
+        -810,
+        barY2,
+        26,
+        DANGER_COLOR,
+        'mono',
+        'left',
+      ),
+    );
+
+    const stdOp = Math.max(0.3, showRecomp.value);
+    nodes.push(
+      rule(30, 82, 30, 265, COSMOS.rule, 2).opacity(stdOp),
+      txt('STANDARDIZED DISTANCES FROM B100', 80, 92, 26, COSMOS.emerald, 'mono', 'left').opacity(
+        stdOp,
+      ),
+      lumBar(80 + 135, barY1, 270, 38, {
+        color: COSMOS.emerald,
+        fillOpacity: 0.78,
+        glow: 9,
+        opacity: stdOp,
+      }),
+      txt(
+        `to B500: ${PAIR_BILL.standardized.toFixed(2)}  ${showWinner.value > 0.5 ? '← BILLING WINS!' : ''}`,
+        370,
+        barY1,
+        26,
+        COSMOS.emerald,
+        'mono',
+        'left',
+      ).opacity(stdOp),
+      lumBar(80 + 215, barY2, 430, 38, {
+        color: DANGER_COLOR,
+        fillOpacity: 0.55,
+        glow: 6,
+        opacity: stdOp,
+      }),
+      txt(
+        `to D110: ${PAIR_REL.standardized.toFixed(2)}`,
+        530,
+        barY2,
+        26,
+        DANGER_COLOR,
+        'mono',
+        'left',
+      ).opacity(stdOp),
+    );
+
+    if (showContract.value > 0.02) {
+      nodes.push(
+        txt(
+          showClear.value > 0.5
+            ? 'Fit μ, σ on corpus/dev; apply to queries & log units.'
+            : 'Fit μ and σ on corpus/dev data only; apply the same stored transform to queries',
+          -855,
+          345,
+          28,
+          QUERY_COLOR,
+          'sans',
+          'left',
+        )
+          .glow(6, QUERY_COLOR)
+          .opacity(showContract.value),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.0);
+
+  tweenCue(s, c, 'raw', showRaw, 1, { duration: 0.45 });
+  tweenCue(s, c, 'winnerraw', showWinRaw, 1, { duration: 0.45 });
+  c.show('transform', eqZ);
+  tweenCue(s, c, 'transform', stdAmt, 1, { duration: 0.45 });
+  tweenCue(s, c, 'divide', showDiv, 1, { duration: 0.4 });
+  tweenCue(s, c, 'row', showRow, 1, { duration: 0.45 });
+  tweenCue(s, c, 'recompute', showRecomp, 1, { duration: 0.5 });
+  tweenCue(s, c, 'winner', showWinner, 1, { duration: 0.45 });
+  tweenCue(s, c, 'contract', showContract, 1, { duration: 0.45 });
+  tweenCue(s, c, 'clear-search', showClear, 1, { duration: 0.45 });
 }

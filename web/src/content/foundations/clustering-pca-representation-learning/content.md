@@ -200,7 +200,7 @@ k=4: inertia=0.92, silhouette=0.51
 ```
 <!-- leetllm: output:end -->
 
-`k = 3` cuts inertia from `20.06` to `1.74` and peaks silhouette at `0.76`; `k = 4` splits a coherent pair and drops silhouette to `0.51`. Remember that equal inertia can still mask incompatible stories (four points on a square split left/right or bottom/top at identical inertia `4.0`), so always inspect sampled members directly.
+`k = 3` cuts inertia from `20.06` to `1.74` and peaks silhouette at `0.76`; `k = 4` splits a coherent pair and drops silhouette to `0.51`. Remember that equal inertia can still mask incompatible stories (four points on a side-2 square `(±1, ±1)` split left/right or bottom/top at identical inertia `4.0`), so always inspect sampled members directly.
 
 ### Connecting clusters to vector search
 

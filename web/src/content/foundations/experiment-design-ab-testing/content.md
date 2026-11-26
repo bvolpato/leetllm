@@ -36,7 +36,7 @@ A customer asks your support assistant why a batch export throws HTTP 429 despit
 Building on [Decoding Algorithms](/learn/decoding-strategies-greedy-beam-nucleus), we isolate this retrieval change in a live RAG assistant with an <span data-glossary="ab-testing">A/B test</span>: randomly assign eligible conversations to **control** (raw query) or **treatment** (rewritten query), pin everything else, and evaluate resolution lift alongside safety, latency, and cost <span data-glossary="guardrail">guardrails</span> before shipping or <span data-glossary="rollback">rolling back</span>.
 
 <figure>
-  <img src="illustrations/_generated/chapter_flow_dark.png" alt="Four support requests map to three query units: qry-014 stays pinned in control while qry-001 and qry-021 enter treatment with shared index and generator versions." />
+  <img src="illustrations/_generated/chapter_flow_dark.png" alt="Four support requests map to three query units: qry-021 stays pinned in control while qry-001 and qry-014 enter treatment with shared index and generator versions." />
   <figcaption>Only the retrieval query changes between arms. Control sends the raw user query; treatment rewrites it. Both arms share the same pinned index, prompt, and greedy decoder, logging one matured outcome per query unit.</figcaption>
 </figure>
 
@@ -208,13 +208,13 @@ SRM check (1650 vs 2350): chi2=122.5, p=1.79e-28, alert=True
 <!-- leetllm: output:end -->
 
 <figure>
-  <img src="illustrations/_generated/peek_false_win_inflation_dark.png" alt="Across 5,000 zero-effect A/A runs, false alarms jump from 4.6% at one final look to 24.9% when peeking across 20 looks." />
-  <figcaption>Under a true zero effect, peeking 20 times and stopping on the first $|z| > 1.96$ crossing inflates false positives from 4.6% to 24.9%.</figcaption>
+  <img src="illustrations/_generated/peek_false_win_inflation_dark.png" alt="Across 5,000 zero-effect A/A runs, false alarms jump from 5.3% at one final look to 24.7% when peeking across 20 looks." />
+  <figcaption>Under a true zero effect, peeking 20 times and stopping on the first $|z| > 1.96$ crossing inflates false positives from 5.3% to 24.7%.</figcaption>
 </figure>
 
 The same multiplicity trap hits teams slicing across 20 segments and celebrating one $p < 0.05$ win; adjust with Bonferroni or treat slices as follow-up hypotheses.[^nistBonferroni2026] For safe early stopping, use a sequential design:
 
-- **Alpha spending (group sequential):** Budget cumulative Type I error across information fraction $t \in (0, 1]$. **O'Brien-Fleming** spending $A(t) = 2[1 - \Phi(\Phi^{-1}(1 - \alpha/2)/\sqrt{t})]$ requires extreme early evidence and keeps the final $z$ threshold near `1.96` (`2.045` at 6 looks).[^gsdesign2026spending]
+- **Alpha spending (group sequential):** Budget cumulative Type I error across information fraction $t \in (0, 1]$. For a two-sided $\alpha$ test, **O'Brien-Fleming** spending allocates $2[1 - \Phi(\Phi^{-1}(1 - \alpha/4)/\sqrt{t})]$ per tail ($A(t) = 4[1 - \Phi(\Phi^{-1}(1 - \alpha/4)/\sqrt{t})]$ total), requiring extreme early evidence and keeping the final $z$ threshold near `1.96` (`2.045` at 6 equally spaced looks for $\alpha = 0.05$).[^gsdesign2026spending]
 - **mSPRT:** Integrate the likelihood ratio over a mixing distribution $H(\theta)$: $\Lambda_n = \int \prod_{i=1}^n \frac{f_\theta(Y_i)}{f_0(Y_i)}\,dH(\theta)$.[^johari2021alwaysValid] Because $\Lambda_n$ is a nonnegative null martingale, **Ville's inequality** bounds $\mathbb{P}_0(\sup_{n \ge 1} \Lambda_n \ge 1/\alpha) \le \alpha$, yielding an **always-valid p-value** $p_n = \min(1, 1 / \max_{s \le n} \Lambda_s)$ calibrated at any stopping time.
 
 ## Speed up learning: CUPED and bandits
@@ -267,7 +267,7 @@ correlation=0.470 | variance reduced=22.1%
   <figcaption>Adjusting with a pre-experiment covariate ($\rho = 0.470$) cuts outcome variance by 22.1% and tightens the 95% confidence interval half-width from 1.36 pp to 1.20 pp.</figcaption>
 </figure>
 
-When your goal is minimizing cumulative regret $R(T) = \sum_{t=1}^T (\mu^* - \mu_{a_t})$ across transient variants (headlines or rotating prompts), a **multi-armed bandit** such as **Thompson Sampling** updates each arm's $\operatorname{Beta}(\alpha_k, \beta_k)$ posterior and routes to the highest posterior draw.[^russo2018ThompsonTutorial] Over 2,000 requests (`38%` vs `42%`), it routes roughly `82%` of traffic to the stronger arm automatically, trading off adaptive-stopping bias in naive means and thinner guardrail traffic unless you log propensities and use adaptive estimators.[^shin2019banditBias]
+When your goal is minimizing cumulative regret $R(T) = \sum_{t=1}^T (\mu^* - \mu_{a_t})$ across transient variants (headlines or rotating prompts), a **multi-armed bandit** such as **Thompson Sampling** updates each arm's $\operatorname{Beta}(\alpha_k, \beta_k)$ posterior and routes to the highest posterior draw.[^russo2018ThompsonTutorial] Over 2,000 requests (`38%` vs `42%`), it routes roughly `77%` of traffic on average (median `~83%`) to the stronger arm automatically, trading off adaptive-stopping bias in naive means and thinner guardrail traffic unless you log propensities and use adaptive estimators.[^shin2019banditBias]
 
 ## Paired evaluation and the offline-to-online judge gap
 

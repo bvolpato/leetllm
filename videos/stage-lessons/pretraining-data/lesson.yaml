@@ -1,0 +1,1638 @@
+version: 1
+id: pretraining-data
+title: From Raw Records to a Reproducible Training Stream
+source: training/pre-training-data-pipelines-scale/content.md
+sources:
+  - title: Penedo et al. The FineWeb Datasets
+    url: https://arxiv.org/abs/2406.17557
+  - title: Soldaini et al. Dolma
+    url: https://arxiv.org/abs/2402.00159
+  - title: Lee et al. Deduplicating Training Data Makes Language Models Better
+    url: https://arxiv.org/abs/2107.06499
+  - title: Hoffmann et al. Training Compute-Optimal Large Language Models
+    url: https://arxiv.org/abs/2203.15556
+  - title: "Rae et al. Scaling Language Models: Gopher"
+    url: https://arxiv.org/abs/2112.11446
+  - title: Li et al. DataComp-LM
+    url: https://arxiv.org/abs/2406.11794
+  - title: Common Crawl Get Started
+    url: https://commoncrawl.org/get-started
+  - title: Grattafiori et al. The Llama 3 Herd of Models
+    url: https://arxiv.org/abs/2407.21783
+  - title: Penedo et al. FineWeb2
+    url: https://arxiv.org/abs/2506.20920
+  - title: NVIDIA Nemotron-CC-v2.1 dataset card
+    url: https://huggingface.co/datasets/nvidia/Nemotron-CC-v2.1
+  - title: Gerstgrasser et al. Accumulating Real and Synthetic Data
+    url: https://arxiv.org/abs/2404.01413
+  - title: OpenAI tiktoken published encodings
+    url: https://github.com/openai/tiktoken/blob/main/tiktoken_ext/openai_public.py
+scenes:
+  - id: intro
+    title: Two records from a web crawl
+    visual: A Python function and a repeated menu land at their classifier scores on one ruler. Compare two cutoffs, then move the boundary past the code.
+    beats:
+      - say: Which cutoff keeps the function and drops the menu? The classifier scores the program at
+          point seven and the menu at point one. We keep any record at or above the cutoff. Would you set
+          it to point five or point eight five?
+        hold: 2.2
+        caption_starts:
+          - The classifier scores
+          - Would you set it
+        visual_cues:
+          - id: pt-intro-menu
+            phrase: the menu at point one
+            targets:
+              - intro-mechanism
+          - id: pt-intro-choose
+            phrase: Would you set it to point five or point eight five
+            targets:
+              - intro-mechanism
+      - say: Try point five. The menu falls below the cutoff. The code record clears it, so all one
+          hundred twenty tokens go into the training pool.
+        hold: 1
+        caption_starts:
+          - The menu falls
+          - The code record clears it
+        visual_cues:
+          - id: pt-intro-first
+            phrase: Try point five
+            targets:
+              - intro-mechanism
+      - say: Now slide the cutoff to point eight five. It passes the program too. That was the only code
+          in this batch. Save its source ID. If the model later struggles with code, we can trace which
+          tokens reached training and test what happens when we put this program back.
+        hold: 1
+        caption_starts:
+          - It passes the program too
+        visual_cues:
+          - id: pt-intro-raise
+            phrase: slide the cutoff to point eight five
+            targets:
+              - intro-mechanism
+  - id: inventory-plan
+    title: How many tokens must the corpus supply?
+    visual: A 1.4T training target stays fixed as quality filtering and deduplication reduce a 2T extracted
+      inventory.
+    beats:
+      - say: How much text goes through training? In this dense Chinchilla-style plan, seventy billion
+          parameters times twenty token presentations per parameter gives one point four trillion
+          presentations. Show the model a page twice and its tokens count twice. The number of optimizer
+          updates depends on how many tokens you put in each batch.
+        hold: 0.8
+        visual_cues:
+          - id: pt-inventory-plan-appetite
+            phrase: seventy billion parameters times twenty token presentations per parameter gives one point four
+              trillion presentations
+            targets:
+              - inventory-plan-mechanism
+            color: cyan
+            linger: 0.45
+      - say: For the main dense matrix operations, multiply the number of trainable weights by token
+          presentations, then by six. That gives five point eight eight times ten to the twenty-three
+          FLOPs for this plan. With the same token budget, longer sequences give attention more work per
+          token. Recomputing activations adds work too. How long the run takes also depends on how busy
+          we keep the hardware.
+        hold: 0.8
+        visual_cues:
+          - id: pt-inventory-plan-flops
+            phrase: five point eight eight times ten to the twenty-three FLOPs
+            targets:
+              - inventory-plan-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Start with two trillion extracted tokens. Quality filtering removes thirty percent, leaving one
+          point four trillion. Deduplication removes twenty percent of that remainder, leaving one point
+          one two trillion. If each surviving token is used once, how far short of the target are we?
+        hold: 2.1
+        visual_cues:
+          - id: pt-inventory-plan-filter
+            phrase: Quality filtering removes thirty percent
+            targets:
+              - inventory-plan-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-inventory-plan-dedup
+            phrase: Deduplication removes twenty percent of that remainder, leaving one point one two trillion
+            targets:
+              - inventory-plan-mechanism
+            color: cyan
+            linger: 0.45
+      - say: We need two hundred eighty billion more presentations. We could add eligible sources or
+          deliberately repeat some text. A bigger download helps only to the extent that its tokens reach
+          training.
+        hold: 1
+        visual_cues:
+          - id: pt-inventory-plan-gap
+            phrase: two hundred eighty billion more presentations
+            targets:
+              - inventory-plan-mechanism
+            color: cyan
+            linger: 0.45
+  - id: extract
+    title: Will the return statement still run?
+    visual: Copy the body of page P1. Compare the Python return statement and its four leading spaces at the
+      source and destination.
+    beats:
+      - say: Here is the page that supplied our program. Start with the whole response. Home and Subscribe
+          belong to the menu. Links and Contact belong to the footer. Select the body between them. Two
+          sentences and a Python function are worth keeping. What has to survive besides the words?
+        hold: 1.5
+        visual_cues:
+          - id: extract-b1-1
+            phrase: Home and Subscribe belong to the menu
+            targets:
+              - excluded-navigation
+            linger: 0.45
+          - id: extract-b1-2
+            phrase: Select the body between them
+            targets:
+              - extracted-spans
+            linger: 0.45
+      - say: Copy the two sentences, including their final periods. Leave the navigation behind. Copy the
+          function header, then its indented return statement. Four leading spaces put the return inside
+          the function. Flatten that line to the left margin and Python will reject this extract. Other
+          page types have different failure modes. Inspect tables and equations on their own sources.
+        hold: 0.6
+        visual_cues:
+          - id: extract-b2-1
+            phrase: Copy the two sentences, including their final periods
+            targets:
+              - extracted-spans
+            linger: 0.45
+          - id: extract-b2-2
+            phrase: Leave the navigation behind
+            targets:
+              - excluded-navigation
+            linger: 0.45
+          - id: extract-code
+            phrase: Copy the function header, then its indented return statement
+            targets:
+              - extracted-spans
+      - say: Save the original page, its source ID and the versioned extraction policy. That lets us go back
+          from record C to this very line. Inspect samples across source types before processing the
+          crawl. If you start from somebody else's extracted text, their choices about spaces and
+          punctuation have already reached you.
+        hold: 0.8
+        visual_cues:
+          - id: extract-b3-1
+            phrase: versioned extraction policy
+            targets:
+              - extraction-policy
+            linger: 0.45
+          - id: extract-b3-2
+            phrase: source types
+            targets:
+              - source-page
+            linger: 0.45
+  - id: archives
+    title: Choose which archived evidence reaches extraction
+    visual: Follow P1 through a raw WARC response, WAT metadata and WET text. Compare retained indentation in two copies of the same program.
+    beats:
+      - say: Common Crawl offers three different artifacts for the same crawl. WARC preserves raw crawl
+          records, including HTTP responses and page HTML. WAT stores computed metadata. WET stores
+          automatically extracted plain text. Reading WET inherits the earlier extractor. Returning
+          to WARC lets us make and version our own extraction choices.
+        hold: 0.8
+        visual_cues:
+          - id: pt-archives-warc
+            phrase: WARC preserves raw crawl records
+            targets:
+              - archives-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-archives-wat
+            phrase: WAT stores computed metadata
+            targets:
+              - archives-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-archives-wet
+            phrase: WET stores automatically extracted plain text
+            targets:
+              - archives-mechanism
+            color: cyan
+            linger: 0.45
+      - say: A book gives us a long argument. A repository gives us code and tests. A forum answer can
+          show the steps that solved a problem. Each has its own license and formatting needs. Keep
+          snapshot, source identity and extracted spans attached. Stars tell us a repository is popular.
+          To judge the code itself, inspect the programs and run their tests.
+        hold: 0.8
+        visual_cues:
+          - id: pt-archives-identity
+            phrase: Keep snapshot, source identity and extracted spans attached
+            targets:
+              - archives-mechanism
+            color: cyan
+            linger: 0.45
+      - say: FineWeb and DataComp-LM each improved on their WET baseline by extracting text from raw
+          responses. Try that comparison on our Python function. Inspect it against the source. Both
+          copies have four spaces before return. Those spaces put the statement inside the function. The
+          final period survived in the prose too.
+        hold: 0.8
+        visual_cues:
+          - id: pt-archives-inspect
+            phrase: Inspect it against the source
+            targets:
+              - archives-mechanism
+            color: cyan
+            linger: 0.45
+  - id: filter
+    title: A quality rule chooses what remains
+    visual: The score cutoff crosses C and E. A separate prose rule then excludes C at a fixed cutoff of 0.50.
+    beats:
+      - say: These are all five records before deduplication. Even the two mirrors still count separately. The
+          menu already falls below the starting cutoff of point two. A classifier learns from its examples
+          and labels. A rule for repeated lines or empty pages can catch a different problem.
+        hold: 0.6
+        visual_cues:
+          - id: filter-b1-1
+            phrase: examples and labels
+            targets:
+              - filtered-records
+            linger: 0.45
+      - say: Raise the cutoff to point six nine. Nothing crosses it yet. Now move past the program's score and
+          its one hundred twenty tokens leave. Move past E and another two hundred leave. At point eight
+          five, only the two mirrors remain. Their mean score is higher. That follows from discarding
+          lower scores. To find out what the model learned, compare matched training runs.
+        hold: 0.6
+        visual_cues:
+          - id: filter-threshold-rise
+            phrase: Raise the cutoff to point six nine
+            targets:
+              - score-cutoff
+              - filtered-records
+              - retained-tokens
+              - retained-score
+            color: yellow
+            linger: 0.6
+          - id: filter-b2-1
+            phrase: move past the program's score
+            targets:
+              - retained-tokens
+            linger: 0.45
+          - id: filter-b2-2
+            phrase: Move past E
+            targets:
+              - retained-score
+            linger: 0.45
+      - say: Try a different policy. Reset the score cutoff to point five. Four records now qualify. Suppose we
+          also require a prose source and at least two hundred tokens. Which additional record will we
+          lose?
+        hold: 2.1
+        visual_cues:
+          - id: filter-rule-question
+            phrase: Which additional record will we lose
+            targets:
+              - filtered-records
+      - say: C drops out. The little program fails both parts of the prose rule. The two mirrors and the bird
+          sentence survive. Now six hundred eighty tokens remain, all prose. We can test a code-specific
+          rule against this one on the tasks the engineering assistant needs.
+        hold: 0.9
+        visual_cues:
+          - id: filter-b3-1
+            phrase: C drops out
+            targets:
+              - filtered-records
+            linger: 0.45
+  - id: prose-gates
+    title: Apply a prose rule to the actual record
+    visual: Apply the English prose gates to a 71-word runbook, a four-word note, repeated sale text and 25
+      CSS rules. Mark the first failing check for each record.
+    beats:
+      - say: Open the article’s executable prose filter. It is a teaching subset of Gopher’s English-web rules.
+          It keeps fifty through one hundred thousand whitespace-split words and mean word length from
+          three through ten characters. Each hash-symbol count divided by word count, and each ellipsis
+          count divided by word count, must be at most zero point one.
+        hold: 0.8
+        visual_cues:
+          - id: pt-prose-gates-words
+            phrase: fifty through one hundred thousand whitespace-split words
+            targets:
+              - prose-gates-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-prose-gates-symbols
+            phrase: must be at most zero point one
+            targets:
+              - prose-gates-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Consider this runbook. Its seventy-one words include both “the” and “and.” The gate asks for
+          at least two distinct English stopwords from its list. At least eighty percent of the words must
+          also contain a letter. The runbook passes all the implemented checks. The four-word note is too
+          short. Eighty copies of sale clear the length check but have no listed stopwords. The CSS has
+          twenty-five hash signs for one hundred twenty-five words. That's one in five, twice the allowed
+          ratio. Only the runbook passes this filter.
+        hold: 0.8
+        caption_starts:
+          - Only the runbook
+        visual_cues:
+          - id: pt-prose-gates-stopwords
+            phrase: at least two distinct English stopwords
+            targets:
+              - prose-gates-mechanism
+          - id: pt-prose-gates-outputs
+            phrase: Only the runbook passes this filter
+            targets:
+              - prose-gates-mechanism
+      - say: The published suite also checks repeated lines, paragraphs and n-grams. Its top two-, three- and
+          four-gram limits use character fractions of zero point two zero, zero point one eight and zero
+          point one six, respectively. Longer n-grams have separate duplicate-character rules. The runbook
+          passed our simpler filter. To check it for repetition, run these extra gates. Evaluate code,
+          mathematics and other languages with rules suited to those sources.
+        hold: 0.8
+        visual_cues:
+          - id: pt-prose-gates-ngrams
+            phrase: zero point two zero, zero point one eight and zero point one six
+            targets:
+              - prose-gates-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-prose-gates-subset
+            phrase: run these extra gates
+            targets:
+              - prose-gates-mechanism
+            color: cyan
+            linger: 0.45
+  - id: score-contracts
+    title: Follow the labels behind a quality score
+    visual: Read the labels behind the scorer. Set an inclusive cutoff on five source records and measure
+      the retained share of their original 1,000 tokens.
+    beats:
+      - say: A language detector can struggle with a page that mixes two languages. That page may still
+          be worth keeping. What did the scorer learn to recognize? DataComp-LM trained fastText with
+          positive examples from OpenHermes and highly rated ELI5 answers. Its top-ten-percent document
+          cutoff counted whole documents. Their lengths determine how many tokens survive.
+        hold: 0.8
+        visual_cues:
+          - id: pt-score-contracts-dclm
+            phrase: top-ten-percent document cutoff
+            targets:
+              - score-contracts-mechanism
+            color: cyan
+            linger: 0.45
+      - say: FineWeb-Edu trained a scorer to recognize educational material. It used four hundred sixty
+          thousand teacher annotations on a zero-to-five scale, four hundred ten thousand for training
+          and fifty thousand for validation. CCNet asked a different question. How predictable is this
+          text to a language model trained on Wikipedia? Lower perplexity puts it closer to that
+          reference. To assess correctness, you still need to check the facts or run the code.
+        hold: 0.8
+        visual_cues:
+          - id: pt-score-contracts-labels
+            phrase: four hundred ten thousand for training and fifty thousand for validation
+            targets:
+              - score-contracts-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-score-contracts-ccnet
+            phrase: closer to that reference
+            targets:
+              - score-contracts-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Try the scorer on these five records. The proof scores point nine eight. The API documentation
+          scores point nine two. The strip widths show their token counts. Set the cutoff to point nine.
+          The forum post, the news story and the scrape fall below it. The proof and the documentation
+          keep two hundred eighty of the thousand tokens, or twenty-eight percent. A higher cutoff can
+          leave both the yield and the mean unchanged between records. Once you cross a record, you lose
+          its tokens. If any remain, their mean score can only stay the same or rise. To decide whether
+          that trade helps, evaluate the tasks you need.
+        hold: 1
+        caption_starts:
+          - The proof and the documentation keep
+        visual_cues:
+          - id: pt-score-contracts-records
+            phrase: The proof scores point nine eight
+            targets:
+              - score-contracts-mechanism
+          - id: pt-score-contracts-cut
+            phrase: Set the cutoff to point nine
+            targets:
+              - score-contracts-mechanism
+          - id: pt-score-contracts-yield
+            phrase: two hundred eighty of the thousand tokens, or twenty-eight percent
+            targets:
+              - score-contracts-mechanism
+          - id: pt-score-contracts-quality
+            phrase: evaluate the tasks you need
+            targets:
+              - score-contracts-mechanism
+  - id: corpus-evidence
+    title: Separate corpus inventory from evidence of value
+    visual: Compare corpus recipes, apply one English stopword gate to three records, and keep organic, translated and synthetic text in separate categories.
+    beats:
+      - say: C4 illustrates aggressive heuristic cleaning; the Pile documented a twenty-two-source mixture;
+          Dolma made a large English corpus and its processing inspectable. FineWeb tested
+          extraction, filtering and per-crawl deduplication, rather than choosing a recipe from raw
+          size. DataComp-LM’s multi-stage pipeline turned a two hundred forty trillion token pool
+          into a much smaller selected inventory. Judge a source by its contribution under a matched
+          evaluation.
+        hold: 0.8
+        visual_cues:
+          - id: pt-corpus-evidence-sources
+            phrase: the Pile documented a twenty-two-source mixture
+            targets:
+              - corpus-evidence-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-corpus-evidence-evaluate
+            phrase: Judge a source by its contribution
+            targets:
+              - corpus-evidence-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Nemotron-CC combined retained organic web text with synthetic variants. Its full and
+          high-quality subsets traded results differently across reported tasks. FineWeb2 later
+          adapted language processing and quality thresholds across more than one thousand
+          languages. Copying one English stopword rule into every language can remove the very
+          coverage that the deployment needs.
+        hold: 0.8
+        visual_cues:
+          - id: pt-corpus-evidence-languages
+            phrase: more than one thousand languages
+            targets:
+              - corpus-evidence-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-corpus-evidence-copy
+            phrase: Copying one English stopword rule into every language can remove the very coverage that the
+              deployment needs
+            targets:
+              - corpus-evidence-mechanism
+            color: cyan
+            linger: 0.45
+      - say: The December twenty twenty-five Nemotron-CC version two point one card reports two point five
+          trillion added English tokens across organic, translated and synthetically rephrased text,
+          with dataset and teacher-model terms. Keep those categories separate. A public-human-text
+          stock forecast depends on scenarios; training does not consume that text irreversibly.
+          Distinguish unique human inventory, synthetic variants and repeated presentations when
+          planning a longer run.
+        hold: 0.8
+        visual_cues:
+          - id: pt-corpus-evidence-separate
+            phrase: Keep those categories separate
+            targets:
+              - corpus-evidence-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-corpus-evidence-presentations
+            phrase: Distinguish unique human inventory, synthetic variants and repeated presentations
+            targets:
+              - corpus-evidence-mechanism
+            color: cyan
+            linger: 0.45
+  - id: dedup
+    title: Repeated pages spend repeated practice
+    visual: Exact duplicates A and B share a retained representative. Two edited sentences expose
+      trigram overlap, a Jaccard score of one third and a threshold decision to retain both.
+    beats:
+      - say: An identical page mirrored across several sites can receive many times the exposure of another
+          document. Exact deduplication groups matching normalized content. In our inventory, the
+          second copy vanishes and its source lineage remains connected to the retained
+          representative.
+        hold: 0.6
+        visual_cues:
+          - id: dedup-b1-1
+            phrase: matching normalized content
+            targets:
+              - duplicate-records
+            linger: 0.45
+      - say: Near-duplicates need a richer comparison. Break documents into overlapping word shingles and
+          compare their sets. MinHash and locality-sensitive hashing can cheaply suggest candidate
+          pairs at scale. A separate exact check can decide whether each proposed pair crosses the
+          chosen threshold.
+        hold: 0.6
+        visual_cues:
+          - id: dedup-b2-1
+            phrase: overlapping word shingles
+            targets:
+              - shingle-words
+            linger: 0.45
+          - id: dedup-b2-2
+            phrase: compare their sets
+            targets:
+              - shingle-sets
+            linger: 0.45
+          - id: dedup-b2-3
+            phrase: each proposed pair
+            targets:
+              - shingle-union
+            linger: 0.45
+      - say: "A shared introduction does not make two complete documents interchangeable. Inspect what a
+          deduplication policy removes, including repeated material within documents. Count both
+          documents and tokens: dropping one long page can change the mixture more than dropping
+          several short pages."
+        hold: 0.8
+        visual_cues:
+          - id: dedup-b3-1
+            phrase: two complete documents
+            targets:
+              - shingle-sets
+            linger: 0.45
+          - id: dedup-b3-2
+            phrase: what a deduplication policy removes
+            targets:
+              - jaccard
+            linger: 0.45
+  - id: minhash-work
+    title: Construct the candidate signature from real shingles
+    visual: Compare the six shared bigrams and four differing bigrams. Inspect the four 64-bit minima in band 1 before verifying the A and B edge.
+    beats:
+      - say: Exact hashing first groups equal normalized strings. Reading and hashing costs time
+          proportional to their bytes; the hash-table lookup has expected constant cost. A digest
+          collision is not string equality, so grouped bytes can be compared. Changing a timestamp
+          may change the digest while preserving almost all of a document’s content.
+        hold: 0.8
+        visual_cues:
+          - id: pt-minhash-work-exact
+            phrase: grouped bytes can be compared
+            targets:
+              - minhash-work-mechanism
+            color: cyan
+            linger: 0.45
+      - say: For near duplicates, form sets of contiguous word shingles. Jaccard similarity is intersection
+          size divided by union size. In the article’s executed bigram example, A and B share six
+          shingles in a union of ten, so similarity is zero point six. Each of thirty-two salted
+          hashes selects the minimum hash over a document’s set. Four consecutive minima form each
+          of eight bands.
+        hold: 0.8
+        visual_cues:
+          - id: pt-minhash-work-shingles
+            phrase: Jaccard similarity is intersection size divided by union size
+            targets:
+              - minhash-work-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-minhash-work-six
+            phrase: six shingles in a union of ten, so similarity is zero point six
+            targets:
+              - minhash-work-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-minhash-work-minima
+            phrase: Four consecutive minima form each of eight bands
+            targets:
+              - minhash-work-mechanism
+            color: cyan
+            linger: 0.45
+      - say: The actual A and B signatures match zero-based bands one and three. A band collision proposes
+          the pair; our code then calculates exact Jaccard and accepts an edge at the supplied zero
+          point five threshold. The component keeps A and drops B, retaining their lineage; C
+          remains separate. Finite salted hashes approximate ideal random permutations. Under an
+          ideal uniform permutation, equal minima have probability equal to Jaccard similarity.
+        hold: 0.8
+        visual_cues:
+          - id: pt-minhash-work-bands
+            phrase: match zero-based bands one and three
+            targets:
+              - minhash-work-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-minhash-work-edge
+            phrase: accepts an edge at the supplied zero point five threshold
+            targets:
+              - minhash-work-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-minhash-work-keep
+            phrase: keeps A and drops B
+            targets:
+              - minhash-work-mechanism
+            color: cyan
+            linger: 0.45
+  - id: lsh-chain
+    title: Which shingles survive a chain of matches?
+    visual: Eight four-row bands give a candidate probability. Three shingle sets then form a verified path.
+      The alphabetically first representative retains only four of the six distinct shingles.
+    beats:
+      - say: What makes two signatures worth comparing? All four rows in one band have to match. If each ideal
+          independent row matches with probability s, one band matches with probability s to the fourth.
+          For eight bands, subtract the chance that all eight miss from one. Follow the curve from a
+          quarter similarity through one half to three quarters. At one half, about forty percent of pairs
+          become candidates. Even a promising pair can miss every band.
+        hold: 1
+        visual_cues:
+          - id: pt-lsh-chain-formula
+            phrase: one band matches with probability s to the fourth
+            targets:
+              - lsh-chain-mechanism
+          - id: pt-lsh-chain-curve
+            phrase: Follow the curve from a quarter similarity through one half to three quarters
+            targets:
+              - lsh-chain-mechanism
+      - say: Now take three different records. Each numbered tile stands for a shingle. The middle record
+          contains all six. Verify the proposed pairs against a point six cutoff. A shares four of six
+          with B. So does C. Both neighboring pairs pass at two thirds. Compare the ends directly. A and C
+          share just two of six, so their edge fails. Keep the alphabetically first record in each
+          connected group. Which shingles will disappear?
+        hold: 2.2
+        visual_cues:
+          - id: pt-lsh-chain-pass
+            phrase: Both neighboring pairs pass at two thirds
+            targets:
+              - lsh-chain-mechanism
+          - id: pt-lsh-chain-fail
+            phrase: their edge fails
+            targets:
+              - lsh-chain-mechanism
+          - id: pt-lsh-chain-question
+            phrase: Which shingles will disappear
+            targets:
+              - lsh-chain-mechanism
+      - say: Follow the green edges from A through B to C. All three belong to one group. Keep A and remove B
+          and C. Five and six have disappeared. They were in B and C, and neither one was in A. Inspect
+          what large components remove. Crowded band buckets can also require a quadratic number of pair
+          comparisons.
+        hold: 1
+        caption_starts:
+          - Five and six have disappeared
+        visual_cues:
+          - id: pt-lsh-chain-component
+            phrase: Keep A and remove B and C
+            targets:
+              - lsh-chain-mechanism
+      - say: Check which recipe you intend to run. FineWeb used five-word shingles and one hundred twelve
+          hashes, arranged in fourteen bands of eight. It linked band matches directly. Our example
+          verifies Jaccard before adding an edge. FineWeb also compared per-crawl and global
+          deduplication. Which records survive depends on both the linking rule and the pool you compare.
+        hold: 0.8
+        visual_cues:
+          - id: pt-lsh-chain-recipe
+            phrase: It linked band matches directly
+            targets:
+              - lsh-chain-mechanism
+  - id: inventory
+    title: How much did the mirror cost?
+    visual: Widths show the five source records on a fixed 1,000-token scale. D and B leave the retained
+      strip at separate gates, while C and E close the gaps.
+    beats:
+      - say: Return to our five records. Each strip is as wide as its token count, measured with the same
+          tokenizer. A and B are copies. C is our program. Use the point five cutoff with the extra prose
+          rule switched off. Remove D, the two hundred menu tokens. Eight hundred tokens remain. Before
+          you drop B, what fraction of those remaining tokens does the mirror occupy?
+        hold: 2.2
+        caption_starts:
+          - Eight hundred tokens remain
+        visual_cues:
+          - id: pt-inventory-filter
+            phrase: Remove D, the two hundred menu tokens
+            targets:
+              - funnel-records
+          - id: pt-inventory-question
+            phrase: what fraction of those remaining tokens
+            targets:
+              - funnel-counts
+      - say: B occupies two hundred forty of the eight hundred tokens. That's thirty percent at this step. Drop
+          the mirror and close the gap. You can still trace B to A. Five hundred sixty tokens survive in
+          three distinct records. One of the four records disappeared at this step, but it took thirty
+          percent of the tokens with it.
+        hold: 1
+        caption_starts:
+          - That's thirty percent
+          - Five hundred sixty tokens survive
+        visual_cues:
+          - id: pt-inventory-merge
+            phrase: Drop the mirror and close the gap
+            targets:
+              - funnel-records
+      - say: Suppose we budget seven hundred token presentations. Use each of these three records once and we're
+          short one hundred forty. We can find more eligible text or schedule repeats. To see what repeats
+          buy us, count what the sampler actually draws from each source.
+        hold: 1
+        caption_starts:
+          - we're short one hundred forty
+        visual_cues:
+          - id: pt-inventory-target
+            phrase: seven hundred token presentations
+            targets:
+              - funnel-counts
+          - id: pt-inventory-gap
+            phrase: short one hundred forty
+            targets:
+              - funnel-counts
+  - id: mixture
+    title: How much practice fits in ten draws?
+    visual: Each column is one supplied draw. Each tile represents 100 tokens. Keep the draw values fixed while changing document length, draw probability or sampling unit.
+    beats:
+      - say: For a separate sampler example, every program has one hundred tokens. Every prose page has nine
+          hundred. Each tile holds one hundred tokens. The ten draw values are evenly spaced examples,
+          from point zero five to point nine five. Draw a whole document each time. Values below one half
+          pick code. The first five programs make a low shelf. The next five pages stand nine tiles high.
+          Five draws apiece gave code only five hundred of five thousand tokens. How many programs would
+          balance one page?
+        hold: 2.2
+        caption_starts:
+          - Five draws apiece gave code only five hundred
+        visual_cues:
+          - id: pt-mixture-draws
+            phrase: The first five programs make a low shelf
+            targets:
+              - mixture-mechanism
+          - id: pt-mixture-pages
+            phrase: The next five pages stand nine tiles high
+            targets:
+              - mixture-mechanism
+          - id: pt-mixture-ask
+            phrase: How many programs would balance one page
+            targets:
+              - mixture-mechanism
+      - say: It takes nine programs. Keep the same ten draws and raise the chance of picking code to ninety percent.
+          Watch four tall columns turn into short ones. Nine programs now contribute nine hundred tokens,
+          and so does the one remaining page. In a random run it is the long-run share that balances.
+          Multiply each source's draw probability by its mean retained length, then divide by the total
+          expected tokens per draw.
+        hold: 1
+        caption_starts:
+          - Nine programs now contribute nine hundred tokens
+        visual_cues:
+          - id: pt-mixture-nine
+            phrase: It takes nine programs
+            targets:
+              - mixture-mechanism
+          - id: pt-mixture-rebalance
+            phrase: raise the chance of picking code to ninety percent
+            targets:
+              - mixture-mechanism
+      - say: Keep that ninety percent setting, but cut both sources into equal blocks of one hundred tokens. The
+          last page now supplies just one tile per draw as well. To get half your tokens from code, how
+          many of ten equal blocks should come from code?
+        hold: 2.2
+        visual_cues:
+          - id: pt-mixture-blocks
+            phrase: cut both sources into equal blocks of one hundred tokens
+            targets:
+              - mixture-mechanism
+      - say: Five code blocks. Set the probability back to one half. Each side supplies five hundred tokens.
+          When all blocks have the same length and every token is kept, the source probability is also its
+          expected token share. Measure consumed tokens after truncation and packing. Count supervised
+          targets separately if the loss skips some positions.
+        hold: 1
+        caption_starts:
+          - Each side supplies five hundred tokens
+        visual_cues:
+          - id: pt-mixture-five
+            phrase: Five code blocks
+            targets:
+              - mixture-mechanism
+          - id: pt-mixture-even
+            phrase: Set the probability back to one half
+            targets:
+              - mixture-mechanism
+  - id: exposure-schedule
+    title: A mixture changes what the model repeatedly practices
+    visual: Weight each document by its length. Cut one long page at 300 tokens beside nine short programs. Compare the delivered mix with the target, then count repeated presentations.
+    beats:
+      - say: Set code to eighty percent of whole-document draws. A program has one hundred tokens. A
+          prose page has nine hundred. Multiply each length by its chance of being drawn. That gives
+          eighty expected code tokens versus one hundred eighty prose tokens per draw. Code gets eighty
+          out of two hundred sixty, or about thirty-one percent of the tokens.
+        hold: 0.8
+        caption_starts:
+          - That gives eighty
+          - Code gets eighty
+        visual_cues:
+          - id: pt-exposure-schedule-mass
+            phrase: eighty expected code tokens versus one hundred eighty prose tokens
+            targets:
+              - exposure-schedule-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-exposure-schedule-share
+            phrase: about thirty-one percent of the tokens
+            targets:
+              - exposure-schedule-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Aim for half the tokens from each source. Divide each target share by its mean document
+          length, then scale the weights to sum to one. That puts code at ninety percent of document
+          draws. Take nine programs and one page. Each side supplies nine hundred tokens. Now cap each
+          document at three hundred tokens. Every program fits. The page loses its last six hundred
+          tokens. Code now supplies nine hundred of the twelve hundred tokens, or seventy-five percent.
+          After packing, count the tokens each source delivered. Count the targets used for loss
+          separately.
+        hold: 0.8
+        caption_starts:
+          - That puts code
+          - Take nine programs
+          - Now cap each document
+          - The page loses
+          - Code now supplies
+          - After packing
+        visual_cues:
+          - id: pt-exposure-schedule-inverse
+            phrase: ninety percent of document draws
+            targets:
+              - exposure-schedule-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-exposure-schedule-example
+            phrase: Take nine programs and one page
+            targets: [exposure-schedule-mechanism]
+          - id: pt-exposure-schedule-cap
+            phrase: cap each document at three hundred tokens
+            targets: [exposure-schedule-mechanism]
+          - id: pt-exposure-schedule-trim
+            phrase: The page loses its last six hundred tokens
+            targets: [exposure-schedule-mechanism]
+          - id: pt-exposure-schedule-delivered
+            phrase: or seventy-five percent
+            targets:
+              - exposure-schedule-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Training stages can use different weights. The sampler can also choose different records within a
+          source. Look at Llama three's reported token mix. General web gets half the tokens. Math and
+          reasoning gets a quarter. Code gets seventeen percent, and multilingual text gets eight. Now
+          take a different plan. A hundred billion eligible code tokens supply seven hundred billion
+          presentations. Divide the presentations by the inventory. That's seven token-weighted passes on
+          average. Some programs may appear more often than others. Measure held-out behavior to decide
+          whether more repetition helps.
+        hold: 0.8
+        visual_cues:
+          - id: pt-exposure-schedule-mix
+            phrase: Llama three's reported token mix
+            targets:
+              - exposure-schedule-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-exposure-schedule-repeat
+            phrase: seven token-weighted passes on average
+            targets:
+              - exposure-schedule-mechanism
+            color: cyan
+            linger: 0.45
+  - id: decontamination
+    title: Trace a candidate match into a versioned review
+    visual: Compare marker, four-word and normalized-code matches against a pinned evaluation. Run
+      decide(False) on two functions with different indentation and follow their separate outputs.
+    beats:
+      - say: Pin benchmark versions and splits before overlap screening. Exclude known benchmark
+          repositories. Look for copied wording with literal n-grams, similar code with a code-aware
+          comparison, and paraphrases with semantic retrieval. Inspect the passage each method finds. A
+          README can quote the benchmark marker while a solution file contains the answer. Record which
+          one you found, and sample unflagged text for missed matches.
+        hold: 0.8
+        visual_cues:
+          - id: pt-decontamination-pin
+            phrase: Pin benchmark versions and splits
+            targets:
+              - decontamination-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-decontamination-layers
+            phrase: Inspect the passage each method finds
+            targets:
+              - decontamination-mechanism
+            color: cyan
+            linger: 0.45
+      - say: The executable screen uses an authored marker, exact four-word overlap and lexical code
+          normalization. It flags the marker copy, the copied prompt and renamed code; the runbook has no
+          implemented match and still needs residual auditing. Repository exclusions and embedding
+          retrieval are proposed extensions outside this cell. GPT-3’s initial thirteen-gram filter and
+          later task-dependent overlap analysis also had documented implementation limits.
+        hold: 0.8
+        visual_cues:
+          - id: pt-decontamination-flags
+            phrase: flags the marker copy, the copied prompt and renamed code
+            targets:
+              - decontamination-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-decontamination-runbook
+            phrase: still needs residual auditing
+            targets:
+              - decontamination-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Look at the last return in each function. Our lexical screen removes comments and keeps a hash
+          inside a quoted string. It also discards indentation and doesn't resolve scope. The normalized
+          tokens are identical. In which function can a false flag reach the last return?
+        hold: 2.1
+        visual_cues:
+          - id: pt-decontamination-indent
+            phrase: Look at the last return in each function
+            targets:
+              - decontamination-mechanism
+      - say: Call decide with False on both. On the left, execution leaves the if and returns two. On the right,
+          both returns belong to the if. The function falls off the end and returns None. Send this match
+          to policy review. Save the matched span, the source and the benchmark revision. A shared passage
+          and an exposed answer have different implications for the evaluation.
+        hold: 0.9
+        caption_starts:
+          - On the left
+          - The function falls off the end
+        visual_cues:
+          - id: pt-decontamination-left
+            phrase: execution leaves the if and returns two
+            targets:
+              - decontamination-mechanism
+          - id: pt-decontamination-false
+            phrase: The function falls off the end and returns None
+            targets:
+              - decontamination-mechanism
+          - id: pt-decontamination-review
+            phrase: Send this match to policy review
+            targets:
+              - decontamination-mechanism
+  - id: privacy
+    title: Apply identifier and secret policies to the retained source
+    visual: Replace an email span, then inspect the remaining private-key header and the tokenizer registry. Compare flagged words in two different contexts.
+    beats:
+      - say: This page has a contact email, a private-key header and an author's name. The key needs
+          secret handling. The name needs context. Is it a public byline or a private record? Track
+          policy version and source spans while you can still inspect the original page.
+        hold: 0.8
+        visual_cues:
+          - id: pt-privacy-spans
+            phrase: Track policy version and source spans
+            targets:
+              - privacy-mechanism
+            color: cyan
+            linger: 0.45
+      - say: A pattern can find the email address. Replace it with an EMAIL placeholder. Our tokenizer
+          reads that as ordinary text. To make it a single special token, register it with the tokenizer.
+          Entity recognition can flag names for review, and source rules can exclude known leak sites.
+          Even a hashed identifier can link records when the same hash appears twice.
+        hold: 0.8
+        visual_cues:
+          - id: pt-privacy-replace
+            phrase: Replace it with an EMAIL placeholder
+            targets:
+              - privacy-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-privacy-register
+            phrase: reads that as ordinary text
+            targets:
+              - privacy-mechanism
+            color: cyan
+            linger: 0.45
+      - say: A clinical explanation and an abusive message can share a flagged word while needing
+          different decisions. Read samples from both the kept and removed sets across the groups you
+          serve. Back on our page, the email is gone. The private key still needs its own check. Apply
+          that check to generated variants too, and track their sources and licenses.
+        hold: 0.8
+        visual_cues:
+          - id: pt-privacy-context
+            phrase: needing different decisions
+            targets:
+              - privacy-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-privacy-secret
+            phrase: The private key still needs its own check
+            targets:
+              - privacy-mechanism
+            color: cyan
+            linger: 0.45
+  - id: tokenizer-choice
+    title: Count both the token stream and its vocabulary rows
+    visual: Compare input and output vocabulary matrices, the boundaries used by three tokenizer families and the revision recorded with a shard.
+    beats:
+      - say: The tokenizer turns retained text into integer IDs. Vocabulary size changes both sequence
+          compression and embedding or output cost. A vocabulary of V pieces with width d uses V
+          times d entries in each dense vocabulary matrix. For separate, untied input and output
+          matrices, their combined storage is two times V times d times bytes per entry. Weight
+          tying changes that count.
+        hold: 0.8
+        visual_cues:
+          - id: pt-tokenizer-choice-matrix
+            phrase: two times V times d times bytes per entry
+            targets:
+              - tokenizer-choice-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Byte-level BPE starts from byte values and learns frequent adjacent merges; representing all
+          two hundred fifty-six byte values covers ordinary UTF-eight bytes. WordPiece uses greedy
+          longest-match segmentation with a learned vocabulary. Unigram fits piece probabilities and
+          prunes candidates. The SentencePiece library lets you train either a BPE model or a Unigram
+          model. Pre-tokenization controls allowed merge boundaries.
+        hold: 0.8
+        visual_cues:
+          - id: pt-tokenizer-choice-algorithms
+            phrase: Pre-tokenization controls allowed merge boundaries
+            targets:
+              - tokenizer-choice-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Llama three reported more English characters per token with its larger vocabulary. Try the
+          same measurement on your code and on each language you serve. Freeze normalization, merge
+          ranks, revision and special IDs before writing shards. Published tiktoken patterns can attach a
+          leading space. In the piece on screen, that space belongs to the word.
+        hold: 0.8
+        visual_cues:
+          - id: pt-tokenizer-choice-freeze
+            phrase: Freeze normalization, merge ranks, revision and special IDs
+            targets:
+              - tokenizer-choice-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-tokenizer-choice-space
+            phrase: attach a leading space
+            targets:
+              - tokenizer-choice-mechanism
+            color: cyan
+            linger: 0.45
+  - id: bpe-work
+    title: Replay the learned merge order on the actual word pieces
+    visual: The learned rules join fixed character positions in after and rotate. Count the pieces across
+      the four-word sample after each rule.
+    beats:
+      - say: This toy tokenizer splits on whitespace, then starts from Unicode characters plus an end-of-word
+          marker. It has ninety-four initial symbols across the supplied corpus. Counting adjacent pairs,
+          merging the most frequent, and repeating eight times leaves sixty-eight symbols. We'll replay
+          the same rules on the four words rotate keys after review. Count the four end markers along with
+          the letters. We start with twenty-five pieces.
+        hold: 0.8
+        caption_starts:
+          - We'll replay the same rules
+          - We start with twenty-five pieces
+        visual_cues:
+          - id: pt-bpe-work-initial
+            phrase: ninety-four initial symbols
+            targets:
+              - bpe-work-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-bpe-work-corpus
+            phrase: leaves sixty-eight symbols
+            targets:
+              - bpe-work-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-bpe-work-sample
+            phrase: We start with twenty-five pieces
+            targets:
+              - bpe-work-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Watch the word after. First join T and E. Follow the next two rules in rotate, where T joins A and
+          R joins O. Now join A and F in after. Those first two pieces, AF and TE, can now join. Add R and
+          then the end marker. The entire word after occupies one piece. The last rule joins RO and TA in
+          rotate. Now the four words fit in sixteen pieces. Each rule joins adjacent pieces from left to
+          right without overlap. A new prompt reuses this same merge order.
+        hold: 1
+        caption_starts:
+          - First join T and E
+          - Now join A and F
+          - The last rule joins
+          - Now the four words fit
+        visual_cues:
+          - id: pt-bpe-work-first
+            phrase: First join T and E
+            targets:
+              - bpe-work-mechanism
+          - id: pt-bpe-work-rotate
+            phrase: T joins A and R joins O
+            targets:
+              - bpe-work-mechanism
+          - id: pt-bpe-work-pair
+            phrase: Now join A and F in after
+            targets:
+              - bpe-work-mechanism
+          - id: pt-bpe-work-join
+            phrase: AF and TE, can now join
+            targets:
+              - bpe-work-mechanism
+          - id: pt-bpe-work-finish
+            phrase: Add R and then the end marker
+            targets:
+              - bpe-work-mechanism
+          - id: pt-bpe-work-last
+            phrase: The last rule joins RO and TA in rotate
+            targets:
+              - bpe-work-mechanism
+      - say: Tied counts follow first encounter order in this toy, so changing training-record order can change
+          the rules. One emoji is one Unicode character here but four UTF-eight bytes. Whitespace
+          splitting also discards the original spaces. Type an extra space between rotate and keys.
+          Both inputs produce the same pieces. If a tokenizer revision changes which pieces the IDs
+          mean, rebuild the shards with that revision.
+        hold: 0.8
+        visual_cues:
+          - id: pt-bpe-work-bytes
+            phrase: four UTF-eight bytes
+            targets:
+              - bpe-work-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-bpe-work-revision
+            phrase: rebuild the shards with that revision
+            targets:
+              - bpe-work-mechanism
+            color: cyan
+            linger: 0.45
+  - id: packing-work
+    title: Conserve token slots while moving whole records
+    visual: Place each of six records into a capacity-ten block. Compare the remaining slots with a second
+      batch of three length-six records.
+    beats:
+      - say: Packing makes utilization visible. The supplied lengths are seven, six, five, five, three and two,
+          each including whatever separators our declared fixture counts. Separate capacity-ten blocks
+          allocate sixty slots for twenty-eight real tokens. Best-fit decreasing sorts lengths largest
+          first and places each in the tightest block where it fits.
+        hold: 0.8
+        visual_cues:
+          - id: pt-packing-work-lengths
+            phrase: seven, six, five, five, three and two
+            targets:
+              - packing-work-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-packing-work-separate
+            phrase: sixty slots for twenty-eight real tokens
+            targets:
+              - packing-work-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Deal the records from longest to shortest. Put seven in the first block. Six needs a second block.
+          The two fives fit together in a third block. Slide three beside seven. Put two beside six. You
+          can still count the same twenty-eight real tokens. They now occupy thirty slots, about
+          ninety-three percent full. The separate records used only about forty-seven percent of their
+          sixty slots.
+        hold: 1
+        caption_starts:
+          - They now occupy thirty slots
+        visual_cues:
+          - id: pt-packing-work-seven
+            phrase: Put seven in the first block
+            targets:
+              - packing-work-mechanism
+          - id: pt-packing-work-six
+            phrase: Six needs a second block
+            targets:
+              - packing-work-mechanism
+          - id: pt-packing-work-fives
+            phrase: The two fives fit together in a third block
+            targets:
+              - packing-work-mechanism
+          - id: pt-packing-work-three
+            phrase: Slide three beside seven
+            targets:
+              - packing-work-mechanism
+          - id: pt-packing-work-two
+            phrase: Put two beside six
+            targets:
+              - packing-work-mechanism
+          - id: pt-packing-work-utilization
+            phrase: about ninety-three percent full
+            targets:
+              - packing-work-mechanism
+      - say: Change the lengths. Now every record has six tokens. Each leaves four empty places, too few for
+          another six. Eighteen of thirty slots are full, exactly sixty percent. Real packing also has to
+          move token IDs and source offsets. Count separators, bound the streaming buffer, and decide how
+          to split an overlong document. Kernels can skip padding, so a slot count alone can't tell us how
+          much compute we saved. Two records now share a block. Should they be able to read each other?
+        hold: 1
+        caption_starts:
+          - Eighteen of thirty slots
+        visual_cues:
+          - id: pt-packing-work-awkward
+            phrase: exactly sixty percent
+            targets:
+              - packing-work-mechanism
+          - id: pt-packing-work-metadata
+            phrase: move token IDs and source offsets
+            targets:
+              - packing-work-mechanism
+  - id: boundaries
+    title: A packed stream needs a boundary policy
+    visual: Two documents share a packed block while a segment-aware causal mask blocks cross-document
+      context. The final beat excludes a shifted target across the segment boundary.
+    beats:
+      - say: Here are two short documents packed into one block of integer IDs. The cat sat ends the first
+          document. Birds sing begins the second. Packing places short sequences together to save padding.
+          This time we want each document to be an independent example. Look at Birds. Which of the
+          earlier words in this block can it read?
+        hold: 2.1
+        visual_cues:
+          - id: boundaries-b1-1
+            phrase: integer IDs
+            targets:
+              - packed-tokens
+            linger: 0.45
+          - id: boundaries-b1-2
+            phrase: Packing places short sequences
+            targets:
+              - packed-tokens
+            linger: 0.45
+      - say: None of the earlier words. In this row, Birds can read only itself. The segment-aware causal mask
+          admits keys in the same document up to the query position. Move to sing. It can read Birds and
+          itself. Move to the end marker. All three local positions are visible. The matrix marks the
+          allowed edges. A position reset or an end marker alone cannot block earlier positions in another
+          document.
+        hold: 0.6
+        visual_cues:
+          - id: boundaries-b2-1
+            phrase: segment-aware causal mask
+            targets:
+              - attention-mask
+            linger: 0.45
+          - id: boundaries-b2-2
+            phrase: earlier positions
+            targets:
+              - query-context
+            linger: 0.45
+          - id: pt-boundaries-isolate
+            phrase: Birds can read only itself
+            targets:
+              - boundaries-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-boundaries-sing
+            phrase: Move to sing
+            targets:
+              - query-context
+          - id: pt-boundaries-eos
+            phrase: Move to the end marker
+            targets:
+              - query-context
+      - say: Go back to sat, the final token of the first document. The next physical token in this block is
+          Birds. A model trained on independent documents should skip that prediction across the boundary.
+          We can mark its loss target as ignored. An intentionally continuous text stream can choose a
+          different convention. Let's see where that ignore value goes in two common training APIs.
+        hold: 0.8
+        visual_cues:
+          - id: boundaries-b3-1
+            phrase: final token
+            targets:
+              - boundary-target
+            linger: 0.45
+          - id: pt-boundaries-target
+            phrase: skip that prediction across the boundary
+            targets:
+              - boundaries-mechanism
+            color: cyan
+            linger: 0.45
+  - id: label-layout
+    title: Shift each target exactly once
+    visual: Keep five input IDs aligned with their document IDs. Compare targets shifted by the loader with labels shifted inside the model. Both layouts supervise three predictions.
+    beats:
+      - say: The article’s five input IDs are eleven, twelve, ninety-nine, twenty-one and ninety-nine.
+          Document IDs are zero, zero, zero, one and one. Under the chosen independent-document
+          objective, allow a key only when it is no later than the query and belongs to that same
+          document. Query position three cannot read key position two. Translate that logical mask
+          to the API’s actual boolean or additive convention; multiplying a logit by zero does not
+          block it.
+        hold: 0.8
+        visual_cues:
+          - id: pt-label-layout-ids
+            phrase: eleven, twelve, ninety-nine, twenty-one and ninety-nine
+            targets:
+              - label-layout-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-label-layout-blocked
+            phrase: Query position three cannot read key position two
+            targets:
+              - label-layout-mechanism
+            color: cyan
+            linger: 0.45
+      - say: If the data pipeline supplies already-shifted next-token targets, they are twelve, ninety-nine,
+          ignore, ninety-nine and ignore. The cross-document target and the final input without a
+          next token are omitted. The common ignore value minus one hundred controls loss
+          eligibility, not attention. There are three supervised predictions in this block.
+        hold: 0.8
+        visual_cues:
+          - id: pt-label-layout-shifted
+            phrase: twelve, ninety-nine, ignore, ninety-nine and ignore
+            targets:
+              - label-layout-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-label-layout-three
+            phrase: There are three supervised predictions in this block
+            targets:
+              - label-layout-mechanism
+            color: cyan
+            linger: 0.45
+      - say: "If the model shifts labels internally, instead supply eleven, twelve, ninety-nine, ignore and
+          ninety-nine as unshifted labels. After its one shift, the four aligned targets are twelve,
+          ninety-nine, ignore and ninety-nine: the same three supervised predictions. Do not feed an
+          already-shifted array into another shifting operation. Sequence boundaries can implement
+          isolation without materializing the quadratic mask; position resets need a segment-aware
+          attention path to enforce it."
+        hold: 0.8
+        visual_cues:
+          - id: pt-label-layout-unshifted
+            phrase: eleven, twelve, ninety-nine, ignore and ninety-nine as unshifted labels
+            targets:
+              - label-layout-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-label-layout-internal-shift
+            phrase: After its one shift, the four aligned targets are twelve, ninety-nine, ignore and ninety-nine
+            targets:
+              - label-layout-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-label-layout-once
+            phrase: Do not feed an already-shifted array into another shifting operation
+            targets:
+              - label-layout-mechanism
+            color: cyan
+            linger: 0.45
+  - id: lineage
+    title: A checkpoint needs the next document too
+    visual: Restore the consumed cursor to position 2 in the same shard order. E is the next block.
+    beats:
+      - say: Prepared shards should carry immutable identities, source policies, and tokenizer information.
+          A manifest describes the files and their hashes. This turns a changing directory into a
+          specific dataset artifact that another run can verify and load again.
+        hold: 0.6
+        visual_cues:
+          - id: lineage-b1-1
+            phrase: specific dataset artifact
+            targets:
+              - shard-order
+            linger: 0.45
+      - say: Resuming training also needs the sampler cursor and randomness state. The same original seed
+          does not tell us how far every worker has advanced. In the picture, restoring the cursor
+          selects the same next block rather than replaying familiar documents.
+        hold: 0.6
+        visual_cues:
+          - id: lineage-b2-1
+            phrase: sampler cursor
+            targets:
+              - sampler-cursor
+            linger: 0.45
+          - id: lineage-b2-2
+            phrase: same next block
+            targets:
+              - next-block
+            linger: 0.45
+          - id: pt-lineage-cursor
+            phrase: restoring the cursor selects the same next block
+            targets:
+              - lineage-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Keep held-out evaluations separate from training preparation and check contamination against
+          their contents. Related documents may need group-based splits. Privacy and license
+          policies also belong in the pipeline, with inspectable decisions appropriate to the source
+          and intended use.
+        hold: 0.8
+        visual_cues:
+          - id: lineage-b3-1
+            phrase: Related documents
+            targets:
+              - shard-order
+            linger: 0.45
+  - id: restart-consistency
+    title: Restore consumed work rather than the furthest read
+    visual: Inspect the saved six-record order. Read from consumed cursor 2, then compare the records skipped by prefetch cursor 4 with those repeated by replaying the seed.
+    beats:
+      - say: Workers can extract text and compute signatures for different records in parallel. To
+          compare band matches, send records in the same bucket to a common comparison owner. Packing
+          then builds sequences in a reproducible order. Measure how fast those stages run, how much they
+          store, and how many bytes travel between workers.
+        hold: 0.8
+        visual_cues:
+          - id: pt-restart-consistency-shuffle
+            phrase: common comparison owner
+            targets:
+              - restart-consistency-mechanism
+            color: cyan
+            linger: 0.45
+      - say: The executed six-record restart fixture fingerprints its in-memory records, saves a
+          deterministic shuffled order and resumes after two consumed records. Its restored
+          four-record suffix rejoins the original two-record prefix with no repeats or omissions. A
+          changed record fails the manifest check. In a file manifest, verify every referenced
+          shard’s bytes against its digest; hashing the manifest alone does not inspect those files.
+        hold: 0.8
+        visual_cues:
+          - id: pt-restart-consistency-suffix
+            phrase: no repeats or omissions
+            targets:
+              - restart-consistency-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-restart-consistency-manifest
+            phrase: verify every referenced shard’s bytes
+            targets:
+              - restart-consistency-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Production restoration must align data position with a completed optimizer step, including
+          intra-sequence offset, worker state and relevant randomness. A reader can prefetch beyond
+          consumed work. Restoring that furthest reader cursor skips unconsumed records; restarting
+          from the original seed repeats already consumed ones. Restore model, optimizer and
+          schedule together, and restore or deterministically regenerate prefetch and stochastic
+          transforms.
+        hold: 0.8
+        visual_cues:
+          - id: pt-restart-consistency-prefetch
+            phrase: prefetch beyond consumed work
+            targets:
+              - restart-consistency-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-restart-consistency-skip
+            phrase: skips unconsumed records
+            targets:
+              - restart-consistency-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-restart-consistency-repeat
+            phrase: repeats already consumed ones
+            targets:
+              - restart-consistency-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-restart-consistency-restore
+            phrase: Restore model, optimizer and schedule together
+            targets:
+              - restart-consistency-mechanism
+            color: cyan
+            linger: 0.45
+  - id: anneal-synthetic
+    title: Control both the late mixture and its evidence
+    visual: Trace a cooldown and its source mix, then compare replacement with accumulation. The held-out domain has a separate release minimum.
+    beats:
+      - say: Late-stage data annealing here pairs a learning-rate cooldown with a targeted source-mixture
+          change. The Llama three report describes a linear decay to zero over its final forty
+          million tokens, upsampling very high quality sources and averaging checkpoints. Its
+          separate small annealing probes evaluate candidate data. Compare candidate final mixtures
+          from the same starting checkpoint and check both target gains and lost domain coverage.
+        hold: 0.8
+        visual_cues:
+          - id: pt-anneal-synthetic-forty
+            phrase: final forty million tokens
+            targets:
+              - anneal-synthetic-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-anneal-synthetic-compare
+            phrase: same starting checkpoint
+            targets:
+              - anneal-synthetic-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Synthetic data can propose gap-filling exercises, explanations and formats. Phi-one combined
+          filtered real code with synthetic textbooks and exercises, within its reported coding
+          tasks. A second exercise based on the same program gives the model another chance to practice it.
+          Count the generated exercise and its human source separately. Preserve provenance, privacy
+          decisions and dataset or teacher-model terms, and validate answers through executable
+          tests or source-supported checks.
+        hold: 0.8
+        visual_cues:
+          - id: pt-anneal-synthetic-generated
+            phrase: synthetic textbooks and exercises
+            targets:
+              - anneal-synthetic-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-anneal-synthetic-provenance
+            phrase: Preserve provenance, privacy decisions
+            targets:
+              - anneal-synthetic-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Recursive replacement can lose distribution tails under studied model-collapse assumptions.
+          Accumulating original and generated data avoided collapse in Gerstgrasser and colleagues’
+          language-model experiments, with a separate bounded-error result for a linear model. Keep the
+          original records traceable. Evaluate the rare cases on their own. A mix can improve its average
+          and still miss a separately declared held-out coverage floor.
+        hold: 0.8
+        visual_cues:
+          - id: pt-anneal-synthetic-retain
+            phrase: Accumulating original and generated data avoided collapse
+            targets:
+              - anneal-synthetic-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pt-anneal-synthetic-floor
+            phrase: separately declared held-out coverage floor
+            targets:
+              - anneal-synthetic-mechanism
+            color: cyan
+            linger: 0.45
+  - id: transfer
+    title: What changed when the cutoff moved?
+    visual: The same retained record supplies two identical 100-token blocks. After the cutoff changes, two
+      aligned held-out rows show exactly which test outcomes differ.
+    beats:
+      - say: Back to C, our little program. At point five, the unique inventory contains one hundred twenty code
+          tokens. Let's follow four draws of a hundred tokens each. First take the start of C, then A.
+          Take the same part of C again, then E. The model saw two hundred code token presentations, even
+          though both code blocks came from the same hundred positions. A source ID and offset let us
+          trace that repeat.
+        hold: 1
+        caption_starts:
+          - The model saw two hundred code token presentations
+        visual_cues:
+          - id: pt-transfer-draws
+            phrase: First take the start of C, then A. Take the same part of C again, then E
+            targets:
+              - transfer-mechanism
+      - say: Keep extraction and deduplication fixed. Raise only the cutoff from point five to point eight five.
+          There goes C. E drops out too. A remains, with two hundred forty tokens. Weight each surviving
+          score by its token count and the mean rises from about point eight two to point nine. Could this
+          inventory supply a single code token, however often we draw from it?
+        hold: 2.1
+        visual_cues:
+          - id: pt-transfer-tighten
+            phrase: Raise only the cutoff from point five to point eight five
+            targets:
+              - transfer-mechanism
+      - say: There is no code left to draw. Compare two illustrative runs with the same starting checkpoint and
+          training budget. Score them on the same ten held-out cases. Seven successes become five. Look at
+          cases one and two. Both changed from a success to a miss. We lost C and E together, so these
+          results alone can't tell us which removal mattered. Restore C alone in the next trial, keep the
+          budget fixed, and evaluate on fresh cases.
+        hold: 1
+        caption_starts:
+          - Seven successes become five
+        visual_cues:
+          - id: pt-transfer-tests
+            phrase: Score them on the same ten held-out cases
+            targets:
+              - transfer-mechanism
+          - id: pt-transfer-totals
+            phrase: Seven successes become five
+            targets:
+              - transfer-mechanism
+          - id: pt-transfer-test-code
+            phrase: Restore C alone in the next trial
+            targets:
+              - transfer-mechanism
+  - id: fresh-corpus
+    title: Would you release this training mix?
+    visual: A fresh batch moves through the score ruler. Two held-out task counts are compared with the code
+      floor, then the code inventory returns for an unscored trial.
+    beats:
+      - say: Your turn. This batch has a program, some documentation, and a web page. All three pass at point
+          seven. Their scores and token counts are beside the ruler. If you move the cutoff to point nine,
+          how many of these six hundred tokens survive, and from which source?
+        hold: 2.3
+        visual_cues:
+          - id: pt-fresh-corpus-predict
+            phrase: If you move the cutoff to point nine
+            targets:
+              - fresh-corpus-mechanism
+      - say: Move the cutoff to point nine. It crosses code at point seven two, then web at point eight eight.
+          The documentation stays. That's one hundred eighty of six hundred tokens, or thirty percent.
+          Every retained token now comes from the record scored point nine four.
+        hold: 1
+        caption_starts:
+          - The documentation stays
+          - That's one hundred eighty
+        visual_cues:
+          - id: pt-fresh-corpus-move
+            phrase: Move the cutoff to point nine
+            targets:
+              - fresh-corpus-mechanism
+          - id: pt-fresh-corpus-fraction
+            phrase: one hundred eighty of six hundred tokens, or thirty percent
+            targets:
+              - fresh-corpus-mechanism
+      - say: Here are results for two imagined runs from the same checkpoint, with the same training budget.
+          Each task has twenty held-out cases. We agreed before training that code needs sixteen
+          successes. At the stricter cutoff, the documentation score goes from sixteen to nineteen. Code
+          goes from seventeen to fifteen. The combined count improves by one. Would you release this mix?
+        hold: 2.2
+        caption_starts:
+          - At the stricter cutoff
+          - Code goes from seventeen to fifteen
+          - The combined count improves by one
+        visual_cues:
+          - id: pt-fresh-corpus-docs
+            phrase: the documentation score goes from sixteen to nineteen
+            targets:
+              - fresh-corpus-mechanism
+          - id: pt-fresh-corpus-results
+            phrase: Code goes from seventeen to fifteen
+            targets:
+              - fresh-corpus-mechanism
+          - id: pt-fresh-corpus-combined
+            phrase: The combined count improves by one
+            targets:
+              - fresh-corpus-mechanism
+      - say: Hold this mix. Code fell one success short of the release minimum. Three more documentation cases
+          passed, but the code requirement still applies. Return to the rejected program. We can test
+          whether restoring that source helps.
+        hold: 0.9
+        visual_cues:
+          - id: pt-fresh-corpus-hold
+            phrase: Code fell one success short of the release minimum
+            targets:
+              - fresh-corpus-mechanism
+      - say: Lower just the code cutoff to point seven. That puts the program's one hundred twenty tokens
+          back beside the documentation. Resume from the checkpoint after two records were consumed. The
+          reader had prefetched four, so the next two still belong in training. Verify the shards and
+          tokenizer, keep the training budget fixed, and score both tasks on fresh cases. The last mix
+          passed fifteen code cases. Can this one reach sixteen out of twenty?
+        hold: 1.6
+        caption_starts:
+          - That puts the program's
+          - The last mix passed
+          - Can this one reach
+        visual_cues:
+          - id: pt-fresh-corpus-restore
+            phrase: Lower just the code cutoff to point seven
+            targets:
+              - fresh-corpus-mechanism
+          - id: pt-fresh-corpus-resume
+            phrase: after two records were consumed
+            targets:
+              - fresh-corpus-mechanism

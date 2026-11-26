@@ -1,857 +1,1157 @@
-// What the scenes of `agent-orchestration` share: the release board, and the job of each color.
-//
-// The board is the example that stays. A request for release r17 goes to triage. Three checks read
-// in three lanes. Each check sends one receipt card along its lane, through a barrier, into its own
-// slot of one packet. The packet then goes down the right side: approval, the one writer, and the
-// live target. Every part follows values, so a scene changes one value and the picture answers.
+// Shared pure-cinema invariants, semantic COSMOS palette, 3D DAG/barrier/vault rigs,
+// and luminous primitives for the 11-scene `agent-orchestration` stage film (vizmatic@0.10.0).
 import {
+  Node,
   arrow,
-  connector,
+  circle,
+  curve3d,
+  delay,
   dot,
   dynamic,
+  gridPlane3d,
   group,
   line,
-  mixColor,
-  parseColor,
-  pictogram,
-  polygon,
-  polyline,
+  line3d,
+  linear,
   par,
+  points3d,
+  polyPath,
   rect,
   seq,
 } from 'vizmatic/stage';
-import { RECEIPTS, REQUEST } from '../../films/agent-orchestration/fixtures.mjs';
-import { BRANCHES, FRESH_SECONDS, freshPacket, proposal } from './packet.mjs';
-import { LESSON_LOOK } from '../../lib/narrated-lesson.mjs';
-import { area, label, mono, namedBox, note } from '../kit-narrated.mjs';
+import {
+  digest,
+  readSchedule,
+  waitingJoinTrace,
+} from '../../films/agent-orchestration/arithmetic.mjs';
+import {
+  RECEIPTS as RAW_RECEIPTS,
+  REQUEST,
+  values,
+} from '../../films/agent-orchestration/fixtures.mjs';
+import {
+  canWrite,
+  merge,
+  operationTarget,
+  validateModel,
+} from '../../films/agent-orchestration/model.mjs';
+import {
+  CINEMA_FRAME,
+  COSMOS,
+  aura,
+  cinematic3d,
+  glowDot,
+  glowTex,
+  glowingTrail,
+  guardedDynamic,
+  heroTitle,
+  markDecoration,
+  metricReadout,
+  morphEquation,
+  orbitScene,
+  rule,
+  txt,
+  verifyApprox,
+  verifyInvariant,
+  wireframeSlab3d,
+} from '../cinematic-kit.mjs';
+import {
+  BRANCHES,
+  FRESH_SECONDS,
+  RATE_LIMITS,
+  RECEIPTS,
+  V4_RECEIPTS,
+  canonicalDigest,
+  freshPacket,
+  proposal,
+  reconciled,
+  reconciledEffects,
+  recorded,
+  recordedEffects,
+} from './packet.mjs';
 
-export { BRANCHES, FRESH_SECONDS };
-/** One color has one job through the lesson. Cyan, pink and blue are the three checks. */
-export const BRANCH_COLOR = ['cyan', 'pink', 'blue'];
-/** Green is a value that the join accepted, and the packet that it made. */
-export const VALID = 'green';
-/** Yellow is what the voice points at now. */
-export const MARK = 'yellow';
-/** Red is a wrong value, a refused card, a write that must not happen. */
-export const WRONG = 'red';
-/** Dim is a part that waits, and a part that is done. */
-export const QUIET = 'dim';
-
-/** The size of the small text of the board: the fields of a card, a slot name, a readout. */
-export const SMALL = 30;
-/** The number of the tenant of the request: 7. A card from another tenant has another number. */
-export const TENANT = Number(REQUEST.tenant.replace(/\D/g, ''));
-/** The tenant of the cross-tenant test of the model. */
-export const OTHER_TENANT = 9;
-/** The time at which the join of the model runs, and at which its late run runs. */
-const JOIN_TIME = { fresh: 1000, late: 1200 };
-/** The age of a receipt of the fixture at the join: 10 seconds. At the late join the model refuses it. */
-export const AGE = {
-  fresh: JOIN_TIME.fresh - RECEIPTS[0].time,
-  late: JOIN_TIME.late - RECEIPTS[0].time,
+export {
+  BRANCHES,
+  CINEMA_FRAME,
+  COSMOS,
+  FRESH_SECONDS,
+  Node,
+  RATE_LIMITS,
+  RAW_RECEIPTS,
+  RECEIPTS,
+  REQUEST,
+  V4_RECEIPTS,
+  arrow,
+  aura,
+  canWrite,
+  canonicalDigest,
+  cinematic3d,
+  circle,
+  curve3d,
+  delay,
+  digest,
+  dot,
+  dynamic,
+  freshPacket,
+  glowDot,
+  glowTex,
+  glowingTrail,
+  gridPlane3d,
+  group,
+  guardedDynamic,
+  heroTitle,
+  line,
+  line3d,
+  linear,
+  markDecoration,
+  merge,
+  metricReadout,
+  morphEquation,
+  operationTarget,
+  orbitScene,
+  par,
+  points3d,
+  polyPath,
+  proposal,
+  readSchedule,
+  reconciled,
+  reconciledEffects,
+  recorded,
+  recordedEffects,
+  rect,
+  rule,
+  seq,
+  txt,
+  values,
+  verifyApprox,
+  verifyInvariant,
+  waitingJoinTrace,
+  wireframeSlab3d,
 };
-/** The first characters of a digest, as the board shows it. */
-const short = (digest) => `#${digest.slice(0, 4)}`;
-/** The evidence digest of the packet at revision 3, and of the packet that is built again at revision 4. */
-export const DIGEST = { 3: short(proposal().evidenceDigest), 4: short(freshPacket.evidenceDigest) };
 
-const rgba = (name) => parseColor(LESSON_LOOK.colors[name]);
-/** A color between two colors of the course, for a part that lights with a value from 0 to 1. */
-export const mix = (from, to, t) => mixColor(rgba(from), rgba(to), Math.max(0, Math.min(1, t)));
-const lerp = (a, b, t) => a + (b - a) * t;
-
-/** Replace receipt identity only while its card and previous verdict are hidden. */
-export function replaceReceipt(card, fields) {
-  return seq(
-    card.shown.to(0, { duration: 0.2 }),
-    par(
-      ...Object.entries(fields).map(([field, next]) => card[field].to(next, { duration: 0 })),
-      card.read.to(0, { duration: 0 }),
-      card.verdict.to(0, { duration: 0 }),
-    ),
-    card.shown.to(1, { duration: 0.2 }),
-  );
-}
-
-// The frame of the lesson. The read phase runs across the top. The effect path runs down the right.
-// The floor at the left holds the request, and a band that each scene fills with its own instrument.
-export const [LEFT, RIGHT] = area.columns([21, 8], 60);
-export const [READ, FLOOR] = LEFT.rows([11, 10], 60);
-const [SOURCE, RUN] = READ.columns([22, 97], 70);
-export const [TICKET, BAND] = FLOOR.columns([22, 97], 70);
-/** The free corner over triage, for one word about the whole read phase. */
-export const CORNER = SOURCE.rows([17, 27], 'none')[0];
-const [PACKET, EFFECT] = RIGHT.rows([11, 10], 60);
-const LANE = RUN.rows(3, 40);
-const [APPROVAL, WRITER, TARGET] = EFFECT.rows(3, 50);
-
-// The sizes of the parts. Each one is typed here one time.
-const NODE = { width: 160, height: 100 };
-const PLATE_HEIGHT = 100;
-/** A lane is an arrow from its check to the barrier. This is the length of its point. */
-const PLATE_TIP = 26;
-export const CARD = { width: 330, height: 72, pad: 16 };
-const TOKEN = { width: 280, height: 64, pad: 12 };
-const GAUGE = { width: 240, height: 22 };
-
-/** The x of the barrier: the middle of the room between the lanes and the packet. */
-const BARRIER_X = (LEFT.right + RIGHT.left) / 2;
-const plateLeft = RUN.left + NODE.width + 12;
-/** The middle of a card at the start of its lane, at the barrier, and in its slot. */
-const CARD_X = [
-  plateLeft + 10 + CARD.width / 2,
-  RUN.right - PLATE_TIP - 10 - CARD.width / 2,
-  PACKET.left + 19 + CARD.width / 2,
-];
-/** The middle of the token: in the dock of approval, and in the dock of the writer. */
-const DOCK_X = EFFECT.right - 16 - TOKEN.width / 2;
-const TOKEN_Y = [APPROVAL.cy, WRITER.cy];
-
-/** The place of a card on its way: 0 is the start of the lane, 1 is the barrier, 2 is the slot. */
-export const cardX = (pos) =>
-  pos <= 1 ? lerp(CARD_X[0], CARD_X[1], pos) : lerp(CARD_X[1], CARD_X[2], pos - 1);
-/** The middle height of a lane, and of its slot. */
-export const laneY = (i) => LANE[i].cy;
-/** The room of a lane after its check: where a card travels, and where a bar of a clock grows. */
-export const laneRoom = (i) => ({
-  left: plateLeft,
-  right: RUN.right,
-  cy: LANE[i].cy,
-  height: PLATE_HEIGHT,
+/** Locked semantic COSMOS palette across all 11 `agent-orchestration` scenes. */
+export const ROLE = Object.freeze({
+  triage: COSMOS.blue,
+  eval: COSMOS.cyan,
+  health: COSMOS.violet,
+  policy: COSMOS.amber,
+  merge: COSMOS.gold,
+  review: COSMOS.gold,
+  writer: COSMOS.emerald,
+  pass: COSMOS.emerald,
+  reject: COSMOS.rose,
+  mark: COSMOS.gold,
+  ink: COSMOS.ink,
+  muted: COSMOS.muted,
+  dim: COSMOS.dim,
+  rule: COSMOS.rule,
+  surface: COSMOS.surface,
 });
 
-/** A small text of the board at a place: mono for a value, the text font for a name. */
-const value = (words, x, y, options = {}) => mono(words, { size: SMALL, ...options }).at(x, y);
-const name = (words, x, y, options = {}) => label(words, x, y, { size: SMALL, ...options });
+export const V3_PACKET = Object.freeze(proposal(RECEIPTS, REQUEST));
+export const V3_CHANGED_EVAL_SOURCES = Object.freeze({
+  ...values,
+  eval: { failures: 1, cases: 100 },
+});
+export const V3_CHANGED_RECEIPTS = Object.freeze(
+  RECEIPTS.map((row) =>
+    row.branch === 'eval'
+      ? {
+          ...row,
+          value: V3_CHANGED_EVAL_SOURCES.eval,
+          digest: canonicalDigest(V3_CHANGED_EVAL_SOURCES.eval),
+        }
+      : row,
+  ),
+);
+export const V3_CHANGED_PACKET = Object.freeze(
+  proposal(V3_CHANGED_RECEIPTS, REQUEST, V3_CHANGED_EVAL_SOURCES),
+);
 
-/**
- * One receipt card, drawn at a place: the tenant, the revision and the age that its check read. `tints` is
- * the color of each of the three fields. A scene draws a copy of a card with it, such as a saved one.
- */
-export function receiptCard(
-  x,
-  y,
-  { color, tenant, rev, age, tints = ['ink', 'ink', 'ink'], opacity = 1, revisionSize = SMALL },
-) {
-  const left = x - CARD.width / 2 + CARD.pad,
-    right = x + CARD.width / 2 - CARD.pad;
-  return [
-    rect(CARD.width, CARD.height, {
-      radius: 12,
-      stroke: color,
-      width: 3,
-      fill: 'surface',
-      opacity,
-    }).at(x, y),
-    value(`tenant${Math.round(tenant)}`, left, y, { anchor: 'left', color: tints[0] }).opacity(
-      opacity,
-    ),
-    value(`v${Math.round(rev)}`, left + 166, y, { color: tints[1], size: revisionSize }).opacity(opacity),
-    value(`${Math.round(age)} s`, right, y, { anchor: 'right', color: tints[2] }).opacity(opacity),
-  ];
+export const DURATIONS = Object.freeze({
+  eval: 2,
+  health: 3,
+  policy: 1,
+  merge: 0.5,
+  serialReads: 6,
+  serialTotal: 6.5,
+  parallelReads: 3,
+  parallelTotal: 3.5,
+  deadline: 4,
+});
+
+export const INITIAL_AGE_S = 10;
+export const STALE_AGE_S = 210;
+export const ARTICLE_FRESH_S = 300;
+
+export function shortHash(hex, len = 8) {
+  return String(hex ?? '').slice(0, len);
 }
 
-/**
- * The board normally opens on the v3 request. After the writer applies v4, the next scene inherits
- * the live revision and traffic reading. The protocol example explicitly starts a new run at v3.
- */
-export const STATE = {
-  rest: { open: 0, lamp: 0, hot: 0, revision: REQUEST.version, traffic: 0 },
-  applied: {
-    open: 0,
-    lamp: 0,
-    hot: 0,
-    revision: freshPacket.version,
-    traffic: freshPacket.traffic,
-  },
-};
+/** Build-time mathematical & contract invariant suite backed by `videos/films/agent-orchestration/`. */
+export function verifyOrchestrationInvariants() {
+  validateModel();
 
-/**
- * Build the board. It returns the values that a scene moves and the nodes that a scene shows.
- * `standing` is the part that goes from scene to scene with no fade: the next scene takes it.
- * `moving` is the part that a scene sets at its start, and that leaves with the scene.
- */
-export function board(s, initial = STATE.rest) {
-  // The values of the board. A scene moves them, and the drawings below follow.
-  const card = BRANCHES.map(() => ({
-    /** 0 is the start of the lane, 1 is the barrier, 2 is the slot. */
-    pos: s.value(0),
-    shown: s.value(0),
-    tenant: s.value(TENANT),
-    rev: s.value(REQUEST.version),
-    age: s.value(AGE.fresh),
-    /** How many fields the join has read: 0 to 3. A field that it read is green or red. */
-    read: s.value(0),
-    /** 1 when the slot took the card, -1 when it refused it. */
-    verdict: s.value(0),
-  }));
-  const revisionSize = s.value(SMALL);
-  const gate = BRANCHES.map(() => ({ open: s.value(0), lamp: s.value(0) }));
-  /** What the voice points at: a field of the request and of every card. */
-  const hot = {
-    tenant: s.value(0),
-    release: s.value(0),
-    rev: s.value(0),
-    age: s.value(0),
-    traffic: s.value(0),
-    digest: s.value(0),
-  };
-  const request = { rev: s.value(initial.revision), traffic: s.value(REQUEST.traffic) };
-  const packet = { seal: s.value(0), rev: s.value(REQUEST.version) };
-  const token = {
-    /** 0 is the dock of approval, 1 is the dock of the writer. */
-    pos: s.value(0),
-    shown: s.value(0),
-    rev: s.value(REQUEST.version),
-    digest: s.value(REQUEST.version),
-    stamp: s.value(0),
-    /** 1 when the writer refuses the token. */
-    refused: s.value(0),
-  };
-  const target = {
-    live: s.value(initial.revision),
-    traffic: s.value(initial.traffic),
-    hot: s.value(0),
-  };
-
-  // The request, at the foot of the left side.
-  const ticketLines = () => [
-    REQUEST.request,
-    REQUEST.tenant,
-    REQUEST.release,
-    `v${Math.round(request.rev.value)}`,
-    `${request.traffic.value}%`,
-  ];
-  const linePitch = 42;
-  const ticketBox = {
-    cx: TICKET.cx,
-    top: TICKET.top,
-    height: 58 + ticketLines().length * linePitch + 12,
-  };
-  const ticketFrame = rect(TICKET.width, ticketBox.height, {
-    radius: 12,
-    stroke: 'ink',
-    width: 2.5,
-    fill: 'surface',
-  }).at(ticketBox.cx, ticketBox.top + ticketBox.height / 2);
-  const ticketTitle = name('request', TICKET.left + 20, ticketBox.top + 34, {
-    anchor: 'left',
-    color: QUIET,
-  });
-  const ticketY = (row) => ticketBox.top + 58 + linePitch * (row + 0.5);
-  const ticketFields = dynamic(() => {
-    const heat = [0, hot.tenant.value, hot.release.value, hot.rev.value, hot.traffic.value];
-    return ticketLines().map((words, row) =>
-      value(words, TICKET.left + 20, ticketY(row), {
-        anchor: 'left',
-        color: mix('ink', MARK, heat[row]),
-      }),
-    );
-  });
-
-  // Triage, the three checks, and the lane of each check.
-  const triage = namedBox('triage', { width: TICKET.width, height: NODE.height }).at(
-    SOURCE.cx,
-    LANE[1].cy,
+  // Timing & critical path arithmetic
+  verifyApprox(DURATIONS.eval + DURATIONS.health + DURATIONS.policy, 6, 1e-12, 'serial reads = 6s');
+  verifyApprox(
+    Math.max(DURATIONS.eval, DURATIONS.health, DURATIONS.policy),
+    3,
+    1e-12,
+    'parallel critical path = 3s',
   );
-  const checks = BRANCHES.map((branch, i) =>
-    namedBox(branch, { ...NODE, color: BRANCH_COLOR[i], group: BRANCHES }).at(
-      RUN.left + NODE.width / 2,
-      LANE[i].cy,
-    ),
+  verifyApprox(
+    DURATIONS.parallelReads + DURATIONS.merge,
+    3.5,
+    1e-12,
+    'parallel + 0.5s merge = 3.5s',
   );
-  const plates = BRANCHES.map((_, i) => {
-    const top = LANE[i].cy - PLATE_HEIGHT / 2,
-      bottom = LANE[i].cy + PLATE_HEIGHT / 2;
-    return polygon(
-      [
-        [plateLeft, top],
-        [RUN.right - PLATE_TIP, top],
-        [RUN.right, LANE[i].cy],
-        [RUN.right - PLATE_TIP, bottom],
-        [plateLeft, bottom],
-      ],
-      { stroke: 'gridStrong', width: 2, fill: 'surface', opacity: 0.6 },
-    );
-  });
-  const ask = connector(ticketFrame, triage, {
-    color: QUIET,
-    width: 3,
-    tip: true,
-    route: 'straight',
-    gap: 8,
-  });
-  const fan = checks.map((check) =>
-    connector(triage, check, {
-      color: QUIET,
-      width: 3,
-      tip: true,
-      route: 'ortho',
-      from: 'right',
-      to: 'left',
-      gap: 6,
-    }),
+  verifyApprox(DURATIONS.serialReads + DURATIONS.merge, 6.5, 1e-12, 'serial + 0.5s merge = 6.5s');
+  verifyInvariant(
+    readSchedule(1).branches.filter((b) => b.complete).length === 1 &&
+      !readSchedule(2.5).allReads &&
+      readSchedule(3).allReads &&
+      !readSchedule(3).mergeComplete &&
+      readSchedule(3.5).mergeComplete,
+    'readSchedule milestones match 1s / 2.5s / 3s / 3.5s',
   );
 
-  // The barrier: one gate for each lane, and a lamp that lights when the receipt of the lane is ready.
-  const barrier = dynamic(() =>
-    BRANCHES.flatMap((_, i) => {
-      const foot = LANE[i].cy + PLATE_HEIGHT / 2;
-      const shut = 1 - gate[i].open.value;
-      const lit = gate[i].readiness?.() ?? gate[i].lamp.value;
-      const parts = [dot(9, mix('faint', BRANCH_COLOR[i], lit)).at(BARRIER_X, foot + 16)];
-      if (shut > 0.02)
-        parts.push(
-          line([BARRIER_X, foot], [BARRIER_X, foot - PLATE_HEIGHT * shut], {
-            stroke: QUIET,
-            width: 6,
-          }),
-        );
-      return parts;
-    }),
+  // Unequal-depth fan-in trace
+  const w2 = waitingJoinTrace(2);
+  const w4 = waitingJoinTrace(4);
+  verifyInvariant(
+    w2.separateMerges.length === 1 && w2.waitingMerges.length === 0,
+    'at t=2: 1 partial separate merge, 0 waiting merges',
+  );
+  verifyInvariant(
+    w4.separateMerges.length === 2 && w4.waitingMerges.length === 1,
+    'at t=4: 2 separate merges, 1 complete waiting merge',
   );
 
-  // The packet: one slot for each check, at the height of its lane.
-  const packetFrame = rect(PACKET.width, PACKET.height, {
-    radius: 14,
-    stroke: QUIET,
-    width: 2.5,
-    fill: null,
-  }).at(PACKET.cx, PACKET.cy);
-  const packetTitle = name('packet', PACKET.left + 4, PACKET.top - 31, {
-    anchor: 'left',
-    color: QUIET,
-  });
-  const slots = BRANCHES.map((_, i) =>
-    rect(CARD.width + 10, CARD.height + 10, {
-      radius: 14,
-      stroke: 'faint',
-      width: 2,
-      fill: null,
-      dash: [8, 8],
-    }).at(CARD_X[2], LANE[i].cy),
+  // Fixture rates & limits
+  verifyApprox(
+    values.eval.failures / values.eval.cases,
+    0.02,
+    1e-12,
+    'eval failure rate 2/100 = 2%',
   );
-  const slotNames = BRANCHES.map((branch, i) =>
-    name(branch, PACKET.right - 16, LANE[i].cy, { anchor: 'right', color: BRANCH_COLOR[i] }),
+  verifyInvariant(
+    values.eval.failures / values.eval.cases <= RATE_LIMITS.eval,
+    'eval 2% <= 3% limit',
   );
-  const verdicts = dynamic(() =>
-    BRANCHES.flatMap((_, i) => {
-      const verdict = card[i].verdict.value;
-      if (Math.abs(verdict) < 0.02) return [];
-      return [
-        rect(CARD.width + 10, CARD.height + 10, {
-          radius: 14,
-          stroke: verdict > 0 ? VALID : WRONG,
-          width: 4,
-          fill: null,
-          opacity: Math.abs(verdict),
-        }).at(CARD_X[2], LANE[i].cy),
-      ];
-    }),
+  verifyApprox(
+    values.health.errors / values.health.requests,
+    0.0004,
+    1e-12,
+    'health error rate 4/10000 = 0.04%',
   );
-  const seal = dynamic(() => {
-    const sealed = packet.seal.value;
-    if (sealed < 0.02) return [];
-    return [
-      rect(PACKET.width, PACKET.height, {
-        radius: 14,
-        stroke: VALID,
-        width: 5,
-        fill: null,
-        opacity: sealed,
-      }).at(PACKET.cx, PACKET.cy),
-      value(`sealed ${DIGEST[Math.round(packet.rev.value)]}`, PACKET.right - 4, PACKET.top - 31, {
-        anchor: 'right',
-        color: mix(VALID, MARK, hot.digest.value),
-      }).opacity(sealed),
-    ];
-  });
-
-  // The cards. A field is ink, yellow when the voice points at it, and green or red when the join read it.
-  const expected = (i) => [
-    Math.round(card[i].tenant.value) === TENANT,
-    Math.round(card[i].rev.value) === Math.round(request.rev.value),
-    Math.round(card[i].age.value) >= 0 && Math.round(card[i].age.value) <= FRESH_SECONDS,
-  ];
-  const cards = BRANCHES.map((_, i) =>
-    dynamic(() => {
-      const state = card[i];
-      const opacity = state.shown.value;
-      if (opacity < 0.02) return [];
-      const ok = expected(i);
-      const heat = [hot.tenant.value, hot.rev.value, hot.age.value];
-      const tints = ok.map((good, field) =>
-        Math.abs(state.verdict.value) > 0.02 && state.read.value > field + 0.5
-          ? good
-            ? mix(VALID, MARK, heat[field])
-            : WRONG
-          : mix('ink', MARK, heat[field]),
-      );
-      return receiptCard(cardX(state.pos.value), LANE[i].cy, {
-        color: BRANCH_COLOR[i],
-        tenant: state.tenant.value,
-        rev: state.rev.value,
-        age: state.age.value,
-        tints,
-        opacity,
-        revisionSize: revisionSize.value,
-      });
-    }).zIndex(4),
+  verifyApprox(
+    values.health.errors / values.health.requests / RATE_LIMITS.health,
+    0.4,
+    1e-12,
+    'health burn share = 40% (0.4x allowance)',
+  );
+  verifyInvariant(
+    REQUEST.traffic === 25 && values.policy.maxTraffic === 25,
+    'requested traffic 25% equals policy ceiling 25%',
   );
 
-  // The effect path: approval, the writer, and the live target. Each has a dock for the token.
-  const station = (words, region) => {
-    const frame = rect(region.width, region.height, {
-      radius: 12,
-      stroke: 'ink',
-      width: 2.5,
-      fill: 'surface',
-    }).at(region.cx, region.cy);
-    const title = label(words, region.left + 20, region.cy, { size: 36, anchor: 'left' });
-    const dock = rect(TOKEN.width + 10, TOKEN.height + 10, {
-      radius: 12,
-      stroke: 'faint',
-      width: 2,
-      fill: null,
-      dash: [8, 8],
-    }).at(DOCK_X, region.cy);
-    return { frame, title, dock };
-  };
-  const approval = station('approval', APPROVAL);
-  const writer = station('writer', WRITER);
-  const stepX = EFFECT.left + 90;
-  const steps = [
-    [PACKET.bottom, APPROVAL.top],
-    [APPROVAL.bottom, WRITER.top],
-    [WRITER.bottom, TARGET.top],
-  ].map(([from, to]) => arrow([stepX, from + 6], [stepX, to - 6], { stroke: QUIET, width: 3 }));
+  // Freshness & age math
+  verifyInvariant(FRESH_SECONDS === 60, 'film freshness ceiling is 60s');
+  verifyInvariant(1000 - RECEIPTS[0].time === INITIAL_AGE_S, 'initial receipt age is 10s');
+  verifyInvariant(1200 - RECEIPTS[0].time === STALE_AGE_S, 'paused receipt age is 210s');
 
-  const gaugeLeft = TARGET.right - 20 - GAUGE.width,
-    gaugeY = TARGET.cy + 20;
-  const targetFrame = rect(TARGET.width, TARGET.height, {
-    radius: 12,
-    stroke: 'ink',
-    width: 2.5,
-    fill: 'surface',
-  }).at(TARGET.cx, TARGET.cy);
-  const targetTitle = name('live', TARGET.left + 20, TARGET.cy, { anchor: 'left', color: QUIET });
-  const gaugeTrack = rect(GAUGE.width, GAUGE.height, {
-    radius: 6,
-    stroke: 'faint',
-    width: 2,
-    fill: null,
-  }).at(gaugeLeft + GAUGE.width / 2, gaugeY);
-  const gaugeName = name('traffic', TARGET.right - 20, TARGET.cy - 22, {
-    anchor: 'right',
-    color: QUIET,
-  });
-  const targetLive = dynamic(() => {
-    const traffic = Math.round(target.traffic.value);
-    const filled = (GAUGE.width * traffic) / 100;
-    const asked = mix('ink', MARK, Math.max(hot.traffic.value, target.hot.value));
-    const parts = [
-      mono(`v${Math.round(target.live.value)}`, {
-        size: 36,
-        anchor: 'left',
-        color: mix('ink', MARK, target.hot.value),
-      }).at(TARGET.left + 92, TARGET.cy),
-      value(`${traffic}%`, gaugeLeft, TARGET.cy - 22, {
-        anchor: 'left',
-        color: asked,
-      }),
-    ];
-    if (request.traffic.value >= 0 && request.traffic.value <= 100) {
-      const askedX = gaugeLeft + (GAUGE.width * request.traffic.value) / 100;
-      parts.push(
-        line([askedX, gaugeY - GAUGE.height / 2 - 4], [askedX, gaugeY + GAUGE.height / 2 + 4], {
-          stroke: asked,
-          width: 3,
-        }),
-      );
+  // Canonicalization & digest binding
+  verifyInvariant(
+    canonicalDigest({ cases: 100, failures: 2 }) === canonicalDigest({ failures: 2, cases: 100 }),
+    'canonical key sorting yields identical JSON digest',
+  );
+  verifyInvariant(
+    proposal([...RECEIPTS].reverse()).evidenceDigest === V3_PACKET.evidenceDigest,
+    'proposal digest is independent of arrival order',
+  );
+  verifyInvariant(
+    V3_CHANGED_PACKET.evidenceDigest !== V3_PACKET.evidenceDigest,
+    'changing eval failures 2 -> 1 changes proposal evidenceDigest',
+  );
+
+  // Negative traffic lower-bound & writer idempotency invariants
+  verifyInvariant(merge(RAW_RECEIPTS, 1000, { ...REQUEST, traffic: -1 }) === false, '-1 rejected');
+  verifyInvariant(
+    freshPacket.version === 4 &&
+      recorded.change === 'change-1' &&
+      reconciled.change === 'change-1' &&
+      recordedEffects === 1 &&
+      reconciledEffects === 1,
+    'op-18 replay returns change-1 with 1 effect',
+  );
+  verifyInvariant(
+    canWrite({ ...V3_PACKET, approved: true }, 3, V3_PACKET) &&
+      !canWrite({ ...V3_PACKET, approved: true }, 4, V3_PACKET),
+    'v3 approval passes at live v3 and blocks at live v4',
+  );
+}
+
+/** Convert `#rrggbb` + alpha in [0, 1] into `#rrggbbaa` for Vizmatic rect fills. */
+export function hexAlpha(hex, alpha = 1) {
+  if (typeof hex !== 'string' || !hex.startsWith('#') || hex.length !== 7) return hex;
+  const byte = Math.max(0, Math.min(255, Math.round(alpha * 255)))
+    .toString(16)
+    .padStart(2, '0');
+  return `${hex}${byte}`;
+}
+
+/** Clamp a tween duration safely inside the scene window so narration is never overrun. */
+export function safeDur(c, startTime, desired = 0.55, margin = 0.25) {
+  const remaining = c.end - startTime - margin;
+  return Math.max(0.08, Math.min(desired, remaining));
+}
+
+/** Schedule a smooth Value tween on a cue (`after: true` gates strictly until clause end). */
+export function tweenCue(s, c, cueId, val, to, { duration = 0.45, after = false, ease } = {}) {
+  const info = c.cue(cueId);
+  const startAt = after ? info.end : info.start;
+  const remaining = c.end - startAt - 0.16;
+  const fire = () => {
+    if (remaining <= 0.12) {
+      val.set(to);
+      return;
     }
-    if (filled > 0.5)
-      parts.unshift(
-        rect(filled, GAUGE.height - 6, { radius: 3, stroke: null, fill: VALID }).at(
-          gaugeLeft + filled / 2,
-          gaugeY,
-        ),
-      );
-    return parts;
-  });
-
-  // The token: the proposal that the packet made. Approval stamps it, and the writer checks it.
-  const tokenNode = dynamic(() => {
-    const opacity = token.shown.value;
-    if (opacity < 0.02) return [];
-    const y = lerp(TOKEN_Y[0], TOKEN_Y[1], token.pos.value);
-    const left = DOCK_X - TOKEN.width / 2 + TOKEN.pad;
-    const stamped = token.stamp.value,
-      refused = token.refused.value;
-    const edge = refused > 0.5 ? WRONG : mix('ink', VALID, stamped);
-    const revTint =
-      refused > 0.5 ? WRONG : mix('ink', MARK, Math.max(hot.rev.value, target.hot.value));
-    const parts = [
-      rect(TOKEN.width, TOKEN.height, {
-        radius: 12,
-        stroke: edge,
-        width: 3,
-        fill: 'surface',
-        opacity,
-      }).at(DOCK_X, y),
-      value(`v${Math.round(token.rev.value)}`, left, y, { anchor: 'left', color: revTint }).opacity(
-        opacity,
-      ),
-      value(`${REQUEST.traffic}%`, left + 52, y, {
-        anchor: 'left',
-        color: mix('ink', MARK, hot.traffic.value),
-      }).opacity(opacity),
-      value(DIGEST[Math.round(token.digest.value)], left + 122, y, {
-        anchor: 'left',
-        color: hot.digest.value > 0.5 ? MARK : mix('ink', VALID, stamped),
-      }).opacity(opacity),
-    ];
-    if (stamped > 0.02)
-      parts.push(
-        pictogram('check', { size: 34, accent: VALID })
-          .at(DOCK_X + TOKEN.width / 2 - TOKEN.pad - 15, y)
-          .opacity(stamped * opacity),
-      );
-    return parts;
-  }).zIndex(5);
-
-  const standing = [
-    ticketFrame,
-    ticketTitle,
-    ticketFields,
-    ask,
-    triage,
-    ...fan,
-    ...plates,
-    ...checks,
-    barrier,
-    packetFrame,
-    packetTitle,
-    ...slots,
-    ...slotNames,
-    ...Object.values(approval),
-    ...Object.values(writer),
-    ...steps,
-    targetFrame,
-    targetTitle,
-    gaugeTrack,
-    gaugeName,
-    targetLive,
-  ];
-  /** The standing part at the left of the barrier, and the standing part at the right of it. */
-  const leftSide = [
-    ticketFrame,
-    ticketTitle,
-    ticketFields,
-    ask,
-    triage,
-    ...fan,
-    ...plates,
-    ...checks,
-    barrier,
-  ];
-  const rightSide = standing.filter((node) => !leftSide.includes(node));
-  verdicts.zIndex(3);
-  seal.zIndex(3);
-  const moving = [verdicts, seal, ...cards, tokenNode];
-
-  return {
-    card,
-    gate,
-    hot,
-    request,
-    packet,
-    token,
-    target,
-    standing,
-    ticket: [ticketFrame, ticketTitle, ticketFields],
-    revisionSize,
-    liveGauge: [targetFrame, targetTitle, gaugeTrack, gaugeName, targetLive],
-    leftSide,
-    rightSide,
-    moving,
-    nodes: {
-      ticketFrame,
-      triage,
-      checks,
-      plates,
-      ask,
-      fan,
-      packetFrame,
-      slots,
-      slotNames,
-      approval,
-      writer,
-      steps,
-      targetFrame,
-    },
-    /** The right end of a line of the request: 1 is the tenant, 3 the revision, 4 the traffic. */
-    ticketPoint: (line) => [TICKET.right, ticketY(line)],
-    /**
-     * Put the board on the stage. The first scene adds all of it. Every other scene takes the standing
-     * part from the scene before it, with no fade, and adds the moving part.
-     */
-    enter(c, first = false) {
-      if (first) s.add(...standing);
-      else c.take(standing);
-      s.add(...moving);
-    },
-    /**
-     * Settle the standing nodes into the next scene's initial state before the handover.
-     */
-    leave(c, next = STATE.rest) {
-      s.at(c.end - 0.5, () => s.play(...this.rest(0.4, next)));
-      // The next example can start from a different release. Reset at the cut so the live
-      // traffic counter never shows an extra write while the previous result is still on screen.
-      s.at(c.end, () => {
-        request.rev.set(next.revision);
-        target.live.set(next.revision);
-        target.traffic.set(next.traffic);
-      });
-      c.keep(standing);
-    },
-    /** Every value of the kept part goes back to its rest, so that the next scene can take the board. */
-    rest: (duration = 0.4, to = STATE.rest) => [
-      ...gate.flatMap((entry) => [
-        entry.open.to(to.open, { duration }),
-        entry.lamp.to(to.lamp, { duration }),
-      ]),
-      ...Object.values(hot).map((entry) => entry.to(to.hot, { duration })),
-      target.hot.to(to.hot, { duration }),
-    ],
+    const d = Math.max(0.08, Math.min(duration, remaining));
+    const opts = ease ? { duration: d, ease } : { duration: d };
+    s.play(val.to(to, opts));
   };
+  if (after) c.after(cueId, fire);
+  else c.on(cueId, fire);
 }
 
-/** The height of a bar of the clock, inside a lane. */
-const BAR_HEIGHT = 58;
+/** Non-overlapping sequential cross-swap between two visibility values (zero text overlap). */
+export function crossSwap(s, c, cueId, outVal, inVal, { duration = 0.44, after = false } = {}) {
+  const info = c.cue(cueId);
+  const startAt = after ? info.end : info.start;
+  const remaining = c.end - startAt - 0.16;
+  const fire = () => {
+    if (remaining <= 0.18) {
+      outVal.set(0);
+      inVal.set(1);
+      return;
+    }
+    const d = Math.max(0.16, Math.min(duration, remaining));
+    const half = d * 0.45;
+    s.play(
+      par(outVal.to(0, { duration: half }), delay(inVal.to(1, { duration: half }), half * 1.08)),
+    );
+  };
+  if (after) c.after(cueId, fire);
+  else c.on(cueId, fire);
+}
+
+/** Continuous ambient phase oscillator spanning the full scene window. */
+export function runAmbientPhase(s, c, phaseVal, cycles = 2.0) {
+  const dur = Math.max(0.5, c.end - c.start - 0.4);
+  c.at(0.05, () => {
+    s.play(phaseVal.to(cycles * Math.PI * 2, { duration: dur, ease: linear }));
+  });
+}
+
+/** Subtle non-occluding multi-aura cosmic atmosphere. */
+export function cinemaAtmosphere(primary = ROLE.eval, secondary = ROLE.health) {
+  return markDecoration(
+    group(
+      aura(-540, -220, 580, hexAlpha(primary, 0.13), '#07091000'),
+      aura(500, 150, 620, hexAlpha(secondary, 0.12), '#07091000'),
+      aura(0, 10, 740, '#1c2b591e', '#07091000'),
+    ).zIndex(-80),
+  );
+}
+
+/** Translucent luminous bar (for timelines, gauges, and compact packet tokens). */
+export function lumBar(
+  cx,
+  cy,
+  w,
+  h,
+  {
+    color = ROLE.eval,
+    fillOpacity = 0.24,
+    strokeWidth = 2.2,
+    glow = 8,
+    radius = 8,
+    opacity = 1,
+    dash,
+  } = {},
+) {
+  const node = rect(Math.max(4, w), Math.max(4, h), {
+    fill: fillOpacity > 0.005 ? hexAlpha(color, fillOpacity) : null,
+    stroke: color,
+    width: strokeWidth,
+    radius,
+    dash,
+  })
+    .at(cx, cy)
+    .opacity(opacity);
+  if (glow > 0) node.glow(glow, color);
+  return node;
+}
+
+/** Luminous circular boundary ring. */
+export function glowRing(
+  cx,
+  cy,
+  r,
+  color = ROLE.eval,
+  { width = 3, glow = 8, fillOpacity = 0, opacity = 1, dash } = {},
+) {
+  const node = circle(r, {
+    fill: fillOpacity > 0.005 ? hexAlpha(color, fillOpacity) : null,
+    stroke: color,
+    width,
+    dash,
+  })
+    .at(cx, cy)
+    .opacity(opacity);
+  if (glow > 0) node.glow(glow, color);
+  return node;
+}
+
+/** Glowing directional arrow. */
+export function glowArrow(
+  from,
+  to,
+  color = ROLE.eval,
+  { width = 3.2, tip = 13, opacity = 1, dash, glow = 7 } = {},
+) {
+  const node = arrow(from, to, { stroke: color, width, tip, dash }).opacity(opacity);
+  if (glow > 0) node.glow(glow, color);
+  return node;
+}
+
+/** Smooth 2D quadratic Bezier curve rendered as a glowing trail. */
+export function glowingArc(
+  from,
+  to,
+  bend = -40,
+  { color = ROLE.mark, width = 3.2, glow = 8, opacity = 0.9, steps = 22 } = {},
+) {
+  const mx = (from[0] + to[0]) * 0.5;
+  const my = (from[1] + to[1]) * 0.5 + bend;
+  const pts = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const u = 1 - t;
+    pts.push([
+      u * u * from[0] + 2 * u * t * mx + t * t * to[0],
+      u * u * from[1] + 2 * u * t * my + t * t * to[1],
+    ]);
+  }
+  return glowingTrail(pts, { color, width, glow, opacity, core: false });
+}
+
+/** Smooth horizontal S-curve for clean routing wires. */
+export function conduitPts(p0, p1, steps = 20) {
+  const [x0, y0] = p0;
+  const [x1, y1] = p1;
+  const dx = x1 - x0;
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const t = i / steps;
+    const u = 1 - t;
+    const cx0 = x0 + dx * 0.46;
+    const cx1 = x1 - dx * 0.46;
+    return [
+      u * u * u * x0 + 3 * u * u * t * cx0 + 3 * u * t * t * cx1 + t * t * t * x1,
+      u * u * u * y0 + 3 * u * u * t * y0 + 3 * u * t * t * y1 + t * t * t * y1,
+    ];
+  });
+}
+
+/** Sample point along a polyline at normalized t in [0, 1]. */
+export function samplePolyline(pts, t) {
+  const clamped = Math.max(0, Math.min(1, t));
+  const pos = clamped * (pts.length - 1);
+  const idx = Math.min(pts.length - 2, Math.floor(pos));
+  const frac = pos - idx;
+  return [
+    pts[idx][0] + (pts[idx + 1][0] - pts[idx][0]) * frac,
+    pts[idx][1] + (pts[idx + 1][1] - pts[idx][1]) * frac,
+  ];
+}
 
 /**
- * A clock on the lanes: bars to one time scale, and an axis under the lanes. `spans` is a list of
- * `{ lane, length, start, color, label }`, in seconds. A bar is drawn from its start up to the time
- * `now`, so one value runs every bar at one speed. The scenes 3, 5 and 11 use it.
+ * Luminous horizontal progress gauge with cap marker and optional overflow flare.
+ * Returns { nodes, capX } for use inside `guardedDynamic`.
  */
-export function clock(s, spans, { seconds = 7, unit = 's', quantum = 0 } = {}) {
-  const x0 = plateLeft + 14,
-    x1 = RUN.right - PLATE_TIP - 14;
-  const scale = (x1 - x0) / seconds;
-  const x = (time) => x0 + time * scale;
-  /** The time of the clock. At 99 every bar is whole. */
-  const now = s.value(99);
-  /** Seconds that every start is late, for an overhead that the clock does not name. */
-  const late = s.value(0);
-  const state = spans.map((span) => ({
-    ...span,
-    start: s.value(span.start ?? 0),
-    shown: s.value(0),
-    hot: s.value(0),
-  }));
-  const quantize = (time) => (quantum ? Math.round(time / quantum) * quantum : time);
-  const current = () => quantize(now.value);
-  const from = (span) => quantize(span.start.value) + late.value;
-  const elapsed = (span) => Math.max(0, Math.min(span.length, current() - from(span)));
-  const complete = (index) => elapsed(state[index]) >= state[index].length;
-  const bars = dynamic(() =>
-    state.flatMap((span) => {
-      const opacity = span.shown.value;
-      if (opacity < 0.02) return [];
-      const done = elapsed(span);
-      const y = LANE[span.lane].cy;
-      const parts = [];
-      if (done * scale > 1)
-        parts.push(
-          rect(done * scale, BAR_HEIGHT, {
-            radius: 8,
-            fill: span.color,
-            stroke: span.hot.value > 0.5 ? MARK : null,
-            width: 5,
-            opacity: 0.92 * opacity,
-          }).at(x(from(span)) + (done * scale) / 2, y),
-        );
-      if (span.label && done > span.length - 1e-3)
-        parts.push(
-          value(span.label, x(from(span) + span.length) - 14, y, {
-            anchor: 'right',
-            color: 'bg',
-          }).opacity(opacity),
-        );
-      return parts;
+export function renderGauge(
+  left,
+  cy,
+  width,
+  height,
+  level,
+  {
+    cap = 0.8,
+    color = ROLE.eval,
+    overColor = ROLE.reject,
+    limitColor = COSMOS.ink,
+    opacity = 1,
+    showLimit = true,
+  } = {},
+) {
+  const clamped = Math.max(0, Math.min(1, level));
+  const capX = left + width * cap;
+  const nodes = [
+    lumBar(left + width * 0.5, cy, width, height, {
+      color: COSMOS.rule,
+      fillOpacity: 0.28,
+      strokeWidth: 1.8,
+      glow: 0,
+      radius: 7,
+      opacity,
     }),
-  ).zIndex(2);
-  const axisY = READ.bottom + 14;
-  const whole = Array.from({ length: seconds + 1 }, (_, tick) => tick);
-  const axis = group(
-    line([x(0), axisY], [x(seconds), axisY], { stroke: 'faint', width: 3 }),
-    ...whole.map((tick) =>
-      line([x(tick), axisY], [x(tick), axisY + 10], { stroke: 'faint', width: 3 }),
+  ];
+  const fillW = Math.min(clamped, cap) * width;
+  if (fillW > 3) {
+    nodes.push(
+      lumBar(left + fillW * 0.5, cy, fillW, height - 6, {
+        color,
+        fillOpacity: 0.72,
+        strokeWidth: 1.8,
+        glow: 8,
+        radius: 5,
+        opacity,
+      }),
+    );
+  }
+  if (clamped > cap + 0.005) {
+    const overW = (clamped - cap) * width;
+    nodes.push(
+      lumBar(capX + overW * 0.5, cy, overW, height - 6, {
+        color: overColor,
+        fillOpacity: 0.85,
+        strokeWidth: 2,
+        glow: 11,
+        radius: 5,
+        opacity,
+      }),
+    );
+  }
+  if (showLimit) {
+    nodes.push(
+      line([capX, cy - height * 0.5 - 10], [capX, cy + height * 0.5 + 10], {
+        stroke: limitColor,
+        width: 3.5,
+      })
+        .glow(6, limitColor)
+        .opacity(opacity),
+    );
+  }
+  return { nodes, capX };
+}
+
+/** Circular gauge / dial arc rendered as glowing polylines (no text crowding). */
+export function renderArcDial(
+  cx,
+  cy,
+  radius,
+  fraction,
+  {
+    color = ROLE.eval,
+    trackColor = COSMOS.rule,
+    capFraction = null,
+    capColor = ROLE.policy,
+    startAngle = Math.PI * 0.78,
+    sweep = Math.PI * 1.44,
+    width = 10,
+    opacity = 1,
+  } = {},
+) {
+  const arcPts = (a0, a1, steps = 32) =>
+    Array.from({ length: steps + 1 }, (_, i) => {
+      const a = a0 + ((a1 - a0) * i) / steps;
+      return [cx + radius * Math.cos(a), cy + radius * Math.sin(a)];
+    });
+  const nodes = [
+    glowingTrail(arcPts(startAngle, startAngle + sweep, 32), {
+      color: trackColor,
+      width,
+      glow: 0,
+      opacity: opacity * 0.55,
+      core: false,
+      blend: null,
+    }),
+  ];
+  const f = Math.max(0.01, Math.min(1, fraction));
+  nodes.push(
+    glowingTrail(arcPts(startAngle, startAngle + sweep * f, 28), {
+      color,
+      width,
+      glow: 10,
+      opacity,
+      core: true,
+      coreWidth: 2.2,
+    }),
+  );
+  if (capFraction !== null) {
+    const ca = startAngle + sweep * Math.max(0, Math.min(1, capFraction));
+    nodes.push(
+      line(
+        [cx + (radius - 14) * Math.cos(ca), cy + (radius - 14) * Math.sin(ca)],
+        [cx + (radius + 16) * Math.cos(ca), cy + (radius + 16) * Math.sin(ca)],
+        { stroke: capColor, width: 4.5 },
+      )
+        .glow(8, capColor)
+        .opacity(opacity),
+    );
+  }
+  return nodes;
+}
+
+/** Bounded retry / budget circuit-breaker pip strip (drawn object, zero card boxes). */
+export function renderRetryPips(
+  left,
+  cy,
+  total,
+  used,
+  {
+    color = ROLE.policy,
+    spentColor = ROLE.reject,
+    emptyColor = COSMOS.rule,
+    gap = 34,
+    radius = 10,
+    opacity = 1,
+  } = {},
+) {
+  const nodes = [];
+  for (let i = 0; i < total; i++) {
+    const cx = left + i * gap;
+    const isSpent = i < used;
+    const col = isSpent ? (i === total - 1 && used >= total ? spentColor : color) : emptyColor;
+    nodes.push(
+      glowRing(cx, cy, radius, col, {
+        width: 2.6,
+        fillOpacity: isSpent ? 0.65 : 0.12,
+        glow: isSpent ? 9 : 0,
+        opacity,
+      }),
+    );
+  }
+  return nodes;
+}
+
+/** Glowing circular DAG station with label placed cleanly outside the ring. */
+export function renderStation(
+  cx,
+  cy,
+  label,
+  color,
+  {
+    radius = 24,
+    active = false,
+    labelOffset = 46,
+    labelPos = 'below', // 'below' | 'above' | 'right' | 'left'
+    sub = null,
+    opacity = 1,
+    dash,
+  } = {},
+) {
+  const nodes = [
+    glowRing(cx, cy, radius, color, {
+      width: active ? 4 : 2.8,
+      fillOpacity: active ? 0.36 : 0.14,
+      glow: active ? 13 : 6,
+      opacity,
+      dash,
+    }),
+    glowDot(cx, cy, {
+      radius: active ? 7 : 4.5,
+      color,
+      glow: active ? 12 : 6,
+      opacity,
+    }),
+  ];
+  let lx = cx;
+  let ly = cy + labelOffset;
+  let anchor = 'center';
+  if (labelPos === 'above') {
+    ly = cy - labelOffset;
+  } else if (labelPos === 'right') {
+    lx = cx + Math.max(radius + 20, labelOffset);
+    ly = cy;
+    anchor = 'left';
+  } else if (labelPos === 'left') {
+    lx = cx - Math.max(radius + 20, labelOffset);
+    ly = cy;
+    anchor = 'right';
+  }
+  nodes.push(
+    txt(label, lx, ly, 26, active ? COSMOS.ink : color, 'mono', anchor)
+      .glow(active ? 6 : 0, color)
+      .opacity(opacity),
+  );
+  if (sub) {
+    const sy = labelPos === 'above' ? ly - 32 : ly + 32;
+    nodes.push(txt(sub, lx, sy, 26, COSMOS.muted, 'sans', anchor).opacity(opacity));
+  }
+  return nodes;
+}
+
+/**
+ * Signature orbiting 3D Multi-Agent DAG Topology (`cinematic3d`).
+ * Triage -> Eval / Health / Policy -> Merge -> Review -> Writer with live flying receipt photons.
+ */
+export function buildOrchestrationDag3d(
+  phaseVal,
+  stageVal = null,
+  {
+    x = 460,
+    y = 0,
+    theta = -0.68,
+    phi = 1.04,
+    distance = 15.2,
+    unit = 104,
+    showCycle = false,
+  } = {},
+) {
+  const view = cinematic3d({
+    theta,
+    phi,
+    distance,
+    unit,
+    focus: [0, 0, 0.25],
+  }).at(x, y);
+
+  view.add(
+    gridPlane3d({
+      x: [-3.2, 3.2],
+      y: [-2.4, 2.4],
+      z: -1.0,
+      step: 0.8,
+      color: '#1b2847',
+      opacity: 0.38,
+    }),
+  );
+
+  // 3D DAG stations along X axis: Triage -> 3 parallel branches -> Merge -> Review -> Writer
+  const pts = {
+    triage: [-2.7, 0, 0.35],
+    eval: [-1.1, 1.35, 0.75],
+    health: [-1.1, 0, 0.15],
+    policy: [-1.1, -1.35, 0.75],
+    merge: [0.55, 0, 0.45],
+    review: [1.75, 0, 0.65],
+    writer: [2.85, 0, 0.35],
+  };
+
+  // Wireframe slabs for each station
+  const slabs = [
+    [pts.triage, 0.38, 0.38, 0.28, ROLE.triage],
+    [pts.eval, 0.42, 0.36, 0.28, ROLE.eval],
+    [pts.health, 0.42, 0.36, 0.28, ROLE.health],
+    [pts.policy, 0.42, 0.36, 0.28, ROLE.policy],
+    [pts.merge, 0.45, 0.52, 0.36, ROLE.merge],
+    [pts.review, 0.38, 0.42, 0.32, ROLE.review],
+    [pts.writer, 0.42, 0.42, 0.36, ROLE.writer],
+  ];
+  for (const [pos, hx, hy, hz, col] of slabs) {
+    view.add(...wireframeSlab3d(pos, hx, hy, hz, { color: col, width: 2.6, glow: 9 }));
+  }
+
+  // Glowing 3D DAG conduits
+  const links = [
+    [pts.triage, pts.eval, ROLE.eval],
+    [pts.triage, pts.health, ROLE.health],
+    [pts.triage, pts.policy, ROLE.policy],
+    [pts.eval, pts.merge, ROLE.eval],
+    [pts.health, pts.merge, ROLE.health],
+    [pts.policy, pts.merge, ROLE.policy],
+    [pts.merge, pts.review, ROLE.merge],
+    [pts.review, pts.writer, ROLE.writer],
+  ];
+  for (const [a, b, col] of links) {
+    view.add(
+      line3d(a, b, {
+        color: col,
+        width: 2.8,
+        glow: 8,
+        opacity: 0.85,
+        blend: 'screen',
+      }),
+    );
+  }
+
+  // Optional 3D overhead re-review state-machine cycle arc
+  if (showCycle) {
+    view.add(
+      curve3d(
+        (t) => {
+          const u = 1 - t;
+          const xPos = u * pts.review[0] + t * pts.merge[0];
+          const yPos = 1.45 * Math.sin(t * Math.PI);
+          const zPos = 0.65 + 1.15 * Math.sin(t * Math.PI);
+          return [xPos, yPos, zPos];
+        },
+        {
+          t: [0, 1],
+          samples: 36,
+          color: ROLE.reject,
+          width: 3.0,
+          glow: 9,
+          blend: 'screen',
+        },
+      ),
+    );
+  }
+
+  // Flying receipt photons along parallel fan-out/fan-in and downstream lanes
+  view.add(
+    points3d(
+      () => {
+        const ph = phaseVal.value;
+        const st = stageVal ? stageVal.value : 1;
+        const lerp3 = (a, b, t) => [
+          a[0] + (b[0] - a[0]) * t,
+          a[1] + (b[1] - a[1]) * t,
+          a[2] + (b[2] - a[2]) * t,
+        ];
+        const t1 = (ph * 0.22) % 1;
+        const t2 = (ph * 0.16 + 0.33) % 1;
+        const t3 = (ph * 0.28 + 0.66) % 1;
+        const t4 = (ph * 0.2 + 0.15) % 1;
+        const out = [
+          lerp3(pts.triage, pts.eval, t1),
+          lerp3(pts.triage, pts.health, t2),
+          lerp3(pts.triage, pts.policy, t3),
+          lerp3(pts.eval, pts.merge, t3),
+          lerp3(pts.health, pts.merge, t1),
+          lerp3(pts.policy, pts.merge, t2),
+        ];
+        if (st > 0.3) {
+          out.push(lerp3(pts.merge, pts.review, t4));
+          out.push(lerp3(pts.review, pts.writer, (t4 + 0.5) % 1));
+        }
+        return out;
+      },
+      {
+        colorAt: (idx) =>
+          [
+            ROLE.eval,
+            ROLE.health,
+            ROLE.policy,
+            ROLE.eval,
+            ROLE.health,
+            ROLE.policy,
+            ROLE.merge,
+            ROLE.writer,
+          ][idx] ?? ROLE.mark,
+        radius: 6.4,
+        glow: 12,
+        blend: 'screen',
+        onTop: true,
+      },
     ),
   );
-  const numbers = whole.map((tick) =>
-    value(tick === seconds ? `${tick} ${unit}` : `${tick}`, x(tick), axisY + 34, { color: QUIET }),
-  );
-  const marker = dynamic(() => {
-    const at = x(Math.max(0, Math.min(seconds, current())));
-    return polygon(
-      [
-        [at - 9, axisY - 16],
-        [at + 9, axisY - 16],
-        [at, axisY - 2],
-      ],
-      { fill: MARK, stroke: null },
-    );
-  });
-  return {
-    x,
-    scale,
-    now,
-    late,
-    spans: state,
-    current,
-    complete,
-    bars,
-    axis,
-    numbers,
-    marker,
-    /** When the last bar that shows ends, in seconds. */
-    end: () =>
-      Math.max(
-        0,
-        ...state.filter((span) => span.shown.value > 0.5).map((span) => from(span) + span.length),
-      ),
-    /** The top and the bottom of the lanes, for a mark that spans all of them. */
-    top: LANE[0].cy - PLATE_HEIGHT / 2,
-    bottom: LANE[LANE.length - 1].cy + PLATE_HEIGHT / 2,
-    barHeight: BAR_HEIGHT,
-    laneY,
-  };
+
+  return { view, pts };
 }
 
 /**
- * The two kinds of channel of a shared state, in a region: a list with an add reducer, and one
- * scalar value. An entry of the list drops into its place, and a write drops into the scalar.
- * `entries` is a list of branch indexes, in the order of arrival. The scenes 4 and 5 use it.
+ * Orbiting 3D Pregel Superstep Barrier (`cinematic3d`).
+ * Three parallel worker lanes converging onto a glowing synchronization barrier ring.
  */
-export function channels(s, region, { entries, writers = [0, 2], error = 'conflict' }) {
-  const ENTRY = { width: 122, height: 56, gap: 10 };
-  const [listSide, scalarSide] = region.columns([3, 2], 'wide');
-  const trayY = region.cy + 30,
-    dropFrom = trayY - 96,
-    titleY = region.cy - 124;
-  const trayWidth = ENTRY.width * 4 + ENTRY.gap * 5;
-  const slotX = (slot) =>
-    listSide.left + ENTRY.gap + ENTRY.width / 2 + slot * (ENTRY.width + ENTRY.gap);
-  const CELL_WIDTH = 190;
-  const cellX = scalarSide.left + CELL_WIDTH / 2;
+export function buildSuperstepBarrier3d(
+  phaseVal,
+  statusVal = null,
+  { x = 480, y = 20, theta = -0.74, phi = 1.06, distance = 14.8, unit = 104 } = {},
+) {
+  const view = cinematic3d({
+    theta,
+    phi,
+    distance,
+    unit,
+    focus: [0, 0, 0.2],
+  }).at(x, y);
 
-  const listName = mono('receipts', { size: 36, anchor: 'left' }).at(listSide.left, titleY);
-  const listKind = name('a list, with add', listSide.left + 200, titleY, {
-    anchor: 'left',
-    color: QUIET,
-  });
-  // A channel is a tray with an open top: an update drops into it.
-  const trayOf = (left, width) => {
-    const top = trayY - ENTRY.height / 2 - 10,
-      bottom = trayY + ENTRY.height / 2 + 10;
-    return polyline(
-      [
-        [left, top],
-        [left, bottom],
-        [left + width, bottom],
-        [left + width, top],
-      ],
-      { stroke: 'faint', width: 3 },
-    );
-  };
-  const tray = trayOf(listSide.left, trayWidth);
-  const scalarName = mono('traffic', { size: 36, anchor: 'left' }).at(scalarSide.left, titleY);
-  const scalarKind = name('one value', scalarSide.left + 176, titleY, {
-    anchor: 'left',
-    color: QUIET,
-  });
-  const cell = trayOf(scalarSide.left, CELL_WIDTH);
-
-  const list = entries.map((branch, slot) => ({
-    branch,
-    shown: s.value(0),
-    /** 0 is over the tray, 1 is in it. */
-    drop: s.value(0),
-    slot: s.value(slot),
-    /** 1 marks an entry that the list must not have: a duplicate. */
-    wrong: s.value(0),
-    /** 1 marks an entry that the voice points at. */
-    hot: s.value(0),
-  }));
-  const scalar = {
-    writes: writers.map((branch) => ({ branch, shown: s.value(0), drop: s.value(0) })),
-    /** 1 when two writes met in one step. */
-    clash: s.value(0),
-    /** 1 when the voice points at the values of the writes. */
-    hot: s.value(0),
-  };
-
-  const listNode = dynamic(() =>
-    list.flatMap((entry) => {
-      const opacity = entry.shown.value;
-      if (opacity < 0.02) return [];
-      const x = slotX(entry.slot.value),
-        y = lerp(dropFrom, trayY, entry.drop.value);
-      const edge =
-        entry.wrong.value > 0.5 ? WRONG : entry.hot.value > 0.5 ? MARK : BRANCH_COLOR[entry.branch];
-      return [
-        rect(ENTRY.width, ENTRY.height, {
-          radius: 10,
-          stroke: edge,
-          width: entry.wrong.value > 0.5 ? 5 : 3,
-          fill: 'surface',
-          opacity,
-        }).at(x, y),
-        name(BRANCHES[entry.branch], x, y, { color: BRANCH_COLOR[entry.branch] }).opacity(opacity),
-      ];
+  view.add(
+    gridPlane3d({
+      x: [-2.6, 2.6],
+      y: [-2.6, 2.6],
+      z: -1.35,
+      step: 0.65,
+      color: '#1b2847',
+      opacity: 0.36,
     }),
   );
-  const scalarNode = dynamic(() => {
-    const clash = scalar.clash.value;
-    const parts = [];
-    if (clash > 0.02)
-      parts.push(
-        rect(CELL_WIDTH + 8, ENTRY.height + 28, {
-          radius: 6,
-          stroke: WRONG,
-          width: 5,
-          fill: null,
-          opacity: clash,
-        }).at(cellX, trayY),
-      );
-    scalar.writes.forEach((write, index) => {
-      const opacity = write.shown.value;
-      if (opacity < 0.02) return;
-      const side = (index - (scalar.writes.length - 1) / 2) * 150;
-      const x = cellX + side * (1 - write.drop.value) + side * 0.62 * write.drop.value,
-        y = lerp(dropFrom, trayY, write.drop.value);
-      parts.push(
-        value(`${REQUEST.traffic}%`, x, y, {
-          color: mix(BRANCH_COLOR[write.branch], MARK, scalar.hot.value),
-        }).opacity(opacity),
-      );
-    });
-    if (clash > 0.02)
-      parts.push(
-        value(error, scalarSide.left, trayY + 84, { anchor: 'left', color: WRONG }).opacity(clash),
-      );
-    return parts;
+
+  // Synchronization barrier ring at z = 0
+  view.add(
+    curve3d((t) => [1.95 * Math.cos(t), 1.95 * Math.sin(t), 0], {
+      t: [0, Math.PI * 2],
+      samples: 56,
+      color: ROLE.merge,
+      width: 3.6,
+      glow: 10,
+      blend: 'screen',
+    }),
+    curve3d((t) => [1.25 * Math.cos(t), 1.25 * Math.sin(t), 0], {
+      t: [0, Math.PI * 2],
+      samples: 44,
+      color: ROLE.eval,
+      width: 2.2,
+      glow: 6,
+      blend: 'screen',
+    }),
+  );
+
+  // Three parallel worker shafts above barrier (z = 1.45 -> 0) and single merged core below (0 -> -1.1)
+  const lanes = [
+    { a: Math.PI / 2, col: ROLE.eval },
+    { a: (7 * Math.PI) / 6, col: ROLE.health },
+    { a: (11 * Math.PI) / 6, col: ROLE.policy },
+  ];
+  for (const lane of lanes) {
+    const lx = 1.4 * Math.cos(lane.a);
+    const ly = 1.4 * Math.sin(lane.a);
+    view.add(
+      line3d([lx, ly, 1.45], [lx, ly, 0], {
+        color: lane.col,
+        width: 3.4,
+        glow: 9,
+        blend: 'screen',
+      }),
+      line3d([lx, ly, 0], [0, 0, -0.85], {
+        color: ROLE.merge,
+        width: 2.4,
+        opacity: 0.72,
+        glow: 6,
+        blend: 'screen',
+      }),
+    );
+  }
+
+  // Output proposal core slab below the barrier
+  view.add(
+    ...wireframeSlab3d([0, 0, -0.88], 0.56, 0.56, 0.28, {
+      color: ROLE.writer,
+      width: 2.8,
+      glow: 9,
+    }),
+  );
+
+  // Falling receipts & orbiting barrier telemetry photons
+  view.add(
+    points3d(
+      () => {
+        const ph = phaseVal.value;
+        const pts = [];
+        lanes.forEach((lane, i) => {
+          const prog = (ph * (0.18 + i * 0.05) + i * 0.31) % 1;
+          const lx = 1.4 * Math.cos(lane.a);
+          const ly = 1.4 * Math.sin(lane.a);
+          pts.push([lx, ly, 1.45 * (1 - prog)]);
+        });
+        for (let i = 0; i < 4; i++) {
+          const a = ph * 0.55 + (i * Math.PI) / 2;
+          pts.push([1.95 * Math.cos(a), 1.95 * Math.sin(a), 0.04]);
+        }
+        return pts;
+      },
+      {
+        colorAt: (idx) => {
+          if (idx === 0) return ROLE.eval;
+          if (idx === 1) return ROLE.health;
+          if (idx === 2) return ROLE.policy;
+          const st = statusVal ? statusVal.value : 0;
+          return st < -0.3 ? ROLE.reject : st > 0.3 ? ROLE.pass : ROLE.merge;
+        },
+        radius: 6.5,
+        glow: 12,
+        blend: 'screen',
+        onTop: true,
+      },
+    ),
+  );
+
+  return { view };
+}
+
+/**
+ * Orbiting 3D Single-Writer Atomic Vault (`cinematic3d`).
+ * Protected commit core surrounded by concentric Approval, Version, and Idempotency rings.
+ */
+export function buildWriterVault3d(
+  phaseVal,
+  stateVal = null,
+  { x = 490, y = 10, theta = -0.7, phi = 1.06, distance = 14.6, unit = 106 } = {},
+) {
+  const view = cinematic3d({
+    theta,
+    phi,
+    distance,
+    unit,
+    focus: [0, 0, 0.2],
+  }).at(x, y);
+
+  view.add(
+    gridPlane3d({
+      x: [-2.6, 2.6],
+      y: [-2.6, 2.6],
+      z: -1.25,
+      step: 0.65,
+      color: '#1b2847',
+      opacity: 0.36,
+    }),
+    ...wireframeSlab3d([0, 0, 0.15], 0.68, 0.68, 0.68, {
+      color: ROLE.writer,
+      width: 3.0,
+      glow: 10,
+    }),
+  );
+
+  const ringSpecs = [
+    { r: 1.45, z: 0.15, tilt: 0.25, col: ROLE.eval },
+    { r: 1.85, z: 0.15, tilt: -0.35, col: ROLE.merge },
+    { r: 2.25, z: 0.15, tilt: 0.12, col: ROLE.writer },
+  ];
+  for (const rs of ringSpecs) {
+    view.add(
+      curve3d(
+        (t) => [
+          rs.r * Math.cos(t),
+          rs.r * Math.sin(t) * Math.cos(rs.tilt),
+          rs.z + rs.r * Math.sin(t) * Math.sin(rs.tilt),
+        ],
+        {
+          t: [0, Math.PI * 2],
+          samples: 56,
+          color: rs.col,
+          width: 3.0,
+          glow: 9,
+          blend: 'screen',
+        },
+      ),
+    );
+  }
+
+  view.add(
+    points3d(
+      () => {
+        const ph = phaseVal.value;
+        const pts = [];
+        ringSpecs.forEach((rs, idx) => {
+          const a = ph * (0.5 + idx * 0.18) + idx * 2.1;
+          pts.push([
+            rs.r * Math.cos(a),
+            rs.r * Math.sin(a) * Math.cos(rs.tilt),
+            rs.z + rs.r * Math.sin(a) * Math.sin(rs.tilt),
+          ]);
+          const b = a + Math.PI;
+          pts.push([
+            rs.r * Math.cos(b),
+            rs.r * Math.sin(b) * Math.cos(rs.tilt),
+            rs.z + rs.r * Math.sin(b) * Math.sin(rs.tilt),
+          ]);
+        });
+        return pts;
+      },
+      {
+        colorAt: (idx) => {
+          const st = stateVal ? stateVal.value : 0;
+          if (st < -0.3) return idx % 2 === 0 ? ROLE.reject : ROLE.merge;
+          if (st > 0.3) return ROLE.pass;
+          return [ROLE.eval, ROLE.eval, ROLE.merge, ROLE.merge, ROLE.writer, ROLE.writer][idx];
+        },
+        radius: 6.4,
+        glow: 12,
+        blend: 'screen',
+        onTop: true,
+      },
+    ),
+  );
+
+  return { view };
+}
+
+/**
+ * Orbiting 3D Routing Constellation (`cinematic3d`) for topology ownership & hop latency.
+ */
+export function buildTopologyOrbit3d(
+  phaseVal,
+  { x = 510, y = 10, theta = -0.72, phi = 1.05, distance = 15.0, unit = 102 } = {},
+) {
+  const view = cinematic3d({
+    theta,
+    phi,
+    distance,
+    unit,
+    focus: [0, 0, 0.25],
+  }).at(x, y);
+
+  view.add(
+    gridPlane3d({
+      x: [-2.6, 2.6],
+      y: [-2.6, 2.6],
+      z: -1.2,
+      step: 0.65,
+      color: '#1b2847',
+      opacity: 0.36,
+    }),
+  );
+
+  const hub = [0, 0, 0.95];
+  const peers = [
+    [1.8, 0.2, 0.1],
+    [-1.4, 1.35, 0.1],
+    [-1.4, -1.35, 0.1],
+    [0.4, -1.85, -0.55],
+  ];
+  const cols = [ROLE.eval, ROLE.health, ROLE.policy, ROLE.writer];
+
+  view.add(...wireframeSlab3d(hub, 0.44, 0.44, 0.36, { color: ROLE.merge, width: 3.0, glow: 10 }));
+  peers.forEach((p, i) => {
+    view.add(
+      ...wireframeSlab3d(p, 0.34, 0.34, 0.24, { color: cols[i], width: 2.4, glow: 8 }),
+      line3d(hub, p, { color: cols[i], width: 2.4, glow: 7, opacity: 0.78, blend: 'screen' }),
+    );
   });
-  return {
-    list,
-    scalar,
-    /** The parts that stand from the start, and the parts that follow the values. */
-    frame: [listName, listKind, tray, scalarName, scalarKind, cell],
-    live: [listNode, scalarNode],
-    slotX,
-    trayY,
-    listSide,
-    scalarSide,
-  };
+  // Peer handoff ribbon between first two specialists
+  view.add(
+    curve3d(
+      (t) => [
+        peers[0][0] * (1 - t) + peers[1][0] * t,
+        peers[0][1] * (1 - t) + peers[1][1] * t + 0.55 * Math.sin(t * Math.PI),
+        0.1 + 0.45 * Math.sin(t * Math.PI),
+      ],
+      {
+        t: [0, 1],
+        samples: 32,
+        color: ROLE.eval,
+        width: 2.8,
+        glow: 8,
+        blend: 'screen',
+      },
+    ),
+  );
+
+  view.add(
+    points3d(
+      () => {
+        const ph = phaseVal.value;
+        return peers.map((p, i) => {
+          const t = 0.5 + 0.5 * Math.sin(ph * (0.65 + i * 0.15) + i * 1.4);
+          return [
+            hub[0] + (p[0] - hub[0]) * t,
+            hub[1] + (p[1] - hub[1]) * t,
+            hub[2] + (p[2] - hub[2]) * t,
+          ];
+        });
+      },
+      {
+        colorAt: (idx) => cols[idx] ?? ROLE.mark,
+        radius: 6.4,
+        glow: 12,
+        blend: 'screen',
+        onTop: true,
+      },
+    ),
+  );
+
+  return { view };
 }

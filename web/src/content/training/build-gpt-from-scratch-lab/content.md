@@ -217,7 +217,7 @@ Each target is the next token, but attention can still read every position in th
 No. Shifted labels define the next-token target, while the causal mask prevents each position from reading future inputs. Without the mask, position t simply reads x_{t+1} directly from the input.
 ```
 
-> **Common mistake:** Decoding byte-level BPE tokens one ID at a time and concatenating strings. Multi-byte UTF-8 characters (like emojis or accented symbols) often span multiple BPE tokens, so per-token string decoding corrupts them into `` replacement characters. Always decode the complete token sequence together (or buffer raw bytes via `decode_single_token_bytes` when streaming).[^tiktoken014Core2026]
+> **Common mistake:** Decoding byte-level BPE tokens one ID at a time and concatenating strings. Multi-byte UTF-8 characters (like emojis or accented symbols) often span multiple BPE tokens, so per-token string decoding corrupts them into `U+FFFD` (`\ufffd`) replacement characters. Always decode the complete token sequence together (or buffer raw bytes via `decode_single_token_bytes` when streaming).[^tiktoken014Core2026]
 
 <!-- leetllm: test, deps=tiktoken==0.14.0, output=show -->
 ```python title="decode-byte-pieces-together.py"

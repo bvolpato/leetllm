@@ -1,0 +1,1172 @@
+version: 1
+id: gpu-primitives
+opening: lesson
+title: "GPU Parallel Primitives: From Lane Ownership to Global Prefixes"
+source: fundamentals/gpu-parallel-primitives-lab/content.md
+sources:
+  - title: NVIDIA CUDA C++ Programming Guide
+    url: https://docs.nvidia.com/cuda/cuda-c-programming-guide/
+  - title: CUDA warp shuffle functions
+    url: https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html
+  - title: Single-pass parallel prefix scan
+    url: https://mgarland.org/papers/2016/scan/
+  - title: Online normalizer calculation for softmax
+    url: https://arxiv.org/abs/1805.02867
+  - title: CUB DeviceScan
+    url: https://nvidia.github.io/cccl/unstable/cub/api/structcub_1_1DeviceScan.html
+  - title: CUB DeviceReduce
+    url: https://nvidia.github.io/cccl/unstable/cub/api/structcub_1_1DeviceReduce.html
+  - title: Compute Sanitizer
+    url: https://docs.nvidia.com/compute-sanitizer/ComputeSanitizer/index.html
+  - title: FlashAttention
+    url: https://arxiv.org/abs/2205.14135
+scenes:
+  - id: subject-intro
+    title: Which score goes with the penalty?
+    visual: A replay stops on seven points with two plays in view. Follow the cursor across the five-point gain and the penalty, then pull back to all eight plays.
+    beats:
+      - say: |
+          Add five to the seven on the board. Freeze just before the nine-point penalty. What's the score?
+        hold: 2.6
+        visual_cues:
+          - id: intro-add-five
+            phrase: Add five to the seven on the board
+            targets: [replay-board]
+            linger: 0.35
+          - id: intro-freeze
+            phrase: Freeze just before the nine-point penalty
+            targets: [replay-board]
+            linger: 0.35
+      - say: |
+          Twelve points. Now let the penalty count. Twelve minus nine leaves three. Each GPU lane holds one play. An exclusive scan gives each lane the score before its play. An inclusive scan gives it the score after.
+        hold: 0.9
+        visual_cues:
+          - id: intro-before
+            phrase: Twelve points
+            targets: [replay-board]
+            linger: 0.35
+            caption_boundary: true
+          - id: intro-penalty
+            phrase: Now let the penalty count
+            targets: [replay-board]
+            linger: 0.35
+          - id: intro-through
+            phrase: Twelve minus nine leaves three
+            targets: [replay-board]
+            linger: 0.35
+            caption_boundary: true
+          - id: intro-exclusive
+            phrase: An exclusive scan
+            targets: [replay-board]
+            linger: 0.35
+          - id: intro-inclusive
+            phrase: An inclusive scan
+            targets: [replay-board]
+            linger: 0.35
+      - say: |
+          Here's the whole replay. Two more plays add two points and then six. The final score is eleven. If the scoreboard needs only that number, the lanes can combine their plays in pairs. That operation is a reduction.
+        hold: 0.85
+        visual_cues:
+          - id: intro-finish
+            phrase: Two more plays add two points and then six
+            targets: [replay-board]
+            linger: 0.35
+          - id: intro-total
+            phrase: The final score is eleven
+            targets: [replay-board]
+            linger: 0.35
+            caption_boundary: true
+  - id: pairwise-reduction
+    title: How far can one sum reach?
+    visual: Each branch covers a contiguous interval of plays. Four pairs merge to two halves and then one final score.
+    beats:
+      - say: |
+          Give each pair of neighbors one addition. Three and minus one make two. At the other end, two and six make eight. All four pairs can work at once. Each new number stands for the two plays directly above it.
+        hold: 0.7
+        visual_cues:
+          - id: reduction-neighbor-pairs
+            phrase: Three and minus one make two
+            targets: [reduction-level-0, reduction-level-1]
+            linger: 0.35
+          - id: reduction-parallel-partials
+            phrase: All four pairs can work at once
+            targets: [reduction-level-1]
+            linger: 0.35
+      - say: |
+          Combine neighboring partials again. The left half contributes seven points. The right half contributes four. One final addition gives eleven. Follow any leaf down the tree and it reaches the root exactly once.
+        hold: 0.8
+        visual_cues:
+          - id: reduction-partial-pairs
+            phrase: The left half contributes seven points. The right half contributes four
+            targets: [reduction-level-1, reduction-level-2]
+            linger: 0.35
+          - id: reduction-final-add
+            phrase: One final addition gives eleven
+            targets: [reduction-level-2, reduction-level-3]
+            linger: 0.35
+            caption_boundary: true
+      - say: |
+          Count the joins. Four, then two, then one makes seven additions, just as in a serial sum. Follow one path instead and you cross three stages. A parent can run as soon as both of its children are ready.
+        hold: 0.65
+        visual_cues:
+          - id: reduction-tree-depth
+            phrase: you cross three stages
+            targets: [reduction-level-0, reduction-level-3]
+            linger: 0.35
+          - id: reduction-work
+            phrase: seven additions
+            targets: [reduction-level-1, reduction-level-2]
+            linger: 0.35
+  - id: warp-communication
+    title: Where does a lane get its neighbor’s sum?
+    visual: Lane zero exchanges register values in an eight-lane XOR teaching tile. Remove lane seven from a fresh exchange to expose an absent source.
+    beats:
+      - say: |
+          Watch lane zero in this eight-lane tile inside a warp. It starts with three. Lane one sends minus one from its register. Lane zero now holds two. Next it takes the sum from lane two, then the sum from lane four. Here each lane picks a partner by flipping one bit of its lane index. That's an exclusive-or shuffle. It exchanges registers directly, so this step uses no shared-memory banks.
+        hold: 0.65
+        visual_cues:
+          - id: warp-neighbor
+            phrase: Lane one sends minus one from its register
+            targets: [warp-registers]
+            linger: 0.35
+          - id: warp-next
+            phrase: Next it takes the sum from lane two
+            targets: [warp-registers]
+            linger: 0.35
+          - id: warp-last
+            phrase: then the sum from lane four
+            targets: [warp-registers]
+            linger: 0.35
+      - say: |
+          Replay the first exchange at the other end of the tile. Lane six wants lane seven's six points. Let lane seven exit first. What result does the shuffle give lane six now?
+        hold: 2.1
+        visual_cues:
+          - id: warp-replay
+            phrase: Lane six wants lane seven's six points
+            targets: [warp-registers]
+            linger: 0.35
+          - id: warp-exit
+            phrase: Let lane seven exit first
+            targets: [warp-registers]
+            linger: 0.35
+      - say: |
+          That source is missing. The read is undefined. A shuffle mask names the lanes taking part. Every named lane that hasn't exited must execute the matching shuffle with the same mask. Moving a register value this way leaves shared-memory writes to be ordered separately.
+        hold: 0.75
+        visual_cues:
+          - id: warp-undefined
+            phrase: The read is undefined
+            targets: [warp-registers]
+            linger: 0.35
+            caption_boundary: true
+  - id: full-warp-contract
+    title: Does lane twenty have a value to send?
+    visual: Follow a down-shuffle from lane four to lane twenty. Change a live zero to an exited source, then trace the separate upper-bound case.
+    beats:
+      - say: |
+          Scale up from the eight-lane tile to a hardware warp of thirty-two threads. The lab uses a down-shuffle. The first reach is sixteen lanes, then eight, four, two and one. Lane zero ends up with the full sum. Each lane carries a signed sixty-four-bit partial. Every intermediate sum must fit. The shuffle's instruction cost depends on the type and the hardware.
+        hold: 0.7
+        visual_cues:
+          - id: full-warp-contract-step-1
+            phrase: a hardware warp of thirty-two threads
+            targets: [warp32-lanes]
+            linger: 0.35
+      - say: |
+          This row has twenty ones. The remaining twelve lanes stay alive and carry zero. At the first step, lane four reads lane twenty and gets zero. Now let lane twenty exit. Its register is no longer available, so the read is undefined. At the upper boundary, lane twenty-four would reach lane forty. A down-shuffle past the warp returns the caller's own value. The guard skips that addition.
+        hold: 0.85
+        visual_cues:
+          - id: full-warp-contract-step-2
+            phrase: lane four reads lane twenty and gets zero
+            targets: [warp32-source]
+            linger: 0.35
+          - id: warp32-exit
+            phrase: let lane twenty exit
+            targets: [warp32-source]
+            linger: 0.35
+          - id: warp32-upper
+            phrase: At the upper boundary
+            targets: [warp32-upper-bound]
+            linger: 0.35
+      - say: |
+          Keep the shuffle outside the guard so every named, non-exited lane reaches it with the same mask. Independent thread scheduling makes it unsafe to assume neighbors run in lockstep. When all eight warp leaders write their totals to shared memory, the whole block meets at a barrier. Then warp zero can load those eight totals, fill its remaining twenty-four registers with zeros and reduce again.
+        hold: 0.7
+        visual_cues:
+          - id: full-warp-contract-step-3
+            phrase: Keep the shuffle outside the guard
+            targets: [warp32-barrier]
+            linger: 0.35
+          - id: warp32-leaders
+            phrase: all eight warp leaders write their totals
+            targets: [warp32-barrier]
+            linger: 0.35
+  - id: block-barrier
+    title: When can the reader add the partials?
+    visual: Two warp leaders publish seven and four to separate shared slots. A reader waits for the block handoff before combining them.
+    beats:
+      - say: |
+          Zoom in on two warp leaders from the same block. Give one the first four plays and the other the last four. Their sums are seven and four. The first leader writes seven into shared memory. The other leader still holds four in a register. Can the reader use both slots yet?
+        hold: 2
+        visual_cues:
+          - id: handoff-seven
+            phrase: The first leader writes seven into shared memory
+            targets: [handoff-board]
+            linger: 0.35
+          - id: handoff-wait
+            phrase: Can the reader use both slots yet
+            targets: [handoff-board]
+            linger: 0.35
+      - say: |
+          The second leader still has to write four. All threads in this block then reach the barrier. Once it releases, the reader can use both shared values. Seven plus four gives eleven. Put the barrier outside the branch that only the leaders take.
+        hold: 0.75
+        visual_cues:
+          - id: handoff-four
+            phrase: write four
+            targets: [handoff-board]
+            linger: 0.35
+          - id: handoff-arrive
+            phrase: All threads in this block then reach the barrier
+            targets: [handoff-board]
+            linger: 0.35
+          - id: handoff-read
+            phrase: the reader can use both shared values
+            targets: [handoff-board]
+            linger: 0.35
+          - id: handoff-total
+            phrase: Seven plus four gives eleven
+            targets: [handoff-board]
+            linger: 0.35
+            caption_boundary: true
+      - say: |
+          Now imagine these partials belong to different blocks. Each block has its own shared memory. Give each partial a slot in global memory and launch a later combine in the same stream. That handoff reaches across blocks.
+        hold: 0.8
+        visual_cues:
+          - id: handoff-grid
+            phrase: Give each partial a slot in global memory
+            targets: [handoff-board]
+            linger: 0.35
+          - id: handoff-combine
+            phrase: launch a later combine in the same stream
+            targets: [handoff-board]
+            linger: 0.35
+  - id: grid-reduction
+    title: How many partials survive each pass?
+    visual: The lab's bounded loads create a shrinking sequence of wider partials. A separate scheduling diagram distinguishes a legal handoff from a grid-wide wait.
+    beats:
+      - say: |
+          Zoom out to the lab's grid. Each block has two hundred fifty-six threads. A thread can load two inputs spaced two hundred fifty-six positions apart. It checks each index before reading. A full block covers five hundred twelve inputs. Start with just over four million inputs, as shown. The first pass leaves eight thousand one hundred ninety-two partials. The next leaves sixteen. The last leaves one. The inputs are thirty-two-bit integers. All the partials are sixty-four-bit.
+        hold: 0.65
+        visual_cues:
+          - id: grid-first-pass
+            phrase: leaves eight thousand one hundred ninety-two partials
+            targets: [grid-passes]
+            linger: 0.35
+          - id: grid-second-pass
+            phrase: The next leaves sixteen
+            targets: [grid-passes]
+            linger: 0.35
+          - id: grid-reduction-step-1
+            phrase: The last leaves one
+            targets: [grid-passes]
+            linger: 0.35
+      - say: |
+          Why use another launch? Imagine four resident slots and eight blocks. If the four running blocks wait for all eight to arrive, they can keep the queued four from ever starting. A block barrier reaches only its block. The lab uses same-stream kernel ordering between passes. A cooperative grid barrier needs a supported launch with room for all its blocks to be resident together.
+        hold: 0.8
+        caption_starts:
+          - Imagine four resident slots and eight blocks
+          - If the four running blocks wait for all eight to arrive
+        visual_cues:
+          - id: grid-resident
+            phrase: four resident slots
+            targets: [grid-deadlock]
+            linger: 0.35
+          - id: grid-reduction-step-2
+            phrase: keep the queued four from ever starting
+            targets: [grid-deadlock]
+            linger: 0.35
+      - say: |
+          Another choice is to atomically add each block total to an initialized output. Now all those updates contend for one address. Even a histogram with many bins can have one hot bin. Check the type as well. The legacy sixty-four-bit integer atomic add takes an unsigned value. A signed sum needs a compatible operation and an overflow policy. Measure the full algorithms on your workload, including the extra launches in one and the contention in the other.
+        hold: 0.65
+        visual_cues:
+          - id: grid-atomic-write
+            phrase: atomically add each block total
+            targets: [grid-atomics]
+            linger: 0.35
+          - id: grid-reduction-step-3
+            phrase: updates contend for one address
+            targets: [grid-atomics]
+            linger: 0.35
+  - id: floating-point-order
+    title: Addition order can change a rounded result
+    visual: Two computed FP32 reduction trees group large and small values differently and finish at distinct rounded sums.
+    beats:
+      - say: |
+          Real-number addition is associative, but floating-point addition rounds each intermediate value. Compare a large positive value, its large negative partner, and a small residual of three point one four.
+        hold: 0.55
+        visual_cues:
+          - id: floating-point-order-beat-1-focus-1
+            phrase: Real-number addition is associative, but floating-point addition rounds each intermediate value
+            targets:
+              - floating-point-order-math-10-20-10-20-3-14
+            color: cyan
+            linger: 0.65
+      - say: |
+          Pair the large values first and they cancel, leaving three point one four. Add the small residual to the large negative value first and it rounds away at this scale. The next addition then yields zero.
+        hold: 0.7
+        visual_cues:
+          - id: floating-point-order-beat-2-focus-1
+            phrase: Pair the large values first and they cancel, leaving three point one four
+            targets:
+              - floating-point-order-math-fl-32-fl-32-a-b-r
+              - floating-point-order-math-0-3-14-3-14
+            color: cyan
+            linger: 0.65
+          - id: floating-residual-rounds-away
+            phrase: Add the small residual to the large negative value first and it rounds away at this scale
+            targets:
+              - floating-point-order-math-fl-32-a-fl-32-b-r
+              - floating-point-order-math-10-20-10-20-0
+            color: pink
+            linger: 0.3
+          - id: floating-next-addition-zero
+            phrase: The next addition then yields zero
+            targets:
+              - floating-point-order-math-10-20-10-20-0
+            color: pink
+            linger: 0.65
+      - say: |
+          Changing addition order can produce different low-order bits even when both trees are race-free. Validate against suitable tolerances and check error growth when changing tile size or reduction layout.
+        hold: 0.55
+        visual_cues:
+          - id: floating-point-order-beat-3-focus-1
+            phrase: Changing addition order can produce different low-order bits even when both trees are race-free
+            targets:
+              - floating-point-order-math-0-3-14-3-14
+              - floating-point-order-math-10-20-10-20-0
+            color: cyan
+            linger: 0.65
+  - id: partial-range
+    title: A valid final total cannot repair an invalid partial
+    visual: An overflowing int64 pair fails before a later negative cancels it; separate repeated bits from numerical accuracy.
+    beats:
+      - say: |
+          Take the largest signed sixty-four-bit integer. Call it maximum. The other three inputs are one, minus one and zero. The exact final sum is maximum. Follow the first pair, though. The model rejects maximum plus one right there. The later minus one arrives too late. The lab bounds each input between minus nine and nine, so nine times the length bounds every partial it can produce.
+        hold: 0.55
+        visual_cues:
+          - id: partial-range-step-1
+            phrase: maximum plus one
+            targets:
+              - range-overflow
+            linger: 0.55
+          - id: range-final
+            phrase: The exact final sum is maximum
+            targets:
+              - range-overflow
+            linger: 0.3
+      - say: |
+          Now switch to floating point. At one hundred million, neighboring Float32 numbers are eight apart. Adding one rounds back to one hundred million. Subtracting one hundred million then gives zero. Group the two large numbers first, and the result is one. Both trees can run without a race. A fixed tree can even keep its order when its blocks finish at different times.
+        hold: 0.7
+        visual_cues:
+          - id: partial-range-step-2
+            phrase: result is one
+            targets:
+              - range-rounding
+            linger: 0.55
+          - id: range-zero
+            phrase: then gives zero
+            targets:
+              - range-rounding
+            linger: 0.3
+      - say: |
+          Run the left tree three times. The zeros have identical bits on all three runs. Accuracy asks how far those zeros are from the reference, which is one. A fixed tree can repeat an inaccurate answer. Atomic updates can also change the addition order and the rounding. If exact repeatability matters, check the installed CUB release, GPU and build. Test the bits across runs and the error against the reference. The CUB release described in the lab defaults to repeatable reductions for the same GPU, build and configuration. Scan has its own default.
+        hold: 0.55
+        visual_cues:
+          - id: partial-range-step-3
+            phrase: A fixed tree can repeat an inaccurate answer
+            targets:
+              - range-contracts
+            linger: 0.55
+          - id: range-reference
+            phrase: Accuracy asks how far
+            targets:
+              - range-contracts
+            linger: 0.3
+  - id: inclusive-scan
+    title: Which plays has this register counted?
+    visual: Each register tracks four source positions. Two rounds combine disjoint ranges from the previous row until every lane holds its inclusive prefix.
+    beats:
+      - say: |
+          Take the first four plays again. This time each lane must report the score through its own play. The little marks under a register show which plays it has counted. Lane three starts with just the last play, worth one point.
+        hold: 0.75
+        visual_cues:
+          - id: scan-input
+            phrase: The little marks under a register
+            targets: [scan-registers]
+            linger: 0.35
+      - say: |
+          Each lane with a left neighbor reads that neighbor's old register and adds it to its own. That's the first round of a Hillis-Steele scan. Look at lane three now. Its five covers the last two plays. Which register in this row holds the missing first two?
+        hold: 2.3
+        visual_cues:
+          - id: scan-first-stride
+            phrase: reads that neighbor's old register and adds it to its own
+            targets: [scan-registers]
+            linger: 0.35
+          - id: scan-ask
+            phrase: Which register in this row holds the missing first two
+            targets: [scan-registers]
+            linger: 0.35
+      - say: |
+          Lane one holds two. Reach back two lanes in this round. Those two points join the five in lane three to make seven. Lane two also reaches back two places and gets six. Each lane now has the score through its own play. Three additions in the first round and two in the second bought us every prefix in two rounds.
+        hold: 0.9
+        visual_cues:
+          - id: scan-peer
+            phrase: Lane one holds two
+            targets: [scan-registers]
+            linger: 0.35
+            caption_boundary: true
+          - id: scan-second-stride
+            phrase: Reach back two lanes in this round
+            targets: [scan-registers]
+            linger: 0.35
+          - id: scan-last-answer
+            phrase: to make seven
+            targets: [scan-registers]
+            linger: 0.35
+            caption_boundary: true
+          - id: scan-third-answer
+            phrase: gets six
+            targets: [scan-registers]
+            linger: 0.35
+            caption_boundary: true
+  - id: prefix-contract
+    title: Which edge belongs to the replay?
+    visual: Align each play with its score before and after. At the negative play, the two selected scores mark opposite edges of the same change.
+    beats:
+      - say: |
+          Bring back all eight plays. Put the score before each play on one row and the score after it on the next. Before the very first play the score is zero. After the first play it's three. That three is also the starting score for the next play.
+        hold: 0.7
+        visual_cues:
+          - id: prefix-inputs
+            phrase: Bring back all eight plays
+            targets: [prefix-boundaries]
+            linger: 0.35
+          - id: prefix-contract-step-1
+            phrase: Before the very first play the score is zero
+            targets: [prefix-boundaries]
+            linger: 0.35
+          - id: prefix-inclusive
+            phrase: After the first play it's three
+            targets: [prefix-boundaries]
+            linger: 0.35
+      - say: |
+          Look down the penalty column. The exclusive score is twelve. Count the current play as well and the inclusive score falls to three. The next column starts at three. The lane positions stay in order even where the score goes down. Some operations let you regroup the inputs but change the answer if you swap them. A scan keeps their order.
+        hold: 0.75
+        visual_cues:
+          - id: prefix-contract-step-2
+            phrase: The exclusive score is twelve
+            targets: [prefix-alignment]
+            linger: 0.35
+          - id: prefix-full
+            phrase: The next column starts at three
+            targets: [prefix-alignment]
+            linger: 0.35
+      - say: |
+          Zero is the identity for addition. A tile can fill unused slots with zero and still get the same sum. That padding can cost extra additions. An empty segment also sums to zero. An empty search for a winning index needs a separate policy because there's no index to return.
+        hold: 0.65
+        visual_cues:
+          - id: prefix-contract-step-3
+            phrase: That padding can cost extra additions
+            targets: [prefix-identity]
+            linger: 0.35
+  - id: blelloch
+    title: Take the sums up the tree, bring the starting scores down
+    visual: The same tree first stores sums, then starting scores. Save the root total and track the old left sum into each right child's starting score.
+    beats:
+      - say: |
+          Use the first four plays to build a Blelloch scan. On the way up, each pair saves its sum. The left pair scores two, the right pair five. Together they score seven. Save that seven for the next block. Now put zero at the root. That's the starting score for the whole block. What starting score should the right pair get?
+        hold: 2.2
+        visual_cues:
+          - id: sweep-pairs
+            phrase: The left pair scores two, the right pair five
+            targets: [sweep-tree]
+            linger: 0.35
+          - id: sweep-sum
+            phrase: Together they score seven
+            targets: [sweep-tree]
+            linger: 0.35
+          - id: sweep-save
+            phrase: Save that seven for the next block
+            targets: [sweep-tree]
+            linger: 0.35
+          - id: sweep-zero
+            phrase: put zero at the root
+            targets: [sweep-tree]
+            linger: 0.35
+      - say: |
+          The left pair inherits the starting zero. For the right pair, take the parent's starting score and add the old sum of its left child. Zero plus two gives two. Do that once more for the leaves. The last play starts at two plus four, which is six. Read the leaves left to right and you have the four exclusive prefixes.
+        hold: 1.1
+        visual_cues:
+          - id: sweep-halves
+            phrase: Zero plus two gives two
+            targets: [sweep-tree]
+            linger: 0.35
+            caption_boundary: true
+          - id: sweep-leaves
+            phrase: two plus four, which is six
+            targets: [sweep-tree]
+            linger: 0.35
+            caption_boundary: true
+      - say: |
+          Look at the four shared slots. Each used to hold an input or a partial sum. Now each holds the score before its play. Save the old left value before overwriting that slot. Adding the original play gives its inclusive score. A block barrier between shared-memory phases lets all threads read the completed stage. The CPU trace assumes that handoff.
+        hold: 0.85
+        visual_cues:
+          - id: sweep-storage
+            phrase: Look at the four shared slots
+            targets: [sweep-tree]
+            linger: 0.35
+          - id: sweep-inclusive
+            phrase: Adding the original play gives its inclusive score
+            targets: [sweep-tree]
+            linger: 0.35
+  - id: scan-work
+    title: How many lanes add in each round?
+    visual: Each column counts one round of additions. Hillis-Steele loses lanes as its stride doubles. Blelloch narrows to one join and widens again on the way down.
+    beats:
+      - say: |
+          Start with thirty-two lanes. At stride one, thirty-one can reach a left neighbor. Reach two places left and thirty lanes can add. Keep doubling the stride. Even at stride sixteen, half the lanes still add. Hillis-Steele uses one hundred twenty-nine additions in five rounds. Follow Blelloch up the tree. Sixteen pairs add, then eight, then four, down to one. Reverse those counts on the way back down the tree. That's sixty-two additions in ten rounds.
+        hold: 0.8
+        visual_cues:
+          - id: work-second-stride
+            phrase: Reach two places left
+            targets: [work-counters]
+          - id: work-final-strides
+            phrase: Even at stride sixteen
+            targets: [work-counters]
+          - id: scan-work-step-1
+            phrase: Hillis-Steele uses one hundred twenty-nine additions in five rounds
+            targets: [work-counters]
+            linger: 0.35
+          - id: work-up
+            phrase: Sixteen pairs add, then eight, then four, down to one
+            targets: [work-counters]
+          - id: work-down
+            phrase: Reverse those counts on the way back down the tree
+            targets: [work-counters]
+          - id: work-blelloch
+            phrase: sixty-two additions in ten rounds
+            targets: [work-counters]
+            linger: 0.35
+      - say: |
+          Grow the tile to five hundred twelve values. Hillis-Steele does about four times as many additions as Blelloch. Blelloch still takes twice as many rounds. How long a round takes depends on shared-memory access and the wait at a barrier. Time both kernels on the same GPU to see which finishes first.
+        hold: 0.75
+        visual_cues:
+          - id: work-512
+            phrase: Grow the tile to five hundred twelve values
+            targets: [work-versus-time]
+            linger: 0.35
+          - id: work-larger-counts
+            phrase: Hillis-Steele does about four times as many additions as Blelloch
+            targets: [work-versus-time]
+            caption_boundary: true
+          - id: scan-work-step-2
+            phrase: Blelloch still takes twice as many rounds
+            targets: [work-versus-time]
+            linger: 0.35
+  - id: block-offsets
+    title: Where do the two score traces meet?
+    visual: Two four-play traces start at zero. Move the entire second trace by the preceding total so its start meets the end of the first.
+    beats:
+      - say: |
+          Split the plays between two blocks. Each block draws its own replay starting from zero. The left trace finishes at seven. On the right, the five-point play takes the local score from zero to five. Freeze before the penalty. This block reports five. What shift would make the two traces meet?
+        hold: 2.7
+        visual_cues:
+          - id: offset-left
+            phrase: The left trace finishes at seven
+            targets: [offset-traces]
+            linger: 0.35
+          - id: offset-right
+            phrase: the five-point play takes the local score from zero to five
+            targets: [offset-traces]
+            linger: 0.35
+          - id: offset-gap
+            phrase: What shift would make the two traces meet
+            targets: [offset-traces]
+            linger: 0.35
+      - say: |
+          Lift the whole right trace by seven points. Its zero now meets the seven on the left. Before the penalty, five becomes twelve. After it, minus four becomes three. Every right-hand prefix gets the same correction. An exclusive scan of the two block totals, seven and four, supplies the offsets zero and seven.
+        hold: 1
+        visual_cues:
+          - id: offset-shift
+            phrase: Lift the whole right trace by seven points
+            targets: [offset-traces]
+            linger: 0.35
+          - id: offset-result
+            phrase: five becomes twelve
+            targets: [offset-traces]
+            linger: 0.35
+            caption_boundary: true
+          - id: offset-after
+            phrase: minus four becomes three
+            targets: [offset-traces]
+            linger: 0.35
+            caption_boundary: true
+          - id: offset-ready
+            phrase: supplies the offsets zero and seven
+            targets: [offset-traces]
+            linger: 0.35
+      - say: |
+          At larger sizes the block totals need a scan of their own. The lab fits five hundred twelve inputs in a tile. With five hundred twelve full tiles, their totals fit in one tile. Add just one input. Now there are five hundred thirteen totals. Scanning them takes two tiles, whose totals need one more level. That's a boundary worth testing.
+        hold: 0.85
+        visual_cues:
+          - id: offset-extra
+            phrase: Add just one input
+            targets: [offset-recursion]
+            linger: 0.35
+          - id: offset-boundary
+            phrase: Scanning them takes two tiles
+            targets: [offset-recursion]
+            linger: 0.35
+  - id: lookback
+    title: How far back does tile three have to read?
+    visual: Tile three follows published aggregates backwards until a completed prefix covers everything earlier. Its offset and its inclusive total stay distinct.
+    beats:
+      - say: |
+          Another way to bring an offset into a tile is to look back at its neighbors. Start with tile three's own two points. Each tile publishes a record. An A record holds the sum of one tile. A P record holds the whole prefix through that tile. The letters tell the reader how far each number reaches.
+        hold: 0.8
+        visual_cues:
+          - id: lookback-records
+            phrase: An A record holds the sum of one tile
+            targets: [lookback-board]
+            linger: 0.35
+          - id: lookback-prefix
+            phrase: A P record holds the whole prefix through that tile
+            targets: [lookback-board]
+            linger: 0.35
+      - say: |
+          One tile back, the three brings our running sum to five. One more tile back, four brings it to nine. The next record is a completed prefix of seven. Include it and stop. Sixteen is the inclusive total through tile three. Take out tile three's own two and its starting offset is fourteen. If order matters to the operator, combine each older range on the left.
+        hold: 0.9
+        visual_cues:
+          - id: lookback-five
+            phrase: the three brings our running sum to five
+            targets: [lookback-board]
+            linger: 0.35
+          - id: lookback-nine
+            phrase: four brings it to nine
+            targets: [lookback-board]
+            linger: 0.35
+          - id: lookback-sixteen
+            phrase: Sixteen is the inclusive total through tile three
+            targets: [lookback-board]
+            linger: 0.35
+            caption_boundary: true
+          - id: lookback-offset
+            phrase: its starting offset is fourteen
+            targets: [lookback-board]
+            linger: 0.35
+            caption_boundary: true
+      - say: |
+          What if a reader arrives early? X means the payload is still unavailable. The writer puts the value in memory, then publishes its status with release ordering. Once the reader observes that status with acquire ordering, it can use the value. While a reader waits, the scheduler must give the tile it depends on a chance to run.
+        hold: 0.8
+        caption_starts: [X means the payload is still unavailable]
+        visual_cues:
+          - id: lookback-wait
+            phrase: X means the payload is still unavailable
+            targets: [publication-board]
+          - id: lookback-write
+            phrase: puts the value in memory
+            targets: [publication-board]
+            linger: 0.35
+          - id: lookback-publish
+            phrase: publishes its status with release ordering
+            targets: [publication-board]
+            linger: 0.35
+          - id: lookback-acquire
+            phrase: observes that status with acquire ordering
+            targets: [publication-board]
+            linger: 0.35
+      - say: |
+          With decoupled look-back, a tile can apply its offset as it writes its own outputs. That saves a separate pass over the output array. The lab's types give four useful input bytes and eight output bytes per item. Metadata, setup and repeated look-back reads add work. CUB's scan defaults can differ from its reduction defaults. If floating-point sums have to repeat, check whether the installed scan supports requesting run-to-run determinism.
+        hold: 0.75
+        visual_cues:
+          - id: lookback-traffic
+            phrase: four useful input bytes and eight output bytes per item
+            targets: [traffic-board]
+            linger: 0.35
+          - id: lookback-work
+            phrase: repeated look-back reads add work
+            targets: [traffic-board]
+            linger: 0.35
+  - id: selection-contracts
+    title: Which lane gets to write?
+    visual: Scan the signs of the eight plays. Two lanes receive address one, but only a kept value travels to that output. Then change the requested output to segment sums and an indexed maximum.
+    beats:
+      - say: |
+          Suppose the replay needs just the positive plays, still in order. Give each positive play a flag of one and the others zero. Scan those flags exclusively. Look at minus one and plus four. Both see one earlier kept play, so both get address one. Only the four writes there. The zero flag makes the minus one skip its write. The same rule packs all six positives into a separate output buffer.
+        hold: 0.9
+        visual_cues:
+          - id: selection-flags
+            phrase: a flag of one
+            targets: [selection-scatter]
+            linger: 0.35
+          - id: selection-addresses
+            phrase: Scan those flags exclusively
+            targets: [selection-scatter]
+            linger: 0.35
+          - id: selection-contracts-step-1
+            phrase: both get address one
+            targets: [selection-scatter]
+            linger: 0.35
+          - id: selection-result
+            phrase: Only the four writes there
+            targets: [selection-scatter]
+            linger: 0.35
+            caption_boundary: true
+          - id: selection-pack
+            phrase: packs all six positives
+            targets: [selection-scatter]
+            linger: 0.35
+      - say: |
+          Change the request. This time we need one sum per segment. The boundaries repeat at four. The middle range starts and ends there, so it contains no plays. Keep its output slot. The three group sums are seven, zero and four. A single total of eleven would lose that grouping.
+        hold: 0.7
+        visual_cues:
+          - id: selection-empty
+            phrase: The boundaries repeat at four
+            targets: [selection-segments]
+            linger: 0.35
+          - id: selection-contracts-step-2
+            phrase: seven, zero and four
+            targets: [selection-segments]
+            linger: 0.35
+      - say: |
+          For the winning play, carry the value and its source index together. Six wins at index seven. Now try a tie. In this three-play row the six appears at both ends. The rule keeps the lowest index, so the first six wins. This reference requires a nonempty row of finite values. State the tie rule and the policy for missing or nonfinite values when you choose an arg reduction.
+        hold: 0.75
+        visual_cues:
+          - id: selection-contracts-step-3
+            phrase: the value and its source index together
+            targets: [selection-argmax]
+            linger: 0.35
+          - id: selection-max
+            phrase: Six wins at index seven
+            targets: [selection-argmax]
+            linger: 0.35
+          - id: selection-tie
+            phrase: Now try a tie
+            targets: [selection-argmax]
+            linger: 0.35
+          - id: selection-winner
+            phrase: the first six wins
+            targets: [selection-argmax]
+            linger: 0.35
+            caption_boundary: true
+  - id: online-softmax
+    title: Online softmax rescales its running sum
+    visual: A running maximum moves from two to four while the prior exponential sum is rescaled before new logits join.
+    beats:
+      - say: |
+          Softmax exponentials can be stabilized by subtracting the largest logit. For a first chunk with logits two and one, the maximum is two and the scaled exponential sum is one plus e to the minus one, about one point three seven.
+        hold: 0.55
+        visual_cues:
+          - id: online-softmax-beat-1-focus-1
+            phrase: For a first chunk with logits two and one
+            targets:
+              - online-softmax-first-chunk-2-1
+            color: cyan
+            linger: 0.65
+      - say: |
+          The next chunk contains four and zero, so the running maximum rises to four. Rescale the earlier sum by e to the minus two, then add the new exponentials: one plus e to the minus four. The combined result is about one point two zero.
+        hold: 0.7
+        visual_cues:
+          - id: online-softmax-beat-2-focus-1
+            phrase: The next chunk contains four and zero
+            targets:
+              - online-softmax-incoming-logits-4-0
+            color: cyan
+            linger: 0.65
+          - id: online-new-maximum
+            phrase: the running maximum rises to four
+            targets:
+              - online-softmax-math-m-2-4-4
+            color: pink
+            linger: 0.2
+          - id: online-rescale-prior
+            phrase: Rescale the earlier sum by e to the minus two
+            targets:
+              - online-softmax-math-e-2-4-1-368-snapshot-oldcontribution-tofixed-3
+            color: cyan
+            linger: 0.2
+          - id: online-add-incoming
+            phrase: "then add the new exponentials: one plus e to the minus four"
+            targets:
+              - online-softmax-math-e-4-4-e-0-4-snapshot-newcontribution-tofixed-3
+            color: yellow
+            linger: 0.2
+          - id: online-combined-result
+            phrase: The combined result is about one point two zero
+            targets:
+              - online-softmax-math-snapshot-oldcontribution-tofixed-3-snapshot-newcontribution-tofixed
+            color: green
+            linger: 0.2
+      - say: |
+          The state carries both the maximum and a rescaled sum. The update keeps the denominator equivalent to processing all four logits together, while avoiding a direct exponential of a large value.
+        hold: 0.55
+        visual_cues:
+          - id: online-softmax-beat-3-focus-1
+            phrase: The update keeps the denominator equivalent to processing all four logits together
+            targets:
+              - online-softmax-math-m-2-4-4
+              - online-softmax-math-snapshot-oldcontribution-tofixed-3-snapshot-newcontribution-tofixed
+            color: cyan
+            linger: 0.65
+  - id: normalizer-output
+    title: What still has to be read?
+    visual: Keep the final scale and denominator on screen. Visit each retained logit to fill its own probability slot and count the extra reads.
+    beats:
+      - say: |
+          The first pass is over. We have a maximum of four and a denominator of about one point two zero three. The four original logits are still in memory. If all you kept in registers was that pair of numbers, what must you read to fill these four probability slots?
+        hold: 2.3
+        visual_cues:
+          - id: prob-state
+            phrase: a maximum of four and a denominator
+            targets: [probability-board]
+            linger: 0.35
+          - id: prob-question
+            phrase: what must you read
+            targets: [probability-board]
+            linger: 0.35
+      - say: |
+          Read each logit again. For the first slot, read two. Subtract the final maximum, exponentiate and divide by the denominator. That gives about eleven percent. Repeat for the other three logits. Four reads found the normalizer, and four more gave us the probabilities. A separate maximum pass and denominator pass would have made three passes in all. On the article's eight-logit row, the online method takes sixteen logical reads. Caching or keeping logits on chip changes where those reads are served.
+        hold: 0.9
+        visual_cues:
+          - id: prob-first
+            phrase: For the first slot, read two
+            targets: [probability-board]
+            linger: 0.35
+          - id: prob-value
+            phrase: That gives about eleven percent
+            targets: [probability-board]
+            linger: 0.35
+            caption_boundary: true
+          - id: prob-rest
+            phrase: Repeat for the other three logits
+            targets: [probability-board]
+            linger: 0.35
+          - id: prob-eight
+            phrase: sixteen logical reads
+            targets: [probability-board]
+            linger: 0.35
+      - say: |
+          Subtracting the largest finite logit keeps each exponential at most one. A tiny exponential can underflow to zero. A masked logit contributes zero mass. The model uses None to mark a mask and rejects other nonfinite inputs. A fully masked row has no probability distribution, so the model rejects it. An empty partial state, though, can merge with a valid neighbor. Give the empty state zero mass and handle it separately before subtracting maxima. That avoids subtracting minus infinity from itself. To produce every probability later, keep the logits or use an input you can read again unchanged.
+        hold: 0.8
+        visual_cues:
+          - id: prob-mask
+            phrase: A fully masked row has no probability distribution
+            targets: [mask-board]
+            linger: 0.35
+          - id: prob-empty
+            phrase: Give the empty state zero mass
+            targets: [mask-board]
+            linger: 0.35
+  - id: attention-state
+    title: Weighted attention carries its own output accumulator
+    visual: A two-component value fixture rescales both old denominator and weighted-value mass before final normalization.
+    beats:
+      - say: |
+          Attention needs a weighted sum of value vectors. Give the first two logits a value pointing right and the last two a value pointing up. Alongside the maximum and denominator, keep the weighted sum so far. Call the denominator d and the weighted sum O. When the maximum rises, rescale both old d and old O. Now both pairs contribute on the same scale.
+        hold: 0.55
+        visual_cues:
+          - id: attention-state-step-1
+            phrase: both old d and old O
+            targets:
+              - attention-rescale
+            linger: 0.55
+      - say: |
+          Watch the two coordinates. The first pair contributes about point one eight five to the horizontal coordinate. The second pair puts new mass of about one point zero one eight on the vertical coordinate. Finish by dividing by their total. The output has about fifteen percent on the horizontal coordinate and eighty-five percent on the vertical one. Keeping old O unscaled would give the first pair too much weight even if its denominator were right.
+        hold: 0.7
+        visual_cues:
+          - id: attention-state-step-2
+            phrase: Keeping old O unscaled
+            targets:
+              - attention-output
+            linger: 0.55
+          - id: attention-new-mass
+            phrase: new mass of about one point zero one eight
+            targets:
+              - attention-rescale
+            linger: 0.3
+          - id: attention-normalize
+            phrase: dividing by their total
+            targets:
+              - attention-output
+            linger: 0.3
+      - say: |
+          FlashAttention can do this one tile at a time. It keeps the running state on chip and emits a weighted value for each query. At fixed head width the output and saved statistics have linear size in sequence length. The attention arithmetic remains quadratic. Tiling saves the space for the full score and probability matrices.
+        hold: 0.55
+        visual_cues:
+          - id: attention-state-step-3
+            phrase: arithmetic remains quadratic
+            targets:
+              - attention-storage
+            linger: 0.55
+          - id: attention-linear
+            phrase: linear size in sequence length
+            targets:
+              - attention-storage
+            linger: 0.3
+  - id: hazard-proof
+    title: Checking a GPU scan
+    visual: A missing block offset and a missing shared-memory handoff produce distinguishable numerical and ordering failures.
+    beats:
+      - say: |
+          Think of two threads using the same shared slot. If a consumer reads before its producer finishes writing, the missing order creates a read-after-write hazard. Overwrite a slot while a neighbor still needs to read it and the hazard is write-after-read. Two unordered writes give write-after-write. Two unordered reads alone can coexist. If another warp needs the slot, arrange a handoff that covers both warps.
+        hold: 0.55
+        visual_cues:
+          - id: hazard-proof-step-1
+            phrase: Two unordered reads alone
+            targets:
+              - hazard-orders
+            linger: 0.55
+          - id: hazard-writes
+            phrase: write-after-write
+            targets:
+              - hazard-orders
+            linger: 0.3
+      - say: |
+          If a lane reads past the end of the array, memcheck can flag the bad address. It also checks alignment. Use racecheck for conflicting accesses to shared memory. If some threads skip a block barrier, use synccheck. Have each tool return an error code on a finding. Save the source and the input shape so you know which path you exercised.
+        hold: 0.7
+        visual_cues:
+          - id: hazard-proof-step-2
+            phrase: If some threads skip a block barrier
+            targets:
+              - hazard-tools
+            linger: 0.55
+      - say: |
+          Suppose every shared-memory handoff succeeds, but the second block starts at zero. Its first prefix should be seven. Add seven to each of its four local prefixes and compare them with the serial scan. The CPU model treats each barrier as complete while it checks the arithmetic, overflow, shuffle sources and tile boundaries. On the GPU, even a missing barrier can pass a numerical test if the writer happens to finish first.
+        hold: 0.55
+        visual_cues:
+          - id: hazard-proof-step-3
+            phrase: the second block starts at zero
+            targets:
+              - hazard-evidence
+            linger: 0.55
+          - id: hazard-offset
+            phrase: Add seven to each of its four local prefixes
+            targets:
+              - hazard-evidence
+            linger: 0.3
+          - id: hazard-cpu
+            phrase: The CPU model treats each barrier as complete
+            targets:
+              - hazard-evidence
+            linger: 0.3
+  - id: library-baseline
+    title: What would fusion save?
+    visual: Device-wide versus block collectives, explicit widening and a fused intermediate define a matched baseline.
+    beats:
+      - say: |
+          For a whole array, start with CUB DeviceReduce or DeviceScan. Inside a custom kernel, BlockReduce and BlockScan let the threads cooperate on a tile. Match the requested outputs, their order and their numerical policy. For this integer sum, widen each loaded input before adding. The first addition then runs in sixty-four bits.
+        hold: 0.55
+        visual_cues:
+          - id: library-baseline-step-1
+            phrase: widen each loaded input
+            targets:
+              - library-types
+            linger: 0.55
+          - id: library-block
+            phrase: BlockReduce and BlockScan
+            targets:
+              - library-types
+            linger: 0.3
+      - say: |
+          First query how many temporary bytes the explicit-storage interface needs. Allocate that scratch space and start the operation. Keep it alive until the stream finishes, then reuse it outside measured repetitions. Other overloads can manage the allocation. The lab uses a Thrust transform iterator to widen the inputs because CCCL three removed the older CUB iterator.
+        hold: 0.7
+        visual_cues:
+          - id: library-baseline-step-2
+            phrase: reuse it outside measured repetitions
+            targets:
+              - library-storage
+            linger: 0.55
+          - id: library-finish
+            phrase: until the stream finishes
+            targets:
+              - library-storage
+            linger: 0.3
+      - say: |
+          Think back to packing the positive plays. The scan assigns the four-point play to slot one. A separate packing kernel reads that destination from memory. In a fused kernel, the lane can keep that destination in a register and write the play straight to slot one. That saves a write and a read of the destination. Time the fused kernel against the CUB scan plus the same packing step. Match the types, determinism, outputs and timing boundaries. For strided inputs, a CUB iterator can read the same layout.
+        hold: 0.55
+        visual_cues:
+          - id: library-baseline-step-3
+            phrase: the CUB scan plus the same packing step
+            targets:
+              - library-fusion
+            linger: 0.55
+          - id: library-fused
+            phrase: keep that destination in a register
+            targets:
+              - library-fusion
+            linger: 0.3
+  - id: benchmark-evidence
+    title: Timing the full GPU operation
+    visual: Logical input/output bytes, recursive launches and exact-source historical evidence stay visibly separate.
+    beats:
+      - say: |
+          The downloadable CUDA lab implements integer reduction and exclusive scan. Both have one-thread comparison kernels. Arg reduction and softmax run in the CPU model. For the input count shown here, the benchmark settings specify five warmups and thirty measured full invocations. CUDA events exclude allocation and the initial upload. Reduction timing includes the final device-to-device scalar copy. Scan timing includes the recursive calls and offset passes.
+        hold: 0.55
+        visual_cues:
+          - id: benchmark-evidence-step-1
+            phrase: thirty measured full invocations
+            targets:
+              - benchmark-composition
+            linger: 0.55
+          - id: benchmark-event
+            phrase: CUDA events exclude allocation
+            targets:
+              - benchmark-composition
+            linger: 0.3
+      - say: |
+          For each scan element, count four input bytes plus eight output bytes. For reduction, count just the four input bytes. Divide those useful bytes by elapsed time to get a logical byte rate. The clock still runs through intermediate work whose bytes the numerator omits. Reusing warm buffers can change how often the GPU reads DRAM while the useful byte count stays fixed. Record the source, compiler, GPU, shape, repetitions and cache policy.
+        hold: 0.7
+        visual_cues:
+          - id: benchmark-evidence-step-2
+            phrase: how often the GPU reads DRAM
+            targets:
+              - benchmark-bytes
+            linger: 0.55
+          - id: benchmark-useful
+            phrase: four input bytes plus eight output bytes
+            targets:
+              - benchmark-bytes
+            linger: 0.3
+      - say: |
+          The saved times belong to the older build. Compile the revised kernel and try five hundred twelve inputs, then one more. That extra input starts a second tile with a single value. Compare each output with the reference and run the synchronization checks. Do the same at warp and recursion boundaries for the types your kernel accepts. Then time that build on the target GPU.
+        hold: 0.55
+        visual_cues:
+          - id: benchmark-evidence-step-3
+            phrase: saved times belong to the older build
+            targets:
+              - benchmark-hash
+            linger: 0.55
+          - id: benchmark-current
+            phrase: That extra input starts a second tile with a single value
+            targets:
+              - benchmark-hash
+            linger: 0.3
+  - id: transfer
+    title: Can a wrong scan pass this check?
+    visual: Compare concatenated local prefixes with the article’s serial reference. Change one play in the first block and watch the second block fail at every index.
+    beats:
+      - say: |
+          Suppose a kernel returns the two local scans side by side. Check its whole output against a serial reference. In this run the fourth play is minus six, so the first block happens to total zero. The check returns true. That run leaves a missing offset invisible.
+        hold: 1.1
+        visual_cues:
+          - id: test-compare
+            phrase: Check its whole output against a serial reference
+            targets: [check-board]
+            linger: 0.35
+          - id: test-pass
+            phrase: The check returns true
+            targets: [check-board]
+            linger: 0.35
+            caption_boundary: true
+      - say: |
+          Change only the fourth play back to plus one. The right block sees exactly the same inputs. It still reports five before the penalty. What should the serial reference report there?
+        hold: 2.4
+        visual_cues:
+          - id: test-edit
+            phrase: Change only the fourth play back to plus one
+            targets: [check-board]
+            linger: 0.35
+          - id: test-question
+            phrase: What should the serial reference report there
+            targets: [check-board]
+            linger: 0.35
+      - say: |
+          Twelve. The local five is seven points low. So are all four outputs in the right block. The whole-row check now returns false. Give the right block its offset and run the same comparison. Now it passes. This checks the arithmetic for these inputs. Use the GPU synchronization checks separately to test the handoff between threads.
+        hold: 0.95
+        visual_cues:
+          - id: test-fail
+            phrase: The whole-row check now returns false
+            targets: [check-board]
+            linger: 0.35
+            caption_boundary: true
+          - id: test-twelve
+            phrase: Twelve
+            targets: [check-board]
+            caption_boundary: true
+          - id: test-repair
+            phrase: Give the right block its offset
+            targets: [check-board]
+            linger: 0.35
+          - id: test-fixed
+            phrase: Now it passes
+            targets: [check-board]
+            linger: 0.35
+            caption_boundary: true
+  - id: fresh-odd-row
+    title: Seven plays and one spare lane
+    visual: Repair an odd replay, then exchange two plays across its block boundary. Its final score stays fixed while the score before the penalty changes.
+    beats:
+      - say: |
+          Here are seven new plays. Two blocks each have room for four. The last lane carries zero so it can participate, and its global load and store are guarded. The first block ends after the one-point play. The second starts with a two-point penalty. What score should the replay show just before that penalty?
+        hold: 2.8
+        visual_cues:
+          - id: fresh-ask
+            phrase: What score should the replay show just before that penalty
+            targets: [fresh-board]
+            linger: 0.35
+      - say: |
+          The first block scores five. Add that offset to the three real local prefixes. Zero, minus two and two become five, three and seven. There are seven output scores, one per real play. The final six-point play takes the total to thirteen.
+        hold: 1.05
+        visual_cues:
+          - id: fresh-offset-five
+            phrase: The first block scores five
+            targets: [fresh-board]
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-odd-row-step-2
+            phrase: become five, three and seven
+            targets: [fresh-board]
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-reduction
+            phrase: takes the total to thirteen
+            targets: [fresh-board]
+            linger: 0.35
+            caption_boundary: true
+      - say: |
+          Swap the one-point play and the four-point play across the block boundary. The final score is still thirteen. Freeze just before the same two-point penalty. What score belongs there now?
+        hold: 3
+        visual_cues:
+          - id: fresh-swap
+            phrase: Swap the one-point play and the four-point play across the block boundary
+            targets: [fresh-board]
+            linger: 0.35
+          - id: fresh-again
+            phrase: Freeze just before the same two-point penalty
+            targets: [fresh-board]
+            linger: 0.35
+      - say: |
+          Eight. Moving the four ahead of the penalty puts three extra points in the first block. Subtract two in both replays. Then add one where the old replay added four. Both scores are seven again, just before the last play. The same six takes both to thirteen. A reduction keeps that final total. Choose an exclusive scan when you need the score before every play.
+        hold: 1.35
+        caption_starts:
+          - Both scores are seven again
+          - The same six takes both to thirteen
+        visual_cues:
+          - id: fresh-eight
+            phrase: Eight
+            targets: [fresh-board]
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-penalty
+            phrase: Subtract two in both replays
+            targets: [fresh-board]
+            linger: 0.35
+          - id: fresh-rejoin
+            phrase: Then add one where the old replay added four. Both scores are seven again
+            targets: [fresh-board]
+            linger: 0.35
+          - id: fresh-last
+            phrase: The same six takes both to thirteen
+            targets: [fresh-board]
+            linger: 0.35
+          - id: fresh-choose
+            phrase: Choose an exclusive scan
+            targets: [fresh-board]
+            linger: 0.35

@@ -138,7 +138,7 @@ The example validator selects the requested view before execution and preserves 
 | Checkpoints | Question followed by its answer, with Markdown, code, and math preserved |
 | Figures | Cropped vector art, with ordinary labels near 8.75 pt and numbered 8 pt captions |
 | Sources | A bibliography for each chapter, and one for the whole book |
-| Navigation | Contents, running heads, folios, an index of glossary terms, and PDF bookmarks |
+| Navigation | Contents, running heads, folios, a curated index with subentries and cross-references, and PDF bookmarks |
 
 The renderer removes browser-only mastery quizzes and navigation callouts such as **Next** and **Course complete**, along with headings left empty by those removals. It keeps substantive exercises, worked answers, recap sections, and technical conclusions. A heading named "Next steps" is not sufficient reason to discard the rest of a chapter.
 
@@ -194,7 +194,7 @@ The title page, contents, every part, every chapter, and the back matter open on
 
 The merger adds the folio and a running head at the outer edge of each body page. A left page names the chapter, and a right page names the current section. It finds sections through named destinations that Chromium emits for hidden anchors in each chapter. Openings carry only a folio at the foot, and blank pages carry nothing. Chromium's local proof headers are disabled for assembled parts, preventing duplicate headers.
 
-The index is generated automatically. The merger looks for each glossary term on the body pages and keeps the eight pages that use it most. It drops terms that appear on more than a fifth of the pages, because an entry for those helps nobody. Treat it as a concordance of glossary terms rather than a hand-curated index.
+The index is driven by the curated catalog in [`web/tools/book/index-terms.json`](web/tools/book/index-terms.json). During assembly, the merger locates each term and its aliases on body pages (skipping part dividers and source lists), bolds any matched defining page, resolves subentries and `See` / `See also` cross-references, and keeps up to eight highest-frequency pages per term. Non-core terms appearing on more than a fifth of the pages are omitted so entries stay selective and useful.
 
 The cover and part openers use art from [`web/tools/book/cover-art.ts`](web/tools/book/cover-art.ts). Each is a Vizmatic stage arc diagram of real scaled dot-product attention weights, computed with a causal mask over tokens: the opening sentences of the book for the cover, and the chapter titles for a part. The renderer embeds the art as vector. Optional `coverTitleLines` in the configuration sets deliberate line breaks; the lines must join to the complete `title`. Review the cover at full size and as a thumbnail after changing either the title or subtitle.
 
@@ -241,6 +241,9 @@ Before distributing an edition:
 |---|---|
 | [`build-book.sh`](build-book.sh) | Root command wrapper |
 | [`web/tools/book/book-config.json`](web/tools/book/book-config.json) | Editions, exclusions, part order, and publication metadata |
+| [`web/tools/book/introductions/`](web/tools/book/introductions/) | Authored per-chapter framing lines and guiding questions |
+| [`web/tools/book/index-terms.json`](web/tools/book/index-terms.json) | Curated back-of-book index terms, aliases, subentries, and cross-references |
+| [`web/tools/book/diagram-captions.ts`](web/tools/book/diagram-captions.ts) | Reviewed print captions for retained Mermaid diagrams |
 | [`web/tools/book/build.ts`](web/tools/book/build.ts) | Selection, source fingerprints, asset preparation, rendering, and pagination loop |
 | [`web/tools/book/planner.ts`](web/tools/book/planner.ts) | Ordered chapter and section selection |
 | [`web/src/lib/content-audience.ts`](web/src/lib/content-audience.ts) | Shared article visibility and passage selection |

@@ -1,295 +1,389 @@
-// Scene `progress-budget`: count the evidence, and keep a hard limit on the calls.
-//
-// The picture: the hard budget is a row of eight places, and each call fills one. Under it,
-// the evidence that the task has, and a counter of the calls with no progress. A page that the
-// task has already fills the counter, and a new page empties it. Then the line of the operation
-// comes back, with three faults at three stations, each with its own route.
+// Scene 6: progress-budget - "What did the third read buy?"
+// 8-slot glowing call budget bar, stall meter (0/2 -> 1/2 -> 0/2 vs counterfactual 2/2 STOP),
+// and three distinct recovery routes (schema repair, read retry, write reconcile).
+import { circle, line, rect } from 'vizmatic/stage';
 import {
-  appear,
-  assertEqual,
-  beside,
-  column,
-  fadeIn,
-  fadeOut,
-  indicate,
-  moveTo,
-  par,
-  place,
-  rect,
-  row,
-  seq,
-  shake,
-  vanish,
-} from 'vizmatic/stage';
-import { progressSequence } from '../../../films/agent-recovery/model.mjs';
-import { area, chip, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { COLOR, OP, board, cross, docked, places, record, token, travel, wall } from '../parts.mjs';
-
-/** The hard limit of calls of the fixture, and the calls with no progress that stop the loop. */
-const HARD_LIMIT = 8;
+  COSMOS,
+  ROLE,
+  ambientClock,
+  cinemaAtmosphere,
+  glowCross,
+  glowDot,
+  glowPill,
+  guardedDynamic,
+  heroTitle,
+  hexAlpha,
+  lowerFooter,
+  playCue,
+  txt,
+} from '../parts.mjs';
 
 export default function progressBudget(s, c) {
-  const calls = progressSequence();
-  const repeatLast = progressSequence([calls[0].page, calls[1].page, calls[1].page]).at(-1);
-  assertEqual(
-    [repeatLast.noProgress, repeatLast.remaining],
-    [2, 5],
-    'two stalls stop the alternative',
-  );
-  assertEqual(
-    calls.map((call) => [call.noProgress, call.remaining]),
-    [
-      [0, 7],
-      [1, 6],
-      [0, 5],
-    ],
-    'the counter and the budget after each call',
-  );
-
-  // The frame: the budget over the two counts.
-  const [top, bottom] = area.rows([11, 9], 'wide');
-  const [budgetHead, budgetRow] = top.rows([2, 7], 'tight');
-  const [evidenceSide, progressSide] = bottom.columns(2, 'loose');
-
-  // The hard budget: eight places, and one tile for each call. A tile says if the page was new.
-  const budgetName = place(label('hard call budget'), budgetHead, 'left');
-  const left = [HARD_LIMIT, ...calls.map((call) => call.remaining)].map((count) =>
-    place(mono(`${count} left`), budgetHead, 'right'),
-  );
-  const slots = budgetRow.columns(HARD_LIMIT, 'tight');
-  const frames = slots.map((slot) =>
-    rect(slot.width, slot.height, {
-      radius: 12,
-      stroke: 'dim',
-      fill: null,
-      width: 2.5,
-      dash: [10, 8],
-    }).moveTo(slot.point()),
-  );
-  const tile = (call, index) => {
-    const color = call.gainedEvidence ? COLOR.sure : 'dim';
-    const plate = rect(slots[index].width, slots[index].height, {
-      radius: 12,
-      stroke: color,
-      fill: 'surface',
-      width: 3,
-    }).moveTo(slots[index].point());
-    const words = place(
-      column(
-        [
-          note(`call ${call.call}`),
-          mono(call.page, { size: 36 }),
-          note(call.gainedEvidence ? 'new page' : 'same page', {
-            color: call.gainedEvidence ? COLOR.sure : COLOR.mark,
-          }),
-        ],
-        { gap: 'normal', align: 'center' },
-      ),
-      slots[index],
-    );
-    return [plate, words];
-  };
-  const tiles = calls.map(tile);
-  const otherTile = tile(repeatLast, 2);
-
-  // The evidence that the task has: one chip for each page, whatever the number of reads.
-  const pages = [...new Set(calls.map((call) => call.page))];
-  const known = pages.map((page) => token(page, COLOR.sure, { size: 40 }));
-  const evidenceName = note('evidence that the task has');
-  // The name is under the chips: a read comes down from its tile and passes no text.
-  place(column([row(known), evidenceName], { gap: 'normal' }), evidenceSide, 'left');
-  // A read brings its page down to the evidence. It starts under its tile.
-  const reads = calls.map((call, index) => {
-    const read = token(call.page, COLOR.attempt, { size: 40 });
-    const target = known[pages.indexOf(call.page)];
-    return {
-      node: read.moveTo([slots[index].cx, slots[index].bottom + read.height]),
-      // A new page takes its place. A page that is there already stops at the next place, and leaves.
-      to: (call.gainedEvidence ? target : known[pages.indexOf(call.page) + 1]).center,
-      chipOf: target,
-    };
+  const title = heroTitle(['What did the third read buy?'], {
+    x: -855,
+    y: -440,
+    size: 52,
+    accent: ROLE.sure,
   });
 
-  // The calls with no progress: two places, and the loop stops when both are full.
-  const idle = places(s, calls[0].allowance, { color: COLOR.mark, size: 84 });
-  const idleName = note('calls with no progress');
-  const idleLimit = note(`stop at ${calls[0].allowance}`);
-  place(
-    column([row([row(idle.frames, { gap: 'tight' }), idleLimit]), idleName], { gap: 'normal' }),
-    progressSide,
-    'left',
-  );
+  const amb = ambientClock(s, c);
+  const call1 = s.value(0);
+  const call2 = s.value(0);
+  const call3Ok = s.value(0);
+  const showRem5 = s.value(0);
+  const counterMode = s.value(0); // swaps call 3 from page-5 to page-4 again
+  const askCall4 = s.value(0);
+  const showStop = s.value(0); // STRICTLY AFTER 'second-stall'!
+  const routeMode = s.value(0);
+  const hiSchema = s.value(0);
+  const hiRetry = s.value(0);
+  const hiWrite = s.value(0);
 
-  const fourth = place(label('Admit call 4?', { color: COLOR.mark, size: 32 }), slots[3]);
-  const blocked = place(chip('Stopped', { color: COLOR.fail }), slots[3]);
+  const layer = guardedDynamic(
+    () => 1,
+    (alpha) => {
+      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
+      const nodes = [];
 
-  // The second picture: the line of the operation, with a fault at each of three stations.
-  const b = board();
-  const laneY = b.out[1];
-  const at = [b.out[0] + (b.door[0] - b.out[0]) * 0.4, laneY];
-  const gate = wall(s, { at, top: b.region.top, bottom: laneY + 110 });
-  const ledger = record(
-    [
-      [OP.key, COLOR.op],
-      ['→', 'dim'],
-      [OP.job, COLOR.sure],
-    ],
-    b.recordWidth(0),
-  ).moveTo(b.durableAt(0));
-  const job = record(
-    [
-      [OP.job, COLOR.sure],
-      [OP.state, 'ink'],
-    ],
-    b.recordWidth(1),
-  ).moveTo(b.durableAt(1));
-  const answer = token(OP.job, COLOR.sure);
-  const broken = cross().moveTo(b.crossAt(answer));
-  const unknown = label('timeout', { color: COLOR.fail }).moveTo(b.viewBox.point());
-  const route = (fault, way) =>
-    column(
-      [note(fault, { color: COLOR.fail }), chip(way, { color: COLOR.mark, stroke: COLOR.mark })],
-      { gap: 'tight', align: 'center' },
-    );
-  const routes = [
-    beside(
-      route('schema problem', 'repair the proposal'),
-      [at[0] - 24, laneY],
-      'above',
-      'loose',
-      'right',
-    ),
-    beside(
-      route('transient read', 'bounded retry'),
-      [(at[0] + b.door[0]) / 2, laneY],
-      'under',
-      'loose',
-    ),
-    place(
-      route('write, outcome unknown', 'reconcile by its key'),
-      b.store.rows(2, 'none')[0].inset('normal'),
-      'bottom right',
-    ),
-  ];
-  const bad = token('get_status(??)');
-  const read = token('status?');
-  const lookup = token([[OP.key, COLOR.op]], COLOR.attempt, { tag: 'trace-a2' });
-  for (const node of [bad, read, lookup]) node.moveTo(docked(node, b.out, 'right'));
-  answer.moveTo(docked(answer, b.exit));
-  const lostRead = cross(36).moveTo([(at[0] + b.door[0]) / 2 + 60, laneY]);
+      if (routeMode.value < 0.5) {
+        // 8-slot hard call budget strip centered at y = -185
+        const slotY = -175;
+        const slotW = 148;
+        const slotGap = 24;
+        const totalW = 8 * slotW + 7 * slotGap;
+        const startX = -totalW / 2 + slotW / 2;
 
-  const loop = [
-    budgetName,
-    left[0],
-    ...frames,
-    evidenceName,
-    idleName,
-    idleLimit,
-    ...idle.frames,
-    idle.fills,
-  ];
-  s.add(heading(c.title), loop);
+        nodes.push(
+          txt(
+            'HARD CALL BUDGET (8 SLOTS)',
+            -totalW / 2,
+            slotY - 68,
+            26,
+            COSMOS.muted,
+            'mono',
+            'left',
+          ).opacity(alpha),
+          txt(
+            showRem5.value > 0.5 ? '5 SLOTS REMAINING' : '3 OF 8 USED',
+            totalW / 2,
+            slotY - 68,
+            26,
+            ROLE.agent,
+            'mono',
+            'right',
+          ).opacity(alpha),
+        );
 
-  // Call 1 brings a new page. Call 2 brings the same page again: one more call, and no evidence.
-  const call = (index, after) => {
-    const { node, to, chipOf } = reads[index];
-    return seq(
-      fadeIn(tiles[index], { duration: 0.3, shift: [0, 16] }),
-      travel(node, to, { duration: 0.8 }),
-      calls[index].gainedEvidence
-        ? par(vanish(node), fadeIn(chipOf, { duration: 0.3 }), after)
-        : par(
-            shake(node, { duration: 0.4 }),
-            fadeOut(node, { duration: 0.4 }),
-            indicate(chipOf, { color: COLOR.mark }),
-            after,
-          ),
-    );
-  };
-  const noProgress = (index) => idle.filled.to(calls[index].noProgress, { duration: 0.5 });
-  c.on('useful-evidence', () => s.play(call(0, noProgress(0))));
-  c.swap('useful-evidence', left[0], left[1]);
-  c.on('repeated-page', () => s.play(call(1, noProgress(1))));
-  c.swap('repeated-page', left[1], left[2]);
-  c.on('no-change', () => s.play(indicate(known[0], { color: COLOR.mark })));
+        for (let i = 0; i < 8; i++) {
+          const sx = startX + i * (slotW + slotGap);
+          let label = `slot ${i + 1}`;
+          let col = '#40527a';
+          let filled = 0;
+          if (i === 0 && call1.value > 0.2) {
+            label = 'page-4';
+            col = ROLE.sure;
+            filled = call1.value;
+          } else if (i === 1 && call2.value > 0.2) {
+            label = 'page-4';
+            col = ROLE.mark;
+            filled = call2.value;
+          } else if (i === 2 && (call3Ok.value > 0.2 || counterMode.value > 0.2)) {
+            const isDup = counterMode.value > 0.5;
+            label = isDup ? 'page-4' : 'page-5';
+            col = isDup ? (showStop.value > 0.5 ? ROLE.fail : ROLE.mark) : ROLE.sure;
+            filled = Math.max(call3Ok.value, counterMode.value);
+          } else if (i === 3 && askCall4.value > 0.3) {
+            label = showStop.value > 0.5 ? 'BLOCKED' : 'call 4?';
+            col = showStop.value > 0.5 ? ROLE.fail : ROLE.mark;
+            filled = 0.5;
+          }
+          nodes.push(
+            rect(slotW, 74, {
+              radius: 12,
+              fill: hexAlpha(col, (filled > 0.1 ? 0.2 : 0.06) * alpha),
+              stroke: hexAlpha(col, (filled > 0.1 ? 0.9 : 0.4) * alpha),
+              width: filled > 0.1 ? 3 : 2,
+            })
+              .at(sx, slotY)
+              .glow(filled > 0.5 ? 8 : 0, col),
+            txt(label, sx, slotY, 26, filled > 0.1 ? col : COSMOS.muted, 'mono', 'center').opacity(
+              alpha,
+            ),
+          );
+        }
 
-  // Call 3 brings a new page: the counter is empty again. The budget went down each time.
-  c.on('new-page', () => s.play(call(2, noProgress(2))));
-  c.swap('new-page', left[2], left[3]);
-  c.on('other-page', () =>
-    s.play(
-      vanish([...tiles[2], known[1]]),
-      appear(otherTile),
-      idle.filled.to(repeatLast.noProgress, { duration: 0.5 }),
-    ),
-  );
-  c.show('admit-four', fourth);
-  c.swap('second-stall', fourth, blocked);
-  c.on('finite-calls', () =>
-    s.play(
-      indicate(left[3], { color: COLOR.mark }),
-      ...frames
-        .slice(calls.length)
-        .map((frame) => indicate(frame, { color: COLOR.mark, scale: 1 })),
-    ),
-  );
+        // Stall counter gauge (left) vs Evidence readout (right) at y = 75
+        const midY = 75;
+        const isCounter = counterMode.value > 0.5;
+        const stallCount = isCounter
+          ? showStop.value > 0.5
+            ? 2
+            : 1
+          : call3Ok.value > 0.5
+            ? 0
+            : call2.value > 0.5
+              ? 1
+              : 0;
 
-  // Three kinds of fault, at three stations of the line, each with its own route.
-  c.onBeat(4, () =>
-    s.play(
-      vanish([
-        ...loop.filter((node) => node !== left[0]),
-        left[3],
-        ...tiles.flat(),
-        ...known,
-        ...otherTile,
-        blocked,
-      ]),
-      appear([b.base, gate.nodes, ledger, job, broken, unknown]),
-    ),
-  );
-  b.close(c);
-  c.show('schema-route', routes[0]);
-  c.on('schema-route', () =>
-    s.play(
-      seq(
-        travel(bad, gate.before(bad), { duration: 0.7 }),
-        shake(bad, { duration: 0.3 }),
-        moveTo(bad, docked(bad, b.out, 'right'), { duration: 0.6 }),
-        vanish(bad),
-      ),
-    ),
-  );
-  c.show('retry-route', routes[1]);
-  c.on('retry-route', () =>
-    s.play(
-      seq(
-        par(gate.open.to(1, { duration: 0.3 }), travel(read, gate.after(read), { duration: 0.9 })),
-        fadeIn(lostRead, { duration: 0.2 }),
-        shake(read, { duration: 0.3 }),
-        fadeOut(lostRead, { duration: 0.3 }),
-        moveTo(read, docked(read, b.door), { duration: 0.6 }),
-        b.absorb(read),
-        gate.open.to(0, { duration: 0.3 }),
-      ),
-    ),
-  );
-  c.show('unknown-write-route', routes[2]);
-  c.hide('unknown-write-route', unknown);
-  c.on('unknown-write-route', () =>
-    s.play(
-      seq(
-        par(
-          gate.open.to(1, { duration: 0.3 }),
-          travel(lookup, docked(lookup, b.door), { duration: 0.9 }),
+        nodes.push(
+          txt(
+            'CONSECUTIVE STALLS (LIMIT 2)',
+            -420,
+            midY - 78,
+            26,
+            COSMOS.muted,
+            'mono',
+            'center',
+          ).opacity(alpha),
+        );
+        for (let k = 0; k < 2; k++) {
+          const cx = -500 + k * 160;
+          const lit = k < stallCount;
+          const isPending = isCounter && k === 1 && showStop.value < 0.5;
+          const cCol = lit
+            ? stallCount === 2
+              ? ROLE.fail
+              : ROLE.mark
+            : isPending
+              ? ROLE.mark
+              : '#40527a';
+          nodes.push(
+            circle(42, {
+              fill: hexAlpha(cCol, (lit ? 0.28 : 0.08) * alpha),
+              stroke: cCol,
+              width: lit || isPending ? 3.5 : 2,
+              dash: isPending ? [6, 5] : null,
+            })
+              .at(cx, midY + 6)
+              .glow(lit ? 12 : 3, cCol),
+            txt(
+              isPending ? '?' : lit ? String(k + 1) : '0',
+              cx,
+              midY + 6,
+              32,
+              cCol,
+              'mono',
+              'center',
+            ).opacity(alpha),
+          );
+        }
+
+        // Right side: Distinct evidence & decision state
+        const rightX = 360;
+        if (isCounter) {
+          if (showStop.value > 0.5) {
+            nodes.push(
+              glowPill('STOP HERE · 2/2 STALLS', rightX, midY - 22, ROLE.fail, {
+                size: 30,
+                alpha: showStop.value * alpha,
+              }),
+              txt(
+                'Hand off page-4 and explain why the run stopped.',
+                rightX,
+                midY + 52,
+                26,
+                COSMOS.ink,
+                'sans',
+                'center',
+              ).opacity(showStop.value * alpha),
+            );
+          } else {
+            nodes.push(
+              txt(
+                'Call 3 returns page-4 again. 5 slots remain.',
+                rightX,
+                midY - 38,
+                27,
+                COSMOS.ink,
+                'sans',
+                'center',
+              ).opacity(alpha),
+              txt('Would you admit call 4?', rightX, midY + 34, 34, ROLE.mark, 'serif', 'center')
+                .glow(7, ROLE.mark)
+                .opacity((0.75 + 0.25 * pulse) * alpha),
+            );
+          }
+        } else if (call3Ok.value > 0.5) {
+          nodes.push(
+            glowPill('NEW EVIDENCE: page-5', rightX, midY - 24, ROLE.sure, {
+              size: 30,
+              alpha: call3Ok.value * alpha,
+            }),
+            txt(
+              'Stall counter resets to 0 · hard budget stays at 5 left.',
+              rightX,
+              midY + 50,
+              26,
+              ROLE.sure,
+              'sans',
+              'center',
+            ).opacity(call3Ok.value * alpha),
+          );
+        } else {
+          nodes.push(
+            txt(
+              call2.value > 0.5
+                ? '2 calls used · 1 distinct page · 1 stall'
+                : '1 call used · page-4 accepted as new evidence',
+              rightX,
+              midY + 6,
+              28,
+              call2.value > 0.5 ? ROLE.mark : ROLE.sure,
+              'mono',
+              'center',
+            ).opacity(alpha),
+          );
+        }
+
+        nodes.push(
+          txt(
+            'New evidence resets only the stall counter, never the hard call cap.',
+            0,
+            318,
+            27,
+            COSMOS.muted,
+            'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      } else {
+        // Beat 5: Three separate recovery routes driven by distinct observations
+        const ra = routeMode.value * alpha;
+        const cols = [
+          {
+            x: -560,
+            top: 'SCHEMA',
+            bot: 'ERROR',
+            obs: 'Malformed proposal',
+            act: '1 repair + re-admit',
+            col: ROLE.mark,
+            hi: hiSchema.value,
+          },
+          {
+            x: 0,
+            top: 'TRANSIENT',
+            bot: 'READ',
+            obs: '503 / read timeout',
+            act: 'Retry within budget',
+            col: ROLE.agent,
+            hi: hiRetry.value,
+          },
+          {
+            x: 560,
+            top: 'UNKNOWN',
+            bot: 'WRITE',
+            obs: 'Lost write receipt',
+            act: 'Reconcile by op key',
+            col: ROLE.op,
+            hi: hiWrite.value,
+          },
+        ];
+
+        nodes.push(
+          txt(
+            'WHERE A RUN STOPS DECIDES THE NEXT ACTION',
+            0,
+            -255,
+            28,
+            COSMOS.ink,
+            'mono',
+            'center',
+          ).opacity(ra),
+        );
+
+        for (const item of cols) {
+          const active = item.hi > 0.4;
+          nodes.push(
+            circle(96, {
+              fill: hexAlpha(item.col, (active ? 0.24 : 0.1) * ra),
+              stroke: item.col,
+              width: active ? 4.2 : 2.4,
+            })
+              .at(item.x, -75)
+              .glow(active ? 14 : 5, item.col),
+            txt(item.top, item.x, -92, 26, item.col, 'mono', 'center').opacity(ra),
+            txt(item.bot, item.x, -56, 26, COSMOS.ink, 'mono', 'center').opacity(ra),
+            line([item.x, 28], [item.x, 118], {
+              stroke: item.col,
+              width: 3.5,
+            }).opacity(ra),
+            glowDot(item.x, 118, { radius: 8, color: item.col, glow: 10, opacity: ra }),
+            txt(item.obs, item.x, 165, 26, COSMOS.muted, 'sans', 'center').opacity(ra),
+            glowPill(item.act, item.x, 240, item.col, { size: 26, alpha: ra }),
+          );
+        }
+        nodes.push(
+          txt(
+            'Each recovery branch relies on a different verified observation.',
+            0,
+            345,
+            28,
+            COSMOS.ink,
+            'sans',
+            'center',
+          ).opacity(ra),
+        );
+      }
+
+      if (showStop.value > 0.5 && routeMode.value < 0.5) {
+        nodes.push(glowCross(-260, -175, 26, ROLE.fail, 0)); // placeholder no-op kept clean
+      }
+
+      nodes.push(
+        lowerFooter(
+          'PROGRESS GUARD + HARD CALL CAP',
+          routeMode.value > 0.5
+            ? '3 FAILURE STAGES -> 3 ROUTES'
+            : showStop.value > 0.5
+              ? '2 STALLS -> STOP EARLY'
+              : 'NEW EVIDENCE RESETS STALLS ONLY',
+          { accent: showStop.value > 0.5 && routeMode.value < 0.5 ? ROLE.fail : ROLE.sure, alpha },
         ),
-        b.absorb(lookup),
-        indicate(ledger, { color: COLOR.mark }),
-        b.arrive(answer, { duration: 1.1 }),
-      ),
-    ),
+      );
+
+      return nodes;
+    },
   );
-  c.on('separate-routes', () =>
-    s.play(...routes.map((made) => indicate(made.nodes[1], { color: COLOR.mark, scale: 1.08 }))),
+
+  s.add(cinemaAtmosphere(ROLE.sure, ROLE.mark), title, layer);
+
+  playCue(s, c, 'useful-evidence', (d) => s.play(call1.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'repeated-page', (d) => s.play(call2.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'no-change', (d) => s.play(call2.to(1, { duration: d })), { dur: 0.35 });
+  playCue(s, c, 'new-page', (d) => s.play(call3Ok.to(1, { duration: d })), { dur: 0.5 });
+  playCue(s, c, 'finite-calls', (d) => s.play(showRem5.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'other-page', (d) => s.play(counterMode.to(1, { duration: d })), { dur: 0.5 });
+  playCue(s, c, 'admit-four', (d) => s.play(askCall4.to(1, { duration: d })), { dur: 0.45 });
+  // Strict prediction withholding: reveal STOP ONLY AFTER 'second-stall'!
+  playCue(s, c, 'second-stall', (d) => s.play(showStop.to(1, { duration: d })), {
+    after: true,
+    dur: 0.45,
+  });
+  playCue(
+    s,
+    c,
+    'schema-route',
+    (d) => s.play(routeMode.to(1, { duration: d }), hiSchema.to(1, { duration: d })),
+    {
+      dur: 0.5,
+    },
+  );
+  playCue(s, c, 'retry-route', (d) => s.play(hiRetry.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'unknown-write-route', (d) => s.play(hiWrite.to(1, { duration: d })), {
+    dur: 0.45,
+  });
+  playCue(
+    s,
+    c,
+    'separate-routes',
+    (d) =>
+      s.play(
+        hiSchema.to(1, { duration: d }),
+        hiRetry.to(1, { duration: d }),
+        hiWrite.to(1, { duration: d }),
+      ),
+    {
+      dur: 0.4,
+    },
   );
 }

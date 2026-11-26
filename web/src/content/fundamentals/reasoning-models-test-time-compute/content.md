@@ -243,7 +243,7 @@ Early PRM pruning cuts wasted decode work (~30% or more on failed branches), at 
 
 ## Training models to reason with RLVR
 
-Rather than relying purely on external search, models can internalize reflection, checking, and backtracking directly via **Reinforcement Learning with Verifiable Rewards (RLVR)**, as in DeepSeek-R1-Zero and the four-stage DeepSeek-R1 pipeline (cold-start SFT, verifiable GRPO, rejection-sampled SFT on fresh `V3-Base` weights, and broad RL).[^deepseekai2025] See [RLVR & Verifiable Rewards Training](/learn/rlvr-verifiable-rewards-training) for the full GRPO derivation, group-relative advantage math, and training mechanics.
+Rather than relying purely on external search, models can internalize reflection, checking, and backtracking directly via **Reinforcement Learning with Verifiable Rewards (RLVR)**, as in DeepSeek-R1-Zero and the four-stage DeepSeek-R1 pipeline (cold-start SFT, verifiable GRPO, rejection-sampled SFT on fresh `V3-Base` weights, and broad RL).[^deepseekai2025] As developed in [RLVR & Verifiable Rewards Training](/learn/rlvr-verifiable-rewards-training), GRPO computes group-relative advantages directly from verifiable outcomes without a separate critic network.
 
 ## Compute-optimal test-time scaling and routing
 
@@ -277,7 +277,7 @@ $$
 \text{TTFT}_{\text{visible}} \approx t_{\text{prefill}}(P) + H \cdot t_{\text{decode}}
 $$
 
-At `80 tokens/s`, $H = 1,024$ hidden tokens delay visible output to `12.8 s` despite a `200 ms` prefill, capping hidden thought at `224` tokens under a `3,000 ms` TTFT budget. Because hidden tokens bill at output rates, 2,700 hidden plus 300 visible tokens cost 10x a direct answer.
+At `80 tokens/s`, $H = 1,024$ hidden tokens delay visible output to `13.0 s` (`200 ms` prefill plus `12.8 s` hidden decode), capping hidden thought at `224` tokens under a `3,000 ms` TTFT budget. Because hidden tokens bill at output rates, 2,700 hidden plus 300 visible tokens cost 10x a direct answer.
 
 <!-- leetllm: test, output=show, deps=numpy, id=kv-prefix-and-ttft -->
 ```python title="kv-prefix-and-ttft.py"

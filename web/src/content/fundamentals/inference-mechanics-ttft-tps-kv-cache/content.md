@@ -46,7 +46,7 @@ Your phone buzzes. Users say the assistant feels slow. You open the dashboards a
 
 Both observations are right, and that is the core puzzle of LLM serving. "Slow" bundles at least two distinct complaints coming from two different phases of the same request. The initial wait before the first token and the streaming cadence after it hit different hardware walls, respond to different optimizations, and often trade off against one another.
 
-This lesson traces one request through a GPU serving engine. You already know what a single forward step computes from the [decoding lesson](/learn/decoding-strategies-greedy-beam-nucleus). Now that step has to share finite memory bandwidth, Tensor Core compute, and HBM capacity across live traffic. By the end you will read a latency trace cleanly, place prefill and decode on a GPU roofline, size a <span data-glossary="kv-cache">KV cache</span> pool accurately, and choose between chunked prefill, disaggregation, and cache quantization.
+Here we trace one request through a GPU serving engine. You already know what a single forward step computes from [Decoding Strategies](/learn/decoding-strategies-greedy-beam-nucleus). Now that step has to share finite memory bandwidth, Tensor Core compute, and HBM capacity across live traffic. By the end you will read a latency trace cleanly, place prefill and decode on a GPU roofline, size a <span data-glossary="kv-cache">KV cache</span> pool accurately, and choose between chunked prefill, disaggregation, and cache quantization.
 
 ## Two clocks, not one
 
@@ -551,15 +551,15 @@ When the pager goes off, start from what users actually feel, name the clock and
     "explanation": "With one chunk between decode turns, the chat waits 20 + 12 = 32 ms for its next token. Two consecutive chunks push a gap to 52 ms. Four consecutive chunks push it to 92 ms. Giving decode the first turn delivers one token after 12 ms, but the next gap still reaches 92 ms. Splitting the prompt creates opportunities to run decode. The order determines whether the chat gets those turns in time."
   },
   {
-    "question": "Chat A is streaming when the shared worker spends 95 ms on prefill for request B. A has a decode turn ready throughout that wait. In a replay on separate workers, B emits its first token, copies its state for 20 ms, then starts decoding its second token. Which interpretation should the team use when comparing the traces?",
+    "question": "Chat A is streaming when the shared worker spends 110 ms on prefill for request B. A has a decode turn ready throughout that wait. In a replay on separate workers, B emits its first token, copies its state for 25 ms, then starts decoding its second token. Which interpretation should the team use when comparing the traces?",
     "options": [
-      "Credit A with a 75 ms shorter token gap after subtracting the copy time from the shared-worker delay.",
-      "Charge the 95 ms wait to B’s first-token latency and the 20 ms copy to A’s next token gap.",
-      "Charge the 95 ms wait to A’s next token gap and the 20 ms copy to B’s first-token latency.",
-      "Charge the 95 ms wait to A’s next token gap and the 20 ms copy to B’s gap between tokens one and two."
+      "Credit A with an 85 ms shorter token gap after subtracting the copy time from the shared-worker delay.",
+      "Charge the 110 ms wait to B’s first-token latency and the 25 ms copy to A’s next token gap.",
+      "Charge the 110 ms wait to A’s next token gap and the 25 ms copy to B’s first-token latency.",
+      "Charge the 110 ms wait to A’s next token gap and the 25 ms copy to B’s gap between tokens one and two."
     ],
-    "answer": "Charge the 95 ms wait to A’s next token gap and the 20 ms copy to B’s gap between tokens one and two.",
-    "explanation": "A waits for its next decode turn while B holds the shared worker. In the replay, B has already emitted its first token when its state starts moving. The copy delays B’s second token. Charging the copy to B’s first-token latency places it before it happened. Charging the wait to B and the copy to A swaps the affected requests. The 75 ms subtraction combines two requests’ clocks. To choose a layout, compare first-token waits, tail gaps, correct on-time replies per second, and total cost under the same offered load."
+    "answer": "Charge the 110 ms wait to A’s next token gap and the 25 ms copy to B’s gap between tokens one and two.",
+    "explanation": "A waits for its next decode turn while B holds the shared worker. In the replay, B has already emitted its first token when its state starts moving. The copy delays B’s second token. Charging the copy to B’s first-token latency places it before it happened. Charging the wait to B and the copy to A swaps the affected requests. The 85 ms subtraction combines two requests’ clocks. To choose a layout, compare first-token waits, tail gaps, correct on-time replies per second, and total cost under the same offered load."
   },
   {
     "question": "An inference service uses quantized weights and stores its keys and values in BF16 (16 bits per element). Long chats fill the KV pool, so the service rejects new chats even though active chats meet their latency targets. The engine supports each change below. Which change would reduce the raw KV bytes per chat at the same reserved length?",

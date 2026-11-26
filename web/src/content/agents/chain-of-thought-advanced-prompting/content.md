@@ -208,8 +208,8 @@ def canonicalize(text: str) -> str | None:
     if not match:
         return None
     cleaned = match.group(1).replace(",", "")
-    if cleaned.endswith(".0"):
-        cleaned = cleaned[:-2]
+    if "." in cleaned:
+        cleaned = cleaned.split(".", 1)[0]
     return cleaned
 
 

@@ -334,8 +334,8 @@ for bits in (8, 4, 2):
 > **Common mistake:** Never sign off on a 4-bit checkpoint using prose perplexity alone! A tiny 0.05-point bump in WikiText perplexity can hide broken JSON schemas, hallucinated tool arguments, or failing unit tests. Always **reload the exported artifact from disk**, pin tokenizer/template/decoding settings, and run paired evaluations across executable code, structured outputs, TTFT, p95 ITL, and peak VRAM.
 
 <figure>
-  <img src="illustrations/_generated/quantization_decision_dark.png" alt="The same held-out inputs pass through a source baseline and an exported, reloaded candidate with matching tokenizer, chat template, and decoding controls. Paired bars on a shared axis compare baseline and 4-bit outputs for three held-out columns: minus 2.460 versus minus 2.457 (difference minus 0.003), minus 3.100 versus minus 2.714 (difference minus 0.386), and 6.800 versus 6.571 (difference plus 0.229). Artifact identity, task quality, and serving profile are checked as three separate evidence streams." />
-  <figcaption>Paired comparison on shared held-out inputs exposes uneven drift (column $x_1$ shifts by 0.386 while $x_0$ shifts by just 0.003).</figcaption>
+  <img src="illustrations/_generated/quantization_decision_dark.png" alt="The same held-out inputs pass through a source baseline and an exported, reloaded candidate with matching tokenizer, chat template, and decoding controls. Paired bars on a shared axis compare baseline and 4-bit outputs for three held-out columns: minus 2.460 versus minus 2.457 (drift plus 0.003), minus 3.100 versus minus 2.714 (drift plus 0.386), and 6.800 versus 6.571 (drift minus 0.229). Artifact identity, task quality, and serving profile are checked as three separate evidence streams." />
+  <figcaption>Paired comparison on shared held-out inputs exposes uneven drift (column $x_1$ shifts by +0.386 while $x_0$ shifts by just +0.003).</figcaption>
 </figure>
 
 | Symptom after quantization | Check first |

@@ -5,9 +5,9 @@
   "slug": "how-we-built-leetllm",
   "author": { "name": "LeetLLM Team" },
   "publishedAt": "2026-06-21",
-  "updatedAt": "2026-11-23",
-  "verifiedAt": "2026-11-23",
-  "refreshAfter": "2026-12-23",
+  "updatedAt": "2026-11-25",
+  "verifiedAt": "2026-11-25",
+  "refreshAfter": "2026-12-25",
   "excerpt": "Inside LeetLLM's Git-backed curriculum: reviewable article bundles, generated figures, user-owned state, and the checks between a source edit and a deployed page.",
   "tags": ["LeetLLM", "Content Engineering", "AI Engineering", "Production", "Education"],
   "coverImage": "illustrations/_generated/content_pipeline_dark.png",
@@ -18,9 +18,9 @@
 
 Correct a sentence in a lesson and the work can look finished. But the diagram may still describe the old explanation. Its caption may contradict both versions. A reader may receive an older page from the cache, pointing to an older image.
 
-LeetLLM's architecture has to keep those pieces connected. The canonical curriculum lives in Git, figures are built from source, and deployment packages the pages with their assets. User progress and other account data take a separate path through Supabase. This post describes the implementation checked against the repository on November 23, 2026. Production behavior needs its own live verification.
+LeetLLM's architecture has to keep those pieces connected. The canonical curriculum lives in Git, figures are built from source, and deployment packages the pages with their assets. User progress and other account data take a separate path through Supabase. This post describes the implementation checked against the repository on November 25, 2026. Production behavior needs its own live verification.
 
-The local curriculum loader returns 199 visible lessons across 15 phases. Blog posts, glossary entries, and coding practice are separate collections. The engineering problem is making each lesson easy to correct while keeping its examples, navigation, and rendered output in sync.
+The local curriculum loader returns 102 visible lessons across 11 phases. Blog posts, glossary entries, and coding practice are separate collections. The engineering problem is making each lesson easy to correct while keeping its examples, navigation, and rendered output in sync.
 
 ## A directory per lesson
 
@@ -69,7 +69,7 @@ Two readers can see the same canonical lesson and have different bookmarks, note
 
 The app layer is Next.js and React with TypeScript, Tailwind CSS, and shared UI components. The repository currently pins Next.js 16.4.6 and React 19.3.1. Supabase handles authentication and persisted user data. A standalone Next.js container runs on Cloud Run, with Cloudflare in front of the public site, and untrusted coding practice runs in a separate zero-secret Cloud Run sandbox service. Measure throughput and hosting cost separately from these implementation details.
 
-Search deliberately stays close to the canonical source. `learn-search.ts` builds an in-process index from `getQuestions()`, scoring normalized titles, descriptions, metadata, and body text. It removes fenced code and display math before scoring the body. There is no embedding model or separate search service in that path, and `/api/search/learn` returns `Cache-Control: no-store`.
+Search deliberately stays close to the canonical source. In production, `learn-search.ts` loads a prebuilt JSON index (`learn-search-index.json`), and in development it builds the same index in process from `getQuestions()`, scoring normalized titles, descriptions, metadata, and body text. It removes fenced code, display math, and inline math before scoring the body. There is no embedding model or separate search service in that path, and `/api/search/learn` returns `Cache-Control: public, max-age=60, s-maxage=3600, stale-while-revalidate=600`.
 
 That is enough machinery for lexical matching. The endpoint searches lessons and excludes the blog. Because the index scores normalized words rather than semantic similarity, conceptual synonyms can be missed. Add a new search backend when observed failures show that this approach falls short.
 
@@ -206,13 +206,6 @@ stale_caption_old_png  -> PASS
 ```
 <!-- leetllm: output:end -->
 
-<!-- leetllm: output -->
-```text
-synced                 -> PASS
-missing_ref            -> unknown citation: unregistered_key
-stale_caption_old_png  -> PASS
-```
-
 Notice that `stale_caption_old_png` passes every automated check because the old PNG matches the checkout manifest; rebuilding figures from source and inspecting the rendered images catches that drift.
 
 ## The container must include article assets
@@ -253,10 +246,10 @@ Rollback can fail, and the script reports that failure. Cache purge is best-effo
 The source configuration sets public learn, blog, and practice routes to this policy:
 
 ```http title="Configured public-page cache policy"
-Cache-Control: public, s-maxage=14400, stale-while-revalidate=3600, max-age=0
+Cache-Control: public, s-maxage=86400, stale-while-revalidate=86400, max-age=0
 ```
 
-The intended shared-cache freshness interval is four hours; `max-age=0` asks browsers to revalidate stored responses immediately. Verify edge behavior by inspecting route rendering, final response headers, and Cloudflare configuration. Cloudflare's current Origin Cache Control documentation says `s-maxage` prevents stale serving without revalidation. An extra stale-delivery hour therefore depends on the actual edge behavior under this configuration.[^cloudflare_origin_cache_control]
+The intended shared-cache freshness interval is 24 hours; `max-age=0` asks browsers to revalidate stored responses immediately. Verify edge behavior by inspecting route rendering, final response headers, and Cloudflare configuration. Cloudflare's current Origin Cache Control documentation says `s-maxage` prevents stale serving without revalidation. An extra 24-hour stale-delivery window therefore depends on the actual edge behavior under this configuration.[^cloudflare_origin_cache_control]
 
 Public Learn HTML and React Server Component navigation requests take a short path through `proxy.ts`. For `GET` and `HEAD` on `/learn` and a single lesson path, the proxy returns before Supabase session handling, even when the browser carries auth cookies. These pages contain shared lesson content; the client auth provider resolves account state and refreshes the session separately. Reading a lesson therefore doesn't wait for a remote authentication round trip.
 

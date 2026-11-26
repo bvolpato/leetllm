@@ -1,613 +1,625 @@
-// Scene `transfer`: the whole board one more time, and one last batch.
-//
-// The picture: the board. The three reads overlap on the lanes and the cards seal the packet, while
-// three coupled steps in the band cannot overlap. The parts of the contract light in turn. Then a
-// new batch arrives as v3, v4, v3 with all lamps lit: who repairs it? The join refuses the health
-// card. The health worker refreshes it, and the join checks it again. The saved packet waits for
-// review while a separate writer test shows the original result and its replay.
+// Scene 11 (transfer): "Three receipts. Can Vega proceed?"
+// Grand finale transfer challenge with orbiting 3D DAG rig + 4 cleanly cross-swapped stages:
+//   Stage 0 (Beat 0): Independent parallel reads on one ticket vs 3 coupled sequential edits
+//   Stage 1 (Beat 1-2): End-to-end provenance trace + readiness board reset
+//   Stage 2 (Beat 3): Double prediction transfer challenge (v3/v4/v3 mixed batch -> v3 repair Health vs v4 repair Eval+Policy + duplicate Health rejection) with strict c.after gating!
+//   Stage 3 (Beat 4): Live Vega gauge at 0% awaiting review vs separate v4 writer fixture op-18 replay (change-1, effects=1)
 import {
-  arrow,
-  assertEqual,
-  boxOf,
-  column,
-  delay,
-  dynamic,
-  dot,
-  grid,
-  indicate,
-  lagged,
-  linear,
-  par,
-  pictogram,
-  place,
-  pulse,
-  rect,
-  row,
-  seq,
-  spin,
-  to,
-} from 'vizmatic/stage';
-import { readSchedule } from '../../../films/agent-orchestration/arithmetic.mjs';
-import { REQUEST, values } from '../../../films/agent-orchestration/fixtures.mjs';
-import {
-  canonicalDigest,
-  RECEIPTS,
-  V4_RECEIPTS,
+  COSMOS,
+  REQUEST,
+  ROLE,
+  buildOrchestrationDag3d,
+  cinemaAtmosphere,
+  crossSwap,
   freshPacket,
-  proposal,
+  glowArrow,
+  glowDot,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  line,
+  lumBar,
+  orbitScene,
   reconciled,
   reconciledEffects,
   recorded,
   recordedEffects,
-} from '../packet.mjs';
-import { chip, display, heading, label, mono, note, tint } from '../../kit-narrated.mjs';
-import {
-  BAND,
-  BRANCH_COLOR,
-  CORNER,
-  MARK,
-  QUIET,
-  SMALL,
-  VALID,
-  WRONG,
-  board,
-  clock,
-  cardX,
-  laneY,
+  renderArcDial,
+  rule,
+  runAmbientPhase,
+  shortHash,
+  tweenCue,
+  txt,
 } from '../parts.mjs';
 
-const [EVAL, HEALTH, POLICY] = [0, 1, 2];
-/** The seconds of each read, from the model: eval, health, policy. */
-const SECONDS = readSchedule(0).branches.map((branch) => branch.duration);
-const LONGEST = Math.max(...SECONDS);
-/** The illustrated repair assumes this target revision. The film model does not fetch it. */
-// These are supplied snapshots. A refresh reads the selected revision's receipt from its snapshot.
-const v3 = RECEIPTS;
-const v4 = V4_RECEIPTS;
-const mixed = [v3[EVAL], v4[HEALTH], v3[POLICY]];
-const BATCH = mixed.map((receipt) => receipt.version);
-const refreshed = [v4[EVAL], mixed[HEALTH], v4[POLICY]];
-const rebuilt = proposal(refreshed, { ...REQUEST, version: freshPacket.version });
-assertEqual(rebuilt, freshPacket, 'the rebuilt v4 proposal matches the verified fixture');
-
 export default function transfer(s, c) {
-  const b = board(s);
-  const { ticketFrame, checks, plates, fan, slotNames, packetFrame, writer, steps, targetFrame } =
-    b.nodes;
-  const k = clock(
-    s,
-    SECONDS.map((length, lane) => ({ lane, length, color: BRANCH_COLOR[lane] })),
-  );
-  k.now.set(0);
-  b.card.forEach((card) => card.pos.set(2));
-  s.add(heading(c.title), k.bars);
-  b.enter(c);
+  const phase = s.value(0);
+  const dagStage = s.value(0.5);
+  const st0 = s.value(1); // Beat 0: Independent vs coupled
+  const st1 = s.value(0); // Beats 1-2: Provenance trace & board readiness
+  const st2 = s.value(0); // Beat 3: v3/v4/v3 double prediction transfer challenge
+  const st3 = s.value(0); // Beat 4: Separate v4 writer op-18 replay + live gauge 0%
 
-  // The board will hold the unsigned v4 packet. The separate replay test uses a supplied approval.
-  const [packetRoom, detailRoom] = BAND.rows([1, 3], 'normal');
-  const trusted = place(
-    column([note('assumed target'), mono(`v${REQUEST.version}`, { color: MARK })], {
-      gap: 'tight',
-    }),
-    CORNER,
-    'top left',
-  );
-  const short = (hash) => `#${hash.slice(0, 4)}`;
-  const comparisons = RECEIPTS.flatMap(({ branch, digest: supplied }, i) => {
-    const resolved = canonicalDigest(values[branch]);
-    assertEqual(supplied, resolved, `fresh ${branch} receipt agrees with its source`);
-    return [
-      label(branch, { size: 36, color: BRANCH_COLOR[i] }),
-      mono(short(supplied), { size: 36 }),
-      mono(short(resolved), { size: 36, color: VALID }),
-    ];
-  });
-  const sourceHeaders = [note('branch'), note('receipt hash'), note('fixture value hash')];
-  const sourceInputs = [...sourceHeaders, ...comparisons.filter((_, i) => i % 3 !== 2)];
-  const resolvedHashes = comparisons.filter((_, i) => i % 3 === 2);
-  const sources = place(
-    grid([...sourceHeaders, ...comparisons], {
-      columns: 3,
-      gap: ['normal', 'wide'],
-      align: 'left',
-      even: true,
-    }),
-    BAND,
-    'left',
-  );
-  const trustedV4 = place(
-    column([note('assumed target'), mono(`v${rebuilt.version}`, { color: MARK })], {
-      gap: 'tight',
-    }),
-    CORNER,
-    'top left',
-  );
-  const v4Title = place(label('Same incoming batch', { size: 42 }), packetRoom, 'left');
-  const v4Question = place(display('Which two need a fresh read?'), detailRoom, 'left');
-  const newReview = place(
-    label('Vega’s packet  ·  awaiting review', { size: 38, color: MARK }),
-    packetRoom,
-    'left',
-  );
-  const [headerRoom, middleRoom, bottomRoom] = detailRoom.inset('normal').rows([3, 4, 3], 'tight');
-  // The alternative has its own tray. Its receipts never enter the repaired batch on the board.
-  const alternativeFrame = rect(detailRoom.width, detailRoom.height, {
-    radius: 14,
-    stroke: QUIET,
-    width: 2,
-    fill: null,
-  }).at(detailRoom.cx, detailRoom.cy);
-  const alternativeTitle = place(
-    row([label('Alternative batch'), note(`${REQUEST.request} / v${REQUEST.version}`)]),
-    headerRoom,
-    'left',
-  );
-  const alternativeCards = [EVAL, HEALTH, HEALTH, POLICY].map((lane) =>
-    chip(RECEIPTS[lane].branch, { color: BRANCH_COLOR[lane], stroke: BRANCH_COLOR[lane] }),
-  );
-  place(row(alternativeCards, { gap: 'normal' }), middleRoom, 'left');
-  const refused = place(label('Batch refused', { color: WRONG }), bottomRoom, 'left');
-  const testFrame = rect(detailRoom.width, detailRoom.height, {
-    radius: 14,
-    stroke: QUIET,
-    width: 2,
-    fill: 'surface',
-  })
-    .at(detailRoom.cx, detailRoom.cy)
-    .zIndex(-1);
-  const [fixtureLabel, fixtureStatus] = headerRoom.columns([1, 1.7], 'normal');
-  const testTitle = place(label('Writer fixture', { size: 38 }), fixtureLabel, 'left');
-  const suppliedApproval = place(
-    mono(`approved  v${freshPacket.version}  ·  ${freshPacket.traffic}%`, {
-      color: VALID,
-      size: 34,
-    }),
-    fixtureStatus,
-    'right',
-  );
-  const lostReply = place(note('reply lost', { color: MARK }), fixtureStatus, 'left');
-  const testRow = (room, action, result, effects) => {
-    const [call, key, change, count] = room.columns([1, 1, 1.3, 1], 'normal');
-    return [
-      place(label(action, { size: 34 }), call, 'left'),
-      place(mono(result.operation, { size: 34 }), key, 'left'),
-      place(mono(result.change, { size: 34, color: VALID }), change, 'left'),
-      place(note(`effects ${effects}`), count, 'left'),
-    ];
-  };
-  const firstCall = testRow(middleRoom, 'First call', recorded, recordedEffects);
-  const replay = testRow(bottomRoom, 'Replay', reconciled, reconciledEffects);
+  // Beat 0
+  const ticketLit = s.value(0);
+  const stableLit = s.value(0);
+  const valResLit = s.value(0);
+  const coupledLit = s.value(0);
+  const noOverlapLit = s.value(0);
 
-  // Beat 0. The reads overlap, because their inputs are stable. Coupled steps cannot.
-  const overlap = c.cue('transfer-construct-0');
-  c.on('transfer-construct-0', () =>
-    s.play(
-      ...k.spans.map((span) => span.shown.to(1, { duration: 0.3 })),
-      k.now.to(LONGEST, { duration: overlap.end - overlap.start, ease: linear }),
-      ...SECONDS.map((length, i) =>
-        delay(
-          b.gate[i].lamp.to(1, { duration: 0.15 }),
-          ((overlap.end - overlap.start) * length) / LONGEST,
-        ),
-      ),
-    ),
-  );
-  c.on('stable-inputs', () =>
-    s.play(
-      indicate(ticketFrame, { color: MARK, scale: 1 }),
-      ...fan.map((edge) => edge.pulse({ color: MARK })),
-    ),
-  );
-  c.on('validation-result', () =>
-    s.play(
-      seq(
-        par(
-          ...k.spans.map((span) => span.shown.to(0, { duration: 0.3 })),
-          ...b.gate.map((gate) => gate.open.to(1, { duration: 0.3 })),
-        ),
-        par(...b.card.map((card) => card.shown.to(1, { duration: 0.3 }))),
-        par(...b.card.map((card) => card.read.to(3, { duration: 0.8 }))),
-      ),
-    ),
-  );
-  c.after('validation-result', () => {
-    b.card.forEach((card) => {
-      card.read.set(3);
-      card.verdict.set(1);
-    });
-    b.packet.seal.set(1);
+  // Beats 1-2
+  const traceLit = s.value(0);
+  const askRead = s.value(0);
+  const askUpd = s.value(0);
+  const branchCon = s.value(0);
+  const effBound = s.value(0);
+  const curPol = s.value(0);
+  const exactApp = s.value(0);
+  const repSafe = s.value(0);
+  const effRes = s.value(0);
+  const liveZero = s.value(0);
+  const boardReady = s.value(0);
+  const lampReady = s.value(0);
+  const revCarry = s.value(0);
+  const srcBack = s.value(0);
+
+  // Beat 3: Double prediction transfer challenge (strict c.after gating!)
+  const bEval = s.value(0);
+  const bHealth = s.value(0);
+  const bPolicy = s.value(0);
+  const allOk = s.value(0);
+  const askOwner = s.value(0);
+  const rejMixed = s.value(0); // after fresh-revision-rejection
+  const trustTgt = s.value(0);
+  const tgtV3Rep = s.value(0); // after revision-three-repair
+  const refHealth = s.value(0); // after refresh-branch
+  const revalV3 = s.value(0); // after revalidate
+  const checkAge = s.value(0); // after check-scope-and-age
+  const altV4 = s.value(0); // alternate-target (moves target to v4)
+  const askOld2 = s.value(0); // inspect-v4
+  const refV4Pair = s.value(0); // after refresh-v4-inputs
+  const valV4All = s.value(0); // after validate-v4-inputs
+  const rebuildRev = s.value(0); // after rebuild-review
+  const dupInput = s.value(0); // fresh-duplicate-input
+  const dupReject = s.value(0); // after fresh-duplicate-rejection
+  const wrUnchanged = s.value(0); // after writer-unchanged
+
+  // Beat 4: Separate v4 fixture replay
+  const awaitRev = s.value(0);
+  const fixWriter = s.value(0);
+  const fixApp = s.value(0);
+  const call1 = s.value(0);
+  const replyLost = s.value(0);
+  const call2 = s.value(0);
+  const repResult = s.value(0); // after replay-result
+  const stillZero = s.value(0);
+  const capstoneLit = s.value(0);
+
+  const v4Hash = shortHash(freshPacket.evidenceDigest, 8);
+  const bgAtmo = cinemaAtmosphere(ROLE.eval, ROLE.writer);
+  const { view: dag3d } = buildOrchestrationDag3d(phase, dagStage, {
+    x: 540,
+    y: 25,
+    theta: -0.7,
+    phi: 1.05,
+    distance: 15.2,
+    unit: 98,
   });
-  // Three steps that need each other: each one waits for the one before it.
-  const STEP = { left: BAND.left + 110, width: 190, height: 44, pitch: 100, top: BAND.top + 110 };
-  const push = s.value(0),
-    chain = s.value(0);
-  const stepX = (j) => STEP.left + j * STEP.width * (1 - 0.45 * push.value);
-  const stepY = (j) => STEP.top + j * STEP.pitch;
-  const coupled = dynamic(() => {
-    const opacity = chain.value;
-    if (opacity < 0.02) return [];
-    const parts = [];
-    for (let j = 0; j < 3; j++) {
-      parts.push(
-        rect(STEP.width, STEP.height, {
-          radius: 8,
-          stroke: null,
-          fill: 'ink',
-          opacity: 0.8 * opacity,
-        }).at(stepX(j) + STEP.width / 2, stepY(j)),
+
+  const title = heroTitle(['Three Receipts.', 'Can Vega Proceed?'], {
+    x: -860,
+    y: -440,
+    size: 52,
+    lineHeight: 60,
+    accent: ROLE.mark,
+    eyebrow: `TRANSFER CHALLENGE  /  ${REQUEST.request}  /  END-TO-END`,
+  });
+
+  const live = guardedDynamic(s.value(1), () => {
+    const m0 = st0.value;
+    const m1 = st1.value;
+    const m2 = st2.value;
+    const m3 = st3.value;
+    const lx = -860;
+    const nodes = [];
+
+    // Right 3D header & steady invariant (zero crossSwap flash)
+    nodes.push(
+      txt('LIVE ORCHESTRATION RIG', 540, -420, 26, ROLE.eval, 'mono').glow(6, ROLE.eval),
+      txt('Vega live traffic: 0% (awaiting review)', 540, -376, 26, ROLE.mark, 'mono'),
+      txt(
+        'Trusted scope, validated join, single idempotent writer',
+        540,
+        395,
+        26,
+        COSMOS.muted,
+        'sans',
+      ),
+    );
+
+    // =========================================================================
+    // STAGE 0 (Beat 0): Independent Parallel Reads vs Coupled Sequential Edits
+    // =========================================================================
+    if (m0 > 0.02) {
+      // Top track: Independent reads sharing one ticket
+      nodes.push(
+        txt(
+          '1. INDEPENDENT READS  (SAME RELEASE TICKET)',
+          lx,
+          -205,
+          26,
+          ticketLit.value > 0.3 ? ROLE.eval : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m0),
+        rule(lx, -181, 120, -181, ROLE.rule, 2).opacity(m0),
       );
-      if (j < 2)
-        parts.push(
-          arrow(
-            [stepX(j) + STEP.width - 3, stepY(j) + STEP.height / 2 + 4],
-            [stepX(j) + STEP.width - 3, stepY(j + 1) - STEP.height / 2 - 4],
-            {
-              stroke: push.value > 0.05 ? WRONG : MARK,
-              width: 4,
-              opacity,
-            },
-          ),
+      const reads = [
+        { name: 'Eval', y: -125, col: ROLE.eval },
+        { name: 'Health', y: -55, col: ROLE.health },
+        { name: 'Policy', y: 15, col: ROLE.policy },
+      ];
+      reads.forEach((r) => {
+        nodes.push(
+          lumBar(-650, r.y, 410, 44, {
+            color: r.col,
+            fillOpacity: stableLit.value > 0.3 ? 0.3 : 0.14,
+            glow: 7,
+            opacity: m0,
+          }),
+          txt(`${r.name} reads r17 v3`, -650, r.y, 26, COSMOS.ink, 'mono').opacity(m0),
+          glowArrow([-435, r.y], [-320, -55], valResLit.value > 0.3 ? ROLE.pass : COSMOS.muted, {
+            width: 2.8,
+            opacity: m0,
+          }),
         );
+      });
+      nodes.push(
+        lumBar(-160, -55, 280, 110, {
+          color: valResLit.value > 0.3 ? ROLE.pass : ROLE.merge,
+          fillOpacity: 0.2,
+          glow: 10,
+          opacity: m0,
+        }),
+        txt('JOIN CHECKS', -160, -72, 26, ROLE.pass, 'mono').opacity(m0),
+        txt('1 ticket (v3)', -160, -34, 26, COSMOS.ink, 'mono').opacity(m0),
+      );
+
+      // Bottom track: Coupled edits staircase
+      const cy = 145;
+      nodes.push(
+        txt(
+          '2. COUPLED EDITS  (SERIAL DEPENDENCY)',
+          lx,
+          cy - 30,
+          26,
+          coupledLit.value > 0.3 ? ROLE.policy : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m0),
+        rule(lx, cy - 6, 120, cy - 6, ROLE.rule, 2).opacity(m0),
+        lumBar(-725, cy + 56, 260, 46, { color: ROLE.policy, fillOpacity: 0.24, opacity: m0 }),
+        txt('Edit 1', -725, cy + 56, 26, COSMOS.ink, 'mono').opacity(m0),
+        glowArrow([-585, cy + 56], [-510, cy + 106], ROLE.policy, { width: 3.0, opacity: m0 }),
+        lumBar(-370, cy + 116, 260, 46, { color: ROLE.policy, fillOpacity: 0.24, opacity: m0 }),
+        txt('Edit 2 (waits 1)', -370, cy + 116, 26, COSMOS.ink, 'mono').opacity(m0),
+        glowArrow([-230, cy + 116], [-155, cy + 166], ROLE.policy, { width: 3.0, opacity: m0 }),
+        lumBar(-15, cy + 176, 260, 46, {
+          color: noOverlapLit.value > 0.3 ? ROLE.reject : ROLE.policy,
+          fillOpacity: 0.24,
+          opacity: m0,
+        }),
+        txt('Edit 3 (waits 2)', -15, cy + 176, 26, COSMOS.ink, 'mono').opacity(m0),
+        txt(
+          noOverlapLit.value > 0.3
+            ? 'Starting earlier still waits'
+            : 'Each edit depends on prior output',
+          lx,
+          cy + 176,
+          26,
+          noOverlapLit.value > 0.3 ? ROLE.reject : COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(m0),
+      );
     }
-    return parts;
-  });
-  const workers = [0, 1, 2].map((j) =>
-    pictogram('agent', { size: 56, color: QUIET, accent: 'ink' }).at(BAND.left + 40, stepY(j)),
-  );
-  const coupledTitle = label('coupled steps', BAND.left, BAND.top + 30, {
-    size: 36,
-    anchor: 'left',
-  });
-  const links = [0, 1].map((j) =>
-    note('needs the step before', { color: MARK, anchor: 'left' }).at(
-      STEP.left + (j + 1) * STEP.width + 16,
-      (stepY(j) + stepY(j + 1)) / 2,
-    ),
-  );
-  s.add(coupled);
-  c.show('coupled-steps', [coupledTitle, ...workers], { stagger: 0.2 });
-  c.on('coupled-steps', () => s.play(chain.to(1, { duration: 0.5 })));
-  c.show('coupled-steps', links, { after: true });
-  // They try to overlap, and the links pull them back.
-  c.after('no-overlap', () =>
-    s.play(seq(push.to(1, { duration: 0.7 }), push.to(0, { duration: 0.5 }))),
-  );
 
-  // Beat 1. The questions for a new workflow, each one at its place on the board.
-  const [branchSide, effectSide] = BAND.columns(2, 'wide');
-  const asks = {
-    title: label('each branch', { size: 36, color: QUIET }),
-    read: label('read   r17 / v3', { size: 36 }),
-    update: label('return   eval receipt', { size: 36 }),
-    agree: label('match the ticket', { size: 36 }),
-  };
-  const effect = {
-    title: label('writer checks', { size: 36, color: QUIET }),
-    policy: label('current policy', { size: 36 }),
-    approval: label('exact approval', { size: 36 }),
-    safe: label('same operation key', { size: 36 }),
-    verified: label('live traffic  0%', { size: 36 }),
-  };
-  place(column(Object.values(asks), { gap: 'normal' }), branchSide, 'top left');
-  place(column(Object.values(effect), { gap: 'normal' }), effectSide, 'top left');
-  c.swap('transfer-construct-1', [coupledTitle, ...workers, ...links], asks.title);
-  c.on('transfer-construct-1', () => s.play(chain.to(0, { duration: 0.3 })));
-  c.show('ask-read', asks.read);
-  c.on('ask-read', () =>
-    s.play(
-      indicate(ticketFrame, { color: MARK, scale: 1 }),
-      ...fan.map((edge) => edge.pulse({ color: MARK })),
-    ),
-  );
-  c.show('ask-update', asks.update);
-  c.on('ask-update', () =>
-    s.play(
-      lagged(
-        slotNames.map((name, i) => indicate(name, { color: BRANCH_COLOR[i], scale: 1.15 })),
-        { lag: 0.3 },
-      ),
-    ),
-  );
-  c.show('branch-contract', asks.agree);
-  c.on('branch-contract', () =>
-    s.play(...[b.hot.tenant, b.hot.rev, b.hot.age].map((heat) => heat.to(1, { duration: 0.3 }))),
-  );
-  c.show('effect-boundary', effect.title);
-  c.on('effect-boundary', () =>
-    s.play(
-      ...[b.hot.tenant, b.hot.rev, b.hot.age].map((heat) => heat.to(0, { duration: 0.3 })),
-      indicate([writer.frame, writer.title], { color: MARK, scale: 1 }),
-      seq(pulse(steps[0], { color: VALID }), b.token.shown.to(1, { duration: 0.3 })),
-    ),
-  );
-  c.show('current-policy', effect.policy);
-  c.on('current-policy', () => s.play(b.target.hot.to(1, { duration: 0.3 })));
-  c.show('exact-approval', effect.approval);
-  c.after('exact-approval', () =>
-    s.play(
-      b.target.hot.to(0, { duration: 0.3 }),
-      indicate(b.nodes.approval.title, { color: MARK }),
-    ),
-  );
-  c.show('effect-result', effect.safe, { after: true });
-  c.on('repeat-safe', () => s.play(indicate(writer.frame, { color: MARK, scale: 1 })));
-  c.show('verify-state', effect.verified, { after: true });
-  c.after('verify-state', () =>
-    s.play(
-      b.hot.traffic.to(1, { duration: 0.3 }),
-      indicate(targetFrame, { color: MARK, scale: 1 }),
-    ),
-  );
+    // =========================================================================
+    // STAGE 1 (Beats 1-2): End-to-End Provenance + Readiness Lamps
+    // =========================================================================
+    if (m1 > 0.02) {
+      nodes.push(
+        txt(
+          boardReady.value > 0.3 ? 'BOARD READY FOR NEW BATCH' : 'PROVENANCE & WRITER CONTRACT',
+          lx,
+          -205,
+          26,
+          ROLE.eval,
+          'mono',
+          'left',
+        ).opacity(m1),
+        rule(lx, -181, 120, -181, ROLE.rule, 2).opacity(m1),
+      );
 
-  // Beat 2. Three obligations of a diagram: an arrow, a receipt, a resume.
-  const duties = [
-    ['dag', 'Start the join', 'last read finished'],
-    ['certificate', 'Check the target', 'receipt revision'],
-    ['loop', 'Refresh a read', 'return to source'],
-  ].map(([art, thing, duty]) => ({
-    art: pictogram(art, { size: 64, color: QUIET, accent: MARK }),
-    thing: label(thing, { size: 36 }),
-    duty: label(duty, { size: 36, color: MARK }),
-  }));
-  place(
-    column(
-      duties.map((entry) => row([entry.art, entry.thing, entry.duty], { gap: 'normal' })),
-      { gap: 'normal' },
-    ),
-    BAND,
-    'left',
-  );
-  const dutyRow = (entry) => [entry.art, entry.thing, entry.duty];
-  c.hide('transfer-construct-2', [...Object.values(asks), ...Object.values(effect)]);
-  c.on('transfer-construct-2', () => s.play(b.hot.traffic.to(0, { duration: 0.3 })));
-  c.show('arrow-readiness', dutyRow(duties[0]));
-  c.on('arrow-readiness', () =>
-    s.play(
-      ...fan.map((edge) => edge.pulse({ color: MARK })),
-      indicate(plates, { color: MARK }),
-      lagged(
-        b.gate.map((gate) =>
-          seq(gate.lamp.to(0.1, { duration: 0.2 }), gate.lamp.to(1, { duration: 0.2 })),
-        ),
-        { lag: 0.4 },
-      ),
-    ),
-  );
-  c.show('receipt-identity', dutyRow(duties[1]));
-  c.on('receipt-identity', () =>
-    s.play(
-      seq(
-        par(b.hot.tenant.to(1, { duration: 0.3 }), b.hot.rev.to(1, { duration: 0.3 })),
-        delay(par(b.hot.tenant.to(0, { duration: 0.4 }), b.hot.rev.to(0, { duration: 0.4 })), 1.2),
-      ),
-    ),
-  );
-  c.show('recovery-meaning', dutyRow(duties[2]));
-  const retry = place(
-    pictogram('loop', { size: 64, color: QUIET, accent: MARK }),
-    boxOf(plates[HEALTH]).inset('normal', 'tight'),
-    'left',
-  );
-  c.show('recovery-meaning', retry);
-  c.on('recovery-meaning', () => s.play(spin(retry, 3, { duration: 2 })));
-
-  // Beat 3. One last batch: v3, v4, v3. All three say success. Who repairs it?
-  const ask = display('Who repairs it?');
-  const owners = ['health worker', 'join', 'writer'].map((words) => chip(words));
-  const focusOwner = (active) =>
-    owners.map((owner) => tint(owner, owner === active ? MARK : QUIET, { duration: 0.2 }));
-  const [healthWorker] = owners;
-  place(column([ask, row(owners, { gap: 'normal' })], { gap: 'normal' }), BAND, 'left');
-  const rejection = place(label('Join rejects the batch', { color: WRONG }), boxOf(ask));
-  const repair = place(label('Health worker refreshes', { color: MARK }), boxOf(ask));
-  const returning = s.value(0);
-  const returnProgress = s.value(0);
-  const returnStart = cardX(1);
-  const returnEnd = boxOf(checks[HEALTH]).right + 14;
-  const repairMessage = dynamic(() => {
-    if (returning.value < 0.02) return [];
-    return dot(12, BRANCH_COLOR[HEALTH]).at(
-      returnStart + (returnEnd - returnStart) * returnProgress.value,
-      laneY(HEALTH),
-    );
-  });
-  s.add(repairMessage);
-  c.hide(3, [...duties.flatMap(dutyRow), retry]);
-  c.onBeat(3, () =>
-    s.play(
-      seq(
-        par(
-          b.packet.seal.to(0, { duration: 0.3 }),
-          b.token.shown.to(0, { duration: 0.3 }),
-          ...b.card.flatMap((card) => [
-            card.shown.to(0, { duration: 0.3 }),
-            card.verdict.to(0, { duration: 0.3 }),
-          ]),
-          ...b.gate.flatMap((gate) => [
-            gate.lamp.to(0, { duration: 0.3 }),
-            gate.open.to(0, { duration: 0.3 }),
-          ]),
-        ),
-        par(
-          ...b.card.flatMap((card, i) => [
-            card.read.to(0, { duration: 0.05 }),
-            card.pos.to(0, { duration: 0.05 }),
-            card.rev.to(BATCH[i], { duration: 0 }),
-          ]),
-          b.token.stamp.to(0, { duration: 0.05 }),
-          b.token.pos.to(0, { duration: 0.05 }),
-        ),
-      ),
-    ),
-  );
-  const arrive = (lane) =>
-    seq(
-      b.card[lane].shown.to(1, { duration: 0.2 }),
-      b.card[lane].pos.to(1, { duration: 0.9 }),
-      b.gate[lane].lamp.to(1, { duration: 0.15 }),
-    );
-  c.on(
-    'transfer-construct-3',
-    () =>
-      s.play(
-        b.revisionSize.to(48, { duration: 0.3 }),
-        b.hot.rev.to(1, { duration: 0.3 }),
-        arrive(EVAL),
-      ),
-    0.8,
-  );
-  c.on('batch-health', () => s.play(arrive(HEALTH)));
-  c.on('batch-policy', () => s.play(arrive(POLICY)));
-  c.on('all-success', () => s.play(...b.gate.map((gate) => gate.open.to(1, { duration: 0.3 }))));
-  c.show('predict-owner', [ask, ...owners], { stagger: 0.3 });
-  // The join rejects the mixed revisions. The health worker owns the new read.
-  c.swap('fresh-revision-rejection', ask, rejection, { after: true });
-  c.after('fresh-revision-rejection', () =>
-    s.play(
-      ...focusOwner(null),
-      seq(
-        par(...b.card.map((card) => card.pos.to(2, { duration: 0.7 }))),
-        par(...b.card.map((card) => card.read.to(3, { duration: 0.7 }))),
-        par(
-          ...b.card.map((card, i) => card.verdict.to(i === HEALTH ? -1 : 1, { duration: 0.3 })),
-          b.hot.rev.to(0, { duration: 0.3 }),
-        ),
-        b.card[HEALTH].pos.to(1, { duration: 0.6 }),
-      ),
-    ),
-  );
-  c.show('trusted-target', trusted);
-  c.on('trusted-target', () =>
-    s.play(indicate(targetFrame, { color: MARK, scale: 1 }), b.hot.rev.to(1, { duration: 0.3 })),
-  );
-  c.swap('revision-three-repair', rejection, repair, { after: true });
-  const refresh = c.cue('refresh-branch');
-  const refreshDuration = refresh.end - refresh.start;
-  c.on('refresh-branch', () =>
-    s.play(
-      seq(
-        b.card[HEALTH].shown.to(0, { duration: 0.1 }),
-        returning.to(1, { duration: 0 }),
-        returnProgress.to(1, { duration: refreshDuration - 0.1, ease: linear }),
-      ),
-    ),
-  );
-  c.after('refresh-branch', () => {
-    returning.set(0);
-    b.card[HEALTH].rev.set(REQUEST.version);
-    b.card[HEALTH].read.set(0);
-    b.card[HEALTH].verdict.set(0);
-    b.card[HEALTH].pos.set(2);
-    b.card[HEALTH].shown.set(1);
-    s.play(...focusOwner(healthWorker));
-  });
-  const revalidate = c.cue('revalidate');
-  const repairHold = 1.8;
-  const compareStart = Math.max(revalidate.start, refresh.end + repairHold);
-  c.swap('revalidate', [repair, ...owners], sourceInputs, {
-    lead: revalidate.start - compareStart,
-  });
-  c.show('revalidate', resolvedHashes, { after: true });
-  c.on('revalidate', () =>
-    s.play(
-      ...b.card.flatMap((card) => [
-        card.read.to(0, { duration: 0.25 }),
-        card.verdict.to(0, { duration: 0.25 }),
-      ]),
-    ),
-  );
-  c.on('check-scope-and-age', () =>
-    s.play(
-      ...b.card.map((card) => card.read.to(3, { duration: 0.9 })),
-      b.hot.rev.to(0, { duration: 0.3 }),
-    ),
-  );
-  c.after('check-scope-and-age', () =>
-    s.play(...b.card.map((card) => card.verdict.to(1, { duration: 0.3 }))),
-  );
-  c.swap('alternate-target', [sources, trusted], [trustedV4, v4Title], { lead: 0 });
-  c.show('inspect-v4', v4Question, { lead: 0 });
-  c.on('alternate-target', () => {
-    b.request.rev.set(rebuilt.version);
-    b.target.live.set(rebuilt.version);
-    b.card.forEach((card, i) => {
-      card.verdict.set(0);
-      card.read.set(0);
-      card.rev.set(mixed[i].version);
-      card.pos.set(1);
-      b.gate[i].open.set(0);
-      b.gate[i].lamp.set(1);
-    });
-  });
-  c.hide('refresh-v4-inputs', [v4Question, v4Title], { lead: 0 });
-  const refreshWindow = c.cue('validate-v4-inputs').start - c.cue('refresh-v4-inputs').start;
-  c.on('refresh-v4-inputs', () =>
-    s.play(
-      ...[EVAL, POLICY].map((i) => {
-        const card = b.card[i];
-        return seq(
-          par(
-            b.gate[i].lamp.to(0, { duration: 0.1 }),
-            card.pos.to(0, { duration: refreshWindow * 0.33 }),
+      // 4-step provenance chain
+      const steps = [
+        [
+          '1. Branch read',
+          'Read r17 & return own receipt only',
+          Math.max(traceLit.value, askRead.value, askUpd.value),
+          ROLE.eval,
+        ],
+        [
+          '2. Validated join',
+          'Check actual release & revision read',
+          Math.max(branchCon.value, lampReady.value, revCarry.value),
+          ROLE.merge,
+        ],
+        [
+          '3. Guarded writer',
+          'Current policy + exact packet approval',
+          Math.max(effBound.value, curPol.value, exactApp.value),
+          ROLE.writer,
+        ],
+        [
+          '4. Lost reply',
+          'Reconcile same op-key at destination',
+          Math.max(repSafe.value, effRes.value, srcBack.value),
+          ROLE.mark,
+        ],
+      ];
+      steps.forEach(([k, v, lit, col], i) => {
+        const y = -115 + i * 74;
+        nodes.push(
+          glowRing(lx + 18, y, 14, lit > 0.3 ? col : COSMOS.dim, {
+            fillOpacity: lit > 0.3 ? 0.5 : 0.1,
+            glow: lit > 0.3 ? 10 : 0,
+            opacity: m1,
+          }),
+          txt(k, lx + 48, y, 26, lit > 0.3 ? col : COSMOS.muted, 'mono', 'left').opacity(m1),
+          txt(v, lx + 355, y, 26, lit > 0.3 ? COSMOS.ink : COSMOS.muted, 'sans', 'left').opacity(
+            m1,
           ),
-          card.shown.to(0, { duration: refreshWindow * 0.09 }),
-          card.rev.to(refreshed[i].version, { duration: 0 }),
-          card.shown.to(1, { duration: refreshWindow * 0.09 }),
-          card.pos.to(1, { duration: refreshWindow * 0.32 }),
-          b.gate[i].lamp.to(1, { duration: refreshWindow * 0.08 }),
         );
-      }),
-    ),
-  );
-  const validation = c.cue('validate-v4-inputs');
-  const scanTime = validation.end - validation.start;
-  c.on('validate-v4-inputs', () =>
-    s.play(
-      seq(
-        par(...b.gate.map((gate) => gate.open.to(1, { duration: scanTime * 0.14 }))),
-        par(...b.card.map((card) => card.pos.to(2, { duration: scanTime * 0.42 }))),
-        par(...b.card.map((card) => card.read.to(3, { duration: scanTime * 0.37 }))),
-      ),
-    ),
-  );
-  c.after('validate-v4-inputs', () => b.card.forEach((card) => card.verdict.set(1)));
-  c.after('rebuild-review', () => {
-    b.packet.rev.set(rebuilt.version);
-    b.token.rev.set(rebuilt.version);
-    b.token.digest.set(rebuilt.version);
-    s.play(seq(b.packet.seal.to(1, { duration: 0.4 }), b.token.shown.to(1, { duration: 0.3 })));
+      });
+
+      // Live gauge pinned at 0% + Readiness note
+      const gy = 225;
+      nodes.push(
+        ...renderArcDial(-740, gy + 30, 74, 0.01, { color: ROLE.pass, opacity: m1 }),
+        txt('0%', -740, gy + 32, 34, liveZero.value > 0.3 ? ROLE.mark : COSMOS.ink, 'mono').opacity(
+          m1,
+        ),
+        txt(
+          srcBack.value > 0.3
+            ? 'Replacing a receipt -> worker returns to trusted source'
+            : lampReady.value > 0.3
+              ? 'Last lamp starts join; each receipt carries checked revision'
+              : 'Live traffic stays 0% while Vega awaits review',
+          -625,
+          gy + 32,
+          26,
+          ROLE.mark,
+          'sans',
+          'left',
+        ).opacity(m1),
+      );
+    }
+
+    // =========================================================================
+    // STAGE 2 (Beat 3): Double Prediction Transfer Challenge (v3/v4/v3 + Dup)
+    // =========================================================================
+    if (m2 > 0.02) {
+      const isAlt = altV4.value > 0.4;
+      const isDup = dupInput.value > 0.4;
+      const targetStr = isAlt
+        ? 'TRUSTED TARGET: v4'
+        : tgtV3Rep.value > 0.3
+          ? 'TRUSTED TARGET: v3'
+          : trustTgt.value > 0.3
+            ? 'CHECKING TRUSTED TARGET...'
+            : 'MIXED BATCH RECEIVED';
+
+      nodes.push(
+        txt(targetStr, lx, -210, 26, isAlt ? ROLE.eval : ROLE.mark, 'mono', 'left').opacity(m2),
+        rule(lx, -186, 120, -186, ROLE.rule, 2).opacity(m2),
+      );
+
+      // Three incoming batch slots
+      const evalRev =
+        valV4All.value > 0.4 ? 'v4 (OK)' : refV4Pair.value > 0.4 ? 'v3 -> REFRESH' : 'v3';
+      const healthRev = isDup
+        ? 'v4 x2 (DUP!)'
+        : refHealth.value > 0.4 && !isAlt
+          ? 'v3 (REFRESHED)'
+          : 'v4';
+      const polRev =
+        valV4All.value > 0.4 ? 'v4 (OK)' : refV4Pair.value > 0.4 ? 'v3 -> REFRESH' : 'v3';
+
+      const evalCol =
+        isAlt && refV4Pair.value > 0.4 && valV4All.value < 0.4
+          ? ROLE.reject
+          : valV4All.value > 0.4 || (!isAlt && revalV3.value > 0.4)
+            ? ROLE.pass
+            : ROLE.eval;
+      const healthCol = isDup
+        ? ROLE.reject
+        : !isAlt && rejMixed.value > 0.4 && refHealth.value < 0.4
+          ? ROLE.reject
+          : refHealth.value > 0.4 && !isAlt
+            ? ROLE.pass
+            : isAlt && valV4All.value > 0.4
+              ? ROLE.pass
+              : ROLE.health;
+      const polCol =
+        isAlt && refV4Pair.value > 0.4 && valV4All.value < 0.4
+          ? ROLE.reject
+          : valV4All.value > 0.4 || (!isAlt && revalV3.value > 0.4)
+            ? ROLE.pass
+            : ROLE.policy;
+
+      const batchCards = [
+        { name: 'EVAL', rev: evalRev, col: evalCol, y: -115, vis: Math.max(0.3, bEval.value) },
+        {
+          name: 'HEALTH',
+          rev: healthRev,
+          col: healthCol,
+          y: -25,
+          vis: Math.max(0.3, bHealth.value),
+        },
+        { name: 'POLICY', rev: polRev, col: polCol, y: 65, vis: Math.max(0.3, bPolicy.value) },
+      ];
+      batchCards.forEach((bc) => {
+        nodes.push(
+          lumBar(-450, bc.y, 820, 60, {
+            color: bc.col,
+            fillOpacity: 0.18,
+            strokeWidth: 2.6,
+            glow: 9,
+            opacity: m2 * bc.vis,
+          }),
+          txt(bc.name, lx + 24, bc.y, 26, bc.col, 'mono', 'left').opacity(m2 * bc.vis),
+          txt(bc.rev, -560, bc.y, 28, COSMOS.ink, 'mono', 'left').opacity(m2 * bc.vis),
+          txt(
+            allOk.value > 0.3 ? 'status: success' : 'arrived',
+            -60,
+            bc.y,
+            26,
+            COSMOS.muted,
+            'mono',
+            'right',
+          ).opacity(m2 * bc.vis),
+        );
+      });
+
+      // Strict prediction / verdict readout strip (mutually exclusive states, zero early reveal!)
+      const vy = 185;
+      let verdictText = 'Waiting for batch inspection...';
+      let verdictCol = COSMOS.muted;
+
+      if (wrUnchanged.value > 0.4) {
+        verdictText = 'WRITER UNCHANGED until valid current packet + review exist';
+        verdictCol = ROLE.pass;
+      } else if (dupReject.value > 0.4) {
+        verdictText = 'REJECT DUPLICATE HEALTH: never count 2x as extra evidence';
+        verdictCol = ROLE.reject;
+      } else if (isDup) {
+        verdictText = 'PROBE: Health returned twice under one identity...';
+        verdictCol = ROLE.mark;
+      } else if (rebuildRev.value > 0.4) {
+        verdictText = 'ALL 3 AT v4 -> rebuild proposal for fresh review';
+        verdictCol = ROLE.pass;
+      } else if (valV4All.value > 0.4) {
+        verdictText = 'REVALIDATED ALL 3 v4 RECEIPTS (digest + freshness)';
+        verdictCol = ROLE.pass;
+      } else if (refV4Pair.value > 0.4) {
+        verdictText = 'REFRESH: EVAL & POLICY';
+        verdictCol = ROLE.mark;
+      } else if (askOld2.value > 0.4 || isAlt) {
+        verdictText = 'TARGET MOVED TO v4: Which two receipts are stale? (?)';
+        verdictCol = ROLE.mark;
+      } else if (checkAge.value > 0.4 || revalV3.value > 0.4) {
+        verdictText = 'RECOMPUTE DIGESTS + RECHECK v3 & FRESHNESS';
+        verdictCol = ROLE.pass;
+      } else if (refHealth.value > 0.4 || tgtV3Rep.value > 0.4) {
+        verdictText = 'ANSWER (target v3): REFRESH HEALTH RECEIPT';
+        verdictCol = ROLE.pass;
+      } else if (rejMixed.value > 0.4) {
+        verdictText = 'JOIN REJECTS MIXED v3/v4/v3 -> check trusted target first';
+        verdictCol = ROLE.reject;
+      } else if (askOwner.value > 0.3) {
+        verdictText = 'PREDICT: Who owns the repair? (?)';
+        verdictCol = ROLE.mark;
+      }
+
+      nodes.push(
+        lumBar(-370, vy, 980, 72, {
+          color: verdictCol,
+          fillOpacity: 0.2,
+          strokeWidth: 2.8,
+          glow: 10,
+          opacity: m2,
+        }),
+        txt(verdictText, -370, vy, 26, verdictCol, 'mono').opacity(m2),
+      );
+    }
+
+    // =========================================================================
+    // STAGE 3 (Beat 4): Vega 0% Awaiting Review vs Separate v4 Writer Fixture
+    // =========================================================================
+    if (m3 > 0.02) {
+      const rep = repResult.value;
+      const lost = replyLost.value;
+
+      // Top lane: Vega's real release (pinned at 0%)
+      nodes.push(
+        txt(
+          'VEGA RELEASE (AWAITING REVIEW)',
+          lx,
+          -205,
+          26,
+          awaitRev.value > 0.3 ? ROLE.mark : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m3),
+        rule(lx, -181, 120, -181, ROLE.rule, 2).opacity(m3),
+        lumBar(-370, -110, 980, 66, {
+          color: stillZero.value > 0.3 ? ROLE.pass : ROLE.mark,
+          fillOpacity: 0.16,
+          glow: 8,
+          opacity: m3,
+        }),
+        txt(
+          'Packet parked at Review  |  Live traffic = 0%',
+          -370,
+          -110,
+          28,
+          COSMOS.ink,
+          'mono',
+        ).opacity(m3),
+      );
+
+      // Lower lane: Separate v4 Writer Fixture op-18 replay test
+      nodes.push(
+        txt(
+          'SEPARATE WRITER FIXTURE  (v4 APPROVED)',
+          lx,
+          -10,
+          26,
+          fixWriter.value > 0.3 ? ROLE.writer : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m3),
+        rule(lx, 14, 120, 14, ROLE.rule, 2).opacity(m3),
+        lumBar(-710, 130, 300, 145, {
+          color: fixApp.value > 0.3 ? ROLE.writer : COSMOS.rule,
+          fillOpacity: 0.18,
+          opacity: m3,
+        }),
+        txt('FIXTURE WRITER', -710, 96, 26, ROLE.writer, 'mono').opacity(m3),
+        txt(`${recorded.operation}  v4`, -710, 136, 26, COSMOS.ink, 'mono').opacity(m3),
+        txt(v4Hash, -710, 174, 26, COSMOS.muted, 'mono').opacity(m3),
+
+        glowArrow([-545, 96], [-290, 96], call1.value > 0.3 ? ROLE.pass : COSMOS.muted, {
+          width: 3.2,
+          opacity: m3,
+        }),
+        txt('1. apply', -418, 60, 26, lost > 0.3 ? ROLE.reject : ROLE.pass, 'mono').opacity(m3),
+
+        glowArrow([-545, 162], [-290, 162], call2.value > 0.3 ? ROLE.mark : COSMOS.muted, {
+          width: 3.2,
+          opacity: m3,
+        }),
+        txt('2. replay', -418, 200, 26, ROLE.mark, 'mono').opacity(m3),
+
+        lumBar(-55, 130, 440, 145, {
+          color: rep > 0.3 ? ROLE.pass : ROLE.triage,
+          fillOpacity: 0.2,
+          glow: rep > 0.3 ? 12 : 6,
+          opacity: m3,
+        }),
+        txt('TARGET RESULT', -55, 84, 26, COSMOS.muted, 'mono').opacity(m3),
+        txt(
+          rep > 0.3 ? reconciled.change : call1.value > 0.3 ? 'change-1 (?)' : 'pending...',
+          -55,
+          126,
+          28,
+          rep > 0.3 ? ROLE.pass : ROLE.mark,
+          'mono',
+        )
+          .glow(rep > 0.3 ? 8 : 0, ROLE.pass)
+          .opacity(m3),
+        txt(
+          rep > 0.3 ? `effects = ${reconciledEffects}` : 'reply lost?',
+          -55,
+          168,
+          26,
+          rep > 0.3 ? ROLE.pass : COSMOS.muted,
+          'mono',
+        ).opacity(m3),
+      );
+
+      if (capstoneLit.value > 0.02) {
+        nodes.push(
+          txt(
+            'Next in Capstone: save exact review packet & test lost-reply replay',
+            lx,
+            285,
+            26,
+            ROLE.eval,
+            'sans',
+            'left',
+          ).opacity(m3 * capstoneLit.value),
+        );
+      }
+    }
+
+    return nodes;
   });
-  c.show('rebuild-review', newReview, { after: true });
-  c.after('rebuild-review', () => s.play(b.revisionSize.to(SMALL, { duration: 0.45 })));
-  c.swap('fresh-duplicate-input', trustedV4, [
-    alternativeFrame,
-    alternativeTitle,
-    ...alternativeCards,
-  ]);
-  c.after('fresh-duplicate-rejection', () =>
-    s.play(
-      tint(alternativeCards[1], WRONG),
-      tint(alternativeCards[2], WRONG),
-      to(alternativeFrame, (frame) => frame.stroke(WRONG, 4), { duration: 0.4 }),
-    ),
-  );
-  c.show('fresh-duplicate-rejection', refused, { after: true });
-  c.hide('writer-unchanged', [alternativeFrame, alternativeTitle, ...alternativeCards, refused]);
-  // The live writer waits for review.
-  c.on('writer-unchanged', () =>
-    s.play(
-      indicate([writer.frame, writer.title, targetFrame], { color: MARK, scale: 1 }),
-      b.hot.traffic.to(1, { duration: 0.3 }),
-    ),
-  );
-  c.on('await-review', () => s.play(indicate(newReview, { color: MARK, scale: 1 })));
-  c.show('fixture-writer', [testFrame, testTitle], { lead: 0 });
-  c.show('fixture-approval', suppliedApproval, { lead: 0 });
-  c.show('first-call', firstCall.slice(0, 2), { lead: 0 });
-  c.show('first-call', firstCall.slice(2), { after: true });
-  c.show('lost-reply', lostReply, { after: true });
-  c.show('replay-call', replay.slice(0, 2), { lead: 0 });
-  c.show('replay-result', replay.slice(2), { after: true });
-  c.on('live-zero', () => s.play(indicate(targetFrame, { color: MARK, scale: 1 })));
-  c.on('capstone-practice', () => s.play(indicate(packetFrame, { color: MARK, scale: 1 })));
+
+  s.add(bgAtmo, dag3d, title, live);
+  runAmbientPhase(s, c, phase, 2.8);
+  orbitScene(s, c, dag3d, { theta: 0.35, phi: 0.98 });
+
+  // Beat 0
+  tweenCue(s, c, 'transfer-construct-0', ticketLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'stable-inputs', stableLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'validation-result', valResLit, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'coupled-steps', coupledLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'no-overlap', noOverlapLit, 1, { duration: 0.35 });
+
+  // Beat 1
+  crossSwap(s, c, 'transfer-construct-1', st0, st1, { duration: 0.42 });
+  tweenCue(s, c, 'transfer-construct-1', traceLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'ask-read', askRead, 1, { duration: 0.3 });
+  tweenCue(s, c, 'ask-update', askUpd, 1, { duration: 0.3 });
+  tweenCue(s, c, 'branch-contract', branchCon, 1, { duration: 0.3 });
+  tweenCue(s, c, 'effect-boundary', effBound, 1, { duration: 0.3 });
+  tweenCue(s, c, 'current-policy', curPol, 1, { duration: 0.3 });
+  tweenCue(s, c, 'exact-approval', exactApp, 1, { duration: 0.3, after: true });
+  tweenCue(s, c, 'repeat-safe', repSafe, 1, { duration: 0.3 });
+  tweenCue(s, c, 'effect-result', effRes, 1, { duration: 0.3 });
+  tweenCue(s, c, 'verify-state', liveZero, 1, { duration: 0.3, after: true });
+
+  // Beat 2
+  tweenCue(s, c, 'transfer-construct-2', boardReady, 1, { duration: 0.3 });
+  tweenCue(s, c, 'arrow-readiness', lampReady, 1, { duration: 0.3 });
+  tweenCue(s, c, 'receipt-identity', revCarry, 1, { duration: 0.3 });
+  tweenCue(s, c, 'recovery-meaning', srcBack, 1, { duration: 0.3 });
+
+  // Beat 3: Double prediction transfer challenge (strict c.after gating!)
+  crossSwap(s, c, 'transfer-construct-3', st1, st2, { duration: 0.42 });
+  tweenCue(s, c, 'transfer-construct-3', bEval, 1, { duration: 0.3 });
+  tweenCue(s, c, 'batch-health', bHealth, 1, { duration: 0.3 });
+  tweenCue(s, c, 'batch-policy', bPolicy, 1, { duration: 0.3 });
+  tweenCue(s, c, 'all-success', allOk, 1, { duration: 0.3 });
+  tweenCue(s, c, 'predict-owner', askOwner, 1, { duration: 0.3 });
+  tweenCue(s, c, 'fresh-revision-rejection', rejMixed, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'trusted-target', trustTgt, 1, { duration: 0.3 });
+  tweenCue(s, c, 'revision-three-repair', tgtV3Rep, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'refresh-branch', refHealth, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'revalidate', revalV3, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'check-scope-and-age', checkAge, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'alternate-target', altV4, 1, { duration: 0.35 });
+  tweenCue(s, c, 'inspect-v4', askOld2, 1, { duration: 0.3 });
+  tweenCue(s, c, 'refresh-v4-inputs', refV4Pair, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'validate-v4-inputs', valV4All, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'rebuild-review', rebuildRev, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'fresh-duplicate-input', dupInput, 1, { duration: 0.3 });
+  tweenCue(s, c, 'fresh-duplicate-rejection', dupReject, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'writer-unchanged', wrUnchanged, 1, { duration: 0.35, after: true });
+
+  // Beat 4: Separate v4 writer fixture replay
+  crossSwap(s, c, 'await-review', st2, st3, { duration: 0.42 });
+  tweenCue(s, c, 'await-review', awaitRev, 1, { duration: 0.3 });
+  tweenCue(s, c, 'fixture-writer', fixWriter, 1, { duration: 0.3 });
+  tweenCue(s, c, 'fixture-approval', fixApp, 1, { duration: 0.3 });
+  tweenCue(s, c, 'first-call', call1, 1, { duration: 0.3 });
+  tweenCue(s, c, 'lost-reply', replyLost, 1, { duration: 0.3 });
+  tweenCue(s, c, 'replay-call', call2, 1, { duration: 0.3 });
+  c.after('replay-result', () => {
+    s.play(repResult.to(1, { duration: 0.35 }), dagStage.to(1, { duration: 0.35 }));
+  });
+  tweenCue(s, c, 'live-zero', stillZero, 1, { duration: 0.3 });
+  tweenCue(s, c, 'capstone-practice', capstoneLit, 1, { duration: 0.3 });
 }

@@ -308,7 +308,7 @@ Four operational rules govern production prefix caching:
    $$
    \text{Break-Even Reads} = \left\lceil \frac{\text{Write Rate} - 1.0}{1.0 - \text{Read Rate}} \right\rceil
    $$
-   That repays a $1.25\times$ write in **1 read** and a $2.0\times$ write in **2 reads**. Beware partial hits: reusing only 1,024 of 6,000 tokens while paying $1.25\times$ writes on the remaining 4,976 tokens across three calls costs **10.3% more** than uncached input! Always report **volume-weighted token hit ratio** ($\sum \text{cached} / \sum \text{prompt}$) rather than binary request hits, and normalize provider schemas (OpenAI `input_tokens` includes `cached_tokens`; Anthropic `input_tokens` excludes `cache_read_input_tokens`).
+   That repays a $1.25\times$ write in **1 read** and a $2.0\times$ write in **2 reads**. Beware partial hits: paying $1.25\times$ writes on an initial 6,000-token call and then reusing only 1,024 of 6,000 tokens (with $1.25\times$ writes on the remaining 4,976 tokens) across three follow-up calls costs **10.3% more** than uncached input! Always report **volume-weighted token hit ratio** ($\sum \text{cached} / \sum \text{prompt}$) rather than binary request hits, and normalize provider schemas (OpenAI `input_tokens` includes `cached_tokens`; Anthropic `input_tokens` excludes `cache_read_input_tokens`).
 2. **Cached does not mean occupied:** Completed requests leave blocks **cached but unreferenced** on the free queue. In a 1,000-block pool with 450 referenced, 400 cached-unreferenced, and 150 free blocks, **550 blocks** are allocatable without preempting active requests.
 3. **Prefix-affinity routing vs. queueing inversion:** Sending repeat prefixes to one warm replica saves cold warmups, yet if queueing on a hot worker jumps from `20 ms` to `1,200 ms` while prefill drops from `1,220 ms` to `170 ms`, client TTFT actually gets **130 ms slower** (`1,370 ms` vs. `1,240 ms`). Pair prefix affinity with queue-depth caps or bounded-load consistent hashing.[^mirrokni2018boundedLoads]
 4. **Server-derived tenant isolation:** Because cache hits return faster, sharing prefixes across untrusted tenants opens a timing side-channel. Bind `cache_salt` strictly from server-verified authentication, never from raw client headers.[^vllm2026prefix]
@@ -450,15 +450,15 @@ Paging eliminates fragmentation waste, not raw KV bytes per token. When every re
     "explanation": "500 = 15 x 32 + 20, so 15 complete blocks are shared once and each of the 50 requests keeps 1 private tail block: 15 + 50 = 65 blocks."
   },
   {
-    "question": "A hosted prompt cache charges 2.0x base input price to write a 1-hour entry and 0.10x to read it. How many full-prefix cache reads are needed to break even, and why can prefix-affinity routing still worsen client TTFT?",
+    "question": "A hosted prompt cache charges 2.5x base input price to write an entry and 0.40x to read it. How many full-prefix cache reads are needed to break even, and why can prefix-affinity routing still worsen client TTFT?",
     "options": [
-      "1 read; cached blocks cannot be read in parallel.",
-      "2 reads; queuing behind a hot replica can add more wait time than warm prefill saves.",
-      "2 reads; cache hits increase autoregressive decode time.",
-      "10 reads; cached blocks double HBM bandwidth usage."
+      "2 reads; cached blocks cannot be read in parallel across attention layers.",
+      "3 reads; queuing behind a hot replica can add more wait time than warm prefill saves.",
+      "3 reads; cache hits increase autoregressive decode time on every generated token.",
+      "4 reads; cached blocks double HBM bandwidth usage during subsequent prefills."
     ],
-    "answer": "2 reads; queuing behind a hot replica can add more wait time than warm prefill saves.",
-    "explanation": "Break-even reads = ceil((2.0 - 1.0) / (1.0 - 0.10)) = ceil(1.11) = 2. If queueing on a hot prefix replica grows by more than the saved prefill duration, end-to-end client TTFT becomes slower."
+    "answer": "3 reads; queuing behind a hot replica can add more wait time than warm prefill saves.",
+    "explanation": "Break-even reads = ceil((2.5 - 1.0) / (1.0 - 0.40)) = ceil(1.5 / 0.60) = ceil(2.5) = 3. Two reads recover only 1.2x against the 1.5x write surcharge. Even with warm cache hits, if queueing on a hot prefix replica grows by more than the saved prefill duration, end-to-end client TTFT becomes slower."
   },
   {
     "question": "A KV pool is full, so the scheduler preempts a request with 6,400 cached tokens at 320 KiB per token. The CPU link moves 2,500 MiB/s in either direction. If the scheduler drops the cache, the GPU replays all 6,400 tokens at 12,800 tokens/s. How much time does round-trip swapping take versus GPU replay?",

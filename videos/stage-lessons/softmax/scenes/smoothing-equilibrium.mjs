@@ -1,121 +1,286 @@
-// Scene `smoothing-equilibrium`: a smoothed target has a finite best gap.
-//
-// The picture: one slider is the lead of slept over each competitor. With a hard target, the bars
-// never reach the dashed target, however far the slider goes. With a smoothed target, they meet it
-// at one gap, and past that gap the correction turns back.
-import { column, decimal, dynamic, place, row, tex, write } from 'vizmatic/stage';
-import { stableSoftmax } from 'vizmatic';
-import { crossEntropy } from '../../../films/softmax/arithmetic.mjs';
-import { completeModel } from '../../../films/softmax/model.mjs';
-import { chipRow, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { BOARD, MARK_COLOR, SIDE, WORDS, WORD_COLOR, live, pair, slider } from '../parts.mjs';
-
-const HARD = [0, 1, 0];
-const LEAD = { min: 0, max: 7 };
+// Scene 15 (smoothing-equilibrium): "When does smoothing stop pushing the score higher?"
+// Live equilibrium bar vs dashed smoothed target [0.0333, 0.9333, 0.0333] + gap = ln(28) + overshoot reversal + support conflict.
+import {
+  COSMOS,
+  DANGER_COLOR,
+  MARK_COLOR,
+  MODEL,
+  SMOOTH_TARGET,
+  TARGET_COLOR,
+  WORD_COLOR,
+  WORDS,
+  aura,
+  glowArrow,
+  glowTex,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  rule,
+  runAmbientPhase,
+  stableSoftmax,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
 
 export default function smoothingEquilibrium(s, c) {
-  const model = completeModel();
-  const [top, middle, bottom] = BOARD.rows([1, 7, 1], 'normal');
-  // The prediction follows one number: the lead of slept over each of the two competitors.
-  const lead = s.value(2);
-  const offset = s.value(0);
-  const included = s.value(1);
-  const scores = () => [offset.value, offset.value + lead.value, offset.value];
-  const shares = () =>
-    included.value === 0 ? [...stableSoftmax(scores().slice(0, 2)), 0] : stableSoftmax(scores());
-  const chart = pair(s, middle, { predict: shares });
-  const { p } = chart;
-  HARD.forEach((value, i) => p[i].set(value));
-  chart.pOn.set(1);
-  chart.qOn.set(1);
-  chart.read.set(1);
-  const P = () => p.map((value) => value.value);
+  const phase = s.value(0);
+  const smoothMix = s.value(0); // 0 = one-hot [0,1,0], 1 = [1/30, 28/30, 1/30]
+  const gapVal = s.value(1.5); // z_slept - z_comp (log(28)=3.332 equilibrium, 5.2 overshoot)
+  const shiftTen = s.value(0);
+  const excludeAte = s.value(0);
 
-  // The slider of the lead, the loss, and the gradient on the score of slept.
-  const [dialBand, numbers, lowest] = SIDE.rows([2, 3, 2], 'normal');
-  const dial = slider(dialBand.inset('normal', 'none'), () => lead.value, LEAD);
-  const reading = place(
-    decimal(() => lead.value, { digits: 2, size: 56, prefix: 'lead = ', color: MARK_COLOR }),
-    dialBand,
-    'top',
-  );
-  const loss = [note('loss'), live(() => crossEntropy(P(), shares()), { size: 56 })];
-  const slope = [
-    note('gradient on slept'),
-    live(() => shares()[1] - P()[1], { size: 56, color: MARK_COLOR }),
-  ];
-  place(
-    row([column(loss, { gap: 'tight' }), column(slope, { gap: 'tight' })], { gap: 'loose' }),
-    numbers,
-    'left',
-  );
-  const legend = place(note('dashed: the target · solid: the prediction'), top, 'left');
-  s.add(heading(c.title), legend, chart.all, dial.rail, dial.knob, reading, loss);
+  const showSmoothNums = s.value(0);
+  const showMatchZero = s.value(0);
+  const showGapLn28 = s.value(0);
+  const showOvershoot = s.value(0);
+  const showMinEntropy = s.value(0);
+  const showShiftNote = s.value(0);
+  const showInfLoss = s.value(0);
 
-  // A hard target: the lead grows and grows, and the loss only approaches zero.
-  const move = (value, duration) => () => s.play(lead.to(value, { duration }));
-  c.on('smoothing-equilibrium-0', move(6.8, 6));
-  const mixture = place(
-    tex('\\tilde y = (1 - \\alpha)\\,y + \\frac{\\alpha}{K}', { size: 48 }),
-    lowest,
-    'left',
-  );
-  c.show('smooth-mixture', write(mixture));
-  c.on('smooth-mixture', () =>
-    s.play(...p.map((value, i) => value.to(model.smooth[i], { duration: 1.2 }))),
-  );
-
-  // The smoothed target: the bars meet it at one lead, the log of 28.
-  const targets = place(
-    mono(`target ${model.smooth[1].toFixed(4)} · ${model.smooth[0].toFixed(4)} each`, { size: 34 }),
-    bottom,
-    'left',
-  );
-  const best = place(
-    mono(`matching gap: ln 28 ≈ ${model.smoothGap.toFixed(3)}`, { size: 36, color: MARK_COLOR }),
-    dialBand,
-    'bottom',
-  );
-  c.show('smoothing-equilibrium-1', targets, { after: true });
-  c.hide('smoothing-equilibrium-1', [loss, reading]);
-  c.on('smooth-match', move(model.smoothGap, 1.5));
-  c.show('smooth-match', slope, { after: true });
-  c.show('smooth-gap', [reading, best], { after: true });
-  c.on('smooth-overshoot', move(5.2, 1.6));
-  c.on('smooth-descend', move(model.smoothGap, 1.6));
-  const floor = place(
-    mono(`least loss ${model.smoothEntropy.toFixed(3)} = target entropy`, {
-      size: 34,
-      color: MARK_COLOR,
-    }),
-    lowest,
-    'left',
-  );
-  c.swap('smooth-minimum', mixture, [floor, loss], { after: true });
-
-  const [gapBand, scoreBand] = numbers.rows(2, 'tight');
-  const gap = place(label('Same gap, same probabilities', { size: 36 }), gapBand, 'bottom left');
-  const scoreRow = scoreBand.columns(3, 'normal').map((slot, i) => [
-    place(note(WORDS[i], { color: WORD_COLOR[i] }), slot, 'top left'),
-    place(
-      dynamic(() => mono(scores()[i].toFixed(2), { size: 40 })),
-      slot,
-      'bottom left',
-    ),
-  ]);
-  c.swap('smoothing-equilibrium-2', [loss, slope], [gap, scoreRow]);
-  c.on('smooth-shift', () => s.play(offset.to(10, { duration: 1.3 })));
-  const excluded = place(
-    note('ate excluded · dashed target still positive', { color: 'red' }),
-    dialBand,
-    'top left',
-  );
-  const infinite = place(mono('loss ∞', { size: 56, color: 'red' }), lowest, 'left');
-  // Only prediction support changes. Keep the dashed target and its numeric legend.
-  c.on('smooth-support', () => {
-    s.remove(floor, best, reading, dial.rail, dial.knob, gap, ...scoreRow.flat());
-    included.set(0);
-    s.add(excluded);
+  const bgAura = aura(0, 20, 620, '#133a3d30', '#2b1b4a18');
+  const title = heroTitle(['Label Smoothing', '& Finite Equilibrium'], {
+    x: -855,
+    y: -430,
+    size: 54,
+    lineHeight: 62,
+    accent: TARGET_COLOR,
+    eyebrow: 'LABEL SMOOTHING · α = 0.1',
   });
-  c.show('smooth-infinite', infinite, { after: true });
+
+  const eqGap = glowTex(
+    'z_{\\text{slept}} - z_{\\text{comp}} = \\ln\\!\\left(\\frac{0.9333}{0.0333}\\right) = \\ln(28) \\approx 3.332',
+    { x: 430, y: -150, size: 30, color: MARK_COLOR, glow: 6 },
+  );
+
+  const live = guardedDynamic(s.value(1), () => {
+    const sm = smoothMix.value;
+    const g = gapVal.value;
+    const sh = shiftTen.value;
+    const exAte = excludeAte.value > 0.5;
+
+    const target = [SMOOTH_TARGET[0] * sm, 1 + (SMOOTH_TARGET[1] - 1) * sm, SMOOTH_TARGET[2] * sm];
+    const probs = exAte ? [...stableSoftmax([sh, g + sh]), 0] : stableSoftmax([sh, g + sh, sh]);
+    const gradSlept = probs[1] - target[1];
+
+    const baseY = 235;
+    const maxH = 345;
+    const xs = [-695, -455, -215];
+
+    const nodes = [
+      rule(-815, baseY, -95, baseY, COSMOS.muted, 2.5).opacity(0.8),
+      txt(
+        `Logit gap = ${g.toFixed(2)}  (offset +${sh.toFixed(0)})`,
+        -455,
+        -195,
+        28,
+        COSMOS.cyan,
+        'mono',
+      ),
+    ];
+
+    WORDS.forEach((w, i) => {
+      const ph = Math.max(4, probs[i] * maxH);
+      const th = Math.max(0, target[i] * maxH);
+      const isExcluded = exAte && i === 2;
+      nodes.push(
+        lumBar(xs[i], baseY - ph / 2, 118, ph, {
+          color: isExcluded ? DANGER_COLOR : WORD_COLOR[i],
+          fillOpacity: isExcluded ? 0.12 : 0.72,
+          glow: isExcluded ? 4 : 9,
+        }),
+        txt(w, xs[i], baseY + 42, 30, isExcluded ? DANGER_COLOR : WORD_COLOR[i], 'sans'),
+        txt(
+          isExcluded ? 'p = 0 (−∞)' : `${(probs[i] * 100).toFixed(1)}%`,
+          xs[i],
+          baseY + 84,
+          26,
+          isExcluded ? DANGER_COLOR : COSMOS.muted,
+          'mono',
+        ),
+      );
+      if (th > 4) {
+        nodes.push(
+          lumBar(xs[i], baseY - th / 2, 134, th, {
+            color: COSMOS.ink,
+            fillOpacity: 0.02,
+            strokeWidth: 3.0,
+            dash: [10, 7],
+            glow: 5,
+          }),
+        );
+      }
+    });
+
+    // Live gradient push indicator on slept bar (flips sign when overshooting 93.3%!)
+    const pushDir = Math.abs(gradSlept) < 0.008 ? 0 : gradSlept < 0 ? -1 : 1;
+    if (pushDir !== 0 && !exAte) {
+      const topY = baseY - probs[1] * maxH;
+      nodes.push(
+        glowArrow(
+          [xs[1] + 92, topY + 20],
+          [xs[1] + 92, topY + 20 + pushDir * 68],
+          pushDir < 0 ? TARGET_COLOR : DANGER_COLOR,
+          { width: 4 },
+        ),
+      );
+    }
+
+    // Right column floating analytical milestones
+    const rx = 50;
+    // Always-on Beat 0 target-mixture visual ribbon on right (keeps right canvas rich from t=0!)
+    const preSmOp = Math.max(0, 1 - showSmoothNums.value * 2.6);
+    if (preSmOp > 0.02) {
+      nodes.push(
+        txt('TARGET DISTRIBUTION MIXTURE', rx, -285, 26, COSMOS.cyan, 'mono', 'left').opacity(
+          preSmOp,
+        ),
+        txt(
+          sm > 0.2 ? 'ỹ = (1 − α) · one_hot + α / K' : 'One-hot target: y = [0, 1, 0]',
+          rx,
+          -225,
+          30,
+          COSMOS.ink,
+          'mono',
+          'left',
+        ).opacity(preSmOp),
+        txt(
+          `Current target mass:  [${target.map((v) => v.toFixed(3)).join(', ')}]`,
+          rx,
+          -155,
+          28,
+          TARGET_COLOR,
+          'mono',
+          'left',
+        ).opacity(preSmOp),
+        txt(
+          `Current prediction:   [${probs.map((v) => v.toFixed(3)).join(', ')}]`,
+          rx,
+          -95,
+          28,
+          COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(preSmOp),
+      );
+    }
+    const smNumOp = Math.max(0, (showSmoothNums.value - 0.45) / 0.55);
+    if (smNumOp > 0.02) {
+      nodes.push(
+        txt('SMOOTHED TARGET (α = 0.1)', rx, -285, 26, COSMOS.cyan, 'mono', 'left').opacity(
+          smNumOp,
+        ),
+        txt('ỹ = [0.0333,  0.9333,  0.0333]', rx, -230, 30, COSMOS.ink, 'mono', 'left').opacity(
+          smNumOp,
+        ),
+      );
+    }
+
+    if (showMatchZero.value > 0.02) {
+      const eqColor = Math.abs(gradSlept) < 0.01 ? TARGET_COLOR : DANGER_COLOR;
+      nodes.push(
+        txt(
+          `Direct gradient  p_slept − ỹ_slept = ${gradSlept >= 0 ? '+' : ''}${gradSlept.toFixed(3)}`,
+          rx,
+          -45,
+          30,
+          eqColor,
+          'mono',
+          'left',
+        )
+          .glow(6, eqColor)
+          .opacity(showMatchZero.value),
+      );
+    }
+
+    if (showOvershoot.value > 0.02 && !exAte) {
+      nodes.push(
+        txt(
+          'Overshoot (> 93.3%) → positive gradient pulls slept BACK DOWN',
+          rx,
+          35,
+          28,
+          DANGER_COLOR,
+          'sans',
+          'left',
+        ).opacity(showOvershoot.value),
+      );
+    }
+
+    if (showMinEntropy.value > 0.02) {
+      nodes.push(
+        txt(
+          `Minimum loss = H(ỹ) = ${MODEL.smoothEntropy.toFixed(3)} nats`,
+          rx,
+          112,
+          30,
+          MARK_COLOR,
+          'mono',
+          'left',
+        ).opacity(showMinEntropy.value),
+      );
+    }
+
+    if (showShiftNote.value > 0.02) {
+      nodes.push(
+        txt(
+          `Shift +${sh.toFixed(0)} leaves proportions identical (gap ln 28 fixes ratios)`,
+          rx,
+          188,
+          26,
+          COSMOS.cyan,
+          'sans',
+          'left',
+        ).opacity(showShiftNote.value),
+      );
+    }
+
+    if (showInfLoss.value > 0.02) {
+      nodes.push(
+        txt(
+          'SUPPORT CONFLICT: ỹ(ate) > 0, p(ate) = 0  ⇒  L = +∞',
+          rx,
+          285,
+          26,
+          DANGER_COLOR,
+          'mono',
+          'left',
+        )
+          .glow(8, DANGER_COLOR)
+          .opacity(showInfLoss.value),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  // Beat 0
+  tweenCue(s, c, 'smoothing-equilibrium-0', gapVal, 4.2, { duration: 0.9 });
+  tweenCue(s, c, 'smooth-mixture', smoothMix, 1, { duration: 0.75 });
+
+  // Beat 1
+  tweenCue(s, c, 'smoothing-equilibrium-1', showSmoothNums, 1, { duration: 0.45 });
+  c.on('smooth-match', () => {
+    s.play(gapVal.to(MODEL.smoothGap, { duration: 0.7 }));
+    s.play(showMatchZero.to(1, { duration: 0.45 }));
+  });
+  c.show('smooth-gap', eqGap, { after: true });
+  tweenCue(s, c, 'smooth-gap', showGapLn28, 1, { duration: 0.45, after: true });
+  c.on('smooth-overshoot', () => {
+    s.play(gapVal.to(5.4, { duration: 0.65 }));
+    s.play(showOvershoot.to(1, { duration: 0.4 }));
+  });
+  tweenCue(s, c, 'smooth-descend', gapVal, MODEL.smoothGap, { duration: 0.65 });
+  tweenCue(s, c, 'smooth-minimum', showMinEntropy, 1, { duration: 0.45, after: true });
+
+  // Beat 2
+  tweenCue(s, c, 'smoothing-equilibrium-2', showShiftNote, 0.5, { duration: 0.35 });
+  c.on('smooth-shift', () => {
+    s.play(shiftTen.to(10, { duration: 0.75 }));
+    s.play(showShiftNote.to(1, { duration: 0.45 }));
+  });
+  tweenCue(s, c, 'smooth-support', excludeAte, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'smooth-infinite', showInfLoss, 1, { duration: 0.5 });
 }

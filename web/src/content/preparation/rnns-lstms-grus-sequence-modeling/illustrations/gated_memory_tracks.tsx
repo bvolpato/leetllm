@@ -40,11 +40,12 @@ export function create(theme: ThemeMode = 'dark') {
     fig.text(20, yHwy + 22, '0.838', { size: 16, mono: true, color: c.textSecondary })
 
     fig.arrow(84, yHwy, 186, yHwy, { color: blue, width: 4, head: 7.5 })
-    fig.text(135, yHwy - 18, 'retain 99.8%', {
+    fig.text(135, yHwy - 18, 'f = 0.98', {
         size: 15,
+        mono: true,
         color: blue,
         align: 'center',
-        weight: 600,
+        weight: 650,
     })
 
     // Plus node
@@ -53,7 +54,7 @@ export function create(theme: ThemeMode = 'dark') {
 
     // Write branch entering + from below
     fig.arrow(204, yHwy + 46, 204, yHwy + 18, { color: green, width: 2.2, head: 6 })
-    fig.text(204, yHwy + 62, 'i·g = 0.002', {
+    fig.text(204, yHwy + 62, 'i·c̃ = 0.002', {
         size: 16,
         mono: true,
         color: green,

@@ -4,7 +4,7 @@ import { Figure } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 740
 export const height = 415
 export const alt =
-    'Little’s Law throughput plot on a 0 to 3 RPS scale compares client concurrency limits from 1 to 8 slots against a dashed 3.0 RPS offered target with 0.9 s mean residence (2.7 average active slots). Deterministic pacing hits 3.0 RPS at 3 slots, whereas Poisson arrival bursts fall behind at 3 slots (2.15 RPS) and require 6 to 8 slots for burst headroom.'
+    'Little’s Law throughput plot on a 0 to 3 RPS scale compares client concurrency limits from 1 to 8 slots against a dashed 3.0 RPS offered target with 0.9 s mean residence (2.7 average active slots). Deterministic pacing hits 3.0 RPS at 3 slots, whereas Poisson arrival bursts fall behind at 3 slots (2.07 RPS) and require 6 to 8 slots for burst headroom.'
 
 const OFFERED_RPS = 3.0
 const MEAN_RESIDENCE_S = 0.9
@@ -78,7 +78,7 @@ export function create(theme: ThemeMode = 'dark') {
     fig.callout(
         [plot.px(3), plot.py(erlangCarriedRps(3)) + 6],
         [plot.px(4.3), plot.py(1.42)],
-        '3 slots: 2.15 RPS under Poisson bursts',
+        '3 slots: 2.07 RPS under Poisson bursts',
         { color: warm, size: 13.5, weight: 700, bend: 0.16, align: 'left' },
     )
     fig.text(plot.px(6.75), plot.py(2.58), '6-8 slots absorb bursts', {

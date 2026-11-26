@@ -1,0 +1,2433 @@
+version: 1
+id: voice-agents
+title: A Real-Time Voice Agent for the Incident Hotline
+source: system-design/design-real-time-voice-ai-agent/content.md
+sources:
+  - title: IETF RTP for WebRTC
+    url: https://www.rfc-editor.org/rfc/rfc8834.html
+  - title: IETF congestion control for interactive real-time media
+    url: https://www.rfc-editor.org/rfc/rfc8836.html
+  - title: Turn-taking across ten languages
+    url: https://pmc.ncbi.nlm.nih.gov/articles/PMC2705608/
+  - title: Browser capture and echo-cancellation constraints
+    url: https://w3c.github.io/mediacapture-main/
+  - title: Gemini Live specifications
+    url: https://ai.google.dev/gemini-api/docs/live-api
+  - title: Gemini Live capabilities, inspected November 7, 2026
+    url: https://ai.google.dev/gemini-api/docs/live-api/capabilities
+  - title: OpenAI Realtime interruption
+    url: https://developers.openai.com/api/docs/guides/realtime-conversations
+  - title: OpenAI Realtime client events
+    url: https://developers.openai.com/api/reference/resources/realtime/client-events
+  - title: OpenAI Responses prefix caching
+    url: https://developers.openai.com/api/docs/guides/prompt-caching
+  - title: NetEQ jitter buffer and packet-loss concealment
+    url: https://webrtc.googlesource.com/src/+/refs/heads/main/modules/audio_coding/neteq/g3doc/index.md
+  - title: WebRTC transports
+    url: https://www.rfc-editor.org/rfc/rfc8835.html
+  - title: WebSocket over HTTP/3
+    url: https://www.rfc-editor.org/rfc/rfc9220.html
+  - title: AudioPaLM sections 3.1 and 3.3
+    url: https://arxiv.org/abs/2306.12925
+scenes:
+  - id: subject-intro
+    title: "How much of the reply played?"
+    visual: Alex’s phone is playing the incident update. Its speaker goes quiet when Alex cuts in. The whole
+      reply stays visible beside the phone while the hotline waits for the player’s receipt.
+    beats:
+      - say: >-
+          The hotline is explaining why the incident is still open when Alex cuts in. “Wait, page the owner.”
+        hold: 0.55
+        caption_starts:
+          - "Alex cuts in."
+          - "Wait, page the owner."
+        visual_cues:
+          - id: intro-speaking
+            phrase: "The hotline is explaining"
+            targets: [intro-phone, intro-audio]
+            color: cyan
+            linger: 0.25
+          - id: intro-interrupt
+            phrase: "Alex cuts in"
+            targets: [intro-phone, intro-stop]
+            color: pink
+            linger: 0.25
+      - say: >-
+          The phone has the whole reply, right down to “still running.” Can the hotline count that
+          explanation
+          as spoken?
+        hold: 2.2
+        visual_cues:
+          - id: intro-delivery
+            phrase: "The phone has the whole reply"
+            targets: [intro-audio]
+            color: cyan
+            linger: 0.25
+          - id: intro-ask
+            phrase: "Can the hotline count that explanation as spoken"
+            targets: [intro-phone, intro-audio]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Ask the player how far it got. Its last playback receipt tells the hotline which complete pieces it
+          can keep. Rewind to the end of Alex’s question and follow the reply to the speaker.
+        hold: 0.75
+        visual_cues:
+          - id: intro-missing
+            phrase: "Ask the player how far it got"
+            targets: [intro-receipt]
+            color: green
+            linger: 0.25
+  - id: clock-contract
+    title: "How long did Alex wait?"
+    visual: >-
+      Two brackets end at the same first playback. Lengthening only the endpoint wait shifts commit and first
+      playback together across the speech-end target.
+    beats:
+      - say: >-
+          Alex finishes the question. Start one clock here. Sixty milliseconds later the hotline accepts the
+          turn. Start a second clock there. Stop both when the phone first plays the agent’s voice. The two
+          clocks give us different views of the same wait.
+        hold: 0.6
+        visual_cues:
+          - id: clock-speech
+            phrase: "Alex finishes the question"
+            targets: [clock-trace]
+            color: blue
+            linger: 0.25
+          - id: clock-commit
+            phrase: "the hotline accepts the turn"
+            targets: [clock-trace]
+            color: cyan
+            linger: 0.25
+          - id: clock-play
+            phrase: "when the phone first plays the agent’s voice"
+            targets: [clock-trace, clock-brackets]
+            color: green
+            linger: 0.25
+      - say: >-
+          In this example the sound starts at three hundred eighty milliseconds. The caller waited that whole
+          time. Subtract the sixty milliseconds before commit and the response path took three hundred twenty.
+          Receiving a packet or producing a token would stop the clocks too early.
+        hold: 0.7
+        visual_cues:
+          - id: clock-measure
+            phrase: "The caller waited that whole time"
+            targets: [clock-brackets]
+            color: blue
+            linger: 0.25
+          - id: clock-subtract
+            phrase: "the response path took three hundred twenty"
+            targets: [clock-brackets]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          Now change just the silence wait. The hotline waits three hundred milliseconds to commit. Everything
+          after that takes just as long as before. With a five hundred millisecond target from speech end, does
+          this call make it?
+        hold: 2
+        visual_cues:
+          - id: clock-shift
+            phrase: "The hotline waits three hundred milliseconds to commit"
+            targets: [clock-trace, clock-brackets]
+            color: cyan
+            linger: 0.25
+          - id: clock-ask
+            phrase: "does this call make it"
+            targets: [clock-limit, clock-brackets]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Three hundred plus three hundred twenty gives six hundred twenty. That misses the caller’s target even
+          though the response path still fits its four hundred millisecond budget. The hotline uses these as
+          proposed ninety-fifth percentile targets.
+        hold: 0.65
+        caption_starts:
+          - "gives six hundred twenty"
+        visual_cues:
+          - id: clock-late
+            phrase: "gives six hundred twenty"
+            targets: [clock-brackets, clock-limit]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          The phone first plays “I’ll check that.” Alex still has no status. Time the useful answer separately.
+          Also time how quickly playback stops when Alex interrupts. The proposed mute target is one hundred
+          milliseconds. Check these targets across devices and networks, including calls that fall silent.
+        hold: 0.7
+        visual_cues:
+          - id: clock-ack
+            phrase: "The phone first plays"
+            targets: [clock-limits]
+            color: green
+            linger: 0.25
+          - id: clock-mute
+            phrase: "how quickly playback stops when Alex interrupts"
+            targets: [clock-limits]
+            color: pink
+            linger: 0.25
+  - id: media-owners
+    title: Carry one call across distinct state owners
+    visual: Move the same call identity from capture to a stateful media worker and inference; keep a local mute
+      branch and response-scoped playout ledger outside the model path.
+    beats:
+      - say: Alex’s microphone and speaker belong to the client. A media worker handles the negotiated connection,
+          packet timing, buffer and routing. Recognition, language generation, tools and synthesis form the
+          inference path. Multi-party rooms may need a selective forwarding unit; one caller and one assistant
+          do not require a group room.
+        hold: 0.85
+        visual_cues:
+          - id: va-media-owners-0-0
+            phrase: Alex’s microphone and speaker belong to the client.
+            targets:
+              - va-media-owners-owners
+            color: cyan
+            linger: 0.3
+          - id: va-media-owners-0-1
+            phrase: A media worker handles the negotiated connection, packet timing, buffer and routing.
+            targets:
+              - va-media-owners-owners
+            color: yellow
+            linger: 0.3
+          - id: va-media-owners-0-2
+            phrase: Recognition, language generation, tools and synthesis form the inference path.
+            targets:
+              - va-media-owners-inference-owner
+            color: cyan
+            linger: 0.3
+          - id: va-media-owners-0-3
+            phrase: Multi-party rooms may need a selective forwarding unit; one caller and one assistant do not require a
+              group room.
+            targets:
+              - va-media-owners-owners
+            color: yellow
+            linger: 0.3
+      - say: Keep two control lanes beside the hot path. Local speech onset can mute the speaker without waiting for a
+          round trip. The confirmed-playout ledger records what the audio sink acknowledged for this call and
+          response. Neither a healthy decoder nor a fast GPU can recover a playback deadline already missed at
+          the media edge.
+        hold: 0.85
+        visual_cues:
+          - id: va-media-owners-1-0
+            phrase: Keep two control lanes beside the hot path.
+            targets:
+              - va-media-owners-local-mute
+            color: cyan
+            linger: 0.3
+          - id: va-media-owners-1-1
+            phrase: Local speech onset can mute the speaker without waiting for a round trip.
+            targets:
+              - va-media-owners-local-mute
+            color: yellow
+            linger: 0.3
+          - id: va-media-owners-1-2
+            phrase: The confirmed-playout ledger records what the audio sink acknowledged for this call and response.
+            targets:
+              - va-media-owners-playout-ledger
+            color: cyan
+            linger: 0.3
+          - id: va-media-owners-1-3
+            phrase: Neither a healthy decoder nor a fast GPU can recover a playback deadline already missed at the media
+              edge.
+            targets:
+              - va-media-owners-playout-ledger
+            color: yellow
+            linger: 0.3
+  - id: detect-and-commit
+    title: Listening and turn completion are separate
+    visual: Voice activity frames pause between incident-number digits while the turn detector waits for a
+      complete stable request.
+    beats:
+      - say: >
+          Voice activity detection marks frames that sound like speech. It can start a fast mute or indicate
+          that audio has arrived. Turn policy combines those frames with context to decide when Alex finished
+          the request.
+        hold: 0.55
+        visual_cues:
+          - id: detect-activity-frames
+            phrase: Voice activity detection marks frames that sound like speech
+            targets:
+              - detect-word-0
+              - detect-word-1
+            color: blue
+            linger: 0.6
+          - id: detect-turn-policy
+            phrase: Turn policy combines those frames with context
+            targets:
+              - detect-word-0
+              - detect-word-1
+            color: cyan
+            linger: 0.6
+      - say: >
+          Alex says incident four, pauses, then continues with two one nine. A silence-only endpoint might
+          commit after the first pause and send an incomplete identifier to the tool.
+        hold: 0.7
+        visual_cues:
+          - id: detect-partial-identifier
+            phrase: Alex says incident four, pauses
+            targets:
+              - detect-word-0
+              - detect-word-1
+            color: blue
+            linger: 0.6
+          - id: detect-spoken-completion
+            phrase: then continues with two one nine
+            targets:
+              - detect-word-3
+            color: green
+            linger: 0.6
+      - say: >
+          Turn commitment can combine silence, transcript stability, and semantic completeness. This hotline
+          fixture requires a complete four-digit incident identifier. Begin reversible preparation from stable
+          partial words when useful, while factual answers and side effects wait for a committed request.
+        hold: 0.55
+        visual_cues:
+          - id: detect-commit-rule
+            phrase: Turn commitment can combine silence, transcript stability, and semantic completeness
+            targets:
+              - detect-and-commit-stable-complete-turn-incident-4219
+            color: green
+            linger: 0.6
+          - id: detect-complete-id
+            phrase: a complete four-digit incident identifier
+            targets:
+              - detect-word-3
+              - detect-and-commit-stable-complete-turn-incident-4219
+            color: cyan
+            linger: 0.6
+  - id: vad-worksheet
+    title: Count frames before deciding that silence lasted long enough
+    visual: Compare a 61 ms silence threshold with four 20 ms frames. Mark the two pre-roll frames, three
+      speech frames and three trailing silent frames.
+    beats:
+      - say: This detector takes one speech probability per frame. Each frame lasts twenty
+          milliseconds. It accepts a frame as speech when its probability is at least one half. Divide the
+          requested silence duration by frame duration, then round up to a whole number of frames. Sixty
+          milliseconds needs three frames; sixty-one needs four, so that realized wait is eighty milliseconds.
+        hold: 0.85
+        visual_cues:
+          - id: va-vad-worksheet-0-0
+            phrase: This detector takes one speech probability per frame.
+            targets:
+              - va-vad-worksheet-frames
+            color: cyan
+            linger: 0.3
+          - id: va-vad-worksheet-0-1
+            phrase: Each frame lasts twenty milliseconds.
+            targets:
+              - va-vad-worksheet-frames
+            color: yellow
+            linger: 0.3
+          - id: va-vad-worksheet-0-2
+            phrase: It accepts a frame as speech when its probability is at least one half.
+            targets:
+              - va-vad-worksheet-frames
+            color: cyan
+            linger: 0.3
+          - id: va-vad-worksheet-0-3
+            phrase: Divide the requested silence duration by frame duration, then round up to a whole number of frames.
+            targets:
+              - va-vad-worksheet-rounding
+            color: yellow
+            linger: 0.3
+          - id: va-vad-worksheet-0-4
+            phrase: Sixty milliseconds needs three frames; sixty-one needs four, so that realized wait is eighty
+              milliseconds.
+            targets:
+              - va-vad-worksheet-rounding
+            color: cyan
+            linger: 0.3
+      - say: "The actual sequence begins with two quiet frames, then three speech frames, then three quiet frames.
+          Frame two starts speech. With forty milliseconds of pre-roll, the detector retains the two earlier
+          quiet frames too: three frames, or sixty milliseconds, at that start event. The third trailing
+          silence frame ends the utterance at frame seven."
+        hold: 0.85
+        visual_cues:
+          - id: va-vad-worksheet-1-0
+            phrase: The actual sequence begins with two quiet frames, then three speech frames, then three quiet frames.
+            targets:
+              - va-vad-worksheet-frames
+            color: cyan
+            linger: 0.3
+          - id: va-vad-worksheet-1-1
+            phrase: Frame two starts speech.
+            targets:
+              - va-vad-worksheet-retained
+            color: yellow
+            linger: 0.3
+          - id: va-vad-worksheet-1-2
+            phrase: "With forty milliseconds of pre-roll, the detector retains the two earlier quiet frames too: three
+              frames, or sixty milliseconds, at that start event."
+            targets:
+              - va-vad-worksheet-retained
+            color: cyan
+            linger: 0.3
+          - id: va-vad-worksheet-1-3
+            phrase: The third trailing silence frame ends the utterance at frame seven.
+            targets:
+              - va-vad-worksheet-endpoint
+            color: yellow
+            linger: 0.3
+      - say: Trim the trailing silence from retained utterance audio. Two pre-roll frames plus three speech frames
+          give five retained frames, or one hundred milliseconds. Forty of those milliseconds come from
+          before Alex started speaking. Reject nonfinite probabilities and missing, reordered or wrongly
+          typed
+          frame identifiers; a live system still needs explicit gap, maximum-length and stream-close policies.
+        hold: 0.85
+        visual_cues:
+          - id: va-vad-worksheet-2-0
+            phrase: Trim the trailing silence from retained utterance audio.
+            targets:
+              - va-vad-worksheet-retained
+            color: cyan
+            linger: 0.3
+          - id: va-vad-worksheet-2-1
+            phrase: Two pre-roll frames plus three speech frames give five retained frames, or one hundred milliseconds.
+            targets:
+              - va-vad-worksheet-retained
+            color: yellow
+            linger: 0.3
+          - id: va-vad-worksheet-2-2
+            phrase: Forty of those milliseconds come from before Alex started speaking.
+            targets:
+              - va-vad-worksheet-retained
+            color: cyan
+            linger: 0.3
+          - id: va-vad-worksheet-2-3
+            phrase: Reject nonfinite probabilities and missing, reordered or wrongly typed frame identifiers; a live
+              system still needs explicit gap, maximum-length and stream-close policies.
+            targets:
+              - va-vad-worksheet-frames
+            color: yellow
+            linger: 0.3
+      - say: The phone listens for Alex to start. The server decides when Alex has finished. A false start
+          can mute the speaker. An early endpoint can cut off the last digit of the incident number. Count
+          those two errors separately across devices, accents, languages, noise levels and pauses. Pick the
+          frame duration for the detector you deploy.
+        hold: 0.85
+        visual_cues:
+          - id: va-vad-worksheet-3-0
+            phrase: The phone listens for Alex to start. The server decides when Alex has finished.
+            targets:
+              - va-vad-worksheet-frames
+            color: cyan
+            linger: 0.3
+          - id: va-vad-worksheet-3-1
+            phrase: A false start can mute the speaker. An early endpoint can cut off the last digit of the
+              incident number.
+            targets:
+              - va-vad-worksheet-frames
+            color: yellow
+            linger: 0.3
+          - id: va-vad-worksheet-3-2
+            phrase: Count those two errors separately across devices, accents, languages, noise levels and
+              pauses.
+            targets:
+              - va-vad-worksheet-frames
+            color: cyan
+            linger: 0.3
+          - id: va-vad-worksheet-3-3
+            phrase: Pick the frame duration for the detector you deploy.
+            targets:
+              - va-vad-worksheet-frames
+            color: yellow
+            linger: 0.3
+  - id: echo-loop
+    title: Why does the hotline hear itself?
+    visual: Follow a copy of the speaker signal into the microphone. Show where to listen for the returning
+      voice during an echo test.
+    beats:
+      - say: The hotline plays two notes. Listen for a quieter pair.
+        hold: 1.15
+        hold_sound: echo-test
+        visual_cues:
+          - id: va-echo-loop-0-0
+            phrase: The hotline plays two notes.
+            targets: [va-echo-loop-waveforms]
+            color: yellow
+          - id: va-echo-loop-0-1
+            phrase: Listen for a quieter pair.
+            targets: [va-echo-loop-echo-path]
+            color: cyan
+      - say: Hear them come back? In this test the microphone picks up the same two notes three tenths of a second later. A voice detector can hear the hotline's own reply and cut it off mid-sentence.
+        hold: 0.6
+        visual_cues:
+          - id: va-echo-loop-1-0
+            phrase: Hear them come back?
+            targets: [va-echo-loop-echo-path]
+            color: cyan
+          - id: va-echo-loop-1-1
+            phrase: three tenths of a second later.
+            targets: [va-echo-loop-echo-path]
+            color: yellow
+      - say: Request acoustic echo cancellation from the browser. Test the hotline on speakerphone, then plug in headphones. Listen at the microphone to find out how much of the reply still comes back.
+        hold: 0.85
+        visual_cues:
+          - id: va-echo-loop-2-0
+            phrase: Request acoustic echo cancellation from the browser.
+            targets: [va-echo-loop-aec]
+            color: cyan
+
+  - id: partial-transcripts
+    title: Treat repeated words as tentative evidence
+    visual: Build successive actual transcript hypotheses and their common word prefixes; preserve an uncommitted
+      action record while one Boolean false passes and one string false is rejected.
+    beats:
+      - say: The article’s recognizer simulation emits interim and final events. Its common-prefix heuristic compares
+          consecutive hypotheses word by word. After What is, then What is incident, the shared prefix is What
+          is. Another hypothesis extends the incident number. Use the repeated words to prepare a lookup. If
+          the recognizer revises them, discard that preparation.
+        hold: 0.85
+        visual_cues:
+          - id: va-partial-transcripts-0-0
+            phrase: The article’s recognizer simulation emits interim and final events.
+            targets:
+              - va-partial-transcripts-hypotheses
+            color: cyan
+            linger: 0.3
+          - id: va-partial-transcripts-0-1
+            phrase: Its common-prefix heuristic compares consecutive hypotheses word by word.
+            targets:
+              - va-partial-transcripts-hypotheses
+            color: yellow
+            linger: 0.3
+          - id: va-partial-transcripts-0-2
+            phrase: After What is, then What is incident, the shared prefix is What is.
+            targets:
+              - va-partial-transcripts-hypotheses
+            color: cyan
+            linger: 0.3
+          - id: va-partial-transcripts-0-3
+            phrase: Another hypothesis extends the incident number.
+            targets:
+              - va-partial-transcripts-hypotheses
+            color: yellow
+            linger: 0.3
+          - id: va-partial-transcripts-0-4
+            phrase: Use the repeated words to prepare a lookup. If the recognizer revises them, discard that
+              preparation.
+            targets:
+              - va-partial-transcripts-hypotheses
+            color: cyan
+            linger: 0.3
+      - say: Before commitment, classify intent and perform authorized, cancellable read-only preparation when
+          appropriate. The actual helper labels incident text for a read-only status prefetch. History writes
+          and speech wait for a committed transcript; a close request then asks for confirmation rather than
+          executing a close. Before a close, verify the incident number and check the caller’s permission.
+        hold: 0.85
+        visual_cues:
+          - id: va-partial-transcripts-1-0
+            phrase: Before commitment, classify intent and perform authorized, cancellable read-only preparation when
+              appropriate.
+            targets:
+              - va-partial-transcripts-actions
+            color: cyan
+            linger: 0.3
+          - id: va-partial-transcripts-1-1
+            phrase: The actual helper labels incident text for a read-only status prefetch.
+            targets:
+              - va-partial-transcripts-actions
+            color: yellow
+            linger: 0.3
+          - id: va-partial-transcripts-1-2
+            phrase: History writes and speech wait for a committed transcript; a close request then asks for confirmation
+              rather than executing a close.
+            targets:
+              - va-partial-transcripts-actions
+            color: cyan
+            linger: 0.3
+          - id: va-partial-transcripts-1-3
+            phrase: Before a close, verify the incident number and check the caller’s permission.
+            targets:
+              - va-partial-transcripts-actions
+            color: yellow
+            linger: 0.3
+      - say: Validate the flag before branching. Boolean false remains uncommitted. The nonempty string false is
+          truthy in Python and must be rejected instead of treated as acceptance. The helper enforces the
+          flag’s type, while the host must obtain its value from the actual turn decision and bind it to the
+          authenticated session.
+        hold: 0.85
+        visual_cues:
+          - id: va-partial-transcripts-2-0
+            phrase: Validate the flag before branching.
+            targets:
+              - va-partial-transcripts-typed-flag
+            color: cyan
+            linger: 0.3
+          - id: va-partial-transcripts-2-1
+            phrase: Boolean false remains uncommitted.
+            targets:
+              - va-partial-transcripts-typed-flag
+            color: yellow
+            linger: 0.3
+          - id: va-partial-transcripts-2-2
+            phrase: The nonempty string false is truthy in Python and must be rejected instead of treated as acceptance.
+            targets:
+              - va-partial-transcripts-typed-flag
+            color: cyan
+            linger: 0.3
+          - id: va-partial-transcripts-2-3
+            phrase: The helper enforces the flag’s type, while the host must obtain its value from the actual turn
+              decision and bind it to the authenticated session.
+            targets:
+              - va-partial-transcripts-typed-flag
+            color: yellow
+            linger: 0.3
+  - id: batch-recognition
+    title: Measure the recognizer after the endpoint
+    visual: Construct the actual1200ms utterance then300ms endpoint and450ms recognition tail; keep the acoustic
+      and commit origins visible and compare its750ms post-speech transcript delay with already-streaming
+      recognition.
+    beats:
+      - say: "A batch recognizer can begin after the endpoint, which makes scheduling simpler. In the supplied article
+          trace, speech lasts twelve hundred milliseconds, a three-hundred-millisecond endpoint wait follows,
+          then recognition takes four hundred fifty. The transcript arrives at nineteen hundred fifty: seven
+          hundred fifty milliseconds after speech ended."
+        hold: 0.85
+        visual_cues:
+          - id: va-batch-recognition-0-0
+            phrase: A batch recognizer can begin after the endpoint, which makes scheduling simpler.
+            targets:
+              - va-batch-recognition-batch
+            color: cyan
+            linger: 0.3
+          - id: va-batch-recognition-0-1
+            phrase: In the supplied article trace, speech lasts twelve hundred milliseconds, a three-hundred-millisecond
+              endpoint wait follows, then recognition takes four hundred fifty.
+            targets:
+              - va-batch-recognition-batch
+            color: yellow
+            linger: 0.3
+          - id: va-batch-recognition-0-2
+            phrase: "The transcript arrives at nineteen hundred fifty: seven hundred fifty milliseconds after speech
+              ended."
+            targets:
+              - va-batch-recognition-post-speech
+            color: cyan
+            linger: 0.3
+      - say: At that point the hotline has the caller’s words. Generation, synthesis and transport still
+          follow. Batch recognition can suit recordings, short commands or prototypes whose measured budget
+          permits it. Streaming recognition pays some work during speech, while adding the responsibility to
+          handle revisions and a separate commitment boundary.
+        hold: 0.85
+        visual_cues:
+          - id: va-batch-recognition-1-0
+            phrase: At that point the hotline has the caller’s words.
+            targets:
+              - va-batch-recognition-post-speech
+            color: cyan
+            linger: 0.3
+          - id: va-batch-recognition-1-1
+            phrase: Generation, synthesis and transport still follow.
+            targets:
+              - va-batch-recognition-downstream
+            color: yellow
+            linger: 0.3
+          - id: va-batch-recognition-1-2
+            phrase: Batch recognition can suit recordings, short commands or prototypes whose measured budget permits it.
+            targets:
+              - va-batch-recognition-downstream
+            color: cyan
+            linger: 0.3
+          - id: va-batch-recognition-1-3
+            phrase: Streaming recognition pays some work during speech, while adding the responsibility to handle
+              revisions and a separate commitment boundary.
+            targets:
+              - va-batch-recognition-batch
+            color: yellow
+            linger: 0.3
+  - id: overlap-timeline
+    title: Overlap work on one shared clock
+    visual: Streaming recognition, turn commit, first LLM clause, synthesis, and playout occupy overlapping spans
+      on a millisecond timeline.
+    beats:
+      - say: >
+          In this synthetic trace, acoustic speech ends at zero. Turn commitment finishes at sixty
+          milliseconds while recognition is already running. Recognition completes one hundred milliseconds
+          after speech ends.
+        hold: 0.55
+        visual_cues:
+          - id: overlap-commit-spoken
+            phrase: Turn commitment finishes at sixty milliseconds
+            targets:
+              - overlap-commit
+            color: cyan
+            linger: 0.65
+          - id: overlap-recognition-spoken
+            phrase: Recognition completes one hundred milliseconds after speech ends
+            targets:
+              - overlap-recognition
+            color: yellow
+            linger: 0.65
+      - say: >
+          The model starts before recognition finishes. Speech synthesis begins while generation continues,
+          preparing the first chunk as later words arrive. The playback buffer then delivers that chunk to the
+          caller.
+        hold: 0.7
+        visual_cues:
+          - id: overlap-generation-spoken
+            phrase: The model starts before recognition finishes
+            targets:
+              - overlap-generation
+            color: cyan
+            linger: 0.65
+          - id: overlap-synthesis-spoken
+            phrase: Speech synthesis begins while generation continues
+            targets:
+              - overlap-synthesis
+            color: yellow
+            linger: 0.65
+          - id: overlap-buffer-spoken
+            phrase: The playback buffer then delivers that chunk to the caller
+            targets:
+              - overlap-buffer
+            color: yellow
+            linger: 0.65
+      - say: >
+          If the stages ran one after another, their durations would add to five hundred ten milliseconds.
+          Overlap shortens the critical path to three hundred eighty. From turn commitment to first audio, the
+          caller waits three hundred twenty milliseconds.
+        hold: 0.55
+        visual_cues:
+          - id: overlap-sequential-spoken
+            phrase: If the stages ran one after another, their durations would add to five hundred ten milliseconds
+            targets:
+              - overlap-buffer
+            color: blue
+            linger: 0.6
+          - id: overlap-total-spoken
+            phrase: Overlap shortens the critical path to three hundred eighty
+            targets:
+              - overlap-critical-path
+            color: cyan
+            linger: 0.6
+          - id: overlap-wait-spoken
+            phrase: From turn commitment to first audio, the caller waits three hundred twenty milliseconds
+            targets:
+              - overlap-commit-wait
+            color: yellow
+            linger: 0.6
+  - id: speak-in-chunks
+    title: "What can the hotline say while it looks?"
+    visual: >-
+      Follow a single playhead through words, synthesis, client playout and the incident lookup. A clean
+      acknowledgement plays while the result is pending. The verified reply enters the model lane when the
+      lookup returns.
+    beats:
+      - say: >-
+          The hotline has accepted Alex’s question and started a read-only lookup. Watch the first few words
+          come off the model. A short phrase is ready for the synthesizer while the model is still writing.
+        hold: 0.6
+        visual_cues:
+          - id: speech-start
+            phrase: "started a read-only lookup"
+            targets: [speech-tool]
+            color: cyan
+            linger: 0.25
+          - id: speech-fragment
+            phrase: "the first few words come off the model"
+            targets: [speech-spans]
+            color: yellow
+            linger: 0.25
+          - id: speech-synth
+            phrase: "ready for the synthesizer while the model is still writing"
+            targets: [speech-spans]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          At three hundred eighty milliseconds the phone starts playing that first phrase. Look at the lookup
+          underneath it. Which can Alex hear now, “I’ll check that” or “Incident is open”?
+        hold: 1.9
+        visual_cues:
+          - id: speech-first
+            phrase: "the phone starts playing that first phrase"
+            targets: [speech-spans]
+            color: green
+            linger: 0.25
+          - id: speech-choose
+            phrase: "Which can Alex hear now"
+            targets: [speech-tool, speech-now]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          “I’ll check that.” While Alex hears it, the model can prepare a neutral continuation. Then the lookup
+          comes back open. Now the model has evidence for the status and can start the factual reply.
+        hold: 0.65
+        visual_cues:
+          - id: speech-ack
+            phrase: "I’ll check that"
+            targets: [speech-now]
+            color: green
+            linger: 0.25
+          - id: speech-neutral
+            phrase: "the model can prepare a neutral continuation"
+            targets: [speech-spans]
+            color: cyan
+            linger: 0.25
+          - id: speech-return
+            phrase: "the lookup comes back open"
+            targets: [speech-tool]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Follow the first piece of that reply down to the phone. Even after synthesis finishes, those words
+          still have to reach the player. The factual reply starts playing at nine hundred fifty-five
+          milliseconds on the call clock. Track those handoffs separately when you investigate a slow answer.
+        hold: 0.8
+        visual_cues:
+          - id: speech-factual
+            phrase: "the first piece of that reply down to the phone"
+            targets: [speech-spans]
+            color: yellow
+            linger: 0.25
+          - id: speech-play-fact
+            phrase: "starts playing at nine hundred fifty-five milliseconds"
+            targets: [speech-spans, speech-now]
+            color: green
+            linger: 0.25
+  - id: speakable-gate
+    title: "What can the hotline say by the deadline?"
+    visual: Divide a 400 ms budget at 200 ms. Try a pending lookup and a closed incident at that deadline,
+      then show what Alex hears when a requested change fails.
+    beats:
+      - say: >-
+          Budget four hundred milliseconds from accepting a turn to playing the first sound. Suppose we set
+          aside two hundred for synthesis, transport and playback. That leaves two hundred milliseconds to
+          choose the first words.
+        hold: 0.85
+        visual_cues:
+          - id: va-speakable-gate-0-0
+            phrase: "Budget four hundred milliseconds"
+            targets: [va-speakable-gate-deadline]
+            color: cyan
+            linger: 0.3
+          - id: va-speakable-gate-0-1
+            phrase: "set aside two hundred"
+            targets: [va-speakable-gate-deadline]
+            color: green
+            linger: 0.3
+          - id: va-speakable-gate-0-2
+            phrase: "That leaves two hundred milliseconds"
+            targets: [va-speakable-gate-deadline]
+            color: yellow
+            linger: 0.3
+      - say: >-
+          If the lookup is pending, Alex hears “I’m checking the request.” Try a different result. This time
+          the incident comes back closed. The hotline reads that value into its reply. “Incident four two one
+          nine is closed.” If a requested change fails, tell Alex the change is unconfirmed. Paging or
+          closing
+          an incident also requires permission and confirmation.
+        hold: 0.85
+        caption_starts:
+          - "This time the incident comes back closed."
+          - "Incident four two one nine is closed."
+        visual_cues:
+          - id: va-speakable-gate-1-0
+            phrase: "If the lookup is pending"
+            targets: [va-speakable-gate-tool-state]
+            color: cyan
+            linger: 0.3
+          - id: va-speakable-gate-1-1
+            phrase: "the incident comes back closed"
+            targets: [va-speakable-gate-tool-state]
+            color: green
+            linger: 0.3
+          - id: speak-returned-status
+            phrase: "reads that value into its reply"
+            targets: [va-speakable-gate-tool-state]
+            color: green
+            linger: 0.25
+          - id: va-speakable-gate-1-2
+            phrase: "If a requested change fails"
+            targets: [va-speakable-gate-tool-state]
+            color: pink
+            linger: 0.3
+          - id: va-speakable-gate-1-3
+            phrase: "requires permission and confirmation"
+            targets: [va-speakable-gate-authority]
+            color: blue
+            linger: 0.3
+      - say: >-
+          The executor performs the action. The speech formatter describes its result. Before offering to
+          text a link, check that this call supports it and Alex has permission. Then listen to the incident
+          digits and the severity. Alex needs to recognize both over the phone.
+        hold: 0.85
+        visual_cues:
+          - id: va-speakable-gate-2-0
+            phrase: "The speech formatter describes its result"
+            targets: [va-speakable-gate-authority]
+            color: cyan
+            linger: 0.3
+          - id: va-speakable-gate-2-1
+            phrase: "Before offering to text a link"
+            targets: [va-speakable-gate-authority]
+            color: yellow
+            linger: 0.3
+          - id: va-speakable-gate-2-2
+            phrase: "listen to the incident digits and the severity"
+            targets: [va-speakable-gate-tool-state]
+            color: cyan
+            linger: 0.3
+  - id: clause-queue
+    title: "When can these words go to the synthesizer?"
+    visual: The comma after “open” sends one phrase to synthesis. With no punctuation, the buffer splits at a
+      space. The audio queue then fills as synthesis gets ahead of playback.
+    beats:
+      - say: >-
+          Watch the comma after “open.” As soon as it arrives, send that first phrase to the synthesizer.
+          The model can keep writing the severity. A period, question mark or exclamation mark also ends a
+          phrase.
+        hold: 0.85
+        visual_cues:
+          - id: clause-comma
+            phrase: "Watch the comma after open"
+            targets: [queue-buffer]
+            color: cyan
+            linger: 0.3
+          - id: clause-flush
+            phrase: "send that first phrase to the synthesizer"
+            targets: [queue-buffer, queue-output]
+            color: green
+            linger: 0.3
+          - id: clause-more
+            phrase: "keep writing the severity"
+            targets: [queue-buffer]
+            color: cyan
+            linger: 0.3
+      - say: >-
+          Try a sentence with no punctuation. At fifty-two characters this buffer looks back for a space.
+          It sends the words through “is” and holds “investigating” until the text ends. Listen for odd
+          breaks
+          around decimals and abbreviations when you tune this rule for a voice.
+        hold: 0.85
+        visual_cues:
+          - id: clause-long
+            phrase: "a sentence with no punctuation"
+            targets: [queue-buffer]
+            color: cyan
+            linger: 0.3
+          - id: clause-space
+            phrase: "looks back for a space"
+            targets: [queue-buffer]
+            color: yellow
+            linger: 0.3
+          - id: clause-split
+            phrase: "It sends the words through is"
+            targets: [queue-output]
+            color: green
+            linger: 0.3
+          - id: clause-end
+            phrase: "until the text ends"
+            targets: [queue-buffer, queue-output]
+            color: green
+            linger: 0.3
+      - say: >-
+          Sending every token can make the voice stutter. Waiting for a paragraph delays the first sound.
+          Even with short phrases, synthesis can outrun the speaker. Here eight pieces have been synthesized
+          and
+          only two have played. Pause production at the queue limit so Alex can interrupt without a long
+          backlog.
+        hold: 0.85
+        visual_cues:
+          - id: queue-pace
+            phrase: "Sending every token"
+            targets: [queue-audio]
+            color: cyan
+            linger: 0.3
+          - id: queue-fill
+            phrase: "eight pieces have been synthesized and only two have played"
+            targets: [queue-audio]
+            color: yellow
+            linger: 0.3
+          - id: queue-bound
+            phrase: "Pause production at the queue limit"
+            targets: [queue-audio]
+            color: pink
+            linger: 0.3
+  - id: barge-in
+    title: "Where should this reply stop?"
+    visual: >-
+      Reopen the four pieces of the factual reply. Under them, the phone reports two played boundaries. A
+      separate marker stops inside the third piece when Alex speaks. Only whole confirmed pieces enter the next
+      turn.
+    beats:
+      - say: >-
+          Here’s the reply from the opening. Set the clock to zero when this factual reply starts playing. The
+          top strip shows the words in the audio the phone received. Below it, watch the phone report how far
+          its player has got.
+        hold: 0.5
+        visual_cues:
+          - id: barge-origin
+            phrase: "when this factual reply starts playing"
+            targets: [reply-strip]
+            color: cyan
+            linger: 0.25
+          - id: barge-player
+            phrase: "the phone report how far its player has got"
+            targets: [reply-receipt]
+            color: green
+            linger: 0.25
+      - say: >-
+          The first receipt covers “Incident is.” The next reaches the end of “open.” Then Alex says, “Wait,
+          page the owner.” That interruption lands six hundred fifty milliseconds into the reply. The last
+          playback receipt still says five hundred twenty. Which words can the next turn treat as already said?
+        hold: 2.2
+        visual_cues:
+          - id: barge-first-ack
+            phrase: "The first receipt covers"
+            targets: [reply-receipt]
+            color: green
+            linger: 0.25
+          - id: barge-second-ack
+            phrase: "The next reaches the end of open"
+            targets: [reply-receipt, reply-strip]
+            color: green
+            linger: 0.25
+          - id: barge-stop
+            phrase: "Then Alex says"
+            targets: [reply-stop]
+            color: pink
+            linger: 0.25
+          - id: barge-ask
+            phrase: "Which words can the next turn treat as already said"
+            targets: [reply-receipt, reply-question]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          Keep “Incident is open.” The next piece ends at eight hundred sixty. The player hasn’t confirmed that
+          whole piece, so the explanation stays out of Alex’s conversation history.
+        hold: 0.78
+        visual_cues:
+          - id: barge-keep
+            phrase: "Keep Incident is open"
+            targets: [reply-history]
+            color: green
+            linger: 0.25
+          - id: barge-unconfirmed
+            phrase: "The next piece ends at eight hundred sixty"
+            targets: [reply-strip]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          On Alex’s first sound, local speech detection mutes the speaker and the phone clears queued output.
+          The server cancels generation and synthesis for this reply. Freeze the last accepted receipt. Check
+          the session and reply on every receipt and accept only a cursor that moves forward or stays put,
+          within audio received for that reply.
+        hold: 0.7
+        visual_cues:
+          - id: barge-local
+            phrase: "local speech detection mutes the speaker"
+            targets: [reply-stop]
+            color: pink
+            linger: 0.25
+          - id: barge-freeze
+            phrase: "Freeze the last accepted receipt"
+            targets: [reply-receipt]
+            color: green
+            linger: 0.25
+          - id: barge-id
+            phrase: "Check the session and reply on every receipt"
+            targets: [reply-history]
+            color: cyan
+            linger: 0.25
+  - id: alignment-ledger
+    title: "Does “open” make the cut?"
+    visual: >-
+      Each boundary pairs an audio end with an exclusive text offset. A magnified ruler resolves a
+      one-millisecond difference between two client receipts while the interruption stays at 650 ms.
+    beats:
+      - say: >-
+          Each seam in the reply joins a time to a place in the text. Read the seam after “open.” The player
+          reaches it at five hundred twenty milliseconds. Cut the text there and you have sixteen characters,
+          including the space before the word. All four pieces fit back together to make the original sixty-four
+          characters.
+        hold: 0.65
+        visual_cues:
+          - id: align-pairs
+            phrase: "Each seam in the reply joins a time to a place in the text"
+            targets: [align-strip]
+            color: cyan
+            linger: 0.25
+          - id: align-open
+            phrase: "the seam after open"
+            targets: [align-detail]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Replay the same interruption with one change. This time the phone confirms five hundred nineteen
+          milliseconds. Zoom in on that last millisecond. With receipts at five nineteen and five twenty, which
+          replay can keep the word “open”?
+        hold: 2.2
+        visual_cues:
+          - id: align-replay
+            phrase: "the phone confirms five hundred nineteen milliseconds"
+            targets: [align-detail]
+            color: yellow
+            linger: 0.25
+          - id: align-zoom
+            phrase: "Zoom in on that last millisecond"
+            targets: [align-detail]
+            color: yellow
+            linger: 0.25
+          - id: align-compare
+            phrase: "which replay can keep the word open"
+            targets: [align-detail, align-slices]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          At five hundred nineteen milliseconds, the last whole piece ends at two hundred forty. Slice the text
+          at character eleven. The words “Incident is” are all you keep. At five twenty, the second piece just
+          fits. Slice at sixteen. That last millisecond brings the word “open” into history. Look for the last
+          complete audio boundary at or before the receipt.
+        hold: 0.75
+        caption_starts:
+          - "Slice the text at character eleven."
+          - "At five twenty, the second piece just fits."
+        visual_cues:
+          - id: align-first
+            phrase: "Slice the text at character eleven"
+            targets: [align-slices]
+            color: green
+            linger: 0.25
+          - id: align-second
+            phrase: "Slice at sixteen"
+            targets: [align-slices]
+            color: green
+            linger: 0.25
+      - say: >-
+          With a receipt of zero, the assistant contributes no words to history. Check that the chunk text
+          reconstructs the reply and that its character offsets and audio end times are strictly increasing
+          integers. In Python even sixteen point zero will fail as a slice index. Reject that alignment before
+          saving any words.
+        hold: 0.6
+        visual_cues:
+          - id: align-zero
+            phrase: "a receipt of zero"
+            targets: [align-validation]
+            color: green
+            linger: 0.25
+          - id: align-type
+            phrase: "sixteen point zero"
+            targets: [align-validation]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          A receipt tells us what this player acknowledged. Alex might have muted the device, or a later receipt
+          might have been lost. A client that can report its final position after stopping should identify the
+          call and reply it belongs to. Once this hotline freezes a reply, late receipts cannot extend its
+          history or cancel the next reply.
+        hold: 0.65
+        visual_cues:
+          - id: align-scope
+            phrase: "what this player acknowledged"
+            targets: [align-validation]
+            color: green
+            linger: 0.25
+          - id: align-late
+            phrase: "late receipts cannot extend its history or cancel the next reply"
+            targets: [align-validation]
+            color: pink
+            linger: 0.25
+  - id: operation-ledger
+    title: "Alex asks to page the owner"
+    visual: >-
+      Follow one confirmed page by request ID. After a timeout the same request resolves to a service receipt.
+      An interruption takes the spoken acknowledgement out of conversation history while the accepted operation
+      remains visible.
+    beats:
+      - say: >-
+          Alex asks the hotline to page the owner. Authenticate Alex and confirm the action, the owner and
+          the
+          incident number. Give that request one ID. Check permission again just before sending the page.
+          If Alex lacks permission, stop here.
+        hold: 0.65
+        visual_cues:
+          - id: page-request
+            phrase: "Alex asks the hotline to page the owner"
+            targets: [page-request]
+            color: blue
+            linger: 0.25
+          - id: page-auth
+            phrase: "Check permission again just before sending the page"
+            targets: [page-request]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          In this case the check passes. The executor submits the page, then times out waiting for the response.
+          Should it send another page?
+        hold: 1.9
+        caption_starts:
+          - "Should it send another page?"
+        visual_cues:
+          - id: page-submit
+            phrase: "The executor submits the page"
+            targets: [page-record]
+            color: yellow
+            linger: 0.25
+          - id: page-timeout
+            phrase: "times out waiting for the response"
+            targets: [page-record]
+            color: pink
+            linger: 0.25
+          - id: page-ask
+            phrase: "Should it send another page"
+            targets: [page-record]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Look up the original request ID. The service accepted this page. We still need a delivery receipt
+          to tell Alex it reached the owner. If a retry is needed, reuse the same ID under the paging
+          service’s idempotency contract. That keeps a retry from creating a second page.
+        hold: 0.6
+        caption_starts:
+          - "The service accepted this page"
+        visual_cues:
+          - id: page-reconcile
+            phrase: "Look up the original request ID"
+            targets: [page-record]
+            color: cyan
+            linger: 0.25
+          - id: page-accepted
+            phrase: "The service accepted this page"
+            targets: [page-record]
+            color: green
+            linger: 0.25
+      - say: >-
+          The hotline prepares to tell Alex, “The paging service accepted your request.” Alex interrupts before
+          the player confirms a word. Clear that sentence from the next turn. The page is still on record. If
+          Alex asks whether the owner has seen it, check for delivery or a reply before you answer.
+        hold: 0.75
+        visual_cues:
+          - id: page-words
+            phrase: "The hotline prepares to tell Alex"
+            targets: [page-words]
+            color: blue
+            linger: 0.25
+          - id: page-cut
+            phrase: "Alex interrupts before the player confirms a word"
+            targets: [page-words]
+            color: pink
+            linger: 0.25
+          - id: page-next
+            phrase: "The page is still on record"
+            targets: [page-record]
+            color: green
+            linger: 0.25
+  - id: cascaded-vs-native
+    title: Choose the path your product can inspect
+    visual: Cascaded speech recognition, model, and synthesis compare with a native-audio model while policy,
+      transport, and state stay visible.
+    beats:
+      - say: >
+          A cascaded design runs speech recognition, a language model, and speech synthesis as separate
+          stages. It exposes transcripts and gives the application clear places to route tool calls or inspect
+          failures.
+        hold: 0.55
+        visual_cues:
+          - id: cascaded-stages
+            phrase: A cascaded design runs speech recognition, a language model, and speech synthesis as separate stages
+            targets:
+              - cascaded-recognition
+              - cascaded-language-model
+              - cascaded-synthesis
+            color: cyan
+            linger: 0.6
+          - id: cascaded-inspection
+            phrase: It exposes transcripts and gives the application clear places to route tool calls or inspect failures
+            targets:
+              - cascaded-recognition
+              - cascaded-language-model
+            color: yellow
+            linger: 0.6
+      - say: >
+          A native-audio model can reduce model handoffs and preserve prosody. It still needs capture,
+          transport, interruption handling, tool policy, and conversation-state decisions around the model.
+        hold: 0.7
+        visual_cues:
+          - id: native-audio-path
+            phrase: A native-audio model can reduce model handoffs and preserve prosody
+            targets:
+              - native-audio-model
+            color: cyan
+            linger: 0.6
+          - id: voice-shared-policy
+            phrase: It still needs capture, transport, interruption handling, tool policy, and conversation-state
+              decisions around the model
+            targets:
+              - cascaded-capture
+              - cascaded-playback
+              - voice-shared-policy
+            color: green
+            linger: 0.6
+      - say: >
+          Compare the two paths on your target devices and network slices. Measure first audio, recognition
+          accuracy, interruption behavior, tool safety, and the evidence available when a caller disputes what
+          was said.
+        hold: 0.55
+        visual_cues:
+          - id: voice-path-comparison
+            phrase: Compare the two paths on your target devices and network slices
+            targets:
+              - native-audio-model
+              - cascaded-recognition
+              - cascaded-language-model
+              - cascaded-synthesis
+            color: cyan
+            linger: 0.6
+          - id: voice-inspection-evidence
+            phrase: Measure first audio, recognition accuracy, interruption behavior, tool safety, and the evidence
+              available when a caller disputes what was said
+            targets:
+              - voice-shared-policy
+            color: yellow
+            linger: 0.6
+  - id: native-session
+    title: Account for received audio and confirmed playback separately
+    visual: "Replay the actual event list: transcript,160ms received and acknowledged,220ms received, tool
+      proposal. Preserve separate transcript, audio, playout and tool records; process every part in a
+      multipart server message."
+    beats:
+      - say: A native audio session keeps track of incoming and outgoing audio across turns. The article’s
+          simulated events receive one hundred sixty milliseconds of audio and acknowledge that amount, then
+          receive another two hundred twenty. Total received audio is three hundred eighty, while confirmed
+          playout remains one hundred sixty. Their difference is two hundred twenty milliseconds not yet
+          confirmed.
+        hold: 0.85
+        visual_cues:
+          - id: va-native-session-0-0
+            phrase: A native audio session keeps track of incoming and outgoing audio across turns.
+            targets:
+              - va-native-session-event-stream
+            color: cyan
+            linger: 0.3
+          - id: va-native-session-0-1
+            phrase: The article’s simulated events receive one hundred sixty milliseconds of audio and acknowledge that
+              amount, then receive another two hundred twenty.
+            targets:
+              - va-native-session-event-stream
+            color: yellow
+            linger: 0.3
+          - id: va-native-session-0-2
+            phrase: Total received audio is three hundred eighty, while confirmed playout remains one hundred sixty.
+            targets:
+              - va-native-session-audio-counters
+            color: cyan
+            linger: 0.3
+          - id: va-native-session-0-3
+            phrase: Their difference is two hundred twenty milliseconds not yet confirmed.
+            targets:
+              - va-native-session-audio-counters
+            color: yellow
+            linger: 0.3
+      - say: The transcript side channel says Incident is still open, but that full text is not confirmed shared
+          speech. The simulated tool-call event collects a proposed tool name and authorizes no action.
+          Playback acknowledgement is an invented application event in this lab; a provider adapter must map
+          real session, response, item and audio-part identities, including duplicates and cancellation.
+        hold: 0.85
+        visual_cues:
+          - id: va-native-session-1-0
+            phrase: The transcript side channel says Incident is still open, but that full text is not confirmed shared
+              speech.
+            targets:
+              - va-native-session-parts
+            color: cyan
+            linger: 0.3
+          - id: va-native-session-1-1
+            phrase: The simulated tool-call event collects a proposed tool name and authorizes no action.
+            targets:
+              - va-native-session-tool-proposal
+            color: yellow
+            linger: 0.3
+          - id: va-native-session-1-2
+            phrase: Playback acknowledgement is an invented application event in this lab; a provider adapter must map
+              real session, response, item and audio-part identities, including duplicates and cancellation.
+            targets:
+              - va-native-session-parts
+            color: cyan
+            linger: 0.3
+      - say: "Provider documentation here was inspected on November seventh, twenty twenty-six. Current Gemini Live
+          models can put several content parts in one server event. Process every applicable audio, transcript
+          and control field instead of stopping at an if-else branch for audio. Tool scheduling also depends
+          on the model: the inspected three-point-eight Live supports nonblocking calls, whereas
+          three-point-one Flash Live Preview waits for tool responses."
+        hold: 0.85
+        visual_cues:
+          - id: va-native-session-2-0
+            phrase: Provider documentation here was inspected on November seventh, twenty twenty-six.
+            targets:
+              - va-native-session-documentation-date
+            color: cyan
+            linger: 0.3
+          - id: va-native-session-2-1
+            phrase: Current Gemini Live models can put several content parts in one server event.
+            targets:
+              - va-native-session-parts
+            color: yellow
+            linger: 0.3
+          - id: va-native-session-2-2
+            phrase: Process every applicable audio, transcript and control field instead of stopping at an if-else branch
+              for audio.
+            targets:
+              - va-native-session-parts
+            color: cyan
+            linger: 0.3
+          - id: va-native-session-2-3
+            phrase: "Tool scheduling also depends on the model: the inspected three-point-eight Live supports nonblocking
+              calls, whereas three-point-one Flash Live Preview waits for tool responses."
+            targets:
+              - va-native-session-scheduling
+            color: yellow
+            linger: 0.3
+  - id: provider-interruption
+    title: Match the provider’s actual interruption contract
+    visual: Compare a Gemini sent-to-client history boundary with the application’s sink-confirmed boundary, then
+      build an actual-shaped OpenAI truncate request and its acknowledgement/error branches without executing
+      a provider session.
+    beats:
+      - say: The inspected Gemini capabilities guide labels Live API as preview. Its interruption description retains
+          information already sent to the client, which can include buffered, unplayed output. Stop queued
+          playback, but do not assume that remote session history now equals this application’s acknowledged
+          prefix. Choose a documented synchronization or session-rebuild strategy that preserves trusted
+          context.
+        hold: 0.85
+        visual_cues:
+          - id: va-provider-interruption-0-0
+            phrase: The inspected Gemini capabilities guide labels Live API as preview.
+            targets:
+              - va-provider-interruption-sent-played
+            color: cyan
+            linger: 0.3
+          - id: va-provider-interruption-0-1
+            phrase: Its interruption description retains information already sent to the client, which can include
+              buffered, unplayed output.
+            targets:
+              - va-provider-interruption-sent-played
+            color: yellow
+            linger: 0.3
+          - id: va-provider-interruption-0-2
+            phrase: Stop queued playback, but do not assume that remote session history now equals this application’s
+              acknowledged prefix.
+            targets:
+              - va-provider-interruption-sent-played
+            color: cyan
+            linger: 0.3
+          - id: va-provider-interruption-0-3
+            phrase: Choose a documented synchronization or session-rebuild strategy that preserves trusted context.
+            targets:
+              - va-provider-interruption-sent-played
+            color: yellow
+            linger: 0.3
+      - say: The OpenAI Realtime guide distinguishes transports. It describes automatic server truncation for WebRTC
+          and SIP, where the server manages output buffering. With WebSocket playback, the client stops its
+          sink and discards queued output, then requests truncation using the assistant item identifier, audio
+          content index and played duration in milliseconds.
+        hold: 0.85
+        visual_cues:
+          - id: va-provider-interruption-1-0
+            phrase: The OpenAI Realtime guide distinguishes transports.
+            targets:
+              - va-provider-interruption-truncate
+            color: cyan
+            linger: 0.3
+          - id: va-provider-interruption-1-1
+            phrase: It describes automatic server truncation for WebRTC and SIP, where the server manages output
+              buffering.
+            targets:
+              - va-provider-interruption-auto-transport
+            color: yellow
+            linger: 0.3
+          - id: va-provider-interruption-1-2
+            phrase: With WebSocket playback, the client stops its sink and discards queued output, then requests
+              truncation using the assistant item identifier, audio content index and played duration in
+              milliseconds.
+            targets:
+              - va-provider-interruption-truncate
+            color: cyan
+            linger: 0.3
+      - say: The client-event reference currently sets the audio content index to zero. An audio end beyond the actual
+          duration produces an error; a successful request receives an item-truncated event. This API does not
+          return our fixture’s precisely word-aligned text prefix. Its input transcription also runs
+          asynchronously as guidance, rather than an exact record of what the audio model perceived.
+        hold: 0.85
+        visual_cues:
+          - id: va-provider-interruption-2-0
+            phrase: The client-event reference currently sets the audio content index to zero.
+            targets:
+              - va-provider-interruption-truncate
+            color: cyan
+            linger: 0.3
+          - id: va-provider-interruption-2-1
+            phrase: An audio end beyond the actual duration produces an error; a successful request receives an
+              item-truncated event.
+            targets:
+              - va-provider-interruption-result
+            color: yellow
+            linger: 0.3
+          - id: va-provider-interruption-2-2
+            phrase: This API does not return our fixture’s precisely word-aligned text prefix.
+            targets:
+              - va-provider-interruption-result
+            color: cyan
+            linger: 0.3
+          - id: va-provider-interruption-2-3
+            phrase: Its input transcription also runs asynchronously as guidance, rather than an exact record of what the
+              audio model perceived.
+            targets:
+              - va-provider-interruption-input-guidance
+            color: yellow
+            linger: 0.3
+      - say: Keep long-lived provider credentials on a trusted server, or use the supported short-lived client
+          credential flow. Bind session access and recording, transcript and identifier retention to the call
+          policy. Native audio can preserve prosody and reduce handoffs, while the application still owns tool
+          policy, echo testing, transport and an inspectable recovery contract.
+        hold: 0.85
+        visual_cues:
+          - id: va-provider-interruption-3-0
+            phrase: Keep long-lived provider credentials on a trusted server, or use the supported short-lived client
+              credential flow.
+            targets:
+              - va-provider-interruption-credentials
+            color: cyan
+            linger: 0.3
+          - id: va-provider-interruption-3-1
+            phrase: Bind session access and recording, transcript and identifier retention to the call policy.
+            targets:
+              - va-provider-interruption-call-policy
+            color: yellow
+            linger: 0.3
+          - id: va-provider-interruption-3-2
+            phrase: Native audio can preserve prosody and reduce handoffs, while the application still owns tool policy,
+              echo testing, transport and an inspectable recovery contract.
+            targets:
+              - va-provider-interruption-call-policy
+            color: cyan
+            linger: 0.3
+  - id: pcm-contract
+    title: Derive duration from actual sample frames
+    visual: Place320 mono input samples and480 mono output samples into their actual20ms windows, then keep480
+      samples fixed while changing the playback rate from24kHz to16kHz and extending its duration to30ms.
+    beats:
+      - say: The inspected Gemini overview specifies raw little-endian sixteen-bit PCM, with native sixteen-kilohertz
+          input and twenty-four-kilohertz output. Its capabilities guide accepts other declared input rates
+          and resamples them. Decode a transport codec before handing off PCM. A sample-rate label must
+          describe the actual samples; relabeling is not a resampling operation.
+        hold: 0.85
+        visual_cues:
+          - id: va-pcm-contract-0-0
+            phrase: The inspected Gemini overview specifies raw little-endian sixteen-bit PCM, with native
+              sixteen-kilohertz input and twenty-four-kilohertz output.
+            targets:
+              - va-pcm-contract-samples
+            color: cyan
+            linger: 0.3
+          - id: va-pcm-contract-0-1
+            phrase: Its capabilities guide accepts other declared input rates and resamples them.
+            targets:
+              - va-pcm-contract-samples
+            color: yellow
+            linger: 0.3
+          - id: va-pcm-contract-0-2
+            phrase: Decode a transport codec before handing off PCM.
+            targets:
+              - va-pcm-contract-samples
+            color: cyan
+            linger: 0.3
+          - id: va-pcm-contract-0-3
+            phrase: A sample-rate label must describe the actual samples; relabeling is not a resampling operation.
+            targets:
+              - va-pcm-contract-rate-duration
+            color: yellow
+            linger: 0.3
+      - say: Duration in milliseconds is the number of mono sample frames times one thousand, divided by the sample
+          rate. At twenty-four thousand samples per second, four hundred eighty samples last twenty
+          milliseconds. Interpret the same samples at sixteen thousand and they last thirty milliseconds,
+          fifty percent longer. A cursor inferred from the wrong rate no longer matches intended playback
+          time.
+        hold: 0.85
+        visual_cues:
+          - id: va-pcm-contract-1-0
+            phrase: Duration in milliseconds is the number of mono sample frames times one thousand, divided by the sample
+              rate.
+            targets:
+              - va-pcm-contract-rate-duration
+            color: cyan
+            linger: 0.3
+          - id: va-pcm-contract-1-1
+            phrase: At twenty-four thousand samples per second, four hundred eighty samples last twenty milliseconds.
+            targets:
+              - va-pcm-contract-rate-duration
+            color: yellow
+            linger: 0.3
+          - id: va-pcm-contract-1-2
+            phrase: Interpret the same samples at sixteen thousand and they last thirty milliseconds, fifty percent
+              longer.
+            targets:
+              - va-pcm-contract-rate-duration
+            color: cyan
+            linger: 0.3
+          - id: va-pcm-contract-1-3
+            phrase: A cursor inferred from the wrong rate no longer matches intended playback time.
+            targets:
+              - va-pcm-contract-rate-duration
+            color: yellow
+            linger: 0.3
+      - say: For mono sixteen-bit PCM, multiply sample count by two bytes. Twenty milliseconds at sixteen kilohertz
+          contains three hundred twenty samples, or six hundred forty bytes. At twenty-four kilohertz it
+          contains four hundred eighty, or nine hundred sixty bytes. These counts exclude protocol overhead;
+          additional channels and compressed codecs need their own calculation.
+        hold: 0.85
+        visual_cues:
+          - id: va-pcm-contract-2-0
+            phrase: For mono sixteen-bit PCM, multiply sample count by two bytes.
+            targets:
+              - va-pcm-contract-bytes
+            color: cyan
+            linger: 0.3
+          - id: va-pcm-contract-2-1
+            phrase: Twenty milliseconds at sixteen kilohertz contains three hundred twenty samples, or six hundred forty
+              bytes.
+            targets:
+              - va-pcm-contract-bytes
+            color: yellow
+            linger: 0.3
+          - id: va-pcm-contract-2-2
+            phrase: At twenty-four kilohertz it contains four hundred eighty, or nine hundred sixty bytes.
+            targets:
+              - va-pcm-contract-bytes
+            color: cyan
+            linger: 0.3
+          - id: va-pcm-contract-2-3
+            phrase: These counts exclude protocol overhead; additional channels and compressed codecs need their own
+              calculation.
+            targets:
+              - va-pcm-contract-bytes
+            color: yellow
+            linger: 0.3
+  - id: audio-representation
+    title: Keep model positions distinct from waveform packets
+    visual: Construct a two-second illustrative waveform,50 semantic positions for the historical25Hz AudioPaLM
+      variant, a separate acoustic codec layer and waveform decoding, with no current API billing implication.
+    beats:
+      - say: AudioPaLM and SpeechGPT demonstrated models using discrete speech representations. A waveform sample, a
+          semantic model position, an acoustic codec token and a network packet are different objects. The
+          published AudioPaLM w-two-v-BERT variant produces twenty-five semantic positions per second. Two
+          seconds therefore supplies fifty such positions in that particular representation.
+        hold: 0.85
+        visual_cues:
+          - id: va-audio-representation-0-0
+            phrase: AudioPaLM and SpeechGPT demonstrated models using discrete speech representations.
+            targets:
+              - va-audio-representation-waveform
+            color: cyan
+            linger: 0.3
+          - id: va-audio-representation-0-1
+            phrase: A waveform sample, a semantic model position, an acoustic codec token and a network packet are
+              different objects.
+            targets:
+              - va-audio-representation-semantic-positions
+            color: yellow
+            linger: 0.3
+          - id: va-audio-representation-0-2
+            phrase: The published AudioPaLM w-two-v-BERT variant produces twenty-five semantic positions per second.
+            targets:
+              - va-audio-representation-semantic-positions
+            color: cyan
+            linger: 0.3
+          - id: va-audio-representation-0-3
+            phrase: Two seconds therefore supplies fifty such positions in that particular representation.
+            targets:
+              - va-audio-representation-semantic-positions
+            color: yellow
+            linger: 0.3
+      - say: AudioPaLM’s separate acoustic generation produces SoundStream codec tokens and decodes them to waveform
+          audio, with voice conditioning affecting the result. Those historical twenty-five positions are not
+          PCM chunks or a billing rule for today’s native APIs. Evaluate tone, pacing and intelligibility
+          after the selected model and decoder reach the actual playback device.
+        hold: 0.85
+        visual_cues:
+          - id: va-audio-representation-1-0
+            phrase: AudioPaLM’s separate acoustic generation produces SoundStream codec tokens and decodes them to
+              waveform audio, with voice conditioning affecting the result.
+            targets:
+              - va-audio-representation-codec
+            color: cyan
+            linger: 0.3
+          - id: va-audio-representation-1-1
+            phrase: Those historical twenty-five positions are not PCM chunks or a billing rule for today’s native APIs.
+            targets:
+              - va-audio-representation-codec
+            color: yellow
+            linger: 0.3
+          - id: va-audio-representation-1-2
+            phrase: Evaluate tone, pacing and intelligibility after the selected model and decoder reach the actual
+              playback device.
+            targets:
+              - va-audio-representation-waveform
+            color: cyan
+            linger: 0.3
+  - id: transport-and-buffer
+    title: "Can packet three still play?"
+    visual: >-
+      Hold four packet arrivals still on a millisecond ruler. Move every playback deadline by thirty
+      milliseconds. Compare the third packet’s fixed arrival with its old and new deadlines.
+    beats:
+      - say: >-
+          Look at packet three on Alex’s line. Its timestamp is forty milliseconds. It arrives at ninety-five.
+          With thirty milliseconds in the jitter buffer, add thirty to that timestamp to get its deadline.
+          Seventy. The packet is late, so the receiver fills the gap and plays the next packet on time.
+        hold: 0.75
+        visual_cues:
+          - id: transport-arrival-jitter
+            phrase: "It arrives at ninety-five"
+            targets: [packet-arrivals]
+            color: cyan
+            linger: 0.25
+          - id: transport-short
+            phrase: "Seventy"
+            targets: [packet-deadlines, packet-three]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Keep every arrival where it is. Slide the buffer from thirty to sixty milliseconds. Where is packet
+          three’s arrival now, before or after its playback deadline?
+        hold: 2
+        visual_cues:
+          - id: transport-expand-buffer
+            phrase: "Slide the buffer from thirty to sixty milliseconds"
+            targets: [packet-arrivals, packet-deadlines]
+            color: green
+            linger: 0.25
+          - id: transport-ask
+            phrase: "before or after its playback deadline"
+            targets: [packet-arrivals, packet-deadlines, packet-three]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Five milliseconds to spare. Packet three arrived at ninety-five and it’s due at one hundred. It plays.
+          Look at the other three slots. They all gained the same thirty milliseconds of delay. Measure loss,
+          buffer depth and actual playout together to decide whether that trade is worth it.
+        hold: 0.7
+        visual_cues:
+          - id: transport-absorb-p3
+            phrase: "Five milliseconds to spare"
+            targets: [packet-three]
+            color: green
+            linger: 0.25
+          - id: transport-shift-all
+            phrase: "They all gained the same thirty milliseconds of delay"
+            targets: [packet-deadlines]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          Browser WebRTC media uses RTP feedback and receiver buffering. Congestion control adapts the stream to
+          the network path. A server can also carry audio over WebSocket when the application handles framing
+          and playout. The next question is what happens when a missing piece holds up the ones behind it.
+        hold: 0.6
+        visual_cues:
+          - id: transport-receiver-buffering
+            phrase: "receiver buffering"
+            targets: [packet-deadlines]
+            color: cyan
+            linger: 0.25
+  - id: deadline-transport
+    title: Recover bytes only while they can help playback
+    visual: Hold the same missing media frame and later packet arrivals; compare deadline-aware concealment with
+      ordered byte delivery waiting behind a lost range. Keep WebRTC UDP preference and possible relay/TCP
+      paths explicit.
+    beats:
+      - say: "On a WebRTC UDP media path, a receiver can conceal a missed frame and keep later playout moving. RTP and
+          RTCP feedback, retransmission or forward-error correction can help when recovery still meets the
+          deadline. NetEQ is an adaptive jitter buffer and packet-loss concealer: it adjusts delay and may
+          stretch or extrapolate audio instead of stalling."
+        hold: 0.85
+        visual_cues:
+          - id: va-deadline-transport-0-0
+            phrase: On a WebRTC UDP media path, a receiver can conceal a missed frame and keep later playout moving.
+            targets:
+              - va-deadline-transport-udp-slots
+            color: cyan
+            linger: 0.3
+          - id: va-deadline-transport-0-1
+            phrase: RTP and RTCP feedback, retransmission or forward-error correction can help when recovery still meets
+              the deadline.
+            targets:
+              - va-deadline-transport-udp-slots
+            color: yellow
+            linger: 0.3
+          - id: va-deadline-transport-0-2
+            phrase: "NetEQ is an adaptive jitter buffer and packet-loss concealer: it adjusts delay and may stretch or
+              extrapolate audio instead of stalling."
+            targets:
+              - va-deadline-transport-udp-slots
+            color: cyan
+            linger: 0.3
+      - say: The article’s WebSocket comparison uses TCP. Missing earlier bytes hold later bytes behind reliable
+          ordered delivery, even when the voice deadline has passed. WebRTC deployments may use relays or TCP
+          and TLS fallbacks, and WebSocket over HTTP-three also exists. Inspect the negotiated path; an API
+          name alone does not specify the loss behavior.
+        hold: 0.85
+        visual_cues:
+          - id: va-deadline-transport-1-0
+            phrase: The article’s WebSocket comparison uses TCP.
+            targets:
+              - va-deadline-transport-ordered-bytes
+            color: cyan
+            linger: 0.3
+          - id: va-deadline-transport-1-1
+            phrase: Missing earlier bytes hold later bytes behind reliable ordered delivery, even when the voice deadline
+              has passed.
+            targets:
+              - va-deadline-transport-ordered-bytes
+            color: yellow
+            linger: 0.3
+          - id: va-deadline-transport-1-2
+            phrase: WebRTC deployments may use relays or TCP and TLS fallbacks, and WebSocket over HTTP-three also exists.
+            targets:
+              - va-deadline-transport-ordered-bytes
+            color: cyan
+            linger: 0.3
+          - id: va-deadline-transport-1-3
+            phrase: Inspect the negotiated path; an API name alone does not specify the loss behavior.
+            targets:
+              - va-deadline-transport-ordered-bytes
+            color: yellow
+            linger: 0.3
+      - say: For browser or mobile capture, a WebRTC media edge can own capture-facing timing and forward PCM to a
+          WebSocket-only model. Server-owned PCM can use WebSocket directly when the application supplies
+          framing, buffering and backpressure. Phone-network calls can enter through SIP. Compare real loss,
+          concealment, buffer depth and first playout on each supported path.
+        hold: 0.85
+        visual_cues:
+          - id: va-deadline-transport-2-0
+            phrase: For browser or mobile capture, a WebRTC media edge can own capture-facing timing and forward PCM to a
+              WebSocket-only model.
+            targets:
+              - va-deadline-transport-packets
+            color: cyan
+            linger: 0.3
+          - id: va-deadline-transport-2-1
+            phrase: Server-owned PCM can use WebSocket directly when the application supplies framing, buffering and
+              backpressure.
+            targets:
+              - va-deadline-transport-packets
+            color: yellow
+            linger: 0.3
+          - id: va-deadline-transport-2-2
+            phrase: Phone-network calls can enter through SIP.
+            targets:
+              - va-deadline-transport-packets
+            color: cyan
+            linger: 0.3
+          - id: va-deadline-transport-2-3
+            phrase: Compare real loss, concealment, buffer depth and first playout on each supported path.
+            targets:
+              - va-deadline-transport-packets
+            color: yellow
+            linger: 0.3
+  - id: serving-pressure
+    title: Follow growing conversation state into queue and memory pressure
+    visual: Append committed turns and heard assistant text to the same call; measure first-clause wait as
+      retained context grows, distinguish paged allocation from lower logical payload and a supplied
+      speculative proposal from verified output.
+    beats:
+      - say: Voice emphasizes first stable clause latency, while long calls also accumulate context. If time to first
+          token rises mainly on long sessions, inspect retained context, cache allocation and inference queues
+          before changing the model. Drop unstable transcript revisions and cancelled unheard text from the
+          appropriate conversational view; preserve final turns and actual tool results.
+        hold: 0.85
+        visual_cues:
+          - id: va-serving-pressure-0-0
+            phrase: Voice emphasizes first stable clause latency, while long calls also accumulate context.
+            targets:
+              - va-serving-pressure-context
+            color: cyan
+            linger: 0.3
+          - id: va-serving-pressure-0-1
+            phrase: If time to first token rises mainly on long sessions, inspect retained context, cache allocation and
+              inference queues before changing the model.
+            targets:
+              - va-serving-pressure-context
+            color: yellow
+            linger: 0.3
+          - id: va-serving-pressure-0-2
+            phrase: Drop unstable transcript revisions and cancelled unheard text from the appropriate conversational
+              view; preserve final turns and actual tool results.
+            targets:
+              - va-serving-pressure-context
+            color: cyan
+            linger: 0.3
+      - say: Paged KV allocation lets sessions grow and trim in blocks instead of requiring one continuously copied
+          region. It does not make retained logical state free. Speculative decoding proposes draft tokens and
+          verifies them with the target model; benefits depend on acceptance and overhead. Measure the actual
+          first-audio and clause-completion paths rather than inferring a speedup from a cache hit or draft
+          count.
+        hold: 0.85
+        visual_cues:
+          - id: va-serving-pressure-1-0
+            phrase: Paged KV allocation lets sessions grow and trim in blocks instead of requiring one continuously copied
+              region.
+            targets:
+              - va-serving-pressure-allocation
+            color: cyan
+            linger: 0.3
+          - id: va-serving-pressure-1-1
+            phrase: It does not make retained logical state free.
+            targets:
+              - va-serving-pressure-allocation
+            color: yellow
+            linger: 0.3
+          - id: va-serving-pressure-1-2
+            phrase: Speculative decoding proposes draft tokens and verifies them with the target model; benefits depend on
+              acceptance and overhead.
+            targets:
+              - va-serving-pressure-draft-verify
+            color: cyan
+            linger: 0.3
+          - id: va-serving-pressure-1-3
+            phrase: Measure the actual first-audio and clause-completion paths rather than inferring a speedup from a
+              cache hit or draft count.
+            targets:
+              - va-serving-pressure-draft-verify
+            color: yellow
+            linger: 0.3
+  - id: prefix-reuse
+    title: Create a reusable endpoint after stable content
+    visual: Preserve stable policy/tools before appended committed history and dynamic status; an implicit
+      full-request endpoint misses when its dynamic suffix changes, then an explicit eligible stable endpoint
+      can be reused.
+    beats:
+      - say: Keep stable policy and voice instructions first, followed by stable tool definitions and examples. Append
+          committed history, then dynamic incident state and playback acknowledgement. Changing a timestamp
+          near the start changes leading tokens. Preserve behavior and authorization when arranging content; a
+          cache optimization does not justify omitting current facts.
+        hold: 0.85
+        visual_cues:
+          - id: va-prefix-reuse-0-0
+            phrase: Keep stable policy and voice instructions first, followed by stable tool definitions and examples.
+            targets:
+              - va-prefix-reuse-request
+            color: cyan
+            linger: 0.3
+          - id: va-prefix-reuse-0-1
+            phrase: Append committed history, then dynamic incident state and playback acknowledgement.
+            targets:
+              - va-prefix-reuse-request
+            color: yellow
+            linger: 0.3
+          - id: va-prefix-reuse-0-2
+            phrase: Changing a timestamp near the start changes leading tokens.
+            targets:
+              - va-prefix-reuse-request
+            color: cyan
+            linger: 0.3
+          - id: va-prefix-reuse-0-3
+            phrase: Preserve behavior and authorization when arranging content; a cache optimization does not justify
+              omitting current facts.
+            targets:
+              - va-prefix-reuse-request
+            color: yellow
+            linger: 0.3
+      - say: The inspected OpenAI Responses guide treats an eligible cached endpoint separately from shared text. In
+          its GPT-five-point-six-and-later example, an implicit write ending after dynamic request A does not
+          separately save the shorter stable prefix. Replacing A with B misses that longer entry. An explicit
+          breakpoint after eligible stable content in both requests can create the reusable endpoint; a
+          cache-routing key cannot create a missing entry.
+        hold: 0.85
+        visual_cues:
+          - id: va-prefix-reuse-1-0
+            phrase: The inspected OpenAI Responses guide treats an eligible cached endpoint separately from shared text.
+            targets:
+              - va-prefix-reuse-endpoint
+            color: cyan
+            linger: 0.3
+          - id: va-prefix-reuse-1-1
+            phrase: In its GPT-five-point-six-and-later example, an implicit write ending after dynamic request A does not
+              separately save the shorter stable prefix.
+            targets:
+              - va-prefix-reuse-endpoint
+            color: yellow
+            linger: 0.3
+          - id: va-prefix-reuse-1-2
+            phrase: Replacing A with B misses that longer entry.
+            targets:
+              - va-prefix-reuse-endpoint
+            color: cyan
+            linger: 0.3
+          - id: va-prefix-reuse-1-3
+            phrase: An explicit breakpoint after eligible stable content in both requests can create the reusable
+              endpoint; a cache-routing key cannot create a missing entry.
+            targets:
+              - va-prefix-reuse-endpoint
+            color: yellow
+            linger: 0.3
+      - say: The earlier-model and newer breakpoint rules differ, and these Responses rules do not automatically
+          govern a stateful audio session. Verify the chosen route’s minimum length, boundaries and reported
+          usage. A reused input prefix still leaves endpointing, tools, synthesis and playout on the critical
+          path.
+        hold: 0.85
+        visual_cues:
+          - id: va-prefix-reuse-2-0
+            phrase: The earlier-model and newer breakpoint rules differ, and these Responses rules do not automatically
+              govern a stateful audio session.
+            targets:
+              - va-prefix-reuse-endpoint
+            color: cyan
+            linger: 0.3
+          - id: va-prefix-reuse-2-1
+            phrase: Verify the chosen route’s minimum length, boundaries and reported usage.
+            targets:
+              - va-prefix-reuse-endpoint
+            color: yellow
+            linger: 0.3
+          - id: va-prefix-reuse-2-2
+            phrase: A reused input prefix still leaves endpointing, tools, synthesis and playout on the critical path.
+            targets:
+              - va-prefix-reuse-request
+            color: cyan
+            linger: 0.3
+  - id: cache-economics
+    title: Add disjoint input buckets before comparing call cost
+    visual: Partition one input into1000read/500write/200ordinary tokens, multiply each by supplied per-million
+      rates and sum to0.00205 dollars; keep audio/output charges outside that subtotal.
+    beats:
+      - say: Partition input into disjoint cached reads, cache writes and ordinary tokens. Multiply each token count
+          by its own price and add. If a price is per million tokens, divide the resulting sum by one million.
+          Where writes cost the ordinary rate, combine those buckets once instead of charging the same tokens
+          twice.
+        hold: 0.85
+        visual_cues:
+          - id: va-cache-economics-0-0
+            phrase: Partition input into disjoint cached reads, cache writes and ordinary tokens.
+            targets:
+              - va-cache-economics-buckets
+            color: cyan
+            linger: 0.3
+          - id: va-cache-economics-0-1
+            phrase: Multiply each token count by its own price and add.
+            targets:
+              - va-cache-economics-products
+            color: yellow
+            linger: 0.3
+          - id: va-cache-economics-0-2
+            phrase: If a price is per million tokens, divide the resulting sum by one million.
+            targets:
+              - va-cache-economics-input-total
+            color: cyan
+            linger: 0.3
+          - id: va-cache-economics-0-3
+            phrase: Where writes cost the ordinary rate, combine those buckets once instead of charging the same tokens
+              twice.
+            targets:
+              - va-cache-economics-buckets
+            color: yellow
+            linger: 0.3
+      - say: In a supplied price worksheet, one thousand reads cost forty cents per million, five hundred writes cost
+          two dollars fifty, and two hundred ordinary tokens cost two dollars per million. The numerator is
+          two thousand fifty. Dividing by one million gives point zero zero two zero five dollars for this
+          input. These are invented prices. Add text output and audio input and output under their own billing
+          units before calling it total call cost.
+        hold: 0.85
+        visual_cues:
+          - id: va-cache-economics-1-0
+            phrase: In a supplied price worksheet, one thousand reads cost forty cents per million, five hundred writes
+              cost two dollars fifty, and two hundred ordinary tokens cost two dollars per million.
+            targets:
+              - va-cache-economics-buckets
+            color: cyan
+            linger: 0.3
+          - id: va-cache-economics-1-1
+            phrase: The numerator is two thousand fifty.
+            targets:
+              - va-cache-economics-products
+            color: yellow
+            linger: 0.3
+          - id: va-cache-economics-1-input-cost
+            phrase: Dividing by one million gives point zero zero two zero five dollars for this input.
+            targets:
+              - va-cache-economics-input-total
+            color: yellow
+            linger: 0.3
+          - id: va-cache-economics-1-2
+            phrase: These are invented prices.
+            targets:
+              - va-cache-economics-other-billing
+            color: cyan
+            linger: 0.3
+          - id: va-cache-economics-1-3
+            phrase: Add text output and audio input and output under their own billing units before calling it total call
+              cost.
+            targets:
+              - va-cache-economics-other-billing
+            color: yellow
+            linger: 0.3
+      - say: Compare measured total cost, cache usage and both first-audio clocks. A high cache-read fraction can
+          coexist with a slow tool, a large playback queue or excessive write charges. Better economics needs
+          the same task and policy behavior, not just a larger hit counter.
+        hold: 0.85
+        visual_cues:
+          - id: va-cache-economics-2-0
+            phrase: Compare measured total cost, cache usage and both first-audio clocks.
+            targets:
+              - va-cache-economics-input-total
+            color: cyan
+            linger: 0.3
+          - id: va-cache-economics-2-1
+            phrase: A high cache-read fraction can coexist with a slow tool, a large playback queue or excessive write
+              charges.
+            targets:
+              - va-cache-economics-other-billing
+            color: yellow
+            linger: 0.3
+          - id: va-cache-economics-2-2
+            phrase: Better economics needs the same task and policy behavior, not just a larger hit counter.
+            targets:
+              - va-cache-economics-buckets
+            color: cyan
+            linger: 0.3
+  - id: media-affinity
+    title: Keep packet state with its owner while inference scales
+    visual: Route four packets for the actual article session to media-c using its fixed worker set; remove that
+      worker, show missing DTLS/SRTP/buffer state, and make reconnect/rebuild explicit rather than copying
+      model text as transport state.
+    beats:
+      - say: One media worker owns the call’s DTLS keys, SRTP state, jitter buffer and often its playback cursor.
+          Naive round-robin packet routing can send the next packet to a worker without that state. Behind
+          this boundary, recognition, language-model and synthesis pools can scale independently by measured
+          CPU, GPU and queue pressure.
+        hold: 0.85
+        visual_cues:
+          - id: va-media-affinity-0-0
+            phrase: One media worker owns the call’s DTLS keys, SRTP state, jitter buffer and often its playback cursor.
+            targets:
+              - va-media-affinity-owner
+            color: cyan
+            linger: 0.3
+          - id: va-media-affinity-0-1
+            phrase: Naive round-robin packet routing can send the next packet to a worker without that state.
+            targets:
+              - va-media-affinity-owner
+            color: yellow
+            linger: 0.3
+          - id: va-media-affinity-0-2
+            phrase: Behind this boundary, recognition, language-model and synthesis pools can scale independently by
+              measured CPU, GPU and queue pressure.
+            targets:
+              - va-media-affinity-owner
+            color: cyan
+            linger: 0.3
+      - say: The article’s fixed three-worker hash maps all four packets for call-Alex-four-two-one-nine to media-c.
+          That demonstrates repeatable affinity only with this unchanged worker set. It is not a
+          consistent-hashing or failover implementation. Worker changes need connection-aware routing or a
+          defined remapping strategy, plus explicit state recovery.
+        hold: 0.85
+        visual_cues:
+          - id: va-media-affinity-1-0
+            phrase: The article’s fixed three-worker hash maps all four packets for call-Alex-four-two-one-nine to
+              media-c.
+            targets:
+              - va-media-affinity-packet-routing
+            color: cyan
+            linger: 0.3
+          - id: va-media-affinity-1-1
+            phrase: That demonstrates repeatable affinity only with this unchanged worker set.
+            targets:
+              - va-media-affinity-owner
+            color: yellow
+            linger: 0.3
+          - id: va-media-affinity-1-2
+            phrase: It is not a consistent-hashing or failover implementation.
+            targets:
+              - va-media-affinity-owner
+            color: cyan
+            linger: 0.3
+          - id: va-media-affinity-1-3
+            phrase: Worker changes need connection-aware routing or a defined remapping strategy, plus explicit state
+              recovery.
+            targets:
+              - va-media-affinity-owner
+            color: yellow
+            linger: 0.3
+      - say: If the owner dies, preserve trusted heard-cursor and reconnect information where supported, otherwise
+          reconnect and rebuild the session and tell Alex what happened. A transcript alone does not recreate
+          encryption or packet timing state. Restore authenticated session and response identity before
+          accepting delayed acknowledgements or audio.
+        hold: 0.85
+        visual_cues:
+          - id: va-media-affinity-2-0
+            phrase: If the owner dies, preserve trusted heard-cursor and reconnect information where supported, otherwise
+              reconnect and rebuild the session and tell Alex what happened.
+            targets:
+              - va-media-affinity-recovery
+            color: cyan
+            linger: 0.3
+          - id: va-media-affinity-2-1
+            phrase: A transcript alone does not recreate encryption or packet timing state.
+            targets:
+              - va-media-affinity-recovery
+            color: yellow
+            linger: 0.3
+          - id: va-media-affinity-2-2
+            phrase: Restore authenticated session and response identity before accepting delayed acknowledgements or
+              audio.
+            targets:
+              - va-media-affinity-recovery
+            color: cyan
+            linger: 0.3
+  - id: release-metrics
+    title: "Did the incident line meet its deadline?"
+    visual: >-
+      Keep all one hundred attempted calls in view. Close the denominator around the ninety calls with audio,
+      then widen it to include the silent ten. The count of eighty-six timely replies stays put.
+    beats:
+      - say: >-
+          Suppose we want this hotline to carry ten thousand simultaneous calls. To test that, reproduce the
+          call mix. Long pauses, bursts of callers, tool use and long answers put different loads on the system.
+          Include the devices, codecs and network losses you expect. Track active streams, media CPU, GPU
+          queues, reconnects and errors as well as time to first sound and time to mute. Leave headroom at the
+          load that meets those targets.
+        hold: 0.55
+        visual_cues:
+          - id: load-cohort
+            phrase: "reproduce the call mix"
+            targets: [release-cohort]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Zoom in on a hundred attempted calls on one network. Eighty-six started playing within five hundred
+          milliseconds. Four more played late. The last ten timed out in silence. We promised first sound within
+          the deadline on ninety-five percent of attempts. Did we meet it?
+        hold: 2
+        visual_cues:
+          - id: load-fast
+            phrase: "Eighty-six started playing within five hundred milliseconds"
+            targets: [release-cohort]
+            color: green
+            linger: 0.25
+          - id: load-late
+            phrase: "Four more played late"
+            targets: [release-cohort]
+            color: yellow
+            linger: 0.25
+          - id: load-silent
+            phrase: "The last ten timed out in silence"
+            targets: [release-cohort]
+            color: pink
+            linger: 0.25
+          - id: load-ask
+            phrase: "Did we meet it"
+            targets: [release-count, release-cohort]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          Restrict the count to calls with audio, and eighty-six out of ninety looks like a pass. Now put the
+          silent calls back in the denominator. The number that met the deadline hasn’t changed. Eighty-six out
+          of a hundred is eighty-six percent. Hold the release on this slice.
+        hold: 0.8
+        caption_starts:
+          - "Eighty-six out of a hundred is eighty-six percent."
+          - "Hold the release on this slice."
+        visual_cues:
+          - id: load-success
+            phrase: "Restrict the count to calls with audio"
+            targets: [release-cohort, release-count]
+            color: cyan
+            linger: 0.25
+          - id: load-all
+            phrase: "put the silent calls back in the denominator"
+            targets: [release-cohort, release-count]
+            color: yellow
+            linger: 0.25
+          - id: load-hold
+            phrase: "Hold the release on this slice"
+            targets: [release-count]
+            color: pink
+            linger: 0.25
+      - say: >-
+          Decide in advance how to count missing playback. You can still report latency percentiles for calls
+          with audio. Also check what those callers got. Did a cutoff lose an incident digit? Did the agent
+          pronounce the identifier correctly, block a forbidden tool call, stop for an interruption and deliver
+          the useful answer? Test task completion and recovery on representative calls.
+        hold: 0.65
+        visual_cues:
+          - id: load-quality
+            phrase: "Did a cutoff lose an incident digit"
+            targets: [release-count]
+            color: cyan
+            linger: 0.25
+  - id: transfer
+    title: "When did the phone finish playing “open”?"
+    visual: >-
+      Put first sound, factual reply start, the reported end of “open,” and Alex’s interruption onto the call
+      clock. The two latency brackets still point at the first sound as the reply strip extends past it.
+    beats:
+      - say: >-
+          Rewind Alex’s call. The first sound, “I’ll check that,” played three hundred eighty milliseconds after
+          Alex stopped speaking. Start the clock at turn acceptance instead and you count three hundred twenty.
+          Both clocks stop at the very same sound.
+        hold: 0.6
+        visual_cues:
+          - id: recap-first
+            phrase: "The first sound"
+            targets: [recap-trace]
+            color: green
+            linger: 0.25
+          - id: recap-clocks
+            phrase: "Start the clock at turn acceptance"
+            targets: [recap-measures]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          Now listen for the status Alex asked for. The factual reply starts at nine hundred fifty-five on the
+          call clock. Its first piece says “Incident is.” How far along this line do we have evidence for the
+          word “open”?
+        hold: 1.8
+        visual_cues:
+          - id: recap-facts
+            phrase: "The factual reply starts at nine hundred fifty-five"
+            targets: [recap-trace]
+            color: yellow
+            linger: 0.25
+          - id: recap-ask
+            phrase: "How far along this line"
+            targets: [recap-reply, recap-measures]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          Add the reply’s five hundred twenty milliseconds to its start time. That puts the end of “open” at
+          fourteen hundred seventy-five milliseconds on this uninterrupted stretch of playback. Alex cuts in a
+          hundred thirty milliseconds later. A dashboard that stops at the first sound misses the wait for the
+          answer.
+        hold: 0.7
+        caption_starts:
+          - "at fourteen hundred seventy-five milliseconds"
+        visual_cues:
+          - id: recap-add
+            phrase: "Add the reply’s five hundred twenty milliseconds"
+            targets: [recap-reply]
+            color: green
+            linger: 0.25
+          - id: recap-total
+            phrase: "at fourteen hundred seventy-five milliseconds"
+            targets: [recap-trace, recap-measures]
+            color: green
+            linger: 0.25
+          - id: recap-stop
+            phrase: "Alex cuts in a hundred thirty milliseconds later"
+            targets: [recap-trace]
+            color: pink
+            linger: 0.25
+      - say: >-
+          On a real call, line up the player’s receipt with the right reply before you draw that conclusion.
+          Compare first sound, useful answers and interruption traces across devices and networks. Now take the
+          next call event yourself.
+        hold: 0.65
+        visual_cues:
+          - id: recap-receipt
+            phrase: "line up the player’s receipt with the right reply"
+            targets: [recap-reply]
+            color: green
+            linger: 0.25
+  - id: fresh-interruption
+    title: "What can the next reply assume?"
+    visual: >-
+      A new two-piece reply shares the screen with the owner’s recorded response. The interruption and last
+      playback receipt land inside the second piece. A late receipt meets a new reply ID. Use the two surviving
+      records to answer Alex.
+    beats:
+      - say: >-
+          Later, the owner replies to the page. Here’s the tool record. The hotline prepares two sentences.
+          “Lookup is ready.” “Owner has replied.” Look at where each sentence ends on the audio strip. Alex cuts
+          in at five hundred sixty milliseconds. The phone’s last receipt is at four hundred sixty. Which
+          sentence goes into conversation history?
+        hold: 2.4
+        visual_cues:
+          - id: fresh-record
+            phrase: "the owner replies to the page"
+            targets: [fresh-record]
+            color: yellow
+            linger: 0.25
+          - id: fresh-pieces
+            phrase: "The hotline prepares two sentences"
+            targets: [fresh-strip]
+            color: cyan
+            linger: 0.25
+          - id: fresh-cut
+            phrase: "Alex cuts in at five hundred sixty milliseconds"
+            targets: [fresh-stop]
+            color: pink
+            linger: 0.25
+          - id: fresh-ack
+            phrase: "The phone’s last receipt is at four hundred sixty"
+            targets: [fresh-player]
+            color: green
+            linger: 0.25
+          - id: fresh-ask
+            phrase: "Which sentence goes into conversation history"
+            targets: [fresh-strip, fresh-player, fresh-history]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          The first sentence ends at three hundred milliseconds. Keep “Lookup is ready.” The receipt covers part
+          of the second sentence. Its next marked boundary is at seven hundred, so we leave that whole sentence
+          out. The owner’s reply stays in the tool record.
+        hold: 0.65
+        caption_starts:
+          - "Keep “Lookup is ready.”"
+        visual_cues:
+          - id: va-fresh-interruption-1-0
+            phrase: "Keep Lookup is ready"
+            targets: [fresh-history]
+            color: green
+            linger: 0.25
+          - id: fresh-tool-stays
+            phrase: "The owner’s reply stays in the tool record"
+            targets: [fresh-record]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Freeze reply seven. Alex asks, “Did the owner reply?” The hotline accepts that turn and opens reply
+          eight with its cursor at zero. A late receipt for all seven hundred milliseconds arrives. Read the
+          reply number on it. Seven. Reject it. The frozen history stays put, and reply eight can continue.
+        hold: 0.65
+        caption_starts:
+          - "Seven. Reject it."
+        visual_cues:
+          - id: fresh-question
+            phrase: "Alex asks"
+            targets: [fresh-history]
+            color: blue
+            linger: 0.25
+          - id: fresh-switch
+            phrase: "opens reply eight with its cursor at zero"
+            targets: [fresh-identities]
+            color: blue
+            linger: 0.25
+          - id: fresh-late
+            phrase: "A late receipt for all seven hundred milliseconds arrives"
+            targets: [fresh-identities]
+            color: yellow
+            linger: 0.25
+          - id: va-fresh-interruption-2-1
+            phrase: "Seven. Reject it"
+            targets: [fresh-identities]
+            color: pink
+            linger: 0.25
+      - say: >-
+          What should the hotline tell Alex now?
+        hold: 1.9
+        visual_cues:
+          - id: fresh-decision
+            phrase: "What should the hotline tell Alex now"
+            targets: [fresh-history, fresh-record, fresh-answer]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          “Yes, the owner replied.” The tool record gives you that fact. You can give Alex the news without
+          assuming the second sentence played all the way through.
+        hold: 1.4
+        visual_cues:
+          - id: fresh-answer
+            phrase: "Yes, the owner replied"
+            targets: [fresh-answer]
+            color: green
+            linger: 0.25

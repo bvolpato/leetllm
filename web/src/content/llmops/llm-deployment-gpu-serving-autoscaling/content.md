@@ -269,7 +269,7 @@ Green infrastructure dashboards routinely mask broken LLM outputs: requests can 
 
 ### Serving-gate denominators and versioned cost attribution
 
-Track whether substantive text reached the user (`substantive_output_served`) separately from a tri-state verdict (`unsafe_claim_served`: `True`, `False`, or `None` pending; never default `None` to safe). Across six reviewed calls where three abstained, one answered safely, and two leaked unsafe claims, request-level rate is `2/6` (`33.3%`) while **delivered-answer risk** is `2/3` (`66.7%`). Pair zero-violation windows with sample size $N$ and a 95% Wilson bound (`(0.0000, 0.0713)` for `0/50`). Log raw disjoint token counters (`input_tokens`, `cached_input_tokens`, `output_tokens`) separately from versioned rate cards, rejecting impossible counts (`cached_input > input_tokens`) loudly.
+Track whether substantive text reached the user (`substantive_output_served`) separately from a tri-state verdict (`unsafe_claim_served`: `True`, `False`, or `None` pending; never default `None` to safe). Across six reviewed calls where three abstained, one answered safely, and two leaked unsafe claims, request-level rate is `2/6` (`33.3%`) while **delivered-answer risk** is `2/3` (`66.7%`). Pair zero-violation windows with sample size $N$ and a 95% Wilson bound (`(0.0000, 0.0713)` for `0/50`). Log raw token counters (`input_tokens`, `cached_input_tokens`, `output_tokens`) separately from versioned rate cards, normalizing nested versus disjoint provider schemas and rejecting impossible counts (such as negative values, or `cached_input_tokens > total_input_tokens` under nested schemas) loudly.
 
 ### OpenTelemetry GenAI spans, data minimization, and agent loop budgets
 
@@ -279,7 +279,7 @@ Under W3C Trace Context and OpenTelemetry GenAI conventions,[^w3cTraceContext202
 
 Attach exemplar `trace_id`s and release digests to alerts, and evaluate channels independently so broken latency metrics never silence confirmed safety/SLO pages; reconcile terminal events against ingress counters to catch dropped telemetry.
 
-Track unlabeled shift with **Population Stability Index (PSI)** (`< 0.10` stable, `0.10`–`0.25` watch, `> 0.25` major shift), two-sample **KS** tests, and RBF-kernel **$\text{MMD}^2$** on query embeddings.[^chen2023drift][^potgieter2026psi] Crucially, when **tail sampling** keeps 100% of flagged traces and probability $p$ of routine traces, raw trace percentages grossly inflate failure rates.[^otelTailSampling2026] Always **count total ingress and flagged events before sampling**, and apply **inverse-probability weighting (IPW)** ($1/p$ per routine trace) when estimating rates from sampled traces:
+Track unlabeled shift with **Population Stability Index (PSI)** (`< 0.10` stable, `0.10` to `0.25` watch, `> 0.25` major shift), two-sample **KS** tests, and RBF-kernel **$\text{MMD}^2$** on query embeddings.[^chen2023drift][^potgieter2026psi] Crucially, when **tail sampling** keeps 100% of flagged traces and probability $p$ of routine traces, raw trace percentages grossly inflate failure rates.[^otelTailSampling2026] Always **count total ingress and flagged events before sampling**, and apply **inverse-probability weighting (IPW)** ($1/p$ per routine trace) when estimating rates from sampled traces:
 
 <!-- leetllm: test, id=serving-telemetry-ipw, deps=numpy,scipy, output=show -->
 ```python title="serving-telemetry-and-ipw.py"

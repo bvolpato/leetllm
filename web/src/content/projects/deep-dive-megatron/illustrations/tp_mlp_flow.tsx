@@ -47,7 +47,7 @@ export function create(theme: ThemeMode = 'dark') {
         align: 'center',
         width: 200,
     })
-    fig.text(col2X + col2W / 2, 42, 'A_i [8, 4] -> H_i [1, 4]', {
+    fig.text(col2X + col2W / 2, 42, 'A_i [8, 4] -> Y_i [1, 4]', {
         size: 13,
         color: muted,
         align: 'center',
@@ -131,7 +131,7 @@ export function create(theme: ThemeMode = 'dark') {
             strokeWidth: 1.5,
             radius: 6,
         })
-        fig.math(col2X + col2W / 2, midY, `H_${i} = \\mathrm{GeLU}(X A_${i})`, {
+        fig.math(col2X + col2W / 2, midY, `Y_${i} = \\mathrm{GeLU}(X A_${i})`, {
             size: 14,
             color: c.textPrimary,
             align: 'center',
@@ -151,7 +151,7 @@ export function create(theme: ThemeMode = 'dark') {
             strokeWidth: 1.5,
             radius: 6,
         })
-        fig.math(col3X + col3W / 2, midY, `Z_${i} = H_${i} B_${i}`, {
+        fig.math(col3X + col3W / 2, midY, `Z_${i} = Y_${i} B_${i}`, {
             size: 14,
             color: c.textPrimary,
             align: 'center',

@@ -1,0 +1,1353 @@
+version: 1
+id: vision-transformers
+title: Turning an Image into a Sequence
+source: fundamentals/vision-transformers-image-encoders/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "An Image is Worth 16x16 Words: Transformers for Image Recognition at
+      Scale."
+    url: https://arxiv.org/abs/2010.11929
+  - title: Learning Transferable Visual Models From Natural Language Supervision.
+    url: https://arxiv.org/abs/2103.00020
+  - title: Vision Transformer reference checkpoint interpolation
+    url: https://github.com/google-research/vision_transformer/blob/main/vit_jax/checkpoint.py
+  - title: Sigmoid Loss for Language Image Pre-training.
+    url: https://arxiv.org/abs/2303.15343
+  - title: "SigLIP 2: Multilingual Vision-Language Encoders with Improved Semantic
+      Understanding, Localization, and Dense Features"
+    url: https://arxiv.org/abs/2502.14786
+  - title: "DINOv2: Learning Robust Visual Features without Supervision"
+    url: https://arxiv.org/abs/2304.07193
+  - title: DINOv3
+    url: https://arxiv.org/abs/2508.10104
+  - title: Vision Transformers Need Registers
+    url: https://arxiv.org/abs/2309.16588
+  - title: Qwen2.5-VL Technical Report
+    url: https://arxiv.org/abs/2502.13923
+  - title: "Flamingo: a Visual Language Model for Few-Shot Learning."
+    url: https://arxiv.org/abs/2204.14198
+  - title: Visual Instruction Tuning.
+    url: https://arxiv.org/abs/2304.08485
+  - title: Training Data-Efficient Image Transformers & Distillation through Attention
+    url: https://arxiv.org/abs/2012.12877
+  - title: A ConvNet for the 2020s
+    url: https://arxiv.org/abs/2201.03545
+scenes:
+  - id: intro
+    title: Which ID opens the trace?
+    visual: The three-row ID beside Retry grows under a magnifier. A native crop puts nine rows of source pixels directly below it. Both proposed readings stay in view.
+    beats:
+      - say: F or eight? The resized screenshot gives us just three rows of pixels to read.
+          To open the trace, we need the ID beside Retry.
+        caption_starts:
+          - The resized screenshot gives us
+          - To open the trace
+        hold: 0.45
+        visual_cues:
+          - id: intro-locate
+            phrase: the ID beside Retry
+            targets:
+              - incident-screen
+              - id-readings
+            color: yellow
+            linger: 0.38
+      - say: Take a crop from the original. Now you can follow the stroke after the seven. Check the last
+          character too. Which reading fits both?
+        hold: 2.6
+        visual_cues:
+          - id: intro-magnify
+            phrase: Take a crop from the original
+            targets:
+              - incident-screen
+              - id-readings
+            color: yellow
+            linger: 0.38
+      - say: The left reading matches. The F has an open side, and the ID ends in A. Let's follow those
+          strokes into a vision transformer, starting with the pixels it receives.
+        caption_starts:
+          - Let's follow those strokes
+        hold: 0.75
+        visual_cues:
+          - id: intro-match
+            phrase: The left reading matches
+            targets:
+              - id-readings
+            color: green
+            linger: 0.38
+  - id: processor-evidence
+    title: What reaches the encoder?
+    visual: The source stays fixed while its identifier shrinks under a three-by-three area average. A
+      native crop of the same region reveals the two strips at equal magnification.
+    beats:
+      - say: The original screenshot is six hundred seventy-two pixels wide. Its identifier spans nine pixel
+          rows. Shrink the full screenshot to a width of two hundred twenty-four. In this example, we
+          average each square of three by three pixels into one. The whole identifier is now just three
+          pixels high.
+        hold: 1.15
+        visual_cues:
+          - id: processor-resize
+            phrase: Shrink the full screenshot to a width of two hundred twenty-four
+            targets:
+              - processor-source
+              - sampled-id
+            color: cyan
+            linger: 0.38
+      - say: Take a native crop around Retry instead. It too is two hundred twenty-four pixels wide, but it
+          keeps all nine rows. We've enlarged both strips by the same amount. Zooming in on the first one
+          only makes its three rows bigger.
+        hold: 1.05
+        visual_cues:
+          - id: processor-crop
+            phrase: Take a native crop around Retry
+            targets:
+              - processor-source
+              - sampled-id
+            color: yellow
+            linger: 0.38
+      - say: Inspect the pixels the checkpoint receives. A center crop can cut off an edge label, and
+          stretching can distort a letter. Keep the checkpoint's color conversion and normalization.
+          Compare readings from the full image and the native crop against the labeled ID. If only the
+          crop reads correctly, inspect the resize. If the processed pixels are clear and the model still
+          misses a letter, trace it through the encoder, bridge and decoder. If neither view is legible,
+          leave the lookup open.
+        caption_starts:
+          - Compare readings from the full image
+          - If only the crop reads correctly
+          - If the processed pixels are clear
+          - If neither view is legible
+        hold: 0.65
+        visual_cues:
+          - id: processor-check
+            phrase: Compare readings from the full image and the native crop
+            targets:
+              - processor-source
+              - sampled-id
+            color: cyan
+            linger: 0.38
+          - id: processor-check-resize
+            phrase: If only the crop reads correctly
+            targets: [sampled-id]
+            color: yellow
+            linger: 0.38
+          - id: processor-check-model
+            phrase: If the processed pixels are clear
+            targets: [sampled-id]
+            color: cyan
+            linger: 0.38
+          - id: processor-unreadable
+            phrase: If neither view is legible
+            targets: [sampled-id]
+            color: yellow
+            linger: 0.38
+  - id: patches
+    title: Follow four pixels into one row
+    visual: A moving cursor follows four source pixels into each raster-ordered row.
+      A separate RGB example keeps the number of patches fixed through projection.
+    beats:
+      - say: Give each pixel in this little image its own number. The cyan square in the top left contains four
+          of them. Unfold that square into one row. Read across the top, then across the bottom. That's
+          how zero, one, four and five become neighbors in the sequence.
+        hold: 0.85
+        visual_cues:
+          - id: patch-unfold
+            phrase: Unfold that square into one row
+            targets:
+              - raster-pixels
+            color: cyan
+            linger: 0.4
+      - say: Unfold the other three squares in the same order. Every original number has an address in a patch
+          row. You could run the move backwards and rebuild the image exactly. So far, we've rearranged
+          the pixels and kept every value.
+        hold: 0.85
+        visual_cues:
+          - id: patch-unfold-rest
+            phrase: Unfold the other three squares in the same order
+            targets:
+              - raster-pixels
+            color: yellow
+            linger: 0.4
+      - say: Now use a thirty-two by thirty-two color image and patches eight pixels wide. Four patches fit
+          along each side. Each of the sixteen rows holds eight times eight locations, with three color
+          values at each location. That's a hundred ninety-two inputs per row. If the model projects to a
+          hidden width of two hundred fifty-six, there are still sixteen rows. For a rectangle made of
+          complete patches, divide each side by the patch width and multiply the two counts.
+        hold: 0.9
+        visual_cues:
+          - id: patch-rgb
+            phrase: thirty-two by thirty-two color image
+            targets:
+              - patch-shapes
+            color: cyan
+            linger: 0.4
+  - id: convolution-equivalence
+    title: Do these two patch readers agree?
+    visual: Two colored input planes meet their matching filter planes. The values unroll into channel order
+      and then interleave against a fixed filter. The equality check runs on each order.
+    beats:
+      - say: Put two channels in the same two-by-two patch. One convolution filter spans both. Start with
+          the first channel. Multiply its four pixels by their matching weights and sum the products.
+          That's thirty. The second channel contributes seven hundred. Together they make one output, seven hundred
+          thirty. We're using zero bias.
+        hold: 0.9
+        visual_cues:
+          - id: convolution-channels
+            phrase: Multiply its four pixels by their matching weights
+            targets:
+              - convolution-order
+            color: cyan
+            linger: 0.4
+      - say: Read all of channel one, then all of channel two. Flatten the filter the same way. The dot product
+          gives seven hundred thirty again. A convolution with kernel and stride equal to the patch width,
+          no padding, and one filter per hidden coordinate can implement a shared patch projection. Both
+          implementations must include the same bias.
+        hold: 0.9
+        visual_cues:
+          - id: convolution-correct
+            phrase: Flatten the filter the same way
+            targets:
+              - convolution-order
+            color: cyan
+            linger: 0.4
+      - say: Keep those eight weights still. Interleave the two channels in pixel order, as in a channels-last
+          array. We still have eight input numbers. Will this row pass the same numerical check?
+        hold: 2.35
+        visual_cues:
+          - id: convolution-permute
+            phrase: Interleave the two channels in pixel order
+            targets:
+              - convolution-order
+            color: yellow
+            linger: 0.4
+      - say: This time the dot product is six hundred fifty. Ten now multiplies the second weight, where two
+          used to sit. Match the order before you compare the two implementations. In the larger example,
+          two RGB images, each four by six, produce six tokens of width five per image. Compare every
+          output value. Both input orders give the expected shape, and only the correctly ordered one
+          matches the convolution.
+        hold: 1
+        visual_cues:
+          - id: convolution-wrong
+            phrase: the dot product is six hundred fifty
+            targets:
+              - convolution-order
+            color: pink
+            linger: 0.4
+  - id: projection
+    title: What does the shared matrix measure?
+    visual: Four raster values meet the same two columns of weights. The product rows fill as their pixels
+      are named, and the two running sums end at the mean and the half-difference between column totals.
+    beats:
+      - say: Read the cyan row from the top-left patch. To get a mean, the first column of weights gives each of
+          its four numbers one quarter. Look down the second column. A left pixel gets minus one half, and
+          a right pixel gets plus one half. That coordinate measures half the difference between the two
+          column sums. These are weights we chose so you can see what they measure. A trained projection
+          learns its own.
+        hold: 0.8
+        visual_cues:
+          - id: projection-shared-patch-projection-b1-1
+            phrase: first column of weights
+            targets:
+              - shared-patch-projection
+            color: cyan
+            linger: 0.3
+      - say: Zero adds nothing to either sum. One adds a quarter to the mean and a half to the contrast. Four is
+          a left pixel. It adds one to the mean and subtracts two from the contrast. Five is a right
+          pixel. It adds one and a quarter, and adds two and a half. Read the two totals at the bottom.
+          Two point five for mean brightness. One for contrast.
+        hold: 1
+        visual_cues:
+          - id: projection-patch-column-products-b2-1
+            phrase: Zero adds nothing
+            targets:
+              - patch-column-products
+            color: pink
+            linger: 0.3
+          - id: projection-one
+            phrase: One adds a quarter
+            targets:
+              - patch-column-products
+            color: pink
+            linger: 0.3
+          - id: projection-four
+            phrase: Four is a left pixel
+            targets:
+              - patch-column-products
+            color: pink
+            linger: 0.3
+          - id: projection-five
+            phrase: Five is a right pixel
+            targets:
+              - patch-column-products
+            color: pink
+            linger: 0.3
+      - say: Use that same matrix on each of the other patches. Their averages differ, but a coordinate keeps
+          the same meaning wherever the patch came from. We started with four pixel values and kept just
+          two measurements. Let's change the pixels and see what that choice lets through.
+        hold: 0.85
+        visual_cues:
+          - id: projection-projected-patch-result-b3-1
+            phrase: two measurements
+            targets:
+              - projected-patch-result
+            color: green
+            linger: 0.3
+  - id: projection-rank
+    title: Which pixel changes can this token carry?
+    visual: One unit moves up the left column of a two-by-two patch, then a second trial moves a unit across
+      columns. Both trials keep the total brightness fixed. Column sums explain which trial changes the
+      projected token.
+    beats:
+      - say: Start with two copies of the top-left patch. On the right, move one unit from the bottom left pixel
+          to the top left. The first output is the mean of all four pixels. The second is the right column
+          sum minus the left, divided by two. Does the mean change, the contrast, both, or neither?
+        hold: 2.6
+        visual_cues:
+          - id: rank-within
+            phrase: move one unit from the bottom left pixel to the top left
+            targets:
+              - reference-patch
+              - edited-patch
+            color: yellow
+            linger: 0.38
+      - say: Neither one moves. Both columns kept their totals, so the token still reads two point five, one.
+          Look at the four changes in raster order. Plus one, zero, minus one, zero. This is a null
+          direction of the projection. Flattening kept the difference. Multiplying by this matrix erased
+          it.
+        hold: 1.3
+        visual_cues:
+          - id: rank-equal
+            phrase: Both columns kept their totals
+            targets:
+              - reference-patch
+              - edited-patch
+            color: green
+            linger: 0.38
+      - say: Reset the right patch. This time, move one unit from the top right to the top left. The total
+          brightness stays ten. Which output coordinate changes now?
+        hold: 2.25
+        visual_cues:
+          - id: rank-across
+            phrase: move one unit from the top right to the top left
+            targets:
+              - reference-patch
+              - edited-patch
+            color: yellow
+            linger: 0.38
+      - say: The contrast falls to zero. Each column now sums to five, and the mean is still two point five. To
+          recover every possible input, the projection needs full input rank. Even a wide matrix can have
+          a null direction. Once two images give the same tokens in the same slots, widening those tokens
+          downstream cannot recover which image we had.
+        hold: 0.95
+        visual_cues:
+          - id: rank-contrast
+            phrase: Each column now sums to five
+            targets:
+              - reference-patch
+              - edited-patch
+            color: green
+            linger: 0.38
+  - id: positions
+    title: Content needs a record of its location
+    visual: Two patches swap fixed slots, yielding an unchanged position-free
+      readout but different computed readouts once slot vectors are added.
+    beats:
+      - say: A sequence of patch contents needs information about their locations.
+          Without position information or an order-dependent mask, deterministic
+          self-attention follows a permutation of its inputs. A fixed-query
+          summary can therefore remain unchanged when we swap two patches, even
+          though their layout changes.
+        hold: 0.6
+        visual_cues:
+          - id: positions-permuted-patch-a-b1-1
+            phrase: swap two patches
+            targets:
+              - permuted-patch-a
+              - permuted-patch-b
+            color: cyan
+            linger: 0.6
+      - say: Add a distinct vector for each slot, then repeat the swap. Each content
+          vector now meets the position vector of its new location. The computed
+          summary changes in this fixture. Original ViT uses learned
+          one-dimensional position vectors, with a separate slot for its
+          classification token.
+        hold: 0.65
+        visual_cues:
+          - id: positions-permuted-position-summary-b2-1
+            phrase: computed summary changes
+            targets:
+              - permuted-position-summary
+            color: yellow
+            linger: 0.6
+      - say: The classification token is a learned vector prepended to the patch
+          sequence. Its final state serves as an image-level readout. If
+          resolution changes, a learned position table may need grid
+          interpolation while preserving that separate class slot. Match the
+          checkpoint's processor and interpolation settings.
+        hold: 0.7
+        visual_cues:
+          - id: positions-class-and-patch-sequence-b3-1
+            phrase: learned vector prepended
+            targets:
+              - class-and-patch-sequence
+            color: cyan
+            linger: 0.6
+  - id: resolution-grid
+    title: Resize the patch positions while preserving the class slot
+    visual: The class position stays separate while a 14 × 14 patch-position grid resizes to 16 × 20. The new table contains 321 positions.
+    beats:
+      - say: At fixed sixteen-pixel patches, a two-hundred-twenty-four square gives one
+          hundred ninety-six patches plus class, or one hundred ninety-seven
+          positions. A two-hundred-fifty-six square gives two hundred fifty-six
+          patches plus class, or two hundred fifty-seven. The raw patch width
+          stays seven hundred sixty-eight for RGB; it is the number of position
+          slots that changes.
+        hold: 0.65
+        visual_cues:
+          - id: resolution-grid-beat-0
+            phrase: At fixed sixteen-pixel patches, a two-hundred-twenty-four square gives
+              one hundred ninety-six patches plus class, or one hundred
+              ninety-seven positions
+            targets:
+              - resolution-grid-mechanism
+            color: cyan
+            linger: 0.65
+      - say: "Separate the class position, reshape only patch positions into their
+          two-dimensional grid, resize each feature channel, flatten and
+          reattach class. The article’s rectangular toy resizes a
+          fourteen-by-fourteen grid to sixteen by twenty: three hundred twenty
+          patches plus one class position gives three hundred twenty-one. Its
+          class vector remains exactly unchanged."
+        hold: 0.65
+        visual_cues:
+          - id: resolution-grid-beat-1
+            phrase: Separate the class position, reshape only patch positions into their
+              two-dimensional grid, resize each feature channel, flatten and
+              reattach class
+            targets:
+              - resolution-grid-mechanism
+            color: yellow
+            linger: 0.65
+      - say: Original ViT interpolates the patch positions in two dimensions. Google's reference uses linear
+          interpolation. The rectangle here uses PyTorch's bicubic interpolation with align corners false.
+          When you resize a checkpoint, use its interpolation settings, then check recognition on the larger images.
+        hold: 0.65
+        visual_cues:
+          - id: resolution-grid-beat-2
+            phrase: interpolates the patch positions in two dimensions
+            targets:
+              - resolution-grid-mechanism
+            color: cyan
+            linger: 0.65
+  - id: rotary-grid
+    title: Row and column offsets rotate different coordinate pairs
+    visual: Two pairs of coordinates rotate separately for row and column. Moving just the key changes the dot product, while translating query and key together preserves it.
+    beats:
+      - say: Two-dimensional rotary positions rotate queries and keys rather than adding
+          an absolute vector to every token. In one simple construction, split
+          the head width into row and column groups, each containing paired
+          coordinates. This construction needs width divisible by four; actual
+          implementations can allocate axes differently.
+        hold: 0.65
+        visual_cues:
+          - id: rotary-grid-beat-0
+            phrase: Two-dimensional rotary positions rotate queries and keys rather than
+              adding an absolute vector to every token
+            targets:
+              - rotary-grid-mechanism
+            color: cyan
+            linger: 0.65
+      - say: "For an explicitly toy four-coordinate head, let both content vectors be
+          one, zero, one, zero and choose ninety degrees per coordinate unit. At
+          the same location their dot product is two. Move only the key one row:
+          its row pair rotates and the dot product becomes one. Translate both
+          positions by the same row and column offsets; the score remains one
+          because the relative offsets remain."
+        hold: 0.65
+        visual_cues:
+          - id: rotary-grid-beat-1
+            phrase: For an explicitly toy four-coordinate head, let both content vectors be
+              one, zero, one, zero and choose ninety degrees per coordinate unit
+            targets:
+              - rotary-grid-mechanism
+            color: yellow
+            linger: 0.65
+          - id: rotary-key-row
+            phrase: Move only the key one row
+            targets:
+              - rotary-grid-mechanism
+            color: yellow
+            linger: 0.6
+          - id: rotary-translate
+            phrase: Translate both positions by the same row and column offsets
+            targets:
+              - rotary-grid-mechanism
+            color: yellow
+            linger: 0.6
+      - say: The score still depends on the content vectors. Rotary positions avoid
+          resizing a learned absolute table, but do not remove token limits or
+          guarantee extrapolation quality. Qwen two point five VL uses its own
+          spatial rotary construction, resizes dimensions to multiples of
+          twenty-eight and merges neighboring patches before the language model.
+        hold: 0.65
+        visual_cues:
+          - id: rotary-grid-beat-2
+            phrase: The score still depends on the content vectors
+            targets:
+              - rotary-grid-mechanism
+            color: cyan
+            linger: 0.65
+  - id: attention
+    title: What can the banner read?
+    visual: Three regions of the incident screenshot supply explicit two-coordinate keys and values. Colored
+      contributions accumulate on the banner’s two output coordinates. A causal-mask replay removes the
+      two later regions and renormalizes the first weight.
+    beats:
+      - say: Put a query on the banner. For this small example, use the same two numbers as the key and the
+          value at each marked patch. The banner's query is one, zero. Its dot product with the Retry key
+          is one. Divide by the square root of two to get the score. Softmax turns the three scores into
+          weights. The banner starts with a zero in its second coordinate. Can Retry contribute to that
+          coordinate?
+        hold: 2.4
+        visual_cues:
+          - id: attention-locations
+            phrase: each marked patch
+            targets:
+              - attention-image
+              - attention-weights
+            color: cyan
+            linger: 0.38
+          - id: attention-softmax
+            phrase: Softmax turns the three scores into weights
+            targets:
+              - attention-weights
+            color: cyan
+            linger: 0.38
+      - say: Start with the banner itself. Its weight adds about point four to the first coordinate and nothing
+          to the second. Add the panel's share. Its value points entirely along the second coordinate. Now
+          add the Retry button. Its value is one, one, so its blue piece has the same length on both bars.
+          Read the endpoints. The banner's new second coordinate is about point six, and most of it came
+          from Retry.
+        caption_starts:
+          - Add the panel's share
+          - Now add the Retry button
+          - The banner's new second coordinate
+        hold: 1.1
+        visual_cues:
+          - id: attention-banner
+            phrase: Start with the banner itself
+            targets:
+              - contextual-patch-sum
+              - attention-weights
+            color: red
+            linger: 0.38
+          - id: attention-panel
+            phrase: Add the panel's share
+            targets:
+              - contextual-patch-sum
+              - attention-weights
+            color: yellow
+            linger: 0.38
+          - id: attention-button
+            phrase: Now add the Retry button
+            targets:
+              - contextual-patch-sum
+              - attention-weights
+            color: blue
+            linger: 0.38
+      - say: Keep those three values and apply a decoder's causal mask. The panel and Retry come later in raster
+          order, so the first query can see only the banner. Its weight becomes one. The second coordinate
+          is back at zero. Original ViT uses bidirectional attention because the whole picture is already
+          present. Other encoders can limit attention to a window or mask padding.
+        hold: 1
+        visual_cues:
+          - id: attention-mask
+            phrase: apply a decoder's causal mask
+            targets:
+              - attention-weights
+              - contextual-patch-sum
+            color: pink
+            linger: 0.38
+  - id: preln-block
+    title: Each sublayer adds an update to the retained state
+    visual: A supplied attention update changes [2, 4] to [2.5, 3.5]. The normalized branch passes through an expansion, GELU and a contraction before its update joins the retained state.
+    beats:
+      - say: Build the original ViT block around the state we must retain. Normalize the
+          incoming vector, run multi-head attention, then add that attention
+          update to the original incoming vector. Normalize this new residual
+          state, run the position-wise MLP, then add its update to that same
+          residual. Normalization does not replace either skip path.
+        hold: 0.65
+        visual_cues:
+          - id: preln-block-beat-0
+            phrase: Build the original ViT block around the state we must retain
+            targets:
+              - preln-block-mechanism
+            color: cyan
+            linger: 0.65
+      - say: In a supplied two-coordinate toy, input two, four receives attention update
+          one half, minus one half, giving two point five, three point five.
+          With unit normalization gain, zero bias and epsilon one
+          hundred-thousandth, the next normalized coordinates are approximately
+          minus one and one. Our displayed first linear map expands them to four
+          coordinates, then GELU acts on each, and the displayed second map
+          returns two updates. The final state is approximately two point three
+          four one, four point three four one.
+        hold: 0.65
+        visual_cues:
+          - id: preln-block-beat-1
+            phrase: In a supplied two-coordinate toy, input two, four receives attention
+              update one half, minus one half, giving two point five, three
+              point five
+            targets:
+              - preln-block-mechanism
+            color: yellow
+            linger: 0.65
+          - id: preln-first-residual
+            phrase: giving two point five, three point five
+            targets:
+              - preln-block-mechanism
+            color: yellow
+            linger: 0.6
+          - id: preln-normalize
+            phrase: the next normalized coordinates are approximately minus one and one
+            targets:
+              - preln-block-mechanism
+            color: yellow
+            linger: 0.6
+          - id: preln-expand
+            phrase: Our displayed first linear map expands them to four coordinates
+            targets:
+              - preln-block-mechanism
+            color: yellow
+            linger: 0.6
+          - id: preln-gelu
+            phrase: then GELU acts on each
+            targets:
+              - preln-block-mechanism
+            color: yellow
+            linger: 0.6
+          - id: preln-final
+            phrase: The final state is approximately
+            targets:
+              - preln-block-mechanism
+            color: yellow
+            linger: 0.6
+      - say: The MLP runs independently at each position while sharing weights across
+          positions; attention routes information between positions. Real
+          ViT-Base uses hidden width seven hundred sixty-eight, twelve blocks
+          and twelve heads of width sixty-four. Queries and keys have shape
+          batch, twelve, one hundred ninety-seven, sixty-four; the MLP expands
+          width to three thousand seventy-two and projects back. Final LayerNorm
+          precedes class readout or patch-feature handoff.
+        hold: 0.65
+        visual_cues:
+          - id: preln-block-beat-2
+            phrase: The MLP runs independently at each position while sharing weights across
+              positions; attention routes information between positions
+            targets:
+              - preln-block-mechanism
+            color: cyan
+            linger: 0.65
+  - id: inductive-bias
+    title: Architecture and training recipe are both variables
+    visual: A convolution’s receptive field grows over a fixed grid. A second grid shows which patches a full-attention layer can connect in one step.
+    beats:
+      - say: A small convolution connects nearby pixels; stacking layers expands its
+          receptive field without requiring downsampling. On an ideal grid,
+          stride-one convolution is translation-equivariant. Finite boundaries
+          and padding qualify that statement, and strided sampling generally
+          preserves it only for stride-aligned shifts.
+        hold: 0.65
+        visual_cues:
+          - id: inductive-bias-beat-0
+            phrase: A small convolution connects nearby pixels; stacking layers expands its
+              receptive field without requiring downsampling
+            targets:
+              - inductive-bias-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Original ViT has weaker image-specific bias but still groups neighboring
+          pixels into patches and uses the grid for position resizing. Full
+          attention permits immediate distant connections. The original paper’s
+          smaller-data training setup underperformed comparable ResNets, while
+          larger-scale pretraining improved transfer. DeiT later showed
+          competitive ImageNet-only ViTs with a stronger recipe and optional
+          distillation token; ConvNeXt modernized convolutional backbones.
+        hold: 0.65
+        visual_cues:
+          - id: inductive-bias-beat-1
+            phrase: Original ViT has weaker image-specific bias but still groups neighboring
+              pixels into patches and uses the grid for position resizing
+            targets:
+              - inductive-bias-mechanism
+            color: yellow
+            linger: 0.65
+      - say: Give a pretrained encoder and a smaller baseline the same held-out screenshots.
+          Score the error banner and the exact ID separately. A model can read every banner and
+          still miss the little strokes beside Retry. Compare those scores when you choose a training recipe.
+        hold: 0.65
+        visual_cues:
+          - id: inductive-bias-beat-2
+            phrase: the same held-out screenshots
+            targets:
+              - inductive-bias-mechanism
+            color: cyan
+            linger: 0.65
+  - id: budget
+    title: Finer patches change two budgets
+    visual: A grid subdivides as patch width halves, while computed token and pair counts grow at different
+      rates.
+    beats:
+      - say: For an image two hundred twenty-four pixels wide and high, sixteen-pixel patches produce a
+          fourteen-by-fourteen grid. Halving patch width doubles the number along each axis. Predict the
+          change in total patches before the smaller cells appear. Both axes contribute to the increase.
+        hold: 2.4
+        visual_cues:
+          - id: budget-patch-grid-0-b1-1
+            phrase: fourteen-by-fourteen grid
+            targets:
+              - patch-grid-0
+            color: cyan
+            linger: 0.6
+      - say: The token count quadruples. Dense attention compares every query with every key, so its
+          patch-to-patch pair count grows sixteenfold. That ratio describes pairwise work under these
+          encoder choices. Other operations and implementation details still contribute to the model's
+          actual runtime.
+        caption_starts:
+          - so its patch-to-patch pair count grows sixteenfold
+        hold: 0.65
+        visual_cues:
+          - id: budget-refine
+            phrase: The token count quadruples
+            targets:
+              - patch-grid-1
+            color: pink
+            linger: 0.4
+          - id: budget-attention-block-count-b2-1
+            phrase: pair count grows sixteenfold
+            targets:
+              - attention-pair-blocks
+            color: pink
+            linger: 0.6
+      - say: Changing an existing checkpoint's patch width also changes its projection's expected input shape. A
+          supported adaptation and further training may be required. Higher resolution, smaller patches,
+          and later feature merging act at different boundaries. Inspect which operation removes the
+          detail your question needs.
+        hold: 0.7
+        visual_cues:
+          - id: budget-patch-grid-1-b3-1
+            phrase: expected input shape
+            targets:
+              - patch-grid-1
+            color: pink
+            linger: 0.6
+  - id: alignment
+    title: Match images and language in a shared space
+    visual: Three image-text pairs form a computed similarity matrix, with row and
+      column matching probabilities revealed separately.
+    beats:
+      - say: CLIP trains an image encoder and a text encoder to produce comparable
+          global vectors. After normalization, their dot product is cosine
+          similarity. A training batch supplies paired images and captions.
+          Matching pairs sit on the diagonal of the similarity matrix, and the
+          surrounding entries become competing candidates.
+        hold: 0.6
+        visual_cues:
+          - id: alignment-image-caption-comparison-b1-1
+            phrase: diagonal of the similarity matrix
+            targets:
+              - image-caption-comparison
+            color: cyan
+            linger: 0.6
+      - say: Row softmax asks each image to select its caption. Column softmax asks each
+          caption to select its image. Average the two cross-entropy losses and
+          we have the symmetric contrastive objective. Our supplied vectors make
+          the matching diagonal strongest, so we can verify the calculation
+          directly.
+        hold: 0.65
+        visual_cues:
+          - id: alignment-symmetric-contrastive-objective-b2-1
+            phrase: two cross-entropy losses
+            targets:
+              - symmetric-contrastive-objective
+            color: yellow
+            linger: 0.6
+          - id: alignment-column
+            phrase: Column softmax asks each caption to select its image
+            targets:
+              - image-caption-comparison
+            color: yellow
+            linger: 0.6
+          - id: alignment-objective
+            phrase: Average the two cross-entropy losses
+            targets:
+              - image-caption-comparison
+            color: yellow
+            linger: 0.6
+          - id: alignment-computed
+            phrase: verify the calculation directly
+            targets:
+              - image-caption-comparison
+            color: yellow
+            linger: 0.6
+      - say: "At inference, candidate captions give an image-text ranking. A sharp
+          candidate-relative score still leaves exact transcription to be
+          tested. Batch construction matters too: two captions can both fit the
+          same image, making a cross-pair a false negative under a diagonal-only
+          training convention."
+        hold: 0.7
+        visual_cues:
+          - id: alignment-image-caption-comparison-b3-1
+            phrase: candidate-relative score
+            targets:
+              - image-caption-comparison
+            color: cyan
+            linger: 0.6
+  - id: candidate-ranking
+    title: What does the failure score measure?
+    visual: The incident image stays fixed. Two scaled similarity scores become relative weights. A
+      duplicate failure prompt adds one more term to the denominator before the new shares appear.
+    beats:
+      - say: Keep the incident screenshot fixed. Original CLIP trained on four hundred million image and text
+          pairs and evaluated both ResNet and vision transformer image encoders. Its ViT reads the class
+          token. Its causal text transformer reads the end-of-text token. Each readout goes through a
+          learned projection into the same space. Normalize both vectors and multiply their dot product by
+          the learned positive scale.
+        hold: 0.75
+        visual_cues:
+          - id: candidate-towers
+            phrase: Keep the incident screenshot fixed
+            targets:
+              - ranked-image
+            color: cyan
+            linger: 0.3
+      - say: Here the candidates are deploy failed and deploy succeeded. We exponentiate their scores and divide
+          both weights by the larger one. That leaves their shares unchanged. The first description gets
+          about ninety-eight percent. To ensemble prompts for one class, normalize the variants, average
+          them, and normalize that average. Try a different operation here. Copy the failure description
+          into the list as a separate candidate. Its weight stays one. What share does the original
+          description get now?
+        hold: 2.5
+        visual_cues:
+          - id: candidate-weights
+            phrase: divide both weights by the larger one
+            targets:
+              - candidate-set
+            color: cyan
+            linger: 0.3
+          - id: candidate-copy
+            phrase: Copy the failure description into the list as a separate candidate
+            targets:
+              - ranked-image
+              - candidate-set
+            color: pink
+            linger: 0.3
+      - say: A little under half. Each copy gets about forty-nine point four percent. The image stayed fixed.
+          It's the sum underneath that grew. The score ranks these descriptions. To estimate a failure
+          rate, check calibration against labeled incidents. To verify an ID, check the characters.
+          A larger positive scale can sharpen the shares
+          while preserving rank. During training, if two captions fit the image but only the diagonal is
+          labeled positive, a compatible caption can be counted as a negative even in a large batch.
+        caption_starts:
+          - Each copy gets about forty-nine point four percent
+        hold: 1
+        visual_cues:
+          - id: candidate-share
+            phrase: A little under half
+            targets:
+              - candidate-set
+            color: green
+            linger: 0.3
+  - id: siglip-pairs
+    title: Independent pair terms still share a training objective
+    visual: Each cell of a two-by-two score matrix has a pair label and a logistic loss. The sum is divided by the number of examples in the batch.
+    beats:
+      - say: CLIP normalizes each image row and each caption column. SigLIP instead
+          gives every supplied pair a binary logistic loss. Matching pairs have
+          label plus one and mismatches minus one. Form score as normalized dot
+          product times a learned positive scale plus bias; each loss is log of
+          one plus exponential of minus label times score.
+        hold: 0.65
+        visual_cues:
+          - id: siglip-pairs-beat-0
+            phrase: CLIP normalizes each image row and each caption column
+            targets:
+              - siglip-pairs-mechanism
+            color: cyan
+            linger: 0.65
+      - say: "For supplied logits two and one point seven on the positive diagonal, the
+          losses are about point one two seven and point one six eight. Negative
+          logits minus one and minus point four give losses about point three
+          one three and point five one three. Sum all four and divide by batch
+          size two: the paper’s normalization gives about point five six. The
+          mean over four pairs would be point two eight and would halve these
+          gradients."
+        hold: 0.65
+        visual_cues:
+          - id: siglip-pairs-beat-1
+            phrase: For supplied logits two and one point seven on the positive diagonal,
+              the losses are about point one two seven and point one six eight
+            targets:
+              - siglip-pairs-mechanism
+            color: yellow
+            linger: 0.65
+      - say: Independent pair terms need no row or column softmax denominator, making
+          chunked evaluation simpler. The paper still exchanges remote negative
+          embeddings with collective permutes, and gradient synchronization
+          remains. Dropping remote negatives changes the objective. Batch
+          selection, positive-negative imbalance, learned bias, false negatives
+          and normalization still affect learning; workers are not independent.
+        hold: 0.65
+        visual_cues:
+          - id: siglip-pairs-beat-2
+            phrase: Independent pair terms need no row or column softmax denominator, making
+              chunked evaluation simpler
+            targets:
+              - siglip-pairs-mechanism
+            color: cyan
+            linger: 0.65
+  - id: variable-resolution
+    title: Preserving aspect ratio still changes pixels and slots
+    visual: Two rectangular patch grids occupy 128 and 96 valid positions. Masked padding brings the shorter sequence to the common batch length.
+    beats:
+      - say: The ViT architecture can process rectangles when its processor and position
+          mechanism support them. SigLIP two adds captioning and localization
+          representation learning, then self-distillation and masked
+          teacher-feature prediction in its standard recipe. Its
+          attention-pooling readout differs from assuming every encoder needs a
+          class token. The auxiliary captioning decoder serves training and is
+          absent from the released encoder pair.
+        hold: 0.65
+        visual_cues:
+          - id: variable-resolution-beat-0
+            phrase: The ViT architecture can process rectangles when its processor and
+              position mechanism support them
+            targets:
+              - variable-resolution-mechanism
+            color: cyan
+            linger: 0.65
+      - say: NaFlex has its own adaptation recipe. It scales each picture to fit a patch budget while
+          keeping its proportions close to the original. It interpolates the position grid to fit.
+          The grid on the right has ninety-six patches. Add thirty-two padding slots and both
+          images have sequences of length one hundred twenty-eight. A mask marks the added slots.
+        caption_starts:
+          - Add thirty-two padding slots
+        hold: 0.65
+        visual_cues:
+          - id: variable-resolution-beat-1
+            phrase: Add thirty-two padding slots
+            targets:
+              - variable-resolution-mechanism
+            color: yellow
+            linger: 0.65
+      - say: Preserve real patch coordinates and inspect masks through every layer and
+          the attention-pooling head. Test the same processed image alone and
+          beside a longer image with dropout disabled. Its valid readout should
+          not change merely because more padding was added.
+        hold: 0.65
+        visual_cues:
+          - id: variable-resolution-beat-2
+            phrase: Preserve real patch coordinates and inspect masks through every layer
+              and the attention-pooling head
+            targets:
+              - variable-resolution-mechanism
+            color: cyan
+            linger: 0.65
+  - id: padding-readout
+    title: A zero value still changes the attention denominator
+    visual: Four extra zero keys take weight from valid patches. Masking them before softmax restores the original fixed-query readout.
+    beats:
+      - say: Padding is a correctness contract. A zero-valued key has a finite
+          dot-product score and therefore positive softmax weight unless masked.
+          Its value contributes zero, but it still consumes probability mass.
+          Zero pixels and a zero hidden vector do not automatically mean an
+          invalid slot.
+        hold: 0.65
+        visual_cues:
+          - id: padding-readout-beat-0
+            phrase: Padding is a correctness contract
+            targets:
+              - padding-readout-mechanism
+            color: cyan
+            linger: 0.65
+      - say: In the actual fixed-query fixture, two valid patches yield about one point
+          six zero six, point four zero six. Append four zero vectors without
+          masking and the result changes to about point nine one three, point
+          two three one. Mask those four keys before softmax and the original
+          readout returns. Reject an all-masked image instead of normalizing an
+          empty valid set.
+        hold: 0.65
+        visual_cues:
+          - id: padding-readout-beat-1
+            phrase: In the actual fixed-query fixture, two valid patches yield about one
+              point six zero six, point four zero six
+            targets:
+              - padding-readout-mechanism
+            color: yellow
+            linger: 0.65
+          - id: padding-append
+            phrase: Append four zero vectors without masking
+            targets:
+              - padding-readout-mechanism
+            color: yellow
+            linger: 0.6
+          - id: padding-repair
+            phrase: Mask those four keys before softmax
+            targets:
+              - padding-readout-mechanism
+            color: yellow
+            linger: 0.6
+      - say: A masked key does not necessarily zero a padded query’s output. Remove
+          padded outputs from pooling, losses or the language bridge as
+          required. Padding tokens after patch extraction is also distinct from
+          adding real border pixels before extraction. Keep the boundary
+          explicit.
+        hold: 0.65
+        visual_cues:
+          - id: padding-readout-beat-2
+            phrase: A masked key does not necessarily zero a padded query’s output
+            targets:
+              - padding-readout-mechanism
+            color: cyan
+            linger: 0.65
+  - id: dense-feature-learning
+    title: What does each patch learn?
+    visual: A student predicts hidden patch features from a teacher. Two pairs of rotated vectors illustrate Gram anchoring. Class and register slots are counted separately at the bridge.
+    beats:
+      - say: Hide one patch from the student. The DINOv2 teacher sees the patch and supplies the
+          feature distribution the student learns to predict. The student also learns a target for
+          the whole image. The teacher's weights follow an exponential moving average of the student's weights,
+          so the images themselves supply the training signal. To predict depth or label regions,
+          train a readout on the patch features.
+        hold: 0.65
+        visual_cues:
+          - id: dense-feature-learning-beat-0
+            phrase: Hide one patch from the student
+            targets:
+              - dense-feature-learning-mechanism
+            color: cyan
+            linger: 0.65
+      - say: DINOv3 uses Gram anchoring to preserve relationships between patches during long training.
+          Each arrow here represents a patch feature of length one. The teacher's arrows meet at a right
+          angle, so their dot product is zero. Give both student arrows a quarter turn. What happens
+          to their dot product?
+        caption_starts:
+          - Give both student arrows a quarter turn
+        hold: 2.2
+        visual_cues:
+          - id: dense-feature-learning-beat-1
+            phrase: Each arrow here represents a patch feature
+            targets:
+              - dense-feature-learning-mechanism
+            color: yellow
+            linger: 0.65
+          - id: gram-rotate
+            phrase: Give both student arrows a quarter turn
+            targets:
+              - dense-feature-learning-mechanism
+            color: yellow
+            linger: 0.6
+      - say: Still zero. The arrows stayed perpendicular. Each arrow also gives one when you take
+          its dot product with itself. Arrange those four comparisons in a square. That's the Gram
+          matrix. DINOv3 compares the student's matrix with a teacher reference, so the coordinates
+          can change while the relationships hold. The family includes ViT and ConvNeXt backbones.
+        caption_starts:
+          - Each arrow also gives one
+          - Arrange those four comparisons in a square
+        hold: 0.85
+        visual_cues:
+          - id: gram-product
+            phrase: Still zero
+            targets:
+              - dense-feature-learning-mechanism
+            color: green
+            linger: 0.45
+          - id: gram-matrix
+            phrase: Arrange those four comparisons in a square
+            targets:
+              - dense-feature-learning-mechanism
+            color: green
+            linger: 0.45
+      - say: Some vision transformers use background patches for internal calculations. In the
+          register-token study those patches stood out because their vectors had unusually large
+          norms. Giving the encoder extra learned slots, called registers, removed those outliers
+          and smoothed the feature maps in the models tested. Here are four registers beside the patch grid.
+        hold: 0.65
+        visual_cues:
+          - id: dense-feature-learning-beat-2
+            phrase: four registers beside the patch grid
+            targets:
+              - dense-feature-learning-mechanism
+            color: cyan
+            linger: 0.65
+      - say: For one hundred ninety-six patches, one class token and four registers, the
+          encoder has two hundred one slots. If the bridge selects only patch
+          features, a token-wise projector still outputs one hundred ninety-six
+          visual slots. Count actual selected states instead of copying the
+          whole encoder length into the language budget.
+        hold: 0.65
+        visual_cues:
+          - id: dense-feature-learning-beat-3
+            phrase: For one hundred ninety-six patches, one class token and four registers,
+              the encoder has two hundred one slots
+            targets:
+              - dense-feature-learning-mechanism
+            color: yellow
+            linger: 0.65
+  - id: bridge-families
+    title: The encoder and language model have different slot boundaries
+    visual: The original LLaVA projector keeps 256 patch slots. Flamingo supplies 64 cross-attention latents and the Qwen merger produces 64 prefix slots in the illustrated crop.
+    beats:
+      - say: Original LLaVA selects patch-grid hidden states from CLIP ViT-L fourteen,
+          rather than its final projected global vector. A
+          two-hundred-twenty-four crop has two hundred fifty-six patches of
+          width one thousand twenty-four. Its learned linear bridge changes
+          width to the chosen language model’s width and preserves two hundred
+          fifty-six visual slots; class is separate. LLaVA one point five uses a
+          different three-hundred-thirty-six encoder crop, yielding five hundred
+          seventy-six patches.
+        hold: 0.65
+        visual_cues:
+          - id: bridge-families-beat-0
+            phrase: Original LLaVA selects patch-grid hidden states from CLIP ViT-L
+              fourteen, rather than its final projected global vector
+            targets:
+              - bridge-families-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Flamingo starts from its own NFNet convolutional feature grid. A Perceiver
+          Resampler uses learned queries to produce sixty-four latents, which
+          feed added gated cross-attention. They are visual memory, not
+          sixty-four ordinary self-attention prefix slots. It is a different
+          encoder and a different accounting boundary.
+        hold: 0.65
+        visual_cues:
+          - id: bridge-families-beat-1
+            phrase: Flamingo starts from its own NFNet convolutional feature grid
+            targets:
+              - bridge-families-mechanism
+            color: yellow
+            linger: 0.65
+      - say: Qwen two point five VL uses its own vision transformer with width one
+          thousand two hundred eighty. At a two-hundred-twenty-four example,
+          fourteen-pixel patches yield two hundred fifty-six states. Neighboring
+          two-by-two groups are packed and passed through its MLP merger to
+          yield sixty-four language inputs. Packing alone is a rearrangement;
+          the projection can lose information. Its language output width depends
+          on model size. Most of its thirty-two vision layers use local windows;
+          four use full attention, so bidirectional need not mean globally
+          unrestricted.
+        hold: 0.65
+        visual_cues:
+          - id: bridge-families-beat-2
+            phrase: Qwen two point five VL uses its own vision transformer with width one
+              thousand two hundred eighty
+            targets:
+              - bridge-families-mechanism
+            color: cyan
+            linger: 0.65
+  - id: prefix-kv-budget
+    title: How much cache does the larger image need?
+    visual: A fixed text segment anchors three image sizes on one slot scale. Each prefix is paired with its
+      raw KV payload. Four images then pass through a merger before a prompt change separates the two
+      cache decisions.
+    beats:
+      - say: Keep five hundred twelve text slots. At fourteen pixels per patch, the first square image supplies
+          two hundred fifty-six visual slots. The bar counts all seven hundred sixty-eight retained
+          positions. In this decoder, each one costs one hundred twenty-eight kibibytes. That's a key and
+          a value in each of thirty-two layers, with eight heads, a hundred twenty-eight entries per head,
+          and two bytes per entry. The first cache takes ninety-six mebibytes. Double the image side. With
+          the same text, how much cache does the second bar cost?
+        hold: 2.65
+        visual_cues:
+          - id: prefix-baseline
+            phrase: The bar counts all seven hundred sixty-eight retained positions
+            targets:
+              - prefix-account
+            color: cyan
+            linger: 0.38
+      - say: The second bar costs one hundred ninety-two mebibytes. The pink section quadrupled, but the blue
+          section stayed put, so the total number of slots only doubled. Double the side once more. Now
+          there are four thousand ninety-six visual slots plus the same text, for five hundred seventy-six
+          mebibytes. Retained keys and values grow linearly with total slots, as does the lookback for one
+          new token. Dense attention over the whole prefix compares pairs, so its work grows
+          quadratically.
+        caption_starts:
+          - Double the side once more
+          - Now there are four thousand ninety-six visual slots
+        hold: 0.85
+        visual_cues:
+          - id: prefix-double
+            phrase: The second bar costs one hundred ninety-two mebibytes
+            targets:
+              - prefix-account
+            color: green
+            linger: 0.38
+          - id: prefix-largest
+            phrase: Double the side once more
+            targets:
+              - prefix-account
+            color: pink
+            linger: 0.38
+      - say: Now send four images with sides of four hundred forty-eight. Together they contribute four thousand
+          ninety-six visual slots. Merge each group of two by two before the decoder. The visual part
+          drops to one thousand twenty-four slots. All five hundred twelve text slots still need keys and
+          values. These bars count raw retained self-attention cache for one request. Weights,
+          activations, allocator overhead, delimiters and quantization metadata need separate accounting.
+          A window can also shorten retention. Flamingo keeps its visual memory in a separate
+          cross-attention path.
+        hold: 0.85
+        visual_cues:
+          - id: prefix-four
+            phrase: Now send four images
+            targets:
+              - prefix-account
+            color: cyan
+            linger: 0.38
+          - id: prefix-merge
+            phrase: Merge each group of two by two
+            targets:
+              - prefix-account
+            color: pink
+            linger: 0.38
+      - say: Keep the screenshot, crop, processor and encoder fixed. Change the system prompt. You can reuse the
+          image features. The decoder can reuse only a matching prefix, so it must recompute from the
+          first changed position. The picture stayed the same throughout.
+        hold: 0.85
+        visual_cues:
+          - id: prefix-prompt
+            phrase: Change the system prompt
+            targets:
+              - prefix-account
+            color: yellow
+            linger: 0.38
+  - id: bridge
+    title: Where did the four patch states go?
+    visual: A two-by-two neighborhood stays in place. One comparison widens four separate feature slots.
+      Another packs the same neighbors into one vector before a learned projection.
+    beats:
+      - say: Follow these four neighbors into a token-wise bridge. Widen each slot from two coordinates to four
+          in this toy example. Count the rows. There are still four. The bridge applied the same linear
+          map at each position. A class token or a register counts here only if the bridge actually
+          selects it.
+        hold: 1
+        visual_cues:
+          - id: bridge-width
+            phrase: Widen each slot from two coordinates to four
+            targets:
+              - bridge-grid
+              - bridge-output
+            color: cyan
+            linger: 0.38
+      - say: Start again with the four neighboring states. Pack their coordinates side by side in raster order.
+          You could still unpack that long vector and recover A, B, C and D exactly. This part is a
+          rearrangement.
+        hold: 1
+        visual_cues:
+          - id: bridge-pack
+            phrase: Pack their coordinates side by side in raster order
+            targets:
+              - bridge-grid
+              - bridge-output
+            color: yellow
+            linger: 0.38
+      - say: Now project the packed vector into one language slot. Whether you can recover a particular
+          difference depends on the weights. Counting one slot tells you how much prefix space the group
+          takes. To find where two images became indistinguishable, compare their values on both sides of
+          the projection.
+        hold: 0.85
+        visual_cues:
+          - id: bridge-project
+            phrase: project the packed vector into one language slot
+            targets:
+              - bridge-output
+            color: green
+            linger: 0.38
+  - id: fresh-detail-boundary
+    title: Where should you look for the missing detail?
+    visual: A fresh two-by-two patch tests the same projection. A third coordinate preserves an invisible
+      change. A second failed deployment has a new identifier, and the previously correct reading is
+      tested against its new reference label.
+    beats:
+      - say: Try the next patch in the numbered image. In the edited copy, move one unit up the left column.
+          Both copies go through the same mean and contrast projection at the same position. Could the
+          same token-wise bridge tell these patches apart?
+        hold: 2.8
+        visual_cues:
+          - id: fresh-move
+            phrase: move one unit up the left column
+            targets:
+              - reference-patch
+              - edited-patch
+            color: yellow
+            linger: 0.38
+      - say: Both tokens read four point five, one. Their two column sums are eight and ten. The bridge receives
+          identical coordinates either way. Changing its output width would give the same answer for both.
+          The distinction disappeared at the patch projection.
+        hold: 1.1
+        visual_cues:
+          - id: fresh-projection-equality
+            phrase: Both tokens read four point five, one
+            targets:
+              - reference-patch
+              - edited-patch
+            color: green
+            linger: 0.38
+      - say: Go back to the pixels and add one measurement. Subtract bottom left from top left. Look at the two
+          differences. Minus four in the reference patch, minus two in the edited patch. With that third
+          coordinate, the bridge could receive a difference that used to be invisible.
+        caption_starts:
+          - Minus four in the reference patch
+        hold: 1.35
+        visual_cues:
+          - id: fresh-third-coordinate
+            phrase: add one measurement
+            targets:
+              - reference-patch
+              - edited-patch
+            color: yellow
+            linger: 0.38
+          - id: fresh-distinguishable
+            phrase: Minus four in the reference patch
+            targets:
+              - reference-patch
+              - edited-patch
+            color: green
+            linger: 0.38
+      - say: Here's a new request ID. Read the digit between the F and the A in this native crop.
+          Which reading would open the right trace?
+        hold: 2.7
+        visual_cues:
+          - id: fresh-reference
+            phrase: Read the digit between the F and the A
+            targets:
+              - labeled-crop
+              - supplied-readings
+            color: cyan
+            linger: 0.38
+      - say: It's an eight. Compare each reading with the label. The upper one has a three in that spot.
+          The lower ID matches every character. Use it to open the trace.
+        caption_starts:
+          - The lower ID matches
+          - Use it to open the trace
+        hold: 1.7
+        visual_cues:
+          - id: fresh-check-strings
+            phrase: Compare each reading with the label
+            targets:
+              - labeled-crop
+              - supplied-readings
+            color: green
+            linger: 0.38
+          - id: fresh-match
+            phrase: The lower ID matches
+            targets:
+              - supplied-readings
+            color: green
+            linger: 0.38
+          - id: fresh-lookup
+            phrase: Use it to open the trace
+            targets:
+              - trace-id
+            color: green
+            linger: 0.38

@@ -4,7 +4,7 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 840
 export const height = 430
 export const alt =
-    'Token routing and combine lifecycle in DeepEP: four tokens route across four experts partitioned between Rank 0 (E0, E1) and Rank 1 (E2, E3). Token a selects E0 with weight 0.70 (local NVLink) and E3 with weight 0.30 (remote RDMA). Combine sums weighted expert outputs back into source position a as 1.90.'
+    'Token routing and combine lifecycle in DeepEP: four tokens route across four experts partitioned between Rank 0 (E0, E1) and Rank 1 (E2, E3). Token a selects E0 with weight 0.70 (local on Rank 0) and E3 with weight 0.30 (remote RDMA). Combine sums weighted expert outputs back into source position a as 1.90.'
 
 const GATE: readonly (readonly number[])[] = [
     [0.7, 0, 0, 0.3],
@@ -167,7 +167,7 @@ export function create(theme: ThemeMode = 'dark') {
         width: 2,
         head: 6,
     })
-    fig.text(468, 114, 'NVLink', {
+    fig.text(468, 114, 'Local', {
         size: 13,
         weight: 600,
         color: blue,
@@ -195,7 +195,7 @@ export function create(theme: ThemeMode = 'dark') {
         radius: 8,
     })
     fig.text(leftBoxX + 12, boxY + 20, 'E0 · Rank 0', { size: 14, weight: 700, color: blue })
-    fig.text(leftBoxX + 12, boxY + 42, 'Local NVLink', { size: 13, color: muted })
+    fig.text(leftBoxX + 12, boxY + 42, 'Local GPU (HBM)', { size: 13, color: muted })
     fig.math(leftBoxX + 12, boxY + 70, 'y_0 = 1.0', { size: 14, color: c.textPrimary })
     fig.math(leftBoxX + 12, boxY + 95, '0.70 \\times 1.0 = 0.70', { size: 14, color: blue })
 

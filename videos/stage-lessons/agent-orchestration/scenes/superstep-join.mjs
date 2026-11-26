@@ -1,571 +1,627 @@
-// Scene `superstep-join`: what the barrier of a step promises, and what it does not.
-//
-// The picture: the board. Beat 0 runs one superstep: plan, run, apply, and the cards cross the
-// barrier together. Beat 1 puts the two channels in the band: two writes to one scalar are an error,
-// and a list keeps order and duplicates. Beat 2 is a clock on the lanes: health has a preparation
-// step. With one waiting edge the merge runs one time. With three edges it runs with two cards, and
-// runs again. Beat 3 shows a lock on a mapping that a write to a nested list passes.
+// Scene 05 (superstep-join): "A scheduling barrier does not validate evidence"
+// Orbiting 3D Pregel superstep barrier paired with 4 cleanly cross-swapped stages:
+//   Stage 0: Superstep plan -> parallel snapshot execution -> atomic barrier apply -> next step
+//   Stage 1: Scalar concurrent-update error vs list-add reducer vs Overwrite/attempt-aware/resume
+//   Stage 2: Unequal-depth fan-in probe (waitingJoinTrace: 1 waiting edge vs 3 separate edges vs defer)
+//   Stage 3: Ownership vs types, shallow MappingProxyType vs deepcopy, execution boundary
 import {
-  arrow,
-  beside,
-  boxOf,
-  column,
-  delay,
-  dot,
-  draw,
-  fade,
-  fitted,
-  grid,
-  indicate,
-  lagged,
-  linear,
-  par,
-  pictogram,
-  place,
-  rect,
-  row,
-  seq,
-  steps,
-} from 'vizmatic/stage';
-import { waitingJoinTrace } from '../../../films/agent-orchestration/arithmetic.mjs';
-import { REQUEST } from '../../../films/agent-orchestration/fixtures.mjs';
-import { chip, heading, label, mono, note } from '../../kit-narrated.mjs';
-import {
-  BAND,
-  BRANCHES,
-  BRANCH_COLOR,
-  CORNER,
-  MARK,
-  QUIET,
-  SMALL,
-  VALID,
-  WRONG,
-  board,
-  channels,
-  clock,
+  COSMOS,
+  ROLE,
+  buildSuperstepBarrier3d,
+  cinemaAtmosphere,
+  crossSwap,
+  glowArrow,
+  glowDot,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  line,
+  lumBar,
+  orbitScene,
+  rule,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+  waitingJoinTrace,
 } from '../parts.mjs';
 
-const [EVAL, HEALTH, POLICY] = [0, 1, 2];
-/** When each read ends in the trace of the model: health has a preparation step before it. */
-const ARRIVAL = Object.fromEntries(
-  waitingJoinTrace(0).arrivals.map((entry) => [entry.id, entry.at]),
-);
-/** When the merge runs: with three separate edges, and with one waiting edge. */
-const MERGES = {
-  separate: waitingJoinTrace(99).separateMerges,
-  waiting: waitingJoinTrace(99).waitingMerges,
-};
-const LAST = Math.max(...Object.values(ARRIVAL));
-const FIRST_STEP_END = Math.max(ARRIVAL.Eval, ARRIVAL.Policy, ARRIVAL['Health prep']);
-
 export default function superstepJoin(s, c) {
-  const b = board(s);
-  const { checks, plates, packetFrame, slots, writer, targetFrame } = b.nodes;
-  s.add(heading(c.title));
-  b.enter(c);
-  const flash = (color) => indicate(packetFrame, { color, scale: 1 });
+  const phase = s.value(0);
+  const barrierStatus = s.value(0); // -1 reject, 0 barrier, +1 pass
+  const st0 = s.value(1);
+  const st1 = s.value(0);
+  const st2 = s.value(0);
+  const st3 = s.value(0);
 
-  // Beat 0. One superstep: plan, run, apply. The updates of a step arrive together.
-  const [upper, lower] = BAND.rows(2, 'normal');
-  const phases = place(
-    fitted(BAND, (width) => steps(['plan', 'run', 'apply', 'next step'], { width, size: 40 })),
-    upper,
-  );
-  const before = place(mono('0 receipts in state', { size: 38 }), lower);
-  const after = place(mono(`${b.card.length} receipts in state`, { size: 38, color: MARK }), lower);
-  s.add(phases);
-  c.on('superstep-join-construct-0', () => s.play(phases.go(0), indicate(checks, { color: MARK })));
-  c.show('executes', before);
-  c.on('executes', () =>
-    s.play(
-      phases.go(1),
-      ...b.card.map((card) => card.shown.to(1, { duration: 0.2 })),
-      ...b.card.map((card, i) =>
-        seq(card.pos.to(1, { duration: 1.4 }), b.gate[i].lamp.to(1, { duration: 0.15 })),
-      ),
-    ),
-  );
-  c.on('applies', () =>
-    s.play(
-      phases.go(2),
-      ...b.gate.map((gate) => gate.open.to(1, { duration: 0.3 })),
-      ...b.card.map((card) => card.pos.to(2, { duration: 0.9 })),
-    ),
-  );
-  c.on('next-step', () => s.play(phases.go(3), flash(MARK)));
-  c.swap('next-step', before, after, { lead: 0 });
+  // Beat 0: Superstep mechanics
+  const planLit = s.value(0);
+  const execLit = s.value(0);
+  const applyLit = s.value(0);
+  const nextLit = s.value(0);
 
-  // Beat 1. The two kinds of channel. A scalar takes one write in a step. A list keeps what arrives.
-  const state = channels(s, BAND, {
-    entries: [POLICY, EVAL, HEALTH, HEALTH],
-    error: 'InvalidUpdateError',
+  // Beat 1: Channel semantics & recovery
+  const scalarLit = s.value(0);
+  const scalarErr = s.value(0);
+  const agreeLit = s.value(0);
+  const listLit = s.value(0);
+  const nonCommLit = s.value(0);
+  const dupLit = s.value(0);
+  const emptyLit = s.value(0);
+  const overwriteLit = s.value(0);
+  const attemptLit = s.value(0);
+  const resumeLit = s.value(0);
+  const retryLit = s.value(0);
+
+  // Beat 2: Unequal-depth fan-in (waitingJoinTrace)
+  const probeLit = s.value(0);
+  const waitingEdge = s.value(0);
+  const sepEdges = s.value(0);
+  const prepStep = s.value(0);
+  const partialFire = s.value(0);
+  const secondFire = s.value(0);
+  const unselStall = s.value(0);
+  const deferMode = s.value(0);
+  const valSet = s.value(0);
+  const relCase = s.value(0);
+  const relRaise = s.value(0);
+  const invFail = s.value(0);
+
+  // Beat 3: Ownership, shallow proxy vs deepcopy, execution boundary
+  const ownLit = s.value(0);
+  const typesLit = s.value(0);
+  const proxyLit = s.value(0);
+  const nestedMut = s.value(0);
+  const deepLit = s.value(0);
+  const notSand = s.value(0);
+  const boundLit = s.value(0);
+
+  const traceT4 = waitingJoinTrace(4);
+  const bgAtmo = cinemaAtmosphere(ROLE.merge, ROLE.eval);
+  const { view: barrier3d } = buildSuperstepBarrier3d(phase, barrierStatus, {
+    x: 520,
+    y: 25,
+    theta: -0.74,
+    phi: 1.05,
+    distance: 14.8,
+    unit: 102,
   });
-  c.swap('superstep-join-construct-1', [phases, after], state.frame);
-  s.add(...state.live);
-  const [first, second] = state.scalar.writes;
-  const arrive = (entry) =>
-    par(entry.shown.to(1, { duration: 0.2 }), entry.drop.to(1, { duration: 0.5 }));
-  const lift = (entry) =>
-    seq(entry.shown.to(0, { duration: 0.25 }), entry.drop.to(0, { duration: 0.05 }));
-  const operation = (words) =>
-    mono(words, { size: SMALL, color: MARK, anchor: 'left' }).at(
-      state.listSide.left,
-      state.trayY + 84,
+
+  const title = heroTitle(['A Scheduling Barrier', 'Does Not Validate'], {
+    x: -860,
+    y: -440,
+    size: 52,
+    lineHeight: 60,
+    accent: ROLE.merge,
+    eyebrow: 'LANGGRAPH SUPERSTEPS  /  REDUCERS & FAN-IN',
+  });
+
+  const live = guardedDynamic(s.value(1), () => {
+    const m0 = st0.value;
+    const m1 = st1.value;
+    const m2 = st2.value;
+    const m3 = st3.value;
+    const lx = -860;
+    const nodes = [];
+
+    // Right 3D header & steady caption (zero crossSwap flash)
+    nodes.push(
+      txt('3D SUPERSTEP BARRIER', 520, -420, 26, ROLE.merge, 'mono').glow(6, ROLE.merge),
+      txt('3 parallel lanes -> 1 barrier plane', 520, -376, 26, COSMOS.muted, 'sans'),
+      txt(
+        `Barrier trace: ${traceT4.separateMerges.length} sep vs ${traceT4.waitingMerges.length} waiting`,
+        520,
+        395,
+        26,
+        COSMOS.muted,
+        'sans',
+      ),
     );
-  const appendEmpty = operation('saved + [] = saved');
-  const overwrite = operation('Overwrite([])');
-  const key = operation('key: (attempt, branch)');
-  const resume = operation('resume: keep saved writes');
-  c.on('superstep-join-construct-1', () => s.play(arrive(second)), 0.6);
-  c.on('scalar-update-error', () => s.play(seq(lift(second), par(arrive(first), arrive(second)))));
-  c.after('scalar-update-error', () => s.play(state.scalar.clash.to(1, { duration: 0.3 })));
-  c.on('values-agree', () => s.play(state.scalar.hot.to(1, { duration: 0.3 })));
-  c.after('reducer-lists', () =>
-    s.play(
-      state.scalar.hot.to(0, { duration: 0.3 }),
-      state.scalar.clash.to(0, { duration: 0.3 }),
-      ...state.scalar.writes.map(lift),
-      lagged(state.list.slice(0, 3).map(arrive), { lag: 0.6 }),
-    ),
-  );
-  // Reversing reducer inputs changes the list. Network completion need not set their order.
-  c.after('not-commutative', () =>
-    s.play(
-      seq(
-        par(...state.list.slice(0, 2).map(lift)),
-        par(
-          state.list[0].slot.to(1, { duration: 0.05 }),
-          state.list[1].slot.to(0, { duration: 0.05 }),
-        ),
-        arrive(state.list[1]),
-        arrive(state.list[0]),
-      ),
-    ),
-  );
-  c.after('keeps-duplicates', () =>
-    s.play(seq(arrive(state.list[3]), state.list[3].wrong.to(1, { duration: 0.2 }))),
-  );
-  c.show('add-empty', appendEmpty, { after: true });
-  c.swap('new-attempt', appendEmpty, overwrite);
-  c.after('new-attempt', () =>
-    s.play(seq(par(...state.list.map(lift)), state.list[3].wrong.to(0, { duration: 0.05 }))),
-  );
-  c.swap('attempt-aware', overwrite, key);
-  c.on('attempt-aware', () => s.play(lagged(state.list.slice(0, 3).map(arrive), { lag: 0.4 })));
-  c.swap('resume-saved', key, resume, { after: true });
-  c.after('resume-saved', () =>
-    s.play(
-      lift(state.list[2]),
-      ...state.list.slice(0, 2).map((entry) => entry.hot.to(1, { duration: 0.3 })),
-    ),
-  );
-  c.after('retry-failed-work', () => s.play(arrive(state.list[2])));
 
-  // Beat 2. The same lanes as a clock. Health has a preparation step, so it arrives last.
-  const k = clock(
-    s,
-    [
-      { lane: EVAL, length: ARRIVAL.Eval, color: BRANCH_COLOR[EVAL] },
-      { lane: HEALTH, length: ARRIVAL['Health prep'], color: BRANCH_COLOR[HEALTH], label: 'prep' },
-      {
-        lane: HEALTH,
-        start: FIRST_STEP_END,
-        length: ARRIVAL.Health - FIRST_STEP_END,
-        color: BRANCH_COLOR[HEALTH],
-      },
-      { lane: POLICY, length: ARRIVAL.Policy, color: BRANCH_COLOR[POLICY] },
-    ],
-    { seconds: 5 },
-  );
-  k.now.set(0);
-  const pip = (color) => dot(15, color);
-  const waitingPips = MERGES.waiting.map(() => pip(VALID));
-  const separatePips = MERGES.separate.map((_, index) =>
-    pip(index < MERGES.separate.length - 1 ? WRONG : 'ink'),
-  );
-  const tally = {
-    title: note('the merge runs'),
-    waiting: label('one waiting edge', { size: 36 }),
-    separate: label('three edges', { size: 36 }),
-  };
-  const waitingResult = [tally.waiting, ...waitingPips];
-  const separateResult = [tally.separate, ...separatePips];
-  place(
-    column(
-      [
-        tally.title,
-        grid(
-          [
-            tally.waiting,
-            row(waitingPips, { gap: 'normal' }),
-            tally.separate,
-            row(separatePips, { gap: 'normal' }),
-          ],
-          {
-            columns: 2,
-            gap: ['wide', 'normal'],
-            align: 'left',
-            even: true,
-          },
-        ),
-      ],
-      { gap: 'normal' },
-    ),
-    BAND,
-    'left',
-  );
-  const [, selectionArea] = BAND.columns([1, 1], 'wide');
-  const branchSet = (title) =>
-    row(
-      [
-        note(title),
-        mono('{', { size: SMALL, color: QUIET }),
-        ...[EVAL, HEALTH].map((lane) => chip(BRANCHES[lane], { color: BRANCH_COLOR[lane] })),
-        mono('}', { size: SMALL, color: QUIET }),
-      ],
-      { gap: 'tight' },
-    );
-  const setRows = [branchSet('selected'), branchSet('received')];
-  const evidenceUnchecked = note('evidence unchecked');
-  const setMatch = note('sets match', { color: MARK });
-  const selectedSet = place(
-    column([...setRows, evidenceUnchecked, setMatch], { gap: 'normal' }),
-    selectionArea,
-    'center',
-  );
-  const probe = place(
-    column([note('Merge recorder'), note('No proposal')], { gap: 'tight' }),
-    CORNER,
-    'top left',
-  );
-  const releaseFailure = place(
-    column([note('Release merge'), note('3 required')], { gap: 'tight' }),
-    CORNER,
-    'top left',
-  );
-  c.show('probe-only', probe);
-  c.swap(
-    2,
-    [...state.frame, ...state.live, resume],
-    [k.axis, ...k.numbers, tally.title, tally.waiting],
-  );
-  s.add(k.bars);
-  const lamps = (lanes) =>
-    lanes.map(([lane, at]) => delay(b.gate[lane].lamp.to(1, { duration: 0.15 }), at));
-  const cardsIn = (lanes) => lanes.map((lane) => b.card[lane].shown.to(1, { duration: 0.3 }));
-  const rewind = () =>
-    par(
-      k.now.to(0, { duration: 0.4 }),
-      ...b.card.map((card) => card.shown.to(0, { duration: 0.3 })),
-      ...b.gate.map((gate) => gate.lamp.to(0, { duration: 0.3 })),
-    );
-  c.onBeat(2, () =>
-    s.play(
-      rewind(),
-      ...b.gate.map((gate) => gate.open.to(0, { duration: 0.3 })),
-      ...k.spans.map((span) => span.shown.to(1, { duration: 0.3 })),
-    ),
-  );
-  // One waiting edge: the two early receipts wait, and the merge runs one time, with all three.
-  const lead = 0.9;
-  c.on(
-    'superstep-join-construct-2',
-    () =>
-      s.play(
-        k.now.to(LAST, { duration: LAST, ease: linear }),
-        ...lamps([
-          [POLICY, ARRIVAL.Policy],
-          [EVAL, ARRIVAL.Eval],
-          [HEALTH, ARRIVAL.Health],
-        ]),
-      ),
-    lead,
-  );
-  c.after('superstep-join-construct-2', () =>
-    s.play(
-      ...b.gate.map((gate) => gate.open.to(1, { duration: 0.3 })),
-      ...cardsIn([EVAL, HEALTH, POLICY]),
-      flash(VALID),
-    ),
-  );
-  c.show('superstep-join-construct-2', waitingPips, { after: true });
-  // Three edges: no barrier. The merge runs when eval and policy are in, and again for health.
-  c.hide('three-edges', waitingResult, { after: true, lead: 0.3, fade: 0.2 });
-  c.show('three-edges', tally.separate);
-  c.after('three-edges', () =>
-    s.play(seq(rewind(), par(...b.gate.map((gate) => gate.open.to(1, { duration: 0.3 }))))),
-  );
-  const extra = c.cue('extra-step'),
-    partial = c.cue('partial-merge'),
-    another = c.cue('another-merge');
-  const [firstMerge, secondMerge] = MERGES.separate;
-  c.on('extra-step', () =>
-    s.play(
-      k.spans[1].hot.to(1, { duration: 0.2 }),
-      k.now.to(firstMerge, { duration: partial.start - extra.start, ease: linear }),
-      ...lamps([
-        [POLICY, ((partial.start - extra.start) * ARRIVAL.Policy) / firstMerge],
-        [EVAL, partial.start - extra.start],
-      ]),
-    ),
-  );
-  c.show('partial-merge', separatePips[0], { after: true });
-  c.after('partial-merge', () =>
-    s.play(b.card[HEALTH].verdict.to(-1, { duration: 0.3 }), flash(WRONG)),
-  );
-  c.on('partial-merge', () =>
-    s.play(
-      k.spans[1].hot.to(0, { duration: 0.2 }),
-      ...cardsIn([EVAL, POLICY]),
-      k.now.to(secondMerge, { duration: another.start - partial.start, ease: linear }),
-      ...lamps([[HEALTH, another.start - partial.start]]),
-    ),
-  );
-  const pipFade = 0.3;
-  c.show('another-merge', separatePips[1], { after: true, fade: pipFade });
-  c.after('another-merge', () =>
-    s.play(...cardsIn([HEALTH]), b.card[HEALTH].verdict.to(0, { duration: 0.3 }), flash(MARK)),
-  );
-  // A waiting edge that names a branch that does not run: the third lamp never lights.
-  const never = place(
-    label('never opens', { size: 36, color: WRONG }),
-    boxOf(plates[POLICY]).inset('loose', 'tight'),
-    'right',
-  );
-  const unselected = c.cue('unselected');
-  // If the cues touch, let the second pip finish fading in before the tally leaves.
-  const tallyDelay = Math.max(0, another.end + pipFade - unselected.start);
-  c.hide('unselected', [tally.title, ...separateResult], { lead: -tallyDelay, fade: 0.2 });
-  c.on(
-    'unselected',
-    () =>
-      s.play(
-        seq(
-          par(
-            rewind(),
-            ...b.gate.map((gate) => gate.open.to(0, { duration: 0.3 })),
-            k.spans[3].shown.to(0, { duration: 0.3 }),
-            fade(checks[POLICY], 0.3, { duration: 0.3 }),
-          ),
-          par(
-            k.now.to(LAST, { duration: unselected.end - unselected.start - 1, ease: linear }),
-            ...lamps([
-              [EVAL, ((unselected.end - unselected.start - 1) * ARRIVAL.Eval) / LAST],
-              [HEALTH, unselected.end - unselected.start - 1],
-            ]),
-          ),
-        ),
-      ),
-    0.4,
-  );
-  c.show('unselected', never, { after: true });
-  // Deferred execution waits for pending work. Show the selected branches beside the receipts.
-  c.hide('deferred', never);
-  c.on('deferred', () =>
-    s.play(
-      seq(
-        par(...[EVAL, HEALTH].map((lane) => b.gate[lane].open.to(1, { duration: 0.3 }))),
-        par(...cardsIn([EVAL, HEALTH])),
-      ),
-    ),
-  );
-  c.show('deferred', [...setRows, evidenceUnchecked], { after: true });
-  c.on('validate-set', () => s.play(indicate(setRows, { color: MARK, scale: 1 })), 0.4);
-  c.show('validate-set', setMatch, { after: true });
+    // =========================================================================
+    // STAGE 0: Superstep plan -> frozen S0 -> barrier apply -> S1
+    // =========================================================================
+    if (m0 > 0.02) {
+      const sy = -195;
+      nodes.push(
+        txt(
+          'PREGEL SUPERSTEP CYCLE',
+          lx,
+          sy,
+          26,
+          planLit.value > 0.3 ? ROLE.mark : ROLE.eval,
+          'mono',
+          'left',
+        ).opacity(m0),
+        rule(lx, sy + 24, 95, sy + 24, ROLE.rule, 2).opacity(m0),
+      );
 
-  // Replay the real validator with all three required branches. Stop at the partial merge.
-  const [requiredRoom, verdictRoom] = BAND.rows([2, 1], 'normal');
-  const required = place(
-    column(
-      [
-        note('required'),
-        row(
-          BRANCHES.map((branch, lane) => chip(branch, { color: BRANCH_COLOR[lane] })),
-          { gap: 'normal' },
-        ),
-      ],
-      { gap: 'normal' },
-    ),
-    requiredRoom,
-    'left',
-  );
-  const missing = place(
-    label('2 s: missing health', { size: 36, color: WRONG }),
-    verdictRoom,
-    'left',
-  );
-  const failed = place(label('Invocation failed', { size: 36, color: WRONG }), verdictRoom, 'left');
-  // Earlier cases own their tally exits. Retire the active probe and selected set together.
-  const releaseTransition = { fade: 0.2, retention: 0.5, resetOffset: 0.8 };
-  c.swap('release-case', [probe, selectedSet], [releaseFailure, required], {
-    lead: -releaseTransition.retention,
-    fade: releaseTransition.fade,
+      // Snapshot S0 column
+      nodes.push(
+        lumBar(-770, 50, 150, 260, {
+          color: ROLE.triage,
+          fillOpacity: 0.16,
+          strokeWidth: 2.6,
+          glow: 8,
+          opacity: m0,
+        }),
+        txt('S0', -770, 28, 36, COSMOS.ink, 'mono').opacity(m0),
+        txt('frozen', -770, 72, 26, ROLE.triage, 'sans').opacity(m0),
+      );
+
+      // Three parallel worker bars
+      const workers = [
+        { name: 'Eval', y: -55, col: ROLE.eval },
+        { name: 'Health', y: 50, col: ROLE.health },
+        { name: 'Policy', y: 155, col: ROLE.policy },
+      ];
+      workers.forEach((w) => {
+        nodes.push(
+          glowArrow([-685, w.y], [-555, w.y], execLit.value > 0.3 ? w.col : COSMOS.dim, {
+            width: 3.0,
+            opacity: m0,
+          }),
+          lumBar(-430, w.y, 220, 62, {
+            color: w.col,
+            fillOpacity: execLit.value > 0.3 ? 0.28 : 0.12,
+            strokeWidth: 2.6,
+            glow: execLit.value > 0.3 ? 10 : 4,
+            opacity: m0,
+          }),
+          txt(w.name, -430, w.y, 28, COSMOS.ink, 'mono').opacity(m0),
+          glowArrow([-310, w.y], [-165, w.y], applyLit.value > 0.3 ? ROLE.merge : COSMOS.dim, {
+            width: 3.0,
+            opacity: m0,
+          }),
+        );
+      });
+
+      // Barrier vertical laser line + S1 output
+      nodes.push(
+        line([-145, -110], [-145, 210], {
+          stroke: applyLit.value > 0.3 ? ROLE.merge : COSMOS.muted,
+          width: applyLit.value > 0.3 ? 6 : 3,
+        })
+          .glow(10, ROLE.merge)
+          .opacity(m0),
+        txt('BARRIER', -145, -142, 26, ROLE.merge, 'mono').opacity(m0),
+        glowArrow([-125, 50], [-35, 50], nextLit.value > 0.3 ? ROLE.pass : COSMOS.muted, {
+          width: 3.4,
+          opacity: m0,
+        }),
+        lumBar(45, 50, 145, 260, {
+          color: nextLit.value > 0.3 ? ROLE.pass : ROLE.merge,
+          fillOpacity: nextLit.value > 0.3 ? 0.24 : 0.1,
+          strokeWidth: 2.6,
+          glow: nextLit.value > 0.3 ? 11 : 4,
+          opacity: m0,
+        }),
+        txt('S1', 45, 28, 36, COSMOS.ink, 'mono').opacity(m0),
+        txt('3 receipts', 45, 72, 26, ROLE.pass, 'sans').opacity(m0),
+      );
+
+      nodes.push(
+        txt(
+          nextLit.value > 0.3
+            ? 'Next step begins only after all 3 updates commit together'
+            : 'Plan -> run branches on S0 -> apply updates atomically',
+          lx,
+          315,
+          28,
+          ROLE.eval,
+          'sans',
+          'left',
+        ).opacity(m0),
+      );
+    }
+
+    // =========================================================================
+    // STAGE 1: Channel Reducers & Attempt Recovery
+    // =========================================================================
+    if (m1 > 0.02) {
+      // Top track: Scalar channel error
+      const y0 = -205;
+      const err = scalarErr.value;
+      nodes.push(
+        txt(
+          '1. DEFAULT SCALAR CHANNEL',
+          lx,
+          y0,
+          26,
+          scalarLit.value > 0.3 ? ROLE.mark : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m1),
+        rule(lx, y0 + 24, 100, y0 + 24, ROLE.rule, 2).opacity(m1),
+        lumBar(-680, y0 + 76, 360, 56, {
+          color: err > 0.3 ? ROLE.reject : ROLE.triage,
+          fillOpacity: err > 0.3 ? 0.24 : 0.14,
+          glow: err > 0.3 ? 11 : 4,
+          opacity: m1,
+        }),
+        txt('2 writes -> same key', -680, y0 + 76, 26, COSMOS.ink, 'mono').opacity(m1),
+        txt(
+          agreeLit.value > 0.3
+            ? 'INVALID_CONCURRENT_UPDATE (even if equal!)'
+            : err > 0.3
+              ? 'INVALID_CONCURRENT_UPDATE'
+              : 'Single write replaces value',
+          -470,
+          y0 + 76,
+          26,
+          err > 0.3 ? ROLE.reject : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m1),
+      );
+
+      // Middle track: List-add reducer
+      const y1 = -40;
+      nodes.push(
+        txt(
+          '2. LIST-ADD REDUCER  (operator.add)',
+          lx,
+          y1,
+          26,
+          listLit.value > 0.3 ? ROLE.eval : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m1),
+        rule(lx, y1 + 24, 100, y1 + 24, ROLE.rule, 2).opacity(m1),
+        txt(
+          nonCommLit.value > 0.3
+            ? '[A, B] != [B, A]  (not commutative)'
+            : 'Concatenates branch lists',
+          lx,
+          y1 + 66,
+          26,
+          nonCommLit.value > 0.3 ? ROLE.policy : COSMOS.ink,
+          'mono',
+          'left',
+        ).opacity(m1),
+        txt(
+          dupLit.value > 0.3 ? 'Keeps duplicates: [eval, eval]' : '',
+          lx,
+          y1 + 112,
+          26,
+          ROLE.reject,
+          'mono',
+          'left',
+        ).opacity(m1 * dupLit.value),
+        txt(
+          emptyLit.value > 0.3 ? 'saved + [] -> saved stays intact' : '',
+          -340,
+          y1 + 112,
+          26,
+          ROLE.mark,
+          'mono',
+          'left',
+        ).opacity(m1 * emptyLit.value),
+      );
+
+      // Bottom track: New attempt vs Resume same attempt (stacked cleanly with full width)
+      const y2 = 145;
+      nodes.push(
+        txt('3. RETRY & ATTEMPT CONTROLS', lx, y2, 26, ROLE.pass, 'mono', 'left').opacity(m1),
+        rule(lx, y2 + 24, 100, y2 + 24, ROLE.rule, 2).opacity(m1),
+        lumBar(-380, y2 + 78, 960, 56, {
+          color: overwriteLit.value > 0.3 || attemptLit.value > 0.3 ? ROLE.eval : COSMOS.rule,
+          fillOpacity: 0.18,
+          opacity: m1,
+        }),
+        txt(
+          attemptLit.value > 0.3
+            ? 'New attempt: fresh thread / Overwrite([]) / attempt-id'
+            : 'New attempt: Overwrite([]) clears list',
+          -380,
+          y2 + 78,
+          26,
+          COSMOS.ink,
+          'mono',
+        ).opacity(m1),
+        lumBar(-380, y2 + 154, 960, 56, {
+          color: resumeLit.value > 0.3 || retryLit.value > 0.3 ? ROLE.pass : COSMOS.rule,
+          fillOpacity: 0.18,
+          opacity: m1,
+        }),
+        txt(
+          retryLit.value > 0.3
+            ? 'Resume same attempt: keep saved writes + retry failed'
+            : 'Resume same attempt: keep saved writes',
+          -380,
+          y2 + 154,
+          26,
+          ROLE.pass,
+          'mono',
+        ).opacity(m1),
+      );
+    }
+
+    // =========================================================================
+    // STAGE 2: Unequal-Depth Fan-in (Waiting Edge vs Separate Edges vs Defer)
+    // =========================================================================
+    if (m2 > 0.02) {
+      const tlX = -720;
+      const scale = 145; // t=0..4 -> 580px (-720 to -140)
+      const xT = (t) => tlX + t * scale;
+
+      nodes.push(
+        txt(
+          relCase.value > 0.3
+            ? 'REAL RELEASE VALIDATOR VS SCHEDULING PROBE'
+            : 'UNEQUAL-DEPTH FAN-IN  (Health prep -> Health)',
+          lx,
+          -228,
+          26,
+          relCase.value > 0.3 ? ROLE.reject : ROLE.mark,
+          'mono',
+          'left',
+        ).opacity(m2),
+        rule(tlX, -142, xT(4.2), -142, COSMOS.muted, 2).opacity(m2),
+      );
+      for (let t = 0; t <= 4; t++) {
+        nodes.push(
+          txt(`t=${t}`, xT(t), -168, 26, COSMOS.muted, 'mono').opacity(m2),
+          line([xT(t), -136], [xT(t), 140], {
+            stroke: COSMOS.rule,
+            width: 1.4,
+            dash: [5, 7],
+          }).opacity(m2 * 0.45),
+        );
+      }
+
+      // 3 branch timelines
+      const lanes = [
+        { name: 'Policy', y: -92, end: 1, col: ROLE.policy },
+        { name: 'Eval', y: -20, end: 2, col: ROLE.eval },
+        { name: 'Health', y: 52, end: 4, col: ROLE.health, prep: 1 },
+      ];
+      lanes.forEach((l) => {
+        nodes.push(txt(l.name, lx, l.y, 26, l.col, 'mono', 'left').opacity(m2));
+        if (l.prep && prepStep.value > 0.3) {
+          nodes.push(
+            lumBar(xT(0.5), l.y, scale - 8, 48, {
+              color: ROLE.health,
+              fillOpacity: 0.25,
+              dash: [6, 4],
+              opacity: m2,
+            }),
+            txt('prep', xT(0.5), l.y, 26, COSMOS.ink, 'mono').opacity(m2),
+            lumBar(xT(2.5), l.y, 3 * scale - 8, 48, {
+              color: ROLE.health,
+              fillOpacity: 0.42,
+              opacity: m2,
+            }),
+            txt('health read', xT(2.5), l.y, 26, COSMOS.ink, 'mono').opacity(m2),
+          );
+        } else {
+          const w = l.end * scale - 8;
+          nodes.push(
+            lumBar(tlX + w / 2, l.y, w, 46, { color: l.col, fillOpacity: 0.36, opacity: m2 }),
+          );
+        }
+      });
+
+      // Merge firing markers at t=2 (partial) and t=4 (complete) with generous horizontal clearance
+      if (partialFire.value > 0.02) {
+        nodes.push(
+          glowRing(xT(2), 118, 18, ROLE.reject, {
+            width: 3.4,
+            fillOpacity: 0.35,
+            glow: 12,
+            opacity: m2 * partialFire.value,
+          }),
+          txt(
+            relRaise.value > 0.3 ? 'RAISES (t=2)' : 'PARTIAL (t=2)',
+            xT(2) - 24,
+            164,
+            26,
+            ROLE.reject,
+            'mono',
+          ).opacity(m2 * partialFire.value),
+        );
+      }
+      if (waitingEdge.value > 0.02 || secondFire.value > 0.02) {
+        nodes.push(
+          glowRing(xT(4), 118, 18, ROLE.pass, {
+            width: 3.4,
+            fillOpacity: 0.35,
+            glow: 12,
+            opacity: m2,
+          }),
+          txt(
+            secondFire.value > 0.3 ? '2ND (t=4)' : 'WAITING (t=4)',
+            xT(4) + 12,
+            164,
+            26,
+            ROLE.pass,
+            'mono',
+          ).opacity(m2),
+        );
+      }
+
+      // Bottom edge-mode comparison strip
+      const by = 248;
+      nodes.push(rule(lx, by - 25, 100, by - 25, ROLE.rule, 2).opacity(m2));
+      const modeMsg =
+        invFail.value > 0.3
+          ? 'Validator raises -> invocation fails'
+          : valSet.value > 0.3
+            ? 'defer=True drains pending work; merge still validates selected set'
+            : deferMode.value > 0.3
+              ? 'Dynamic branches: defer=True waits for graph-wide pending tasks'
+              : unselStall.value > 0.3
+                ? 'Warning: waiting edge naming an unselected branch never fires!'
+                : sepEdges.value > 0.3
+                  ? '3 separate edges -> fires partial merge at t=2, then again at t=4'
+                  : probeLit.value > 0.3
+                    ? 'Probe records arrivals only; list-edge waits for all 3 terminal nodes'
+                    : 'One waiting edge holds merge until all required branches finish';
+      nodes.push(
+        txt(
+          modeMsg,
+          lx,
+          by + 20,
+          26,
+          invFail.value > 0.3 || unselStall.value > 0.3 ? ROLE.reject : ROLE.mark,
+          'sans',
+          'left',
+        ).opacity(m2),
+      );
+    }
+
+    // =========================================================================
+    // STAGE 3: Output Ownership vs Shallow Proxy vs Deep Copy vs Execution Sandbox
+    // =========================================================================
+    if (m3 > 0.02) {
+      nodes.push(
+        txt(
+          'OUTPUT OWNERSHIP & ISOLATION BOUNDARIES',
+          lx,
+          -210,
+          26,
+          ownLit.value > 0.3 ? ROLE.eval : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m3),
+        rule(lx, -186, 100, -186, ROLE.rule, 2).opacity(m3),
+      );
+
+      // Row 1: Types vs Runtime Auth
+      nodes.push(
+        lumBar(-650, -110, 420, 58, {
+          color: typesLit.value > 0.3 ? ROLE.policy : ROLE.eval,
+          fillOpacity: 0.16,
+          opacity: m3,
+        }),
+        txt('TypedDict / Schema', -650, -110, 26, COSMOS.ink, 'mono').opacity(m3),
+        txt(
+          typesLit.value > 0.3
+            ? 'Describes shape  !=  write authority'
+            : 'Limits worker to own receipt',
+          -410,
+          -110,
+          26,
+          typesLit.value > 0.3 ? ROLE.policy : COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(m3),
+      );
+
+      // Row 2: Shallow MappingProxyType leaking nested list mutation
+      nodes.push(
+        lumBar(-650, 5, 420, 58, {
+          color:
+            nestedMut.value > 0.3 ? ROLE.reject : proxyLit.value > 0.3 ? ROLE.mark : COSMOS.rule,
+          fillOpacity: 0.18,
+          opacity: m3,
+        }),
+        txt('MappingProxyType', -650, 5, 26, COSMOS.ink, 'mono').opacity(m3),
+        txt(
+          nestedMut.value > 0.3
+            ? 'SHALLOW: nested list still mutated in place!'
+            : 'Read-only outer wrapper only',
+          -410,
+          5,
+          26,
+          nestedMut.value > 0.3 ? ROLE.reject : COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(m3),
+      );
+
+      // Row 3: deepcopy
+      nodes.push(
+        lumBar(-650, 120, 420, 58, {
+          color: deepLit.value > 0.3 ? ROLE.eval : COSMOS.rule,
+          fillOpacity: 0.18,
+          opacity: m3,
+        }),
+        txt('deepcopy(state)', -650, 120, 26, COSMOS.ink, 'mono').opacity(m3),
+        txt(
+          notSand.value > 0.3
+            ? 'Separates values  |  NOT a hostile-code sandbox'
+            : 'Separates nested fixture values',
+          -410,
+          120,
+          26,
+          notSand.value > 0.3 ? ROLE.policy : ROLE.eval,
+          'sans',
+          'left',
+        ).opacity(m3),
+      );
+
+      // Row 4: Real execution boundary shield (floating accent, zero overflow)
+      nodes.push(
+        rule(lx, 205, 100, 205, boundLit.value > 0.3 ? ROLE.pass : ROLE.rule, 2.5).opacity(m3),
+        txt(
+          'EXECUTION BOUNDARY: trusted scope + credentials + isolation',
+          lx,
+          255,
+          28,
+          boundLit.value > 0.3 ? ROLE.pass : COSMOS.muted,
+          'mono',
+          'left',
+        )
+          .glow(boundLit.value > 0.3 ? 8 : 0, ROLE.pass)
+          .opacity(m3),
+      );
+    }
+
+    return nodes;
   });
-  c.hide(3, releaseFailure);
-  const replay = c.cue('release-case');
-  const reject = c.cue('release-validator');
-  const replayDuration = reject.start - replay.start - releaseTransition.resetOffset - 0.4;
-  c.on(
-    'release-case',
-    () =>
-      s.play(
-        seq(
-          par(
-            rewind(),
-            fade(checks[POLICY], 1, { duration: 0.3 }),
-            k.spans[3].shown.to(1, { duration: 0.3 }),
-            ...b.card.map((card) => card.verdict.to(0, { duration: 0.3 })),
-            ...b.gate.map((gate) => gate.open.to(1, { duration: 0.3 })),
-          ),
-          par(
-            k.now.to(firstMerge, { duration: replayDuration, ease: linear }),
-            ...lamps([
-              [POLICY, (replayDuration * ARRIVAL.Policy) / firstMerge],
-              [EVAL, replayDuration],
-            ]),
-          ),
-        ),
-      ),
-    releaseTransition.resetOffset,
-  );
-  c.on('release-validator', () => s.play(...cardsIn([EVAL, POLICY])));
-  c.show('release-validator', missing, { after: true });
-  c.after('release-validator', () =>
-    s.play(b.card[HEALTH].verdict.to(-1, { duration: 0.3 }), flash(WRONG)),
-  );
-  c.swap('invocation-fails', missing, failed, { after: true });
 
-  // Beat 3. Ownership, and a lock that is shallow: a write to a nested list passes it.
-  const [objectSide, workerSide] = BAND.columns([3, 2], 'wide');
-  const part = (words, color) => label(words, { size: SMALL, color });
-  const listed = [
-    part(BRANCHES[EVAL], BRANCH_COLOR[EVAL]),
-    part(BRANCHES[HEALTH], BRANCH_COLOR[HEALTH]),
-  ];
-  const added = part(BRANCHES[POLICY], WRONG);
-  const mapping = {
-    name: mono('state', { size: 36 }),
-    lock: pictogram('lock', { size: 52, color: QUIET, accent: MARK }),
-    kind: note('read-only proxy'),
-    tenantKey: mono('tenant', { size: SMALL, color: QUIET }),
-    tenant: mono(REQUEST.tenant, { size: SMALL }),
-    listKey: mono('receipts', { size: SMALL, color: QUIET }),
-  };
-  const listRow = row([...listed, added], { gap: 'normal' });
-  const body = column(
-    [
-      row([mapping.name, mapping.lock, mapping.kind], { gap: 'normal' }),
-      row([mapping.tenantKey, mapping.tenant], { gap: 'normal' }),
-      row([mapping.listKey, listRow], { gap: 'wide' }),
-    ],
-    { gap: 'normal' },
-  );
-  place(body, objectSide.inset('normal'), 'top left');
-  const outer = boxOf(body).grow('normal');
-  const inner = boxOf(listRow).grow('tight');
-  const outerFrame = rect(outer.width, outer.height, {
-    radius: 14,
-    stroke: 'ink',
-    width: 2.5,
-    fill: 'surface',
-  }).at(outer.cx, outer.cy);
-  const innerFrame = rect(inner.width, inner.height, {
-    radius: 10,
-    stroke: 'faint',
-    width: 2,
-    fill: null,
-  }).at(inner.cx, inner.cy);
-  // The first write stops at the lock. The second one goes on, into the nested list.
-  const tenantY = boxOf(mapping.tenant).cy,
-    listY = inner.cy;
-  const worker = chip('worker').at(workerSide.left + 70, (tenantY + listY) / 2);
-  const turn = boxOf(worker).left;
-  const blocked = arrow([turn, tenantY], [outer.right, tenantY], {
-    stroke: WRONG,
-    width: 4,
-    dash: [12, 9],
-    pad: 6,
-  });
-  const stop = pictogram('cross', { size: 52, accent: WRONG }).at(
-    (turn + outer.right) / 2,
-    tenantY,
-  );
-  const passes = arrow([turn, listY], [inner.right, listY], { stroke: WRONG, width: 4, pad: 6 });
-  const copyNames = [EVAL, HEALTH].map((lane) => part(BRANCHES[lane], BRANCH_COLOR[lane]));
-  const copyAdded = part(BRANCHES[POLICY], WRONG);
-  const copyTitle = note('the copy of the worker');
-  const copyRow = row([...copyNames, copyAdded], { gap: 'normal' });
-  place(
-    column([copyTitle, copyRow], { gap: 'normal' }),
-    workerSide.inset('none', 'normal'),
-    'bottom left',
-  );
-  const copyBox = boxOf(copyRow).grow('tight');
-  const copyFrame = rect(copyBox.width, copyBox.height, {
-    radius: 10,
-    stroke: 'faint',
-    width: 2,
-    fill: null,
-    dash: [8, 8],
-  }).at(copyBox.cx, copyBox.cy);
-  const object = [outerFrame, innerFrame, ...Object.values(mapping), ...listed];
+  s.add(bgAtmo, barrier3d, title, live);
+  runAmbientPhase(s, c, phase, 2.5);
+  orbitScene(s, c, barrier3d, { theta: 0.28, phi: 0.98 });
 
-  // The board first: a worker owns one slot. Its write to another slot is cut.
-  const from = boxOf(slots[EVAL]),
-    to = boxOf(slots[HEALTH]);
-  const trespass = arrow([from.cx, from.bottom], [from.cx, to.top], {
-    stroke: WRONG,
-    width: 4,
-    dash: [10, 7],
-    pad: 4,
+  // Beat 0: Superstep mechanics
+  tweenCue(s, c, 'superstep-join-construct-0', planLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'executes', execLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'applies', applyLit, 1, { duration: 0.35 });
+  c.on('next-step', () => {
+    s.play(nextLit.to(1, { duration: 0.35 }), barrierStatus.to(1, { duration: 0.35 }));
   });
-  const refused = beside(
-    pictogram('cross', { size: 44, accent: WRONG }),
-    boxOf(trespass),
-    'right',
-    'tight',
-  );
-  const typed = beside(note('type ok', { color: VALID }), refused, 'right', 'tight');
-  c.swap(3, [k.bars, k.axis, ...k.numbers, required, failed], object);
-  c.onBeat(3, () =>
-    s.play(
-      fade(checks[POLICY], 1, { duration: 0.3 }),
-      ...b.card.map((card) => card.verdict.to(0, { duration: 0.3 })),
-      ...[EVAL, HEALTH].map((lane) => b.card[lane].read.to(0, { duration: 0.3 })),
-      delay(par(...cardsIn([HEALTH, POLICY])), 0.45),
-    ),
-  );
-  c.show('superstep-join-construct-3', draw(trespass, { duration: 0.6 }));
-  c.show('superstep-join-construct-3', refused, { after: true });
-  c.show('types-not-auth', typed, { after: true });
-  c.show('proxy-shallow', [worker, draw(blocked, { duration: 0.6 })]);
-  c.show('proxy-shallow', stop, { after: true });
-  c.on('proxy-shallow', () => s.play(indicate(mapping.lock, { color: MARK })));
-  c.show('nested-mutated', draw(passes, { duration: 0.7 }));
-  c.show('nested-mutated', added, { after: true });
-  c.swap('deep-copy', [added, passes], [copyFrame, copyTitle, ...copyNames, copyAdded], {
-    after: true,
-  });
-  c.on('neither-sandbox', () =>
-    s.play(
-      ...[mapping.lock, mapping.kind, copyTitle].map((node) => fade(node, 0.35, { duration: 0.4 })),
-    ),
-  );
-  const guards = place(
-    row(
-      ['scope', 'credentials', 'isolation'].map((words) =>
-        chip(words, { color: MARK, stroke: MARK }),
-      ),
-      { gap: 'tight' },
-    ),
-    BAND,
-    'bottom right',
-  );
-  c.hide('boundary', [copyFrame, copyTitle, ...copyNames, copyAdded], { lead: 0.6 });
-  c.show('boundary', guards, { stagger: true });
-  c.on('boundary', () =>
-    s.play(indicate([writer.frame, writer.title, targetFrame], { color: MARK, scale: 1 })),
-  );
 
-  b.leave(c);
+  // Beat 1: Reducers & recovery
+  crossSwap(s, c, 'superstep-join-construct-1', st0, st1, { duration: 0.42 });
+  tweenCue(s, c, 'superstep-join-construct-1', scalarLit, 1, { duration: 0.3 });
+  c.after('scalar-update-error', () => {
+    s.play(scalarErr.to(1, { duration: 0.3 }), barrierStatus.to(-1, { duration: 0.3 }));
+  });
+  tweenCue(s, c, 'values-agree', agreeLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'reducer-lists', listLit, 1, { duration: 0.3, after: true });
+  tweenCue(s, c, 'not-commutative', nonCommLit, 1, { duration: 0.3, after: true });
+  tweenCue(s, c, 'keeps-duplicates', dupLit, 1, { duration: 0.3, after: true });
+  tweenCue(s, c, 'add-empty', emptyLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'new-attempt', overwriteLit, 1, { duration: 0.3, after: true });
+  tweenCue(s, c, 'attempt-aware', attemptLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'resume-saved', resumeLit, 1, { duration: 0.3, after: true });
+  tweenCue(s, c, 'retry-failed-work', retryLit, 1, { duration: 0.3, after: true });
+
+  // Beat 2: Unequal-depth fan-in
+  crossSwap(s, c, 'probe-only', st1, st2, { duration: 0.42 });
+  tweenCue(s, c, 'probe-only', probeLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'superstep-join-construct-2', waitingEdge, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'three-edges', sepEdges, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'extra-step', prepStep, 1, { duration: 0.35 });
+  tweenCue(s, c, 'partial-merge', partialFire, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'another-merge', secondFire, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'unselected', unselStall, 1, { duration: 0.35 });
+  tweenCue(s, c, 'deferred', deferMode, 1, { duration: 0.35 });
+  tweenCue(s, c, 'validate-set', valSet, 1, { duration: 0.35 });
+  tweenCue(s, c, 'release-case', relCase, 1, { duration: 0.35 });
+  tweenCue(s, c, 'release-validator', relRaise, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'invocation-fails', invFail, 1, { duration: 0.35 });
+
+  // Beat 3: Ownership vs shallow proxy vs execution boundary
+  crossSwap(s, c, 'superstep-join-construct-3', st2, st3, { duration: 0.42 });
+  tweenCue(s, c, 'superstep-join-construct-3', ownLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'types-not-auth', typesLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'proxy-shallow', proxyLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'nested-mutated', nestedMut, 1, { duration: 0.35 });
+  tweenCue(s, c, 'deep-copy', deepLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'neither-sandbox', notSand, 1, { duration: 0.35 });
+  c.on('boundary', () => {
+    s.play(boundLit.to(1, { duration: 0.35 }), barrierStatus.to(1, { duration: 0.35 }));
+  });
 }

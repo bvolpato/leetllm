@@ -169,7 +169,7 @@ Three protocol details routinely distort real reports:
 | Client token-level events | Client-observed ITL | GPU kernel duration |
 
 <figure>
-  <img src="illustrations/_generated/chunk_observation_layers_dark.png" alt="Two-part diagram separating raw network reads from token-granular timing. Across the upper pipeline, TCP bytes feed SSE frames, a single chunk timestamp spans three tokens, and only a per-token event log exposes inter-token latency. Two lower panels contrast a multi-token chunk whose inner gaps remain unknown against request r01's recorded token timestamps at 240, 280, 320, 440, and 480 milliseconds." />
+  <img src="illustrations/_generated/chunk_observation_layers_dark.png" alt="Aligned two-layer timeline on a shared 0 to 500 millisecond clock comparing coarse SSE chunk timestamps against per-token event logs for request r01. Layer 1 bundles all five tokens into one coarse SSE chunk timestamp, hiding internal jitter, whereas Layer 2 resolves the five token timestamps at 240, 280, 320, 440, and 480 milliseconds and exposes inter-token gaps of 40, 40, 120, and 40 milliseconds." />
   <figcaption>Network reads and SSE chunks bundle multiple tokens behind one frame timestamp, hiding per-token jitter. Genuine ITL requires per-token timestamps like r01's 40, 40, 120, and 40 ms gaps.</figcaption>
 </figure>
 
@@ -297,7 +297,7 @@ Goodput and capacity can pull in opposite directions. Pushing a server past its 
 Over the arrival window alone, 200 requests at 1.5 RPS arrive in ~133 s (`1.43` qualified RPS), whereas at 2.0 RPS they arrive in 100 s (`1.60` qualified RPS). A chart plotting only goodput crowns 2.0 RPS the winner even though one in five users fails the SLO and the backlog grows without bound.
 
 <figure>
-  <img src="illustrations/_generated/operating_curve_dark.png" alt="Two stacked line charts trace SLO attainment and goodput from 0.5 to 2.5 offered requests per second. Attainment holds at 100% through 1.0 RPS and clears the 95% floor at 1.5 RPS before dropping to 80% at 2.0 RPS and 58% at 2.5 RPS. Goodput keeps rising to 1.60 qualified requests per second at 2.0 RPS while failing the 95% objective." />
+  <img src="illustrations/_generated/operating_curve_dark.png" alt="Side-by-side line charts trace SLO attainment and goodput from 0.5 to 2.5 offered requests per second. Attainment holds at 100% through 1.0 RPS and clears the 95% floor at 1.5 RPS before dropping to 80% at 2.0 RPS and 58% at 2.5 RPS. Goodput keeps rising to 1.60 qualified requests per second at 2.0 RPS while failing the 95% objective." />
   <figcaption>The highest passing tested rate is 1.5 RPS (11 ms max lag, flat backlog). At 2.0 RPS, arrival-window goodput climbs to 1.60 qualified RPS even as attainment drops to 80% and queueing grows.</figcaption>
 </figure>
 

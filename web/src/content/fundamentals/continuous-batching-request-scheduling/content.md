@@ -411,15 +411,15 @@ Always separate **health** from **load**: a worker at its KV or queue limit shou
     "explanation": "Seat 1 runs 4 then 5 (finishes at 9), Seat 2 runs 9 (finishes at 9), Seat 3 runs 6 then 2 (finishes at 8). Static takes 9 + 5 = 14, so continuous batching finishes at step 9 and saves 5 steps."
   },
   {
-    "question": "An 80 GB card (74.51 GiB) reserves 14.90 GiB for 8B FP16 weights and 8.00 GiB for runtime activations, leaving 51.60 GiB for KV (128 KiB/token). Each stream has a 4,096-token prompt and reserves 512 output tokens. How many concurrent streams fit?",
+    "question": "A GPU has 84.00 GiB of usable memory and reserves 24.00 GiB for weights and runtime activations, leaving 60.00 GiB for KV cache (160 KiB/token). Each stream has a 3,072-token prompt and reserves 1,024 output tokens. How many concurrent streams fit?",
     "options": [
-      "103 streams",
-      "91 streams",
       "128 streams",
-      "64 streams"
+      "96 streams",
+      "134 streams",
+      "48 streams"
     ],
-    "answer": "91 streams",
-    "explanation": "4,608 total tokens at 128 KiB/token take 0.5625 GiB per stream, so floor(51.60 / 0.5625) = 91 streams. 103 ignores the 512-token output reservation."
+    "answer": "96 streams",
+    "explanation": "4,096 total tokens at 160 KiB/token take 640 MiB (0.625 GiB) per stream, so floor(60.00 / 0.625) = 96 streams. 128 ignores the 1,024-token output reservation (0.46875 GiB each), 134 forgets the 24.00 GiB weight and activation reserve, and 48 double-counts cache size."
   },
   {
     "question": "A decode-first step has a budget of 48 input positions and 11 active decode streams. A waiting prompt has 90 positions left and KV fits. How many prompt positions run now and how many remain?",

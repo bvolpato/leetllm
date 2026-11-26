@@ -4,12 +4,12 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 780
 export const height = 395
 export const alt =
-    'Clustered IVF benchmark on 1,000 16-dimensional vectors across 20 Voronoi cells and 100 queries. Probing 1 cell checks 70.7 distances (7.1% of flat search) with 0.584 Recall@10 and 0.640 1-Recall@10. Increasing nprobe to 6 and 8 lifts Recall@10 to 0.939 and 0.974 at 317.2 and 417.4 checks. Probing all 20 cells achieves 1.000 recall at 1,020 checks, exceeding the 1,000-vector flat scan by the 20 centroid checks.'
+    'Clustered IVF benchmark on 1,000 16-dimensional vectors across 20 Voronoi cells and 100 queries. Probing 1 cell checks 72.1 distances (7.2% of flat search) with 0.672 Recall@10 and 0.930 1-Recall@10. Increasing nprobe to 6 and 8 lifts Recall@10 to 0.959 and 0.978 at 317.6 and 417.0 checks. Probing all 20 cells achieves 1.000 recall at 1,020 checks, exceeding the 1,000-vector flat scan by the 20 centroid checks.'
 
 const NPROBES = ['1', '2', '4', '6', '8', '20'] as const
-const RECALL10 = [0.584, 0.753, 0.887, 0.939, 0.974, 1.0] as const
-const ONE_RECALL10 = [0.64, 0.84, 0.93, 0.94, 0.99, 1.0] as const
-const CHECKS = [70.7, 121.9, 219.6, 317.2, 417.4, 1020] as const
+const RECALL10 = [0.672, 0.809, 0.918, 0.959, 0.978, 1.0] as const
+const ONE_RECALL10 = [0.93, 0.98, 1.0, 1.0, 1.0, 1.0] as const
+const CHECKS = [72.1, 121.5, 219.1, 317.6, 417.0, 1020] as const
 
 export function create(theme: ThemeMode = 'dark') {
     const fig = new Figure(theme, width, height)
@@ -67,22 +67,22 @@ export function create(theme: ThemeMode = 'dark') {
     RECALL10.forEach((v, i) => leftPlot.point(i, v, { color: green, r: 5 }))
 
     // Direct curve labels + sweet-spot callout
-    fig.text(leftPlot.px(0.42), leftPlot.py(0.94), '1-Recall@10', {
+    fig.text(leftPlot.px(0.55), leftPlot.py(0.92), '1-Recall@10', {
         size: 13.5,
         weight: 700,
         color: blue,
         align: 'left',
     })
-    fig.text(leftPlot.px(1.5), leftPlot.py(0.71), 'Recall@10', {
+    fig.text(leftPlot.px(1.55), leftPlot.py(0.76), 'Recall@10', {
         size: 13.5,
         weight: 700,
         color: green,
         align: 'left',
     })
     fig.callout(
-        [leftPlot.px(4), leftPlot.py(0.974)],
+        [leftPlot.px(4), leftPlot.py(0.978)],
         [leftPlot.px(3.25), leftPlot.py(0.61)],
-        'np=8: 0.974',
+        'np=8: 0.978',
         {
             color: green,
             size: 13.5,
@@ -164,7 +164,7 @@ export function create(theme: ThemeMode = 'dark') {
     fig.text(
         width / 2,
         378,
-        'nprobe = 8 recovers 97.4% of exact top-10 neighbors while scanning only 41.7% of vectors',
+        'nprobe = 8 recovers 97.8% of exact top-10 neighbors using 41.7% of flat-scan checks',
         { size: 13.5, weight: 600, color: warm, align: 'center' },
     )
 

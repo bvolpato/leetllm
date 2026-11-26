@@ -59,7 +59,7 @@ export function create(theme: ThemeMode = 'dark') {
         weight: 750,
         color: c.textPrimary,
     })
-    fig.text(22, 50, 'μ=[0.40, −0.20] · σ≈[0.71, 1.05] · ε=[0.50, −1.00] → z≈[0.75, −1.25]', {
+    fig.text(22, 50, 'μ=[0.40, −0.20] · σ≈[0.70, 1.05] · ε=[0.50, −1.00] → z≈[0.75, −1.25]', {
         size: 16,
         mono: true,
         color: c.textSecondary,

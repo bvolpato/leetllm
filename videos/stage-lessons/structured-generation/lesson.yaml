@@ -1,0 +1,1768 @@
+version: 1
+id: structured-generation
+title: "Structured generation: which status can the dashboard show?"
+source: agents/structured-output-constrained-generation/content.md
+sources:
+  - title: Efficient Guided Generation for Large Language Models
+    url: https://arxiv.org/abs/2307.09702
+  - title: XGrammar
+    url: https://arxiv.org/abs/2411.15100
+  - title: JSON Schema validation specification
+    url: https://json-schema.org/draft/2020-12/json-schema-validation
+  - title: Outlines Generator API
+    url: https://dottxt-ai.github.io/outlines/latest/features/core/generator/
+  - title: Outlines backends
+    url: https://dottxt-ai.github.io/outlines/latest/features/advanced/backends/
+  - title: llguidance implementation
+    url: https://github.com/guidance-ai/llguidance
+  - title: llama.cpp grammar documentation
+    url: https://github.com/ggml-org/llama.cpp/blob/master/grammars/README.md
+  - title: SGLang structured outputs
+    url: https://docs.sglang.io/docs/advanced_features/structured_outputs
+  - title: SGLang original compressed FSM paper
+    url: https://arxiv.org/abs/2312.07104
+  - title: vLLM structured outputs
+    url: https://docs.vllm.ai/en/latest/features/structured_outputs/
+  - title: OpenAI structured outputs
+    url: https://developers.openai.com/api/docs/guides/structured-outputs
+  - title: Claude structured outputs
+    url: https://platform.claude.com/docs/en/build-with-claude/structured-outputs
+  - title: Format restriction study
+    url: https://arxiv.org/abs/2408.02442
+  - title: Python JSON decoding
+    url: https://docs.python.org/3/library/json.html
+  - title: Pydantic strict validation
+    url: https://docs.pydantic.dev/latest/concepts/strict_mode/
+scenes:
+  - id: subject-intro
+    title: Which reply can Python read?
+    visual: Start a cursor on the first character of each one-field reply. Stop at the greeting in A and scan B
+      to its closing brace. Bring the runner log beside the parsed status.
+    beats:
+      - say: Start at the first character. Which reply can Python read as JSON?
+        hold: 2.8
+        visual_cues:
+          - id: intro-ask
+            phrase: Which reply can Python read as JSON
+            targets:
+              - run-replies
+            linger: 0.35
+      - say: Python stops at the S in “Sure!” In B, it reads from the opening brace to the closing brace. Now look
+          at the runner log. Should the dashboard show passed?
+        hold: 2.4
+        visual_cues:
+          - id: intro-byte
+            phrase: Python stops at the S in “Sure!”
+            targets:
+              - run-replies
+            linger: 0.35
+          - id: intro-parse
+            phrase: it reads from the opening brace to the closing brace
+            targets:
+              - run-replies
+            linger: 0.35
+          - id: intro-log
+            phrase: look at the runner log
+            targets:
+              - run-replies
+            linger: 0.35
+      - say: The run failed. B says passed. Send B to review. A grammar for these status records can rule out the
+          greeting while the model writes. It allows both status words. The log tells us which one belongs
+          here.
+        hold: 1.2
+        visual_cues:
+          - id: intro-compare
+            phrase: Send B to review
+            targets:
+              - run-replies
+            linger: 0.35
+  - id: interface-contract
+    title: What does the parser check?
+    visual: Add the run ID to the reply, then remove its greeting. Replace the object with one lacking both
+      required fields. Trace a named lookup and the result the host returns.
+    beats:
+      - say: Give the reply a run ID so the dashboard knows which row to update. Remove the preamble. Now Python can
+          read both fields. A prompt asking for JSON still leaves the model free to add that greeting.
+        hold: 0.75
+        visual_cues:
+          - id: interface-trim
+            phrase: remove the preamble
+            targets:
+              - reply-contract
+            linger: 0.35
+      - say: Suppose JSON mode gives you this object instead. Python reads it. Look for the run ID and the status.
+          Both keys are missing. A supported strict schema can require those keys and their types while the
+          model writes.
+        hold: 0.8
+        visual_cues:
+          - id: interface-fields
+            phrase: Both keys are missing
+            targets:
+              - reply-contract
+            linger: 0.35
+      - say: For a dashboard, ask for a record. To find out what happened, the model can instead ask for a tool by
+          name and supply the run ID. If the caller can read this run, the host can perform the lookup and
+          return the snapshot to the model.
+        hold: 0.8
+        visual_cues:
+          - id: interface-lookup
+            phrase: return the snapshot
+            targets:
+              - reply-contract
+            linger: 0.35
+  - id: prefix-language
+    title: Two ways to finish the same prefix
+    visual: Keep both full status records aligned below one accepted buffer. Underline their common characters as
+      the key is written. The first f rules out passed.
+    beats:
+      - say: For the decoding experiment, keep just the status field. These are the only two complete strings we'll
+          allow. This tiny grammar allows no spaces.
+        hold: 0.6
+        visual_cues: []
+      - say: Watch the opening brace, the key and the opening quote of the value go into the buffer. Both records
+          begin with all of those characters. The text already in the buffer is called the prefix.
+        hold: 0.75
+        visual_cues:
+          - id: prefix-key
+            phrase: the opening brace, the key and the opening quote of the value
+            targets:
+              - prefix-paths
+            linger: 0.35
+      - say: Now append the letters F A. Only the failed record still starts with everything in the buffer. To test a
+          candidate token, extend the prefix on a trial copy. Keep the token eligible if some allowed record
+          still starts that way.
+        hold: 1.2
+        visual_cues:
+          - id: prefix-fa
+            phrase: append the letters F A
+            targets:
+              - prefix-paths
+            linger: 0.35
+  - id: logit-mask
+    title: The first draw
+    visual: Use the article’s four hand-set logits. Keep the raw softmax probabilities visible as the three
+      impossible logits become negative infinity, then compute the final probabilities.
+    beats:
+      - say: Go back to the empty buffer. Here are four possible first tokens and four scores we chose for the
+          example. These scores are called logits. At temperature one, softmax gives the word “The” the
+          largest share of the draw. Only one of these four tokens starts either record.
+        hold: 1.5
+        visual_cues:
+          - id: mask-inputs
+            phrase: four possible first tokens
+            targets:
+              - first-mask
+            linger: 0.35
+      - say: Keep the brace's score. Set the other three to negative infinity. Softmax exponentiates each score. Those
+          three now have zero weight. Divide by the surviving weight and the brace gets the entire draw.
+        hold: 1
+        visual_cues:
+          - id: mask-first
+            phrase: Set the other three to negative infinity
+            targets:
+              - first-mask
+            linger: 0.35
+          - id: mask-normalize
+            phrase: the brace gets the entire draw
+            targets:
+              - first-mask
+            linger: 0.35
+      - say: This filter on the next draw is the grammar mask. A larger vocabulary might also contain a token for the
+          brace and the whole key together. The same prefix test decides whether that token gets a chance.
+        hold: 0.8
+        visual_cues: []
+  - id: conditional-mask
+    title: What share of the next draw goes to fa?
+    visual: At the value prefix, keep passed, fa and chatty in separate rows. Show one block per unit of weight.
+      Remove the five chatty units from the denominator.
+    beats:
+      - say: Now the value is about to start. The token passed would spell the whole word. The token F A would start
+          the word failed. The third token says chatty. We chose these logits so their exponentials are two,
+          three and five. Each square is one unit of weight, ten units in all.
+        hold: 0.75
+        visual_cues:
+          - id: weights-exp
+            phrase: their exponentials are two, three and five
+            targets:
+              - status-weights
+            linger: 0.35
+      - say: Which squares go into the new denominator? Chatty can't start either status. Cross out its five squares.
+          The first two rows still have two squares and three squares. What share of the next draw goes to F
+          A?
+        hold: 3
+        visual_cues:
+          - id: weights-remove
+            phrase: Cross out its five squares
+            targets:
+              - status-weights
+            linger: 0.35
+      - say: Three out of five, or sixty percent. Passed gets the remaining forty percent. The filter changed the
+          denominator from ten to five. It kept the ratio between the two legal weights. In code you can
+          subtract the largest finite logit before exponentiating. That keeps the same ratios and avoids
+          overflow.
+        hold: 1.1
+        visual_cues:
+          - id: weights-result
+            phrase: sixty percent
+            targets:
+              - status-weights
+            linger: 0.35
+  - id: value-branch
+    title: A legal choice can still be the wrong choice
+    visual: Keep the same two surviving token IDs and their shares on one fixed-width strip. Double only the
+      weight of fa, then bring back the source.
+    beats:
+      - say: Those are probabilities for the next token. Here, either surviving token commits the spelling to one
+          branch of our two-record language. In a larger grammar several token paths can spell the same value.
+        hold: 0.6
+        visual_cues:
+          - id: branch-weights
+            phrase: probabilities for the next token
+            targets:
+              - branch-share
+            linger: 0.35
+      - say: Leave passed at two and double the weight on F A. Watch the boundary move. Now six of the eight units
+          lead toward failed. Passed still gets a quarter of the strip.
+        hold: 0.85
+        visual_cues:
+          - id: branch-double
+            phrase: double the weight on F A
+            targets:
+              - branch-share
+            linger: 0.35
+      - say: The runner reported a failure. A good prompt tells the model what the status field means and where to
+          find the evidence. Both values still fit the grammar, so the host needs the run log when it checks
+          the answer.
+        hold: 0.9
+        visual_cues:
+          - id: branch-source
+            phrase: The runner reported a failure
+            targets:
+              - branch-share
+            linger: 0.35
+  - id: whole-token
+    title: Which whole token can the decoder append?
+    visual: Hold the shop prefix above two aligned spellings. Check A through the brace. Start B from the
+      same prefix and point to its extra character. Compare both verdicts before copying A into the buffer.
+      Return to the CI prefix and look up its two scored candidates.
+    beats:
+      - say: The grammar is about strings, while the model emits vocabulary tokens. A token may contain part of a word
+          or several punctuation marks together. Its first character can be legal even when its last character
+          makes the entire continuation impossible.
+        hold: 0.55
+        visual_cues:
+          - id: whole-token-b1-1
+            phrase: part of a word
+            targets: [token-letters]
+          - id: token-punctuation
+            phrase: several punctuation marks together
+            targets: [token-punctuation]
+      - say: Our accepted prefix ends with clo. A token containing the rest of closed and the closing punctuation
+          completes the record. Another token adds an exclamation mark after the object. That longer token
+          must be rejected even though most of it follows the same valid route.
+        hold: 0.75
+        visual_cues:
+          - id: shop-prefix
+            phrase: Our accepted prefix ends with clo
+            targets: [candidate-characters]
+          - id: shop-scan-a
+            phrase: the rest of closed
+            targets: [candidate-accepted]
+          - id: shop-close-a
+            phrase: the closing punctuation
+            targets: [candidate-accepted]
+          - id: whole-token-b2-1
+            phrase: completes the record
+            targets: [candidate-accepted]
+            linger: 0.45
+            caption_boundary: true
+          - id: shop-scan-b
+            phrase: Another token adds
+            targets: [candidate-rejected]
+            caption_boundary: true
+          - id: whole-token-b2-2
+            phrase: exclamation mark
+            targets: [candidate-rejected, character-cursor]
+            linger: 0.45
+          - id: shop-reject
+            phrase: That longer token must be rejected
+            targets: [candidate-rejected]
+            caption_boundary: true
+      - say: The engine checks the whole token against the current parser state, then advances that state only after
+          accepting it. Efficient implementations index or precompute many of these checks and handle
+          context-dependent parser work dynamically. Measure the actual backend's compilation and per-token
+          costs.
+        hold: 0.55
+        visual_cues:
+          - id: whole-token-b3-1
+            phrase: whole token
+            targets: [candidate-accepted, candidate-rejected]
+            linger: 0.45
+          - id: shop-commit
+            phrase: then advances that state only after accepting it
+            targets: [candidate-characters, candidate-accepted]
+            caption_boundary: true
+          - id: ci-lookup
+            phrase: index or precompute many of these checks
+            targets: [candidate-characters, candidate-accepted, candidate-rejected]
+  - id: complete-record
+    title: Will this call return a record?
+    visual: Keep one text buffer and four token slots. Compare the article decoder at max_steps=3 and max_steps=4.
+      Only the fourth slot contains EOS.
+    beats:
+      - say: Run that decoder with a budget of three draws. It picks the shared prefix, F A, and the token that closes
+          the object. The text looks finished. Will this call return a record?
+        hold: 3
+        visual_cues:
+          - id: stop-three
+            phrase: the shared prefix, F A, and the token that closes the object
+            targets:
+              - stop-trace
+            linger: 0.35
+      - say: It raises a budget error. This decoder returns only after sampling its end token. Even legal whitespace
+          or characters inside a string can use up a budget when a grammar permits them. A grammar can keep
+          every step legal without bringing a request to a finish.
+        hold: 0.8
+        visual_cues:
+          - id: stop-budget
+            phrase: It raises a budget error
+            targets:
+              - stop-trace
+            linger: 0.35
+      - say: Give the same run one more draw. The decoder picks the end token. Now it returns the record. The text in
+          the buffer is identical in both runs. On a real response, read the provider's completion and refusal
+          state before sending the text to your parser.
+        hold: 1.15
+        visual_cues:
+          - id: stop-extra
+            phrase: one more draw
+            targets:
+              - stop-trace
+            linger: 0.35
+          - id: stop-eos
+            phrase: The decoder picks the end token
+            targets:
+              - stop-trace
+            linger: 0.35
+  - id: recursive-stack
+    title: Follow each unresolved object
+    visual: Contrast a flat list of empty objects with nested children. Trace the three pending braces on a trial
+      stack. Start the competing token from the same accepted prefix.
+    beats:
+      - say: One fixed set of states was enough for our two status records. You could even allow a flat list with any
+          number of empty objects. Each comma takes you around the same loop again. Now put a child inside a
+          child. Every opening brace leaves another object to come back to. The parser remembers those
+          unfinished objects on a stack.
+        hold: 0.65
+        visual_cues:
+          - id: sg-recursive-stack-0
+            phrase: One fixed set of states was enough for our two status records. You could even allow a flat list with
+              any number of empty objects. Each comma takes you around the same loop again. Now put a child
+              inside a child. Every opening brace leaves another object to come back to. The parser remembers
+              those unfinished objects on a stack.
+            targets:
+              - sg-recursive-stack-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Try a tiny grammar. A node can be empty, or it can have one child that is another node. Our prefix opens
+          three objects. Follow A through three closing braces. Each one pops a frame, and the last one closes
+          the root.
+        hold: 0.65
+        visual_cues:
+          - id: sg-recursive-stack-1
+            phrase: Try a tiny grammar. A node can be empty, or it can have one child that is another node. Our prefix
+              opens three objects. Follow A through three closing braces. Each one pops a frame, and the last
+              one closes the root.
+            targets:
+              - sg-recursive-stack-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-stack-three
+            phrase: Follow A through three closing braces
+            targets:
+              - sg-recursive-stack-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Start B from the original three frames. Two braces fit. The square bracket fails on the third character.
+          The trial pops belong to B alone. Rejecting B leaves the original prefix intact. A stack handles
+          unbounded nesting. Checking that two records name the same run still takes an application check.
+        hold: 0.65
+        visual_cues:
+          - id: sg-recursive-stack-2
+            phrase: Start B from the original three frames. Two braces fit. The square bracket fails on the third
+              character. The trial pops belong to B alone. Rejecting B leaves the original prefix intact. A
+              stack handles unbounded nesting. Checking that two records name the same run still takes an
+              application check.
+            targets:
+              - sg-recursive-stack-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-stack-reject
+            phrase: Two braces fit. The square bracket fails on the third character
+            targets:
+              - sg-recursive-stack-mechanism
+            color: cyan
+            linger: 0.35
+  - id: token-index
+    title: Where the two token paths split
+    visual: Trace the shared six bytes in the tokens iled"} and iled"}!. Branch at the extra exclamation mark,
+      then compare a compiled local-rule mask with two requests’ independent parser stacks.
+    beats:
+      - say: Our two tokens share six bytes. Trace those bytes once to the brace. One token ends there. The other
+          takes one more edge to the exclamation mark. A tokenizer trie stores token spellings along paths
+          that can share edges like these. For a finite grammar, Willard and Louf index legal token IDs by
+          state. Building and storing the index costs work, but the next lookup can reuse it.
+        hold: 0.65
+        visual_cues:
+          - id: sg-token-index-0
+            phrase: Our two tokens share six bytes. Trace those bytes once to the brace. One token ends there. The other
+              takes one more edge to the exclamation mark. A tokenizer trie stores token spellings along paths
+              that can share edges like these. For a finite grammar, Willard and Louf index legal token IDs by
+              state. Building and storing the index costs work, but the next lookup can reuse it.
+            targets:
+              - sg-token-index-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-trie-shared
+            phrase: Trace those bytes once to the brace
+            targets:
+              - sg-token-index-mechanism
+            color: cyan
+            linger: 0.35
+      - say: XGrammar can precheck tokens whose legality follows from the local rule. For a token that closes a
+          parent, consult this request's stack. Start a second request. It gets its own stack even when both
+          requests use the same compiled grammar.
+        hold: 0.65
+        visual_cues:
+          - id: sg-token-index-1
+            phrase: XGrammar can precheck tokens whose legality follows from the local rule. For a token that closes a
+              parent, consult this request's stack. Start a second request. It gets its own stack even when
+              both requests use the same compiled grammar.
+            targets:
+              - sg-token-index-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-index-local
+            phrase: consult this request's stack
+            targets:
+              - sg-token-index-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-index-new-request
+            phrase: It gets its own stack
+            targets:
+              - sg-token-index-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Another engine, llguidance, combines an Earley parser, a regular-expression lexer and a tokenizer trie.
+          Our example used ASCII, where each character occupies one byte. A tokenizer may split one Unicode
+          character across tokens. Its parser must carry those partial bytes forward.
+        hold: 0.65
+        visual_cues:
+          - id: sg-token-index-2
+            phrase: Another engine, llguidance, combines an Earley parser, a regular-expression lexer and a tokenizer
+              trie. Our example used ASCII, where each character occupies one byte. A tokenizer may split one
+              Unicode character across tokens. Its parser must carry those partial bytes forward.
+            targets:
+              - sg-token-index-mechanism
+            color: cyan
+            linger: 0.35
+  - id: prefix-jump
+    title: Separate a shared prefix from a forced continuation
+    visual: Change the first prompt token while keeping the compiled grammar fixed. Compare sampling a three-token
+      forced literal with appending the same literal and aligning the join with the tokenizer.
+    beats:
+      - say: These two requests have the same grammar. They also start with some of the same prompt tokens. The model
+          may reuse cached keys and values for that matching prefix. Change the first prompt token in B. The
+          compiled grammar can still be reused, even though those cached model states no longer match.
+        hold: 0.65
+        visual_cues:
+          - id: sg-prefix-jump-0
+            phrase: These two requests have the same grammar. They also start with some of the same prompt tokens. The
+              model may reuse cached keys and values for that matching prefix. Change the first prompt token
+              in B. The compiled grammar can still be reused, even though those cached model states no longer
+              match.
+            targets:
+              - sg-prefix-jump-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-cache-prompt-change
+            phrase: Change the first prompt token in B
+            targets:
+              - sg-prefix-jump-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Sometimes the grammar determines the next stretch of text completely. Take the literal key here. With
+          this illustrative tokenization it takes three sampling steps. The original S G Lang design could
+          append the forced text together, then let the model process it. The model still needs state for
+          those tokens.
+        hold: 0.65
+        visual_cues:
+          - id: sg-prefix-jump-1
+            phrase: Sometimes the grammar determines the next stretch of text completely. Take the literal key here. With
+              this illustrative tokenization it takes three sampling steps. The original S G Lang design could
+              append the forced text together, then let the model process it. The model still needs state for
+              those tokens.
+            targets:
+              - sg-prefix-jump-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-forced-append
+            phrase: append the forced text together
+            targets:
+              - sg-prefix-jump-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-forced-steps
+            phrase: it takes three sampling steps
+            targets:
+              - sg-prefix-jump-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Retokenize across the join. The end of the old prefix and the start of the forced text can form one
+          token. The historical shortcut needs the original tokenizer there. It solves a different problem
+          from RadixAttention's reuse of cached prompt tokens. The November twenty twenty-six article lists
+          XGrammar as S G Lang's default grammar backend.
+        hold: 0.65
+        visual_cues:
+          - id: sg-prefix-jump-2
+            phrase: Retokenize across the join. The end of the old prefix and the start of the forced text can form one
+              token. The historical shortcut needs the original tokenizer there. It solves a different problem
+              from RadixAttention's reuse of cached prompt tokens. The November twenty twenty-six article
+              lists XGrammar as S G Lang's default grammar backend.
+            targets:
+              - sg-prefix-jump-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-join-retokenize
+            phrase: Retokenize across the join
+            targets:
+              - sg-prefix-jump-mechanism
+            color: cyan
+            linger: 0.35
+  - id: mask-schedule
+    title: Wait for both the logits and the mask
+    visual: Place the GPU, mask and sample on one worksheet. Compare serial work with overlap. Change the mask
+      from 3 to 10 ms while the GPU stays at 8 ms.
+    beats:
+      - say: The mask and the next model scores both start from tokens already accepted. Time one step on this
+          worksheet. The GPU takes eight milliseconds. The CPU mask takes three. Sampling takes one more. Run
+          them in series and sampling finishes at twelve.
+        hold: 0.65
+        visual_cues:
+          - id: sg-mask-schedule-0
+            phrase: The mask and the next model scores both start from tokens already accepted. Time one step on this
+              worksheet. The GPU takes eight milliseconds. The CPU mask takes three. Sampling takes one more.
+              Run them in series and sampling finishes at twelve.
+            targets:
+              - sg-mask-schedule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-schedule-serial
+            phrase: Run them in series and sampling finishes at twelve
+            targets:
+              - sg-mask-schedule-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Now start the GPU and the mask together. The mask finishes at three. The GPU finishes at eight. Only then
+          can sampling start. It finishes at nine. With ideal overlap, take the longer of the two jobs, then
+          add sampling.
+        hold: 0.65
+        visual_cues:
+          - id: sg-mask-schedule-1
+            phrase: Now start the GPU and the mask together. The mask finishes at three. The GPU finishes at eight. Only
+              then can sampling start. It finishes at nine. With ideal overlap, take the longer of the two
+              jobs, then add sampling.
+            targets:
+              - sg-mask-schedule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-schedule-mask
+            phrase: The mask finishes at three
+            targets:
+              - sg-mask-schedule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-schedule-gpu
+            phrase: The GPU finishes at eight
+            targets:
+              - sg-mask-schedule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-schedule-result
+            phrase: It finishes at nine
+            targets:
+              - sg-mask-schedule-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Make the mask take ten milliseconds. Look at the GPU lane. It waits from eight to ten, and sampling
+          finishes at eleven. The next mask needs the token just sampled. Measure that wait under your real
+          batch sizes, separately from the time spent compiling a new schema.
+        hold: 0.65
+        visual_cues:
+          - id: sg-mask-schedule-2
+            phrase: Make the mask take ten milliseconds. Look at the GPU lane. It waits from eight to ten, and sampling
+              finishes at eleven. The next mask needs the token just sampled. Measure that wait under your
+              real batch sizes, separately from the time spent compiling a new schema.
+            targets:
+              - sg-mask-schedule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-schedule-change
+            phrase: Make the mask take ten milliseconds
+            targets:
+              - sg-mask-schedule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-schedule-slow-result
+            phrase: sampling finishes at eleven
+            targets:
+              - sg-mask-schedule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-schedule-wait
+            phrase: It waits from eight to ten
+            targets:
+              - sg-mask-schedule-mechanism
+            color: cyan
+            linger: 0.35
+  - id: backend-contracts
+    title: What does the backend enforce?
+    visual: Follow raw Outlines text into local validation, inspect an illustrative grammar conversion and
+      locate the structured_outputs field in the vLLM request.
+    beats:
+      - say: In Outlines version one, the caller gives Generator a Pydantic type and gets raw text back. Parse that
+          text with the local model. Now the dashboard has a typed record and can read its status.
+        hold: 0.65
+        visual_cues:
+          - id: sg-backend-contracts-0
+            phrase: In Outlines version one, the caller gives Generator a Pydantic type and gets raw text back. Parse
+              that text with the local model. Now the dashboard has a typed record and can read its status.
+            targets:
+              - sg-backend-contracts-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-outlines-raw
+            phrase: gets raw text back
+            targets:
+              - sg-backend-contracts-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-backend-raw
+            phrase: gets raw text back
+            targets:
+              - sg-backend-contracts-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-backend-parse
+            phrase: Parse that text with the local model
+            targets:
+              - sg-backend-contracts-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Llama dot C P P converts a supported subset of JSON Schema to a grammar. Its converter can skip
+          unsupported rules. Inspect the emitted grammar. If a numerical bound disappeared, an integer can fit
+          the grammar and still violate the original bound. Keep the local validator and tell the model what
+          the fields mean.
+        hold: 0.65
+        visual_cues:
+          - id: sg-backend-contracts-1
+            phrase: Llama dot C P P converts a supported subset of JSON Schema to a grammar. Its converter can skip
+              unsupported rules. Inspect the emitted grammar. If a numerical bound disappeared, an integer can
+              fit the grammar and still violate the original bound. Keep the local validator and tell the
+              model what the fields mean.
+            targets:
+              - sg-backend-contracts-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-gbnf-skip
+            phrase: can skip unsupported rules
+            targets:
+              - sg-backend-contracts-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The article's November twenty twenty-six v L L M example uses the structured outputs field. The older
+          guided fields were removed in version zero point twelve. For a hosted model, compare the schema in
+          the outgoing request with the rules that endpoint supports.
+        hold: 0.65
+        visual_cues:
+          - id: sg-backend-contracts-2
+            phrase: The article's November twenty twenty-six v L L M example uses the structured outputs field. The
+              older guided fields were removed in version zero point twelve. For a hosted model, compare the
+              schema in the outgoing request with the rules that endpoint supports.
+            targets:
+              - sg-backend-contracts-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-backend-vllm
+            phrase: removed in version zero point twelve
+            targets:
+              - sg-backend-contracts-mechanism
+            color: cyan
+            linger: 0.35
+  - id: parser-bytes
+    title: Parse one unambiguous completed record
+    visual: Keep two run_id pairs visible before dictionary conversion. Reject the duplicate, then test
+      nonstandard constants and an exponent that overflows to infinity. An incomplete envelope bypasses
+      parsing.
+    beats:
+      - say: A streaming fragment is provisional. Here the provider has finished, and the same run ID key occurs
+          twice. Read the object as ordered pairs. At the second run ID, reject the duplicate. An ordinary
+          Python dictionary keeps the last value. By then the first run ID has disappeared.
+        hold: 0.65
+        visual_cues:
+          - id: sg-parser-bytes-0
+            phrase: A streaming fragment is provisional. Here the provider has finished, and the same run ID key occurs
+              twice. Read the object as ordered pairs. At the second run ID, reject the duplicate. An ordinary
+              Python dictionary keeps the last value. By then the first run ID has disappeared.
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-duplicate-reject
+            phrase: reject the duplicate
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-parser-provisional
+            phrase: A streaming fragment is provisional
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-parser-pairs
+            phrase: Read the object as ordered pairs
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-parser-last
+            phrase: keeps the last value
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Python's JSON parser also accepts nonstandard constants by default. Reject NaN and infinity. There's
+          another route to infinity. A decimal exponent can overflow when converted to a float. Reject a
+          nonfinite conversion too. Then check the expected object and its fields. An empty array parses and
+          still fails that check.
+        hold: 0.65
+        visual_cues:
+          - id: sg-parser-bytes-1
+            phrase: Python's JSON parser also accepts nonstandard constants by default. Reject NaN and infinity. There's
+              another route to infinity. A decimal exponent can overflow when converted to a float. Reject a
+              nonfinite conversion too. Then check the expected object and its fields. An empty array parses
+              and still fails that check.
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-finite-reject
+            phrase: Reject a nonfinite conversion too
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-parser-constants
+            phrase: Reject NaN and infinity
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-parser-overflow
+            phrase: A decimal exponent can overflow when converted to a float
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-parser-object
+            phrase: An empty array parses and still fails that check
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Change the response state to incomplete. The text even has a broken brace, but the host never calls the
+          parser. Keep the incomplete result. Bound the size and nesting of the input when you do accept
+          complete text for parsing.
+        hold: 0.65
+        visual_cues:
+          - id: sg-parser-bytes-2
+            phrase: Change the response state to incomplete. The text even has a broken brace, but the host never calls
+              the parser. Keep the incomplete result. Bound the size and nesting of the input when you do
+              accept complete text for parsing.
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-parser-incomplete
+            phrase: the host never calls the parser
+            targets:
+              - sg-parser-bytes-mechanism
+            color: cyan
+            linger: 0.35
+  - id: nullable-field
+    title: What goes in the job field?
+    visual: Keep the entire build log beside the field contract. Check an omitted key and a present null, then
+      try a string. Compare the two passing values with the log before displaying the job.
+    beats:
+      - say: The whole build log says “Build failed.” The schema requires a job field whose value can be a string or
+          null. One reply leaves the field out. The other writes null. Which one passes?
+        hold: 2.6
+        visual_cues:
+          - id: sg-job-question
+            phrase: Which one passes
+            targets:
+              - sg-nullable-field-mechanism
+            linger: 0.35
+      - say: The first reply fails. The key is missing. The null passes. It fills the required field with an allowed
+          value. Our strict Pydantic model declares the field without a default. In the OpenAI strict schema,
+          the root object requires every listed key and forbids extra ones.
+        hold: 0.85
+        visual_cues:
+          - id: sg-omitted-fail
+            phrase: The key is missing
+            targets:
+              - sg-nullable-field-mechanism
+            linger: 0.35
+          - id: sg-null-pass
+            phrase: The null passes
+            targets:
+              - sg-nullable-field-mechanism
+            linger: 0.35
+          - id: sg-null-schema
+            phrase: the root object requires every listed key and forbids extra ones
+            targets:
+              - sg-nullable-field-mechanism
+            linger: 0.35
+      - say: Now try the job name “tests.” A string passes the schema check. Which of the two passing values can you
+          justify from the log?
+        hold: 2.6
+        visual_cues:
+          - id: sg-job-string
+            phrase: A string passes the schema check
+            targets:
+              - sg-nullable-field-mechanism
+            linger: 0.35
+          - id: sg-job-evidence
+            phrase: justify from the log
+            targets:
+              - sg-nullable-field-mechanism
+            linger: 0.35
+      - say: The log gives us the failure. It never names a job. Keep the null and show “Job unknown.”
+        hold: 1.35
+        visual_cues:
+          - id: sg-null-source
+            phrase: Keep the null and show “Job unknown.”
+            targets:
+              - sg-nullable-field-mechanism
+            linger: 0.35
+  - id: wire-contract
+    title: Which rule reaches the backend?
+    visual: Keep retry_count at −1. Compare the original minimum with the transmitted description. Then substitute
+      the wire-only validator on the host and recheck the same candidate.
+    beats:
+      - say: Here the reply asks for a retry count of minus one. The local schema requires an integer at least zero.
+          Follow the copy sent to the backend. Move the lower bound into its description. Minus one is still
+          an integer. The remaining wire rule admits it.
+        hold: 0.9
+        visual_cues:
+          - id: wire-copy
+            phrase: Move the lower bound into its description
+            targets:
+              - retry-bound
+            linger: 0.35
+          - id: wire-integer
+            phrase: The remaining wire rule admits it
+            targets:
+              - retry-bound
+            linger: 0.35
+      - say: Run the original validator on the completed reply. It rejects minus one. The number has the right type
+          and fails the minimum. A model might follow the description, but the description doesn't enforce a
+          numerical bound.
+        hold: 1
+        visual_cues:
+          - id: wire-check
+            phrase: It rejects minus one
+            targets:
+              - retry-bound
+            linger: 0.35
+      - say: Now replace the host validator with the wire copy. Both sides accept the same minus one. Keep the
+          original validator when an adapter simplifies a schema. The Claude helpers described in the article
+          can remove unsupported bounds on the wire and check them locally afterward. Also keep your local
+          checks on enum spelling. The documented provider exceptions include differences in capitalization.
+        hold: 1.25
+        visual_cues:
+          - id: wire-replace
+            phrase: replace the host validator with the wire copy
+            targets:
+              - retry-bound
+            linger: 0.35
+  - id: semantic-gates
+    title: Which run does the evidence describe?
+    visual: Compare the two allowed status strings with the opening log. Hold the status fixed and change only the
+      cited run. Require matching identity before using that evidence.
+    beats:
+      - say: Bring back the log from the opening. Of the two finished status records, which agrees with the runner? It
+          reported failed. Both records have the required shape, but only one describes this run.
+        hold: 1
+        visual_cues:
+          - id: join-values
+            phrase: It reported failed
+            targets:
+              - source-join
+            linger: 0.35
+      - say: A citation adds another check. The record names run eight forty-two. At first the cited log is for that
+          very run. Suppose the citation instead resolves to a log from run eight forty-three. It also says
+          failed.
+        hold: 0.85
+        visual_cues:
+          - id: join-change
+            phrase: a log from run eight forty-three
+            targets:
+              - source-join
+            linger: 0.35
+      - say: Compare the run IDs. The cited log exists and the status words agree, yet those words describe another
+          run. Ask for evidence tied to eight forty-two before displaying its status.
+        hold: 1
+        visual_cues:
+          - id: join-check
+            phrase: Compare the run IDs
+            targets:
+              - source-join
+            linger: 0.35
+  - id: ci-snapshot
+    title: What may this caller see?
+    visual: Use the article’s three completed, same-shaped RUN-842 candidates. Scope gates each lookup. Only the
+      final claim matches the trusted CI status.
+    beats:
+      - say: Now the record includes a project, run ID and status. All three fields are strings and the status is
+          allowed. The caller can read project alpha. This first candidate names beta. Deny the request before
+          the lookup, so the caller learns nothing about a beta run.
+        hold: 0.85
+        visual_cues:
+          - id: ci-deny
+            phrase: Deny the request before the lookup
+            targets:
+              - ci-lookups
+            linger: 0.35
+      - say: Try a second candidate for alpha. It claims passed. The host can now read the snapshot for this project
+          and run. CI says failed, so send the claim to review.
+        hold: 0.95
+        visual_cues:
+          - id: ci-review
+            phrase: send the claim to review
+            targets:
+              - ci-lookups
+            linger: 0.35
+          - id: ci-second
+            phrase: It claims passed
+            targets:
+              - ci-lookups
+            linger: 0.35
+          - id: ci-status
+            phrase: CI says failed
+            targets:
+              - ci-lookups
+            linger: 0.35
+      - say: Keep the project and run fixed. Change only the claim to failed. It agrees with CI, so show the snapshot.
+          That's a read. A request to change a deployment needs its own evidence and permission.
+        hold: 1.05
+        visual_cues:
+          - id: ci-show
+            phrase: show the snapshot
+            targets:
+              - ci-lookups
+            linger: 0.35
+          - id: ci-change
+            phrase: Change only the claim to failed
+            targets:
+              - ci-lookups
+            linger: 0.35
+  - id: evidence-action
+    title: Check what an exact quote establishes
+    visual: Compare a quote with the source log and run ID. Restore the exact quote after trying an invented one.
+      Change the action to rollback while the true quote stays in place.
+    beats:
+      - say: Compare the quoted sentence with the log above it. The words occur there and identify run eight forty-two
+          as a complete ID. The quote passes. Try the sentence demanding immediate rollback. Those words are
+          absent, so the quote check fails.
+        hold: 0.65
+        visual_cues:
+          - id: sg-evidence-action-0
+            phrase: Compare the quoted sentence with the log above it. The words occur there and identify run eight
+              forty-two as a complete ID. The quote passes. Try the sentence demanding immediate rollback.
+              Those words are absent, so the quote check fails.
+            targets:
+              - sg-evidence-action-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-quote-pass
+            phrase: The quote passes
+            targets:
+              - sg-evidence-action-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-quote-invented
+            phrase: Those words are absent, so the quote check fails
+            targets:
+              - sg-evidence-action-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Bring back the genuine quote. Change the proposed action from retry tests to rollback. Check the quote
+          again. It still passes. The test timed out, but the log tells us nothing about a deployed release we
+          could undo.
+        hold: 0.65
+        visual_cues:
+          - id: sg-evidence-action-1
+            phrase: Bring back the genuine quote. Change the proposed action from retry tests to rollback. Check the quote
+              again. It still passes. The test timed out, but the log tells us nothing about a deployed
+              release we could undo.
+            targets:
+              - sg-evidence-action-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-action-change
+            phrase: Change the proposed action from retry tests to rollback
+            targets:
+              - sg-evidence-action-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-membership-still-pass
+            phrase: It still passes
+            targets:
+              - sg-evidence-action-mechanism
+            color: cyan
+            linger: 0.35
+      - say: A quote before a decision gives the host something it can verify. JSON Schema itself doesn't require that
+          order. Check your backend if the order matters. Then ask whether the quote supports this particular
+          action and whether this caller may take it.
+        hold: 0.65
+        visual_cues:
+          - id: sg-evidence-action-2
+            phrase: A quote before a decision gives the host something it can verify. JSON Schema itself doesn't require
+              that order. Check your backend if the order matters. Then ask whether the quote supports this
+              particular action and whether this caller may take it.
+            targets:
+              - sg-evidence-action-mechanism
+            color: cyan
+            linger: 0.35
+  - id: flat-tree
+    title: Reconstruct relationships after flattening
+    visual: Follow the root to its two children. Replace their parent links with a disconnected cycle and trace
+      which nodes the root can still reach.
+    beats:
+      - say: Suppose you encode a tree as a flat list of IDs and parent IDs. Start with a root and its two children.
+          The validator checks the node limit, unique nonempty IDs, a single root and a known parent for every
+          other node. Walk outward from the root. This time both children are reachable.
+        hold: 0.65
+        visual_cues:
+          - id: sg-flat-tree-0
+            phrase: Suppose you encode a tree as a flat list of IDs and parent IDs. Start with a root and its two
+              children. The validator checks the node limit, unique nonempty IDs, a single root and a known
+              parent for every other node. Walk outward from the root. This time both children are reachable.
+            targets:
+              - sg-flat-tree-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-tree-valid
+            phrase: Start with a root and its two children
+            targets:
+              - sg-flat-tree-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Change the two children so A and B name each other as parent. Look up either parent and you'll find it.
+          Walk from the root, though, and you visit only the root. Reject the disconnected cycle. Keeping only
+          the reachable part would silently change the submitted tree.
+        hold: 0.65
+        visual_cues:
+          - id: sg-flat-tree-1
+            phrase: Change the two children so A and B name each other as parent. Look up either parent and you'll find
+              it. Walk from the root, though, and you visit only the root. Reject the disconnected cycle.
+              Keeping only the reachable part would silently change the submitted tree.
+            targets:
+              - sg-flat-tree-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-tree-change
+            phrase: A and B name each other as parent
+            targets:
+              - sg-flat-tree-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-tree-reject
+            phrase: Reject the disconnected cycle
+            targets:
+              - sg-flat-tree-mechanism
+            color: cyan
+            linger: 0.35
+      - say: A flat record is easier for some backends to generate. You moved work into the host when you chose that
+          representation. It has to reconstruct and check the connections. A duplicate ID or an unknown parent
+          can fail even before the root traversal begins.
+        hold: 0.65
+        visual_cues:
+          - id: sg-flat-tree-2
+            phrase: A flat record is easier for some backends to generate. You moved work into the host when you chose
+              that representation. It has to reconstruct and check the connections. A duplicate ID or an
+              unknown parent can fail even before the root traversal begins.
+            targets:
+              - sg-flat-tree-mechanism
+            color: cyan
+            linger: 0.35
+  - id: tool-protocol
+    title: Follow one named call and its returned result
+    visual: Pass a named get_run_status request to the host. Carry the permitted lookup result back to the model
+      as the next observation.
+    beats:
+      - say: How can the model find out whether this run passed? It asks for the tool named get run status. Its
+          argument is the run ID. The tool schema requires that string and forbids extra fields.
+        hold: 0.65
+        visual_cues:
+          - id: sg-tool-protocol-0
+            phrase: How can the model find out whether this run passed? It asks for the tool named get run status. Its
+              argument is the run ID. The tool schema requires that string and forbids extra fields.
+            targets:
+              - sg-tool-protocol-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Receive the proposed name and arguments. Check the argument shape, then the caller's read scope. The
+          host can now look up run eight forty-two and return the failed snapshot to the model. The model can
+          use that observation on its next turn.
+        hold: 0.65
+        visual_cues:
+          - id: sg-tool-protocol-1
+            phrase: Receive the proposed name and arguments. Check the argument shape, then the caller's read scope. The
+              host can now look up run eight forty-two and return the failed snapshot to the model. The model
+              can use that observation on its next turn.
+            targets:
+              - sg-tool-protocol-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-tool-receive
+            phrase: Receive the proposed name and arguments
+            targets:
+              - sg-tool-protocol-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-tool-result
+            phrase: return the failed snapshot to the model
+            targets:
+              - sg-tool-protocol-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Follow the result back to the model. It can now return a structured record directly to the dashboard.
+          Reading the snapshot took permission to read this project. Changing a deployment would take a
+          separate grant.
+        hold: 0.65
+        visual_cues:
+          - id: sg-tool-protocol-2
+            phrase: Follow the result back to the model. It can now return a structured record directly to the
+              dashboard. Reading the snapshot took permission to read this project. Changing a deployment
+              would take a separate grant.
+            targets:
+              - sg-tool-protocol-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-tool-record
+            phrase: return a structured record directly to the dashboard
+            targets:
+              - sg-tool-protocol-mechanism
+            linger: 0.35
+  - id: sdk-envelope
+    title: Inspect the completed envelope before parsed data
+    visual: Locate the schema in a Responses request and a Claude Messages request. Inspect completion, refusal
+      and the presence of a parsed value on the return path.
+    beats:
+      - say: The application can use a Pydantic model with the OpenAI Responses parse helper. On the wire, Responses
+          puts the strict schema under text dot format. Claude Messages uses output config dot format. These
+          are the interfaces documented in November twenty twenty-six. Read the actual outgoing request when
+          adapting between them.
+        hold: 0.65
+        visual_cues:
+          - id: sg-sdk-envelope-0
+            phrase: The application can use a Pydantic model with the OpenAI Responses parse helper. On the wire,
+              Responses puts the strict schema under text dot format. Claude Messages uses output config dot
+              format. These are the interfaces documented in November twenty twenty-six. Read the actual
+              outgoing request when adapting between them.
+            targets:
+              - sg-sdk-envelope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-sdk-responses
+            phrase: under text dot format
+            targets:
+              - sg-sdk-envelope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-sdk-claude
+            phrase: uses output config dot format
+            targets:
+              - sg-sdk-envelope-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Read the completion state. Check for a refusal. Then look for the parsed record and handle a parsing
+          exception if one was raised. A transport error is a separate failure. If a streamed fragment happens
+          to parse, keep it provisional until the response finishes.
+        hold: 0.65
+        visual_cues:
+          - id: sg-sdk-envelope-1
+            phrase: Read the completion state. Check for a refusal. Then look for the parsed record and handle a parsing
+              exception if one was raised. A transport error is a separate failure. If a streamed fragment
+              happens to parse, keep it provisional until the response finishes.
+            targets:
+              - sg-sdk-envelope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-sdk-completed
+            phrase: Read the completion state
+            targets:
+              - sg-sdk-envelope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-sdk-refusal
+            phrase: Check for a refusal
+            targets:
+              - sg-sdk-envelope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-sdk-parsed
+            phrase: look for the parsed record
+            targets:
+              - sg-sdk-envelope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-sdk-no-delta-commit
+            phrase: keep it provisional until the response finishes
+            targets:
+              - sg-sdk-envelope-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The final schema describes the visible response. A hosted reasoning model may spend tokens before that
+          response starts. Allow for those tokens in the budget. Once the result arrives, apply the same
+          completion and validation checks whether the client streamed text or returned a typed object.
+        hold: 0.65
+        visual_cues:
+          - id: sg-sdk-envelope-2
+            phrase: The final schema describes the visible response. A hosted reasoning model may spend tokens before that
+              response starts. Allow for those tokens in the budget. Once the result arrives, apply the same
+              completion and validation checks whether the client streamed text or returned a typed object.
+            targets:
+              - sg-sdk-envelope-mechanism
+            color: cyan
+            linger: 0.35
+  - id: schema-version
+    title: Let application code select the contract
+    visual: Attach a host-selected schema version to a validated payload. Check whether a version-one consumer may
+      read the version-two envelope.
+    beats:
+      - say: This consumer expects version two. Its schema includes the run ID, status and failing job. Validate the
+          payload, then attach version two in application code. The tag records which validator the
+          application chose.
+        hold: 0.65
+        visual_cues:
+          - id: sg-schema-version-0
+            phrase: This consumer expects version two. Its schema includes the run ID, status and failing job. Validate
+              the payload, then attach version two in application code. The tag records which validator the
+              application chose.
+            targets:
+              - sg-schema-version-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-code-version
+            phrase: attach version two in application code
+            targets:
+              - sg-schema-version-mechanism
+            color: cyan
+            linger: 0.35
+      - say: A second consumer is still running version one. Check compatibility before routing the envelope. That
+          consumer cannot assume the newer field exists. Letting a model choose its own version would also let
+          it choose which rules get applied to it.
+        hold: 0.65
+        visual_cues:
+          - id: sg-schema-version-1
+            phrase: A second consumer is still running version one. Check compatibility before routing the envelope. That
+              consumer cannot assume the newer field exists. Letting a model choose its own version would also
+              let it choose which rules get applied to it.
+            targets:
+              - sg-schema-version-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-version-consumer
+            phrase: That consumer cannot assume the newer field exists
+            targets:
+              - sg-schema-version-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Change the schema or adapter and recheck the compiled grammar's identity. Try real payloads, refusals and
+          truncated responses at that boundary. In November twenty twenty-six, Claude documented a
+          twenty-four-hour grammar cache measured from last use. This cache holds compiled rules. Prompt-token
+          caching saves different work.
+        hold: 0.65
+        visual_cues:
+          - id: sg-schema-version-2
+            phrase: Change the schema or adapter and recheck the compiled grammar's identity. Try real payloads, refusals
+              and truncated responses at that boundary. In November twenty twenty-six, Claude documented a
+              twenty-four-hour grammar cache measured from last use. This cache holds compiled rules.
+              Prompt-token caching saves different work.
+            targets:
+              - sg-schema-version-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-version-artifact
+            phrase: recheck the compiled grammar's identity
+            targets:
+              - sg-schema-version-mechanism
+            color: cyan
+            linger: 0.35
+  - id: bounded-recovery
+    title: Which stop gets a second call?
+    visual: Follow each first response across its own row. Give a length stop one same-schema retry when the
+      budget fits. Replace the second result with another length stop and count the calls. Then locate the
+      stop reason in each provider envelope.
+    beats:
+      - say: The first call hits its limit of one hundred twenty tokens. We have time for a second call and
+          validation. Four hundred tokens fit the token and cost limits. Retry with four hundred tokens and
+          the same schema. If the reply completes, check for the expected message and text item, then parse
+          and validate.
+        hold: 1
+        visual_cues:
+          - id: sg-first-limit
+            phrase: hits its limit of one hundred twenty tokens
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+          - id: sg-length-retry
+            phrase: Retry with four hundred tokens and the same schema
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+          - id: sg-complete-check
+            phrase: then parse and validate
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+      - say: What if the first response is a refusal? Stop after one call. A content-filter stop also ends the
+          attempt. Go back to the first row. Suppose the second call hits its limit too. Report failure after
+          two calls.
+        hold: 1.25
+        visual_cues:
+          - id: sg-refusal
+            phrase: first response is a refusal
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+          - id: sg-refusal-stop
+            phrase: Stop after one call
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+          - id: sg-filter-stop
+            phrase: A content-filter stop also ends the attempt
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+          - id: sg-second-limit
+            phrase: the second call hits its limit too
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+          - id: sg-second-length
+            phrase: Report failure after two calls
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+      - say: Read the stop reason in the provider's envelope. Responses gives an incomplete reason. Chat Completions
+          can report length as its finish reason. If the schema is unsupported, fix the configuration. For a
+          recoverable data error, ask for a bounded correction. Guessing a missing bracket can change the
+          meaning of the reply.
+        hold: 1
+        visual_cues:
+          - id: sg-responses-reason
+            phrase: Responses gives an incomplete reason
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+          - id: sg-chat-reason
+            phrase: length as its finish reason
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+          - id: sg-config-repair
+            phrase: fix the configuration
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+          - id: sg-data-repair
+            phrase: ask for a bounded correction
+            targets:
+              - sg-bounded-recovery-mechanism
+            linger: 0.35
+  - id: host-approval
+    title: Match permission to this resource and operation
+    visual: Hold the proposal fixed while comparing an empty store, an approval for another run and a matching
+      approval. Then change only the requested action.
+    beats:
+      - say: The proposal for run eight forty-two says approved. Look in the host's approval store. An empty store
+          gives you no grant. An approval for run nine ninety-nine also fails, even when the action name
+          matches. This policy only considers retrying tests.
+        hold: 0.65
+        visual_cues:
+          - id: sg-host-approval-0
+            phrase: The proposal for run eight forty-two says approved. Look in the host's approval store. An empty
+              store gives you no grant. An approval for run nine ninety-nine also fails, even when the action
+              name matches. This policy only considers retrying tests.
+            targets:
+              - sg-host-approval-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-approval-none
+            phrase: An empty store gives you no grant
+            targets:
+              - sg-host-approval-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-approval-wrong
+            phrase: An approval for run nine ninety-nine also fails
+            targets:
+              - sg-host-approval-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Now the stored run and action both match. The host can continue its checks. At execution time it
+          verifies the caller’s identity, their current access to this run, and whether the approval still
+          applies.
+        hold: 0.65
+        visual_cues:
+          - id: sg-host-approval-1
+            phrase: Now the stored run and action both match. The host can continue its checks. At execution time it
+              verifies the caller’s identity, their current access to this run, and whether the approval still
+              applies.
+            targets:
+              - sg-host-approval-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-approval-match
+            phrase: The host can continue its checks
+            targets:
+              - sg-host-approval-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Change only the proposal to rollback. The stored approval still says retry tests. The host denies the
+          rollback because the requested action falls outside this policy.
+        hold: 0.65
+        visual_cues:
+          - id: sg-host-approval-2
+            phrase: Change only the proposal to rollback. The stored approval still says retry tests. The host denies
+              the rollback because the requested action falls outside this policy.
+            targets:
+              - sg-host-approval-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-approval-action
+            phrase: Change only the proposal to rollback
+            targets:
+              - sg-host-approval-mechanism
+            color: cyan
+            linger: 0.35
+  - id: digest-identities
+    title: Preserve each service identity through validation
+    visual: Compare service names with the catalog. Keep both conflicting auth-api entries in view when a
+      dictionary conversion overwrites the first. Test an empty mentions array separately.
+    beats:
+      - say: This incident report mentions three services. The authentication service recovered. The vector indexer is
+          still degraded. The report says the worker has no known impact, so our policy marks its status
+          unknown. The worker's name is missing from the catalog. Send that mention for review.
+        hold: 0.65
+        visual_cues:
+          - id: sg-digest-identities-0
+            phrase: This incident report mentions three services. The authentication service recovered. The vector indexer
+              is still degraded. The report says the worker has no known impact, so our policy marks its
+              status unknown. The worker's name is missing from the catalog. Send that mention for review.
+            targets:
+              - sg-digest-identities-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-digest-unknown
+            phrase: Send that mention for review
+            targets:
+              - sg-digest-identities-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Unknown impact and an unknown service name are different problems. What if the report mentions no
+          services at all? This contract accepts an empty list. Run extraction checks separately. A validator
+          can accept a well-shaped list that omitted a mention.
+        hold: 0.65
+        visual_cues:
+          - id: sg-digest-identities-1
+            phrase: Unknown impact and an unknown service name are different problems. What if the report mentions no
+              services at all? This contract accepts an empty list. Run extraction checks separately. A
+              validator can accept a well-shaped list that omitted a mention.
+            targets:
+              - sg-digest-identities-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-empty-digest
+            phrase: This contract accepts an empty list
+            targets:
+              - sg-digest-identities-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Now two entries name the same authentication service. One says healthy and one says outage. Convert them
+          straight to a dictionary and the last entry wins. Check identities in the original list and the
+          duplicate is rejected. To establish which state is current, use timestamps or telemetry.
+        hold: 0.65
+        visual_cues:
+          - id: sg-digest-identities-2
+            phrase: Now two entries name the same authentication service. One says healthy and one says outage. Convert
+              them straight to a dictionary and the last entry wins. Check identities in the original list and
+              the duplicate is rejected. To establish which state is current, use timestamps or telemetry.
+            targets:
+              - sg-digest-identities-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-digest-last-wins
+            phrase: the last entry wins
+            targets:
+              - sg-digest-identities-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-digest-duplicate
+            phrase: the duplicate is rejected
+            targets:
+              - sg-digest-identities-mechanism
+            color: cyan
+            linger: 0.35
+  - id: quality-measure
+    title: What does one mask cost?
+    visual: Separate cold compilation from model and mask work. Compare the historical mask time with the
+      output-token budget, then identify which task outcomes still need measurement.
+    beats:
+      - say: A new schema may need compilation before the first token. A reused grammar avoids that cold work. During
+          decoding, mask computation may overlap the model's work. Also count the input tokens used by field
+          descriptions and instructions. Compare cold and warm requests at the batch sizes you actually serve.
+        hold: 0.65
+        visual_cues:
+          - id: sg-quality-measure-0
+            phrase: A new schema may need compilation before the first token. A reused grammar avoids that cold work.
+              During decoding, mask computation may overlap the model's work. Also count the input tokens used
+              by field descriptions and instructions. Compare cold and warm requests at the batch sizes you
+              actually serve.
+            targets:
+              - sg-quality-measure-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-cost-compile
+            phrase: compilation before the first token
+            targets:
+              - sg-quality-measure-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-cost-mask
+            phrase: mask computation may overlap the model's work
+            targets:
+              - sg-quality-measure-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-cost-input
+            phrase: count the input tokens used by field descriptions and instructions
+            targets:
+              - sg-quality-measure-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The twenty twenty-four XGrammar paper reported mask times below forty microseconds on its test setup. At
+          one hundred output tokens a second, one token takes ten thousand microseconds on average. Forty
+          divided by ten thousand is four tenths of a percent. That compares the reported mask time with one
+          token's budget. End-to-end latency also includes the rest of the request.
+        hold: 0.65
+        visual_cues:
+          - id: sg-quality-measure-1
+            phrase: The twenty twenty-four XGrammar paper reported mask times below forty microseconds on its test setup.
+              At one hundred output tokens a second, one token takes ten thousand microseconds on average.
+              Forty divided by ten thousand is four tenths of a percent. That compares the reported mask time
+              with one token's budget. End-to-end latency also includes the rest of the request.
+            targets:
+              - sg-quality-measure-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-mask-cost
+            phrase: four tenths of a percent
+            targets:
+              - sg-quality-measure-mechanism
+            color: cyan
+            linger: 0.35
+      - say: A rise in parse success can hide a fall in task accuracy. In a twenty twenty-four study, Tam and
+          colleagues found that some formatting restrictions hurt reasoning tasks while sometimes helping
+          classification. They studied prompt formats and JSON mode. Measure your chosen model and schema on
+          held-out decisions, along with completion, source support, authorization and latency.
+        hold: 0.65
+        visual_cues:
+          - id: sg-quality-measure-2
+            phrase: A rise in parse success can hide a fall in task accuracy. In a twenty twenty-four study, Tam and
+              colleagues found that some formatting restrictions hurt reasoning tasks while sometimes helping
+              classification. They studied prompt formats and JSON mode. Measure your chosen model and schema
+              on held-out decisions, along with completion, source support, authorization and latency.
+            targets:
+              - sg-quality-measure-mechanism
+            color: cyan
+            linger: 0.35
+  - id: transfer
+    title: Which request has time for a retry?
+    visual: Plot two projected retries against one twelve-second deadline. Extend their elapsed time first by the
+      proposed call, then by validation. Check accumulated cost and output capacity as well.
+    beats:
+      - say: Two requests stopped at the token limit. Both qualify for one same-schema retry if it fits. Each needs
+          five hundred tokens, within the six hundred allowed. Each has spent four cost units and needs three
+          more, within the limit of eight. Look at the time left. With a three-second call and a second for
+          validation, which request fits?
+        hold: 3.4
+        visual_cues:
+          - id: retry-facts
+            phrase: Look at the time left
+            targets:
+              - retry-clock
+            linger: 0.35
+      - say: Lay the three-second call after the time each request has already spent. Now add one second for
+          validation to both. The deadline is twelve seconds from the original start.
+        hold: 0.9
+        visual_cues:
+          - id: retry-call
+            phrase: Lay the three-second call after the time each request has already spent
+            targets:
+              - retry-clock
+            linger: 0.35
+          - id: retry-validate
+            phrase: add one second for validation to both
+            targets:
+              - retry-clock
+            linger: 0.35
+      - say: Only A fits. Seven plus four is eleven seconds. B has already spent eight and a half, so its validation
+          would finish half a second late. Keep B incomplete. If the original result had been a refusal, even
+          A's spare second wouldn't buy a retry.
+        hold: 1.1
+        visual_cues:
+          - id: retry-outcome
+            phrase: Only A fits
+            targets:
+              - retry-clock
+            linger: 0.35
+  - id: fresh-nesting
+    title: Which token fits the four open objects?
+    visual: Hold the four pending frames while the viewer inspects both candidate tokens. Commit the four-brace
+      token only after the trial completes. Replay the competing token from the original prefix.
+    beats:
+      - say: One more token trial. This time the accepted prefix contains four open objects. Both candidates start
+          from that same stack. A has four braces. B has three braces and an exclamation mark. Which whole
+          token can be accepted? And before either one is sampled, may the decoder end?
+        hold: 3.3
+        visual_cues:
+          - id: sg-fresh-nesting-0
+            phrase: One more token trial. This time the accepted prefix contains four open objects. Both candidates start
+              from that same stack. A has four braces. B has three braces and an exclamation mark. Which whole
+              token can be accepted? And before either one is sampled, may the decoder end?
+            targets:
+              - sg-fresh-nesting-mechanism
+            color: cyan
+            linger: 0.35
+      - say: A closes all four open objects. It completes the root, so EOS is now allowed. Try B from the original
+          stack. Three trial pops leave one frame. The exclamation mark has no transition. The whole token
+          fails. At the original prefix EOS was blocked, because all four objects were still open.
+        hold: 0.65
+        visual_cues:
+          - id: sg-fresh-nesting-1
+            phrase: A closes all four open objects. It completes the root, so EOS is now allowed. Try B from the original
+              stack. Three trial pops leave one frame. The exclamation mark has no transition. The whole token
+              fails. At the original prefix EOS was blocked, because all four objects were still open.
+            targets:
+              - sg-fresh-nesting-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-fresh-a
+            phrase: A closes all four open objects
+            targets:
+              - sg-fresh-nesting-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-fresh-eos
+            phrase: EOS is now allowed
+            targets:
+              - sg-fresh-nesting-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-fresh-b
+            phrase: Three trial pops leave one frame. The exclamation mark has no transition
+            targets:
+              - sg-fresh-nesting-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sg-fresh-old-eos
+            phrase: At the original prefix EOS was blocked
+            targets:
+              - sg-fresh-nesting-mechanism
+            color: cyan
+            linger: 0.35
+      - say: If the budget ends at that original prefix, retain an incomplete result. A different failure occurs when
+          every available token is illegal. Report the dead end. Low but finite scores on legal tokens can
+          still be normalized. Sampling from the original unfiltered scores would abandon the grammar.
+        hold: 0.65
+        visual_cues:
+          - id: sg-fresh-nesting-2
+            phrase: If the budget ends at that original prefix, retain an incomplete result. A different failure occurs
+              when every available token is illegal. Report the dead end. Low but finite scores on legal
+              tokens can still be normalized. Sampling from the original unfiltered scores would abandon the
+              grammar.
+            targets:
+              - sg-fresh-nesting-mechanism
+            color: cyan
+            linger: 0.35
+  - id: fresh-incident
+    title: What can the dashboard show for RUN-915?
+    visual: Put the completed gamma reply beside trusted scope, CI evidence and the empty approval store.
+      Resolve display separately from rollback. Switch only the caller to delta and count lookups for the new
+      request.
+    beats:
+      - say: This caller can read project gamma. Compare the completed reply with the CI snapshot. The rollback
+          proposal says approved. Look at the host's approval list. What can the dashboard show, and should
+          the host send the rollback?
+        hold: 3.5
+        visual_cues:
+          - id: fresh-proposal
+            phrase: The rollback proposal
+            targets:
+              - incident-desk
+            linger: 0.35
+          - id: fresh-input
+            phrase: the host's approval list
+            targets:
+              - incident-desk
+            linger: 0.35
+      - say: Show the failed snapshot. Leave the job unknown until CI names it. Deny the rollback. The host has no
+          approval for it.
+        hold: 0.95
+        visual_cues:
+          - id: sg-fresh-show
+            phrase: Show the failed snapshot
+            targets:
+              - incident-desk
+            linger: 0.35
+          - id: sg-fresh-deny
+            phrase: Deny the rollback
+            targets:
+              - incident-desk
+            linger: 0.35
+      - say: Keep the reply exactly as it is. This time the caller can read only project delta. How many gamma
+          snapshots should the host look up for this request?
+        hold: 2.9
+        visual_cues:
+          - id: fresh-switch
+            phrase: only project delta
+            targets:
+              - incident-desk
+            linger: 0.35
+      - say: Zero. Stop at the project check. The reply stayed the same. The new caller has access to a different
+          project. In the next lesson, an agent uses a tool result to choose its next step.
+        hold: 1.65
+        visual_cues:
+          - id: fresh-stop
+            phrase: Zero
+            targets:
+              - incident-desk
+            linger: 0.35

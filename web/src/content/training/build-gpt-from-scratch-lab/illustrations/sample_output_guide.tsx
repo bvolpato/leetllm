@@ -4,7 +4,7 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 760
 export const height = 370
 export const alt =
-    'Validation cross-entropy falls from the 9.769 uniform baseline (ln 17,485) to 6.050 at step 81 (17.1% accuracy, fragmented stopwords "And the I the and the to ...") and 5.550 at step 321 (18.3% accuracy, short Shakespearean clauses "And it is the king : the lord ? ...").'
+    'Validation cross-entropy falls from the 9.769 uniform baseline (ln 17,485) to 6.050 at step 81 (17.1% accuracy, fragmented stopwords "And the I the / And it .") and 5.550 at step 321 (18.3% accuracy, short Shakespearean clauses "I is the king : / The lord ?").'
 
 const points: readonly (readonly [number, number])[] = [
     [1, 9.535],
@@ -98,7 +98,7 @@ export function create(theme: ThemeMode = 'dark') {
         fill: tint(c.textMuted, c.bg, 0.08),
         radius: 5,
     })
-    fig.text(rx + 22, c1Y + 73, '“And the I the and the to …”', {
+    fig.text(rx + 22, c1Y + 73, '“And the I the / And it .”', {
         size: 12,
         mono: true,
         weight: 600,
@@ -131,7 +131,7 @@ export function create(theme: ThemeMode = 'dark') {
         fill: tint(c.textMuted, c.bg, 0.08),
         radius: 5,
     })
-    fig.text(rx + 22, c2Y + 73, '“And it is the king : the lord ?”', {
+    fig.text(rx + 22, c2Y + 73, '“I is the king : / The lord ?”', {
         size: 12,
         mono: true,
         weight: 600,

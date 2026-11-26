@@ -4,7 +4,7 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 760
 export const height = 450
 export const alt =
-    'Top: horizontal stacked bar breaks down the $23.91 daily generation bill into Orders (46%), Docs (33%), Eval (12%), and Review (9%). Bottom: daily spend bars on a 0 to 25 dollar scale compare cash cohorts Orders ($11.03), Docs ($7.78), Eval ($2.82), and Review ($2.29) beside $13.82 of avoided semantic-cache exposure.'
+    'Top: horizontal stacked bar breaks down the $23.91 daily generation bill into Orders (46.1%), Docs (32.5%), Eval (11.8%), and Review (9.6%). Bottom: daily spend bars on a 0 to 25 dollar scale compare cash cohorts Orders ($11.03), Docs ($7.78), Eval ($2.82), and Review ($2.29) beside $13.82 of avoided semantic-cache exposure.'
 
 export function create(theme: ThemeMode = 'dark') {
     const fig = new Figure(theme, width, height)
@@ -26,10 +26,10 @@ export function create(theme: ThemeMode = 'dark') {
     const barTotalW = 666
     const barH = 42
     const segments = [
-        { label: 'Orders', pct: 46, color: red },
-        { label: 'Docs', pct: 33, color: blue },
-        { label: 'Eval', pct: 12, color: purple },
-        { label: 'Review', pct: 9, color: green },
+        { label: 'Orders', pct: 46.1, color: red },
+        { label: 'Docs', pct: 32.5, color: blue },
+        { label: 'Eval', pct: 11.8, color: purple },
+        { label: 'Review', pct: 9.6, color: green },
     ]
 
     let cursorX = barX
@@ -44,17 +44,17 @@ export function create(theme: ThemeMode = 'dark') {
             radius: 5,
         })
         const ink = getReadableTextColor(fill, c, c.bg)
-        if (seg.pct >= 12) {
-            fig.text(cursorX + segW / 2, barY + barH / 2, `${seg.label} ${seg.pct}%`, {
-                size: 13.5,
+        if (seg.pct >= 11.5) {
+            fig.text(cursorX + segW / 2, barY + barH / 2, `${seg.label} ${seg.pct.toFixed(1)}%`, {
+                size: 12.5,
                 weight: 700,
                 color: ink,
                 align: 'center',
             })
         } else {
-            // Review 9% sits cleanly with crisp percentage inside and explicit label below
-            fig.text(cursorX + segW / 2, barY + barH / 2, `${seg.pct}%`, {
-                size: 13.5,
+            // Review 9.6% sits cleanly with crisp percentage inside and explicit label below
+            fig.text(cursorX + segW / 2, barY + barH / 2, `${seg.pct.toFixed(1)}%`, {
+                size: 12.5,
                 weight: 700,
                 color: ink,
                 align: 'center',
@@ -63,8 +63,8 @@ export function create(theme: ThemeMode = 'dark') {
                 color: seg.color,
                 width: 1.4,
             })
-            fig.text(cursorX + segW, barY + barH + 25, 'Review 9%', {
-                size: 13.5,
+            fig.text(cursorX + segW, barY + barH + 25, 'Review 9.6%', {
+                size: 13,
                 weight: 700,
                 color: seg.color,
                 align: 'right',
@@ -83,12 +83,12 @@ export function create(theme: ThemeMode = 'dark') {
             strokeWidth: 1.2,
             radius: 2.5,
         })
-        fig.text(legX + 18, legY, `${seg.label} ${seg.pct}%`, {
+        fig.text(legX + 18, legY, `${seg.label} ${seg.pct.toFixed(1)}%`, {
             size: 13,
             weight: 600,
             color: c.textSecondary,
         })
-        legX += 118
+        legX += 130
     }
 
     // Bottom section: Daily cohort spend vs avoided semantic cache

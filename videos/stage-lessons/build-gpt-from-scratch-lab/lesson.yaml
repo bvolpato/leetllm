@@ -1,0 +1,615 @@
+version: 1
+id: build-gpt-from-scratch-lab
+title: Build a Tiny GPT from Scratch
+source: training/build-gpt-from-scratch-lab/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: GPT-2 report
+    url: https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf
+  - title: PyTorch saving and loading
+    url: https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html
+  - title: GPT-2 published implementation
+    url: https://github.com/openai/gpt-2/blob/master/src/model.py
+  - title: tiktoken0.14.0 decode contract
+    url: https://github.com/openai/tiktoken/blob/0.14.0/tiktoken/core.py
+  - title: Llama2 historical architecture
+    url: https://arxiv.org/html/2307.09288v2
+  - title: RMSNorm
+    url: https://arxiv.org/html/1910.07467v1
+  - title: GLU variants
+    url: https://arxiv.org/html/2002.05202v1
+  - title: GQA
+    url: https://arxiv.org/html/2305.13245v3
+  - title: FlashAttention
+    url: https://arxiv.org/html/2205.14135v2
+scenes:
+  - id: intro
+    title: "Which token comes after the comma?"
+    visual: "A copy of the printed comma flies into the model input. The two lines on the page are the clue. The line break travels into the target slot, then joins the input when sampled."
+    beats:
+      - say: "The comma lands at the end of the model's input. Look at the printed passage. Which token comes between the comma and the S in Speak?"
+        caption_starts:
+          - "Which token comes between"
+        hold: 2.1
+        visual_cues:
+          - id: read-prefix
+            phrase: "The comma lands at the end of the model's input"
+            targets: [prefix]
+      - say: "It's the line break. During training, the printed passage supplies the target. The first piece of Speak comes one token later. When we generate text, the model samples a token. If it picks the line break, append it to the input. Watch where the next prediction goes."
+        caption_starts:
+          - "When we generate text"
+          - "If it picks the line break"
+        hold: 0.9
+        visual_cues:
+          - id: show-break
+            phrase: "It's the line break"
+            targets: [next-piece]
+          - id: append-piece
+            phrase: "append it to the input"
+            targets: [next-piece]
+  - id: targets
+    title: "What would this loader reward?"
+    visual: "Two copies of the source begin aligned. The lower strip slides left by one place, putting the line break beneath the comma and the final piece beneath Spe."
+    beats:
+      - say: "Here's the same passage cut into six pieces. We're using five as inputs. Follow the arrow under the comma. This loader has copied its inputs into its labels. What would a model have to predict to get full credit here?"
+        caption_starts:
+          - "What would a model have to predict"
+        hold: 2
+        visual_cues:
+          - id: copy-pair
+            phrase: "Follow the arrow under the comma"
+            targets: [labels]
+      - say: "Another comma. The model could earn credit just by copying what it can already see. Slide the labels one place to the left. Now the comma predicts the line break, and the last input, the first piece of Speak, predicts the rest of the word. All five positions can be scored in one forward pass. Check the entire label row against the source starting at its second piece, including that last label."
+        hold: 0.9
+        visual_cues:
+          - id: slide-labels
+            phrase: "Slide the labels one place to the left"
+            targets: [labels]
+  - id: byte-boundaries
+    title: "The two pieces of Speak"
+    visual: "The six GPT-2 IDs sit directly above their literal pieces. A second pair of tiles preserves incomplete UTF-8 bytes across a token boundary."
+    beats:
+      - say: "These are GPT-two token IDs. Read down each column to find its piece. The dot before sir stands for a space. Follow Speak across the last two columns. Dropping the final piece would lose the end of the word and the last training label. At the comma, the target is still the line break, ID one ninety-eight."
+        hold: 0.8
+        visual_cues:
+          - id: byte-boundaries-1
+            phrase: "These are GPT-two token IDs"
+            targets: [byte-boundaries-mechanism]
+          - id: six-byte-pieces
+            phrase: "Read down each column"
+            targets: [byte-boundaries-mechanism]
+          - id: newline-target
+            phrase: "ID one ninety-eight"
+            targets: [byte-boundaries-mechanism]
+      - say: "A token boundary can even fall inside one character. These four bytes make a smiling face in the full tokenizer. Decode the two pieces separately and three replacement characters appear. Keep the first two bytes in a buffer. Join the next two bytes before decoding and the smile survives. A generated sequence can still contain invalid bytes. Choose explicitly whether to replace them or reject them."
+        hold: 0.9
+        visual_cues:
+          - id: byte-boundaries-2
+            phrase: "These four bytes make a smiling face"
+            targets: [byte-boundaries-mechanism]
+          - id: separate-bytes
+            phrase: "Decode the two pieces separately"
+            targets: [byte-boundaries-mechanism]
+          - id: joined-bytes
+            phrase: "Join the next two bytes before decoding"
+            targets: [byte-boundaries-mechanism]
+  - id: vocab
+    title: "Which row holds the comma?"
+    visual: "The comma travels from GPT-2 ID 11 to Shakespeare row 2 and back. Its piece stays in place while the active fraction of the full table remains visible."
+    beats:
+      - say: "The comma has ID eleven in GPT-two. In the Shakespeare file, only some of those IDs occur. Sort the ones that occur and number their rows from zero. Look up eleven in that list. The comma lands in row two. That's the row the lab uses for both its input embedding and its output score."
+        hold: 0.7
+        visual_cues:
+          - id: lookup-row
+            phrase: "Look up eleven in that list"
+            targets: [comma-row]
+      - say: "Run the lookup backwards. If the model samples local row two, the saved list gives us eleven again, and the decoder prints a comma. The blue part of the strip shows the seventeen thousand four hundred eighty-five active rows. An unfamiliar prompt piece can have a valid GPT-two ID and still fall outside this checkpoint. Reject it before the embedding lookup."
+        hold: 0.8
+        visual_cues:
+          - id: inverse-row
+            phrase: "Run the lookup backwards"
+            targets: [comma-row]
+          - id: active-rows
+            phrase: "blue part of the strip"
+            targets: [vocabulary-size]
+  - id: compact-denominator
+    title: "Where does the missing probability go?"
+    visual: "A tied table loses its inactive rows. A three-row version then removes one competing score while both retained logits stay fixed."
+    beats:
+      - say: "Each row carries ninety-six weights. Input lookup and output scoring share them, so count the table once. Shrink it to the active rows. The counts on the right are for this one matrix. About sixty-five percent of its rows disappear. Count the whole model instead and the reduction is about sixty-two percent, because the other layers stayed the same size."
+        hold: 0.7
+        visual_cues:
+          - id: compact-denominator-1
+            phrase: "Each row carries ninety-six weights"
+            targets: [compact-denominator-mechanism]
+          - id: compact-weights
+            phrase: "Shrink it to the active rows"
+            targets: [compact-denominator-mechanism]
+          - id: removed-matrix
+            phrase: "About sixty-five percent of its rows disappear"
+            targets: [compact-denominator-mechanism]
+          - id: whole-model
+            phrase: "Count the whole model instead"
+            targets: [compact-denominator-mechanism]
+      - say: "Look at these three rows. We read row zero and want to predict row one. Row two never appears as an input or a target here. Yet its score ties for first. It takes forty-two percent of the probability. Its share times the hidden vector gives its output gradient. Training has a reason to change a piece it never saw."
+        hold: 0.7
+        visual_cues:
+          - id: compact-denominator-2
+            phrase: "Look at these three rows"
+            targets: [compact-denominator-mechanism]
+          - id: unused-gradient
+            phrase: "its output gradient"
+            targets: [compact-denominator-mechanism]
+      - say: "Take row two out. Watch the target row while the two remaining scores stay fixed. Its share rises from about sixteen percent to twenty-seven percent. The loss falls without a training step. Renumbering pieces preserves their identity. Removing competitors changes the prediction problem. The lab chose its rows using the whole file, including three hundred thirty-five IDs seen only in validation. Those IDs entered the vocabulary during preprocessing. Only training windows update the weights. For an independent evaluation, choose the vocabulary in advance and decide how to handle an unfamiliar piece."
+        hold: 0.85
+        visual_cues:
+          - id: compact-denominator-3
+            phrase: "Take row two out"
+            targets: [compact-denominator-mechanism]
+          - id: drop-competitor
+            phrase: "Watch the target row while the two remaining scores stay fixed"
+            targets: [compact-denominator-mechanism]
+          - id: validation-support
+            phrase: "three hundred thirty-five IDs seen only in validation"
+            targets: [compact-denominator-mechanism]
+  - id: corpus-exposure
+    title: "How many predictions did training score?"
+    visual: "The file becomes one ordered token strip and a contiguous split. Count scored positions as batches accumulate and compare two loss references."
+    beats:
+      - say: "The lab starts the model with random weights. Its training text is the bundled Shakespeare file. Tokenize that file once and you have a little over a million and a quarter pieces. Split the stream in file order. The blue prefix supplies training windows. The gold suffix supplies validation windows. File order preserves neighbors within each part. Repeated phrases can still occur on both sides."
+        hold: 0.8
+        visual_cues:
+          - id: corpus-exposure-1
+            phrase: "bundled Shakespeare file"
+            targets: [corpus-exposure-mechanism]
+          - id: corpus-tokenize
+            phrase: "Tokenize that file once"
+            targets: [corpus-exposure-mechanism]
+          - id: corpus-split
+            phrase: "Split the stream in file order"
+            targets: [corpus-exposure-mechanism]
+      - say: "One batch has twelve windows, each with forty-eight targets. That's five hundred seventy-six predictions per update. Count them over three hundred twenty-one updates. Their total is sixteen point four percent of the training stream's length. A window can land on the same passage twice, so the number of distinct positions can be smaller. Each validation estimate scores eight batches in the same way."
+        hold: 0.7
+        visual_cues:
+          - id: corpus-exposure-2
+            phrase: "One batch has twelve windows"
+            targets: [corpus-exposure-mechanism]
+          - id: score-exposure
+            phrase: "Count them over three hundred twenty-one updates"
+            targets: [corpus-exposure-mechanism]
+          - id: sampled-fraction
+            phrase: "sixteen point four percent of the training stream's length"
+            targets: [corpus-exposure-mechanism]
+          - id: validation-exposure
+            phrase: "eight batches in the same way"
+            targets: [corpus-exposure-mechanism]
+      - say: "Give every active token an equal share. The negative natural log of that share is about nine point seven seven nats per token. That's a reference we can calculate before training. Now try a four-token vocabulary where every target happens to be zero. A predictor that ignores its input and puts ninety percent on zero averages about a tenth of a nat. That predictor could get the same score with every input covered. To test for leakage, change a future input and compare the earlier predictions."
+        hold: 0.8
+        visual_cues:
+          - id: corpus-exposure-3
+            phrase: "Give every active token an equal share"
+            targets: [corpus-exposure-mechanism]
+          - id: uniform-reference
+            phrase: "nine point seven seven nats per token"
+            targets: [corpus-exposure-mechanism]
+          - id: constant-reference
+            phrase: "a four-token vocabulary where every target happens to be zero"
+            targets: [corpus-exposure-mechanism]
+  - id: stream-boundaries
+    title: "Did these tokens meet in the source?"
+    visual: "Two nonadjacent chunks put 3 beside 8. A contiguous split keeps the original neighbors. A window advances to the last legal start, then loses its final successor."
+    beats:
+      - say: "Follow the original positions across the top. Suppose we stitch these two blue chunks together. After three, the loader would reward eight. Look back at the original neighbor. It was four. Splitting the file into a prefix and a suffix preserves the neighbors inside each. Leave out the transition across the cut. If your task trains on independent documents, also block attention across documents and handle the target at each boundary. Restarting position numbers alone leaves earlier keys readable."
+        hold: 0.75
+        visual_cues:
+          - id: stream-boundaries-1
+            phrase: "Follow the original positions"
+            targets: [stream-boundaries-mechanism]
+          - id: false-join
+            phrase: "the loader would reward eight"
+            targets: [stream-boundaries-mechanism]
+          - id: contiguous-split
+            phrase: "Splitting the file into a prefix and a suffix"
+            targets: [stream-boundaries-mechanism]
+      - say: "A four-input window needs a fifth token for its last label. Slide it to the last legal start. Here the source has twenty tokens, so start fifteen works. Start sixteen would run out of labels. In general the random sampler's exclusive upper bound is source length minus context length. Draw within the training or validation portion separately."
+        hold: 0.75
+        visual_cues:
+          - id: stream-boundaries-2
+            phrase: "A four-input window needs a fifth token"
+            targets: [stream-boundaries-mechanism]
+          - id: sampler-window
+            phrase: "Slide it to the last legal start"
+            targets: [stream-boundaries-mechanism]
+      - say: "Give the lab sampler exactly forty-nine tokens. With context forty-eight it can start only at zero. The last input is forty-seven. Its target is forty-eight. Remove that last token and the sampler must reject the stream. Checking only where the two rows overlap would miss this last label."
+        hold: 0.85
+        visual_cues:
+          - id: stream-boundaries-3
+            phrase: "exactly forty-nine tokens"
+            targets: [stream-boundaries-mechanism]
+          - id: last-successor
+            phrase: "Its target is forty-eight"
+            targets: [stream-boundaries-mechanism]
+          - id: short-stream
+            phrase: "Remove that last token"
+            targets: [stream-boundaries-mechanism]
+  - id: mask
+    title: "Can the next input change the comma’s score?"
+    visual: "A copy of the same four-token input changes only at position 3. A bracket first excludes, then admits that key. The paired line-break scores come from the same two-coordinate head."
+    beats:
+      - say: "Back at the comma, the correct label is a line break. But that very piece is sitting to its right in the training input. Which keys may the comma read? Keep the bracket through the comma itself. That's the causal mask. In this little head, readable keys share the weight equally. The line-break score is their average first coordinate. What should happen to that score if we change only the fourth input?"
+        caption_starts:
+          - "Which keys may the comma read"
+          - "Keep the bracket through the comma itself"
+        hold: 2
+        visual_cues:
+          - id: mask-keys
+            phrase: "Keep the bracket through the comma itself"
+            targets: [read-keys]
+      - say: "Replace the line break with sir in the test copy. Leave the reference label alone. The three numbers inside the bracket are still zero, one and two. Their mean stays one in both runs. Every earlier logit also matches. Now suppose we admit the fourth key. Will the comma's score still match across the two inputs?"
+        caption_starts:
+          - "Their mean stays one in both runs"
+          - "Now suppose we admit the fourth key"
+        hold: 2.1
+        visual_cues:
+          - id: swap-future
+            phrase: "Replace the line break with sir in the test copy"
+            targets: [last-input]
+          - id: causal-reading
+            phrase: "Their mean stays one in both runs"
+            targets: [readout]
+      - say: "Open the bracket by one key. The original run now includes a five, and the changed run includes a three. The means split, two versus one and a half. Changing the future has changed a prediction in the past. Restore the causal mask and repeat the probe. Then check the labels separately. Copying the current token into its own label would pass the visibility check."
+        caption_starts:
+          - "The means split"
+        hold: 0.85
+        visual_cues:
+          - id: open-key
+            phrase: "Open the bracket by one key"
+            targets: [read-keys]
+          - id: open-reading
+            phrase: "The means split, two versus one and a half"
+            targets: [readout]
+          - id: restore-mask
+            phrase: "Restore the causal mask and repeat the probe"
+            targets: [read-keys, readout]
+  - id: forward
+    title: "Follow the comma through one head"
+    visual: "In a four-piece miniature, the comma's embedding and position add to its value. Three readable values average to one hidden vector. That vector scores each of the four tied rows."
+    beats:
+      - say: "Put the mask back. Where did that score of one come from? Each input has a piece embedding and a position embedding. At the comma, adding them gives two, three. In this miniature the value projection just passes that vector through. Collect the three readable values. Average the first coordinates, then the second coordinates. The comma now carries one, two. The line break was outside the bracket the whole time."
+        hold: 0.75
+        visual_cues:
+          - id: collect-values
+            phrase: "Collect the three readable values"
+            targets: [values]
+          - id: mean-vector
+            phrase: "The comma now carries one, two"
+            targets: [hidden]
+      - say: "Now read the same embedding table in the other direction. Score each piece by taking its dot product with that hidden vector. The line-break row picks out the first coordinate, one. The comma row picks out the second, two. This head favors another comma. The source still says line break. How much probability did the head give the answer it will be scored on?"
+        hold: 1.65
+        visual_cues:
+          - id: score-rows
+            phrase: "Score each piece by taking its dot product with that hidden vector"
+            targets: [scores]
+  - id: loss
+    title: "What earns credit at the comma?"
+    visual: "Four scores become a shared strip of probability. Only the line break's segment pays this position's penalty. One illustrated free-logit update changes both the partition and the loss."
+    beats:
+      - say: "Keep those four scores. To turn them into probability, exponentiate each score and add the four weights. That's the softmax denominator. The line break gets its own weight divided by that sum, about twenty-four percent. Take the negative natural log of that share. This one position contributes about one point four four nats. The training loss averages a penalty like this for each scored position."
+        caption_starts:
+          - "about twenty-four percent"
+          - "This one position contributes"
+        hold: 0.7
+        visual_cues:
+          - id: exp-sum
+            phrase: "exponentiate each score and add the four weights"
+            targets: [weights]
+          - id: target-share
+            phrase: "about twenty-four percent"
+            targets: [share]
+          - id: score-target
+            phrase: "about one point four four nats"
+            targets: [penalty]
+      - say: "Treat these four scores as adjustable numbers for one step. A competitor's gradient is its probability. The target's gradient is its probability minus one. Subtract half of each gradient. Watch the gold share widen as all four weights are recomputed. The penalty falls. In the full network we backpropagate that signal through the tied weights and the decoder, then let AdamW update the parameters."
+        hold: 0.9
+        visual_cues:
+          - id: step-logits
+            phrase: "Subtract half of each gradient"
+            targets: [scores]
+  - id: preln-block
+    title: "Scale the same prediction to a full batch"
+    visual: "A batch becomes four head slices, a causal score plane, two residual branches and one vocabulary distribution per position."
+    beats:
+      - say: "Scale back up to the CPU lab. Each of the twelve windows has forty-eight positions and each position now has ninety-six features. One projection makes queries, keys and values. Split each into four heads of width twenty-four. Within one head, each of forty-eight queries compares with forty-eight keys. That's why the score grid is square. Divide dot products by the square root of the head width, mask future scores with minus infinity, then normalize and mix the values. Each row needs at least one allowed finite score."
+        hold: 0.7
+        visual_cues:
+          - id: preln-block-1
+            phrase: "twelve windows"
+            targets: [preln-block-mechanism]
+          - id: split-heads
+            phrase: "Split each into four heads of width twenty-four"
+            targets: [preln-block-mechanism]
+          - id: score-shape
+            phrase: "each of forty-eight queries compares with forty-eight keys"
+            targets: [preln-block-mechanism]
+      - say: "Keep one copy of the input on the blue path. The other goes through layer normalization and attention. Join the heads, project their output back to the input width, and add it to the saved input. Call the sum u. Follow one token through the next branch. Normalize its ninety-six features, then expand to three hundred eighty-four. Apply GELU to each value. It multiplies the value by the probability that a standard normal draw falls below it. Project back to ninety-six features. Now we can add the saved u. Both shortcuts give gradients a direct path. The second branch works on each token separately."
+        caption_starts:
+          - "Call the sum u"
+          - "Apply GELU to each value"
+          - "Project back to ninety-six features"
+        hold: 0.8
+        visual_cues:
+          - id: preln-block-2
+            phrase: "Keep one copy of the input on the blue path"
+            targets: [preln-block-mechanism]
+          - id: residual-block
+            phrase: "add it to the saved input"
+            targets: [preln-block-mechanism]
+          - id: expand-width
+            phrase: "then expand to three hundred eighty-four"
+            targets: [preln-block-mechanism]
+          - id: apply-gelu
+            phrase: "Apply GELU to each value"
+            targets: [preln-block-mechanism]
+          - id: gelu-width
+            phrase: "Project back to ninety-six features"
+            targets: [preln-block-mechanism]
+          - id: add-mlp
+            phrase: "Now we can add the saved u"
+            targets: [preln-block-mechanism]
+      - say: "Run two of those blocks and a final normalization. The output head reuses the token embeddings. Each of five hundred seventy-six positions now has a score for every active piece. Flatten the first two axes and line each row up with its one integer target for cross-entropy. Even before backward storage, those float32 scores take about forty megabytes. This lab uses exact GELU, omits dropout and skips GPT-two's depth-scaled residual initialization. The original implementation used a tanh approximation for GELU."
+        hold: 0.85
+        visual_cues:
+          - id: preln-block-3
+            phrase: "a final normalization"
+            targets: [preln-block-mechanism]
+          - id: tied-output
+            phrase: "The output head reuses the token embeddings"
+            targets: [preln-block-mechanism]
+          - id: logit-storage
+            phrase: "about forty megabytes"
+            targets: [preln-block-mechanism]
+  - id: checkpoints
+    title: "What improved after 240 more updates?"
+    visual: "The six actual CPU validation measurements appear in order. Both measured losses and fixed-prompt excerpts keep their own checkpoint labels when the later text is uncovered."
+    beats:
+      - say: "Return to the real training run. At update eighty-one, look below the curve. The early model was given our fixed prompt and produced the fragment, And the I the. The loss beside update eighty-one comes from eight sampled validation batches. It measures predictions about held-out text. The generated quote comes from a separate run of the sampler."
+        hold: 0.9
+        visual_cues:
+          - id: early-point
+            phrase: "At update eighty-one"
+            targets: [curve]
+      - say: "Keep training the same model for another two hundred forty updates. Validation loss is now half a nat lower per scored token, and next-token accuracy has risen. Does that tell us whether it can make a subject and a verb agree?"
+        caption_starts:
+          - "Does that tell us"
+        hold: 1.95
+        visual_cues:
+          - id: continue-training
+            phrase: "another two hundred forty updates"
+            targets: [curve]
+      - say: "Read the later sample. It manages the contraction in I'll do, then gives us I is the king. That verb still disagrees with its subject. Both excerpts use the same prompt, seed and sampling settings. Before choosing a checkpoint, compare several fixed prompts, look for copied training phrases, and test the task you care about. If loss improves while copying gets more frequent, keep both results in the decision. Repeat the comparison across seeds to see how much the loss varies."
+        caption_starts:
+          - "It manages the contraction"
+          - "I is the king"
+          - "Before choosing a checkpoint"
+        hold: 0.9
+        visual_cues:
+          - id: later-sample
+            phrase: "the contraction in I'll do"
+            targets: [samples]
+          - id: later-grammar
+            phrase: "I is the king"
+            targets: [samples]
+  - id: generation-choice
+    title: "Which piece does the sampler append?"
+    visual: "Top-k and temperature redistribute probability across a fixed unit interval. The supplied draw lands in a bin whose local ID travels through the saved inverse map."
+    beats:
+      - say: "During generation the last position makes the next choice. Keep at most the latest forty-eight local IDs. The real lab keeps the eight highest-scoring pieces and drops the tail. Divide those eight scores by point nine and normalize them again. Positive temperatures keep the same ranking. Colder settings concentrate probability on the largest scores. In the limit, tied maxima share the mass. A greedy sampler at zero takes an explicit maximum."
+        hold: 0.7
+        visual_cues:
+          - id: generation-choice-1
+            phrase: "the last position makes the next choice"
+            targets: [generation-choice-mechanism]
+          - id: retain-eight
+            phrase: "the eight highest-scoring pieces"
+            targets: [generation-choice-mechanism]
+          - id: sampling-temperature
+            phrase: "Divide those eight scores by point nine"
+            targets: [generation-choice-mechanism]
+      - say: "Try a smaller draw with four supplied scores. Keep two and one. At half temperature they become four and two. The blue part of the strip gets about eighty-eight percent of the mass. Place the draw at point nine. Which local ID will you append?"
+        hold: 2.1
+        visual_cues:
+          - id: generation-choice-2
+            phrase: "four supplied scores"
+            targets: [generation-choice-mechanism]
+          - id: retained-scale
+            phrase: "they become four and two"
+            targets: [generation-choice-mechanism]
+          - id: draw-location
+            phrase: "Place the draw at point nine"
+            targets: [generation-choice-mechanism]
+      - say: "The draw crossed the first boundary. Choose local ID one. A less likely token can still win the draw. This strip shows how to sample by cumulative probability. The lab uses PyTorch's multinomial routine to sample from those probabilities."
+        caption_starts:
+          - "Choose local ID one"
+        hold: 0.75
+        visual_cues:
+          - id: categorical-choice
+            phrase: "Choose local ID one"
+            targets: [generation-choice-mechanism]
+      - say: "Append one to the model input. This little sampler has its own saved map. Local one maps back to GPT-two ID four sixty-one, the letters a k. Reverse-map the full sequence and decode its bytes together. Reject any missing prompt piece before lookup. The lab restarts a separate text generator at seed seventeen for each comparison. That repeats the trace for fixed weights and prompt here, and leaves the training and validation streams alone. Top-k sampling can still repeat itself."
+        hold: 0.85
+        visual_cues:
+          - id: generation-choice-3
+            phrase: "Append one to the model input"
+            targets: [generation-choice-mechanism]
+          - id: reverse-map-choice
+            phrase: "Local one maps back to GPT-two ID four sixty-one"
+            targets: [generation-choice-mechanism]
+          - id: unsupported-prompt
+            phrase: "Reject any missing prompt piece"
+            targets: [generation-choice-mechanism]
+  - id: resume
+    title: "Which training window comes after a restart?"
+    visual: "A sampler cursor passes supplied window starts 4 and 1. Restarting at the seed returns to 4. Restoring the progressed state advances to 9."
+    beats:
+      - say: "Generation can replay a seed. Training needs to pick up where it left off. Here are four example starting positions for training windows. The sampler has already used four and one when we save. If we reload only the initial seed, which window will the next update get?"
+        hold: 1.95
+        visual_cues:
+          - id: consume-draws
+            phrase: "already used four and one"
+            targets: [cursor]
+      - say: "Four again. Restore the progressed sampler state instead. The next draw is nine, just as it would have been without a restart. Keeping validation sampling on its own stream lets us inspect the model without changing the next training batch. Now give both training paths that same batch and compare the update."
+        caption_starts:
+          - "The next draw is nine"
+        hold: 0.9
+        visual_cues:
+          - id: restore-cursor
+            phrase: "Restore the progressed sampler state instead"
+            targets: [fork]
+          - id: restored-draw
+            phrase: "The next draw is nine"
+            targets: [fork]
+  - id: resume-fork
+    title: "Same batch, different next weight"
+    visual: "A frozen checkpoint and live tensor storage diverge. Two small Adam updates start from the same weight and gradient. Only the moments and step counter differ."
+    beats:
+      - say: "Look at what happens to a saved weight when training continues. A model state dictionary can still point into the live tensor. If that value changes, reading the dictionary again gives you the new value. Freeze the checkpoint by copying or serializing it before the next update. Along with weights, keep the optimizer state, completed update, configuration, tokenizer version and row order. Match the corpus fingerprint and split. Save where both random generators stopped."
+        hold: 0.7
+        visual_cues:
+          - id: resume-fork-1
+            phrase: "a saved weight when training continues"
+            targets: [resume-fork-mechanism]
+          - id: freeze-storage
+            phrase: "copying or serializing it before the next update"
+            targets: [resume-fork-mechanism]
+          - id: save-progress
+            phrase: "Save where both random generators stopped"
+            targets: [resume-fork-mechanism]
+      - say: "Both paths now have the same weights and the same batch. Their deterministic loss agrees before the update. Try the scalar Adam example on screen. Both moment coefficients are one half. Epsilon and weight decay are zero, and the learning rate stays at one tenth. Two positive gradients brought the weight down to point eight. The next gradient is minus one. The restored first moment still remembers the positive gradients. The new weight is about point eight one four. Start the moments and counter from scratch and the weight jumps to point nine. Compare the weights after the step to catch that difference."
+        hold: 0.8
+        visual_cues:
+          - id: resume-fork-2
+            phrase: "same weights and the same batch"
+            targets: [resume-fork-mechanism]
+          - id: restore-moments
+            phrase: "The new weight is about point eight one four"
+            targets: [resume-fork-mechanism]
+          - id: reset-moments
+            phrase: "the weight jumps to point nine"
+            targets: [resume-fork-mechanism]
+      - say: "The article checks this on the real CPU checkpoint. At update three twenty-one, restoring it reproduces the probe logits, the next batch and the loss on that batch. Then both paths take update three twenty-two. Their updated weights match exactly in that environment. A loop with dropout, CUDA randomness, a scheduler or a precision scaler needs the corresponding state. AdamW also applies weight decay separately from its adaptive update. This lab's call decays all supplied parameters, including biases and normalization scales."
+        hold: 0.9
+        visual_cues:
+          - id: resume-fork-3
+            phrase: "the real CPU checkpoint"
+            targets: [resume-fork-mechanism]
+          - id: exact-resume
+            phrase: "both paths take update three twenty-two"
+            targets: [resume-fork-mechanism]
+  - id: architecture-choices
+    title: "What can change inside the decoder?"
+    visual: "Changing how features are normalized or how heads share keys changes the computation. The permitted prefix and scored successor stay fixed."
+    beats:
+      - say: "Our lab borrows learned absolute positions, pre-normalization, multi-head attention, GELU and tied embeddings from GPT-two. Keep the causal next-token task and change some parts. Llama two is one historical example. It used rotary positions, RMS normalization and a gated feed-forward layer. Its seven- and thirteen-billion models used ordinary multi-head attention. Its seventy-billion model shared keys and values across groups of query heads."
+        hold: 0.7
+        visual_cues:
+          - id: architecture-choices-1
+            phrase: "Our lab borrows learned absolute positions"
+            targets: [architecture-choices-mechanism]
+          - id: historical-stack
+            phrase: "Its seventy-billion model shared keys and values"
+            targets: [architecture-choices-mechanism]
+      - say: "Give both normalizers the vector one, three. Use unit gain, zero offset and zero epsilon so you can see the arithmetic. Layer normalization subtracts the mean, two, then divides by a standard deviation of one. The first coordinate turns negative. RMS normalization divides both coordinates by the square root of five. Both stay positive. It measures mean square without subtracting the mean. Rotary positions make a different change. They rotate query and key pairs so their dot products reflect relative position. Test the context lengths you plan to use."
+        hold: 0.7
+        visual_cues:
+          - id: architecture-choices-2
+            phrase: "the vector one, three"
+            targets: [architecture-choices-mechanism]
+          - id: norm-compare
+            phrase: "Both stay positive"
+            targets: [architecture-choices-mechanism]
+          - id: relative-rotation
+            phrase: "They rotate query and key pairs"
+            targets: [architecture-choices-mechanism]
+      - say: "SwiGLU multiplies a linear branch by a SiLU gate, then projects back. Now follow the four query heads. Group them in pairs that share keys and values. Moving from four stored key-value heads to two halves the stored elements at fixed length and head width. At the same data type that's half the ideal cache bytes. Serving speed needs a timed run, and changing an architecture also calls for a quality and checkpoint-compatibility check."
+        hold: 0.9
+        visual_cues:
+          - id: architecture-choices-3
+            phrase: "SwiGLU multiplies a linear branch by a SiLU gate"
+            targets: [architecture-choices-mechanism]
+          - id: shared-kv
+            phrase: "Moving from four stored key-value heads to two halves the stored elements"
+            targets: [architecture-choices-mechanism]
+  - id: kernel-diagnostics
+    title: "What did the attention check establish?"
+    visual: "A causal CPU forward comparison, an empty attention row and a wrong inverse lookup each isolate a different failure."
+    beats:
+      - say: "Here is one head from a two-head CPU test. The numbers are attention weights, and the future columns are zero. Compute the output with the manual mask, then ask PyTorch's scaled dot-product attention for the same causal result, with dropout off. The two forward outputs agree within tolerance. A backward comparison would test gradients. Profile an eligible CUDA run to identify the backend and measure memory and time. FlashAttention can avoid writing the full score grid to high-bandwidth memory while full attention still takes quadratic arithmetic."
+        hold: 0.75
+        visual_cues:
+          - id: kernel-diagnostics-1
+            phrase: "one head from a two-head CPU test"
+            targets: [kernel-diagnostics-mechanism]
+          - id: cpu-attention-check
+            phrase: "The two forward outputs agree within tolerance"
+            targets: [kernel-diagnostics-mechanism]
+      - say: "Keep positions, normalization, dropout behavior, shifted labels and the mask fixed when comparing implementations. Now block every key in one row. The manual softmax has no finite score to normalize, and the forward result is already invalid. Find the first nonfinite tensor. Restore at least one permitted finite score before looking at gradient clipping. A different symptom, very low loss with gibberish, calls for the shift check and the future-input probe. We've already seen a constant predictor get low loss without reading any input."
+        hold: 0.8
+        visual_cues:
+          - id: kernel-diagnostics-2
+            phrase: "when comparing implementations"
+            targets: [kernel-diagnostics-mechanism]
+          - id: invalid-mask
+            phrase: "block every key in one row"
+            targets: [kernel-diagnostics-mechanism]
+          - id: first-finite
+            phrase: "Restore at least one permitted finite score"
+            targets: [kernel-diagnostics-mechanism]
+      - say: "Remember the sampler whose local one meant the letters a k? Give it the wrong inverse map and the same local row prints a comma. Both pieces decode successfully. Check the saved row order against the checkpoint. For repetitive output, also compare data, available context and decoding settings. A new prompt can still elicit a memorized completion. For a restart that changes the next pre-update loss, check the weights and batch first. The optimizer's moments enter when you take the step."
+        hold: 0.85
+        visual_cues:
+          - id: kernel-diagnostics-3
+            phrase: "local one meant the letters a k"
+            targets: [kernel-diagnostics-mechanism]
+          - id: wrong-inverse
+            phrase: "Give it the wrong inverse map"
+            targets: [kernel-diagnostics-mechanism]
+  - id: changed-contract
+    title: "Would you train on this batch?"
+    visual: "The source stays fixed above a disposable input copy and the labels a loader actually returned. Changing the fourth input leaves earlier logits fixed. Inspect the label under 8 and slide the correct source suffix into place."
+    beats:
+      - say: "Try a fresh batch in a sixteen-token vocabulary. The top row holds five local IDs from the original stream. The model takes four inputs, and the loader returned the bottom row as labels. Focus on position two, the eight. In a separate input copy, change nine to fourteen. Compare the first three output vectors before and after. Their largest change is zero. Would you train on this batch? Which label belongs under the eight?"
+        caption_starts:
+          - "Their largest change is zero"
+          - "Would you train on this batch"
+        hold: 2.2
+        visual_cues:
+          - id: future-input-change
+            phrase: "change nine to fourteen"
+            targets: [probe]
+          - id: compare-probe
+            phrase: "Their largest change is zero"
+            targets: [comparison]
+      - say: "Position two may read the first three IDs, through eight itself. Its logits stayed fixed when we changed the future. Look straight down from eight. This loader would reward another eight. Follow the frozen source one place to the right and slide its successors into the label row. Now eight predicts nine. Go back to the original batch for the last pair. Nine predicts twelve. Keep the mask and train on the shifted labels."
+        caption_starts:
+          - "This loader would reward another eight"
+          - "Follow the frozen source"
+          - "Now eight predicts nine"
+          - "Nine predicts twelve"
+        hold: 1.1
+        visual_cues:
+          - id: answer-prefix
+            phrase: "through eight itself"
+            targets: [probe]
+          - id: answer-invariant
+            phrase: "Its logits stayed fixed"
+            targets: [comparison]
+          - id: answer-copy
+            phrase: "This loader would reward another eight"
+            targets: [loader]
+          - id: answer-target
+            phrase: "slide its successors into the label row"
+            targets: [loader]
+          - id: last-label
+            phrase: "Nine predicts twelve"
+            targets: [loader]

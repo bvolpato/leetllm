@@ -59,14 +59,14 @@ $$
 
 Follow one 4-dimensional token through a 4-expert top-2 Mixtral-style router with logits `[-0.65, -1.77, -1.35, -3.00]`:
 
-1. **Softmax probabilities:** `[0.522, 0.170, 0.259, 0.050]`.
-2. **Top-2 selection:** Expert 1 (`0.522`) and Expert 3 (`0.259`).
-3. **Renormalize:** $0.522 / (0.522 + 0.259) \approx 0.668$ and $0.259 / 0.781 \approx 0.332$.
+1. **Softmax probabilities:** `[0.521, 0.170, 0.259, 0.050]`.
+2. **Top-2 selection:** Expert 1 (`0.521`) and Expert 3 (`0.259`).
+3. **Renormalize:** $0.521 / (0.521 + 0.259) \approx 0.668$ and $0.259 / 0.780 \approx 0.332$.
 4. **Compute & blend:** Run only $E_1(x)$ and $E_3(x)$ and compute $0.668 \cdot E_1(x) + 0.332 \cdot E_3(x)$.
 
 <figure>
-  <img src="illustrations/_generated/moe_architecture_dark.png" alt="Token x = [1, 0, 0, 0] enters a four-expert top-2 router with probabilities 0.522, 0.170, 0.259, and 0.050. E1 and E3 are selected with renormalized weights 0.668 and 0.332; E2 and E4 remain inactive. E1 outputs [2, 0, 0, 0] and E3 outputs [0, 3, 0, 0], summing to [1.336, 0.995, 0, 0]." />
-  <figcaption>Exact router probabilities (0.522 and 0.259 for E1 and E3) renormalize to 0.668 and 0.332, blending E1 and E3 into [1.336, 0.995, 0, 0] while E2 and E4 stay idle in memory.</figcaption>
+  <img src="illustrations/_generated/moe_architecture_dark.png" alt="Token x = [1, 0, 0, 0] enters a four-expert top-2 router with probabilities 0.521, 0.170, 0.259, and 0.050. E1 and E3 are selected with renormalized weights 0.668 and 0.332; E2 and E4 remain inactive. E1 outputs [2, 0, 0, 0] and E3 outputs [0, 3, 0, 0], summing to [1.336, 0.995, 0, 0]." />
+  <figcaption>Exact router probabilities (0.521 and 0.259 for E1 and E3) renormalize to 0.668 and 0.332, blending E1 and E3 into [1.336, 0.995, 0, 0] while E2 and E4 stay idle in memory.</figcaption>
 </figure>
 
 > **Common mistake:** Do not renormalize weights under **top-1** routing! If only one expert is selected, normalizing its weight forces $\tilde{g}_1(x) \equiv 1$, killing the task-loss gradient into the router away from selection boundaries. Switch Transformer (top-1) multiplies the expert output by the raw, unnormalized softmax probability so gradients still flow to $W_g$.[^fedus2022]
@@ -431,5 +431,3 @@ Large <span data-glossary="prefill">prefill</span> and high-concurrency decode b
 ```
 
 <!-- leetllm: audience:website:start -->> **Next:** Continue to [Mamba & State Space Models](/learn/state-space-models-mamba-alternatives). MoE sparsifies the feed-forward path, but most of these models still mix tokens with attention, so KV-cache growth remains a long-context cost. The next chapter compares selective state-space processing with attention, including why some production MoE backbones already interleave a linear-time mixer.<!-- leetllm: audience:website:end --><!-- leetllm: audience:book:start -->> MoE sparsifies the feed-forward path, but models that use attention still incur KV-cache growth as context grows. Some production MoE backbones interleave attention with a linear-time state-space mixer. The online companion's [Mamba & State Space Models](/learn/state-space-models-mamba-alternatives) chapter compares selective state-space processing with attention.<!-- leetllm: audience:book:end -->
-
-> **Next:** Continue to [Mamba & State Space Models](/learn/state-space-models-mamba-alternatives).

@@ -1,396 +1,416 @@
-// Scene `wire-protocols`: a capability call and an agent task, on the same board.
-//
-// The picture: the board. A wire crosses the fan between triage and the checks. The health lane
-// becomes a capability call (MCP), and the eval lane a task of an independent agent (A2A). Both
-// lanes run for the same long time. Their results arrive as cards, and the join still reads them:
-// a task that says "completed" brings a stale card. A line that says "shift traffic" goes to the
-// target and is cut. The stale receipt keeps the packet open and the writer idle.
+// Scene 10 (wire-protocols): "A capability call and an independent agent task"
+// Orbiting 3D authorization gate paired with 3 cleanly cross-swapped stages:
+//   Stage 0: Workflow framework vs Interoperable wire boundary (MCP capability server vs A2A independent agent)
+//   Stage 1: Same request ID (release-17) traveling MCP lookup tool vs A2A vendor task lifecycle
+//   Stage 2: Artifact freshness gate (210 s withheld until c.after('receipt-age') vs 60 s limit) + Writer auth wall
 import {
-  arrow,
-  beside,
-  boxOf,
-  column,
-  connector,
-  delay,
-  dot,
-  draw,
-  dynamic,
-  indicate,
-  line,
-  linear,
-  par,
-  pictogram,
-  place,
-  rect,
-  row,
-  seq,
-} from 'vizmatic/stage';
-import { REQUEST } from '../../../films/agent-orchestration/fixtures.mjs';
-import { chip, heading, label, mono, namedBox, note } from '../../kit-narrated.mjs';
-import {
-  AGE,
-  BAND,
-  BRANCH_COLOR,
-  CORNER,
+  COSMOS,
   FRESH_SECONDS,
-  MARK,
-  QUIET,
-  STATE,
-  WRONG,
-  board,
-  clock,
+  REQUEST,
+  ROLE,
+  STALE_AGE_S,
+  buildWriterVault3d,
+  cinemaAtmosphere,
+  conduitPts,
+  crossSwap,
+  glowArrow,
+  glowDot,
+  glowRing,
+  glowingTrail,
+  guardedDynamic,
+  heroTitle,
+  line,
+  lumBar,
+  orbitScene,
+  renderGauge,
+  rule,
+  runAmbientPhase,
+  samplePolyline,
+  tweenCue,
+  txt,
 } from '../parts.mjs';
 
-const [EVAL, HEALTH, POLICY] = [0, 1, 2];
-/** The age of a receipt when the join runs at 1200 in place of 1000: the model refuses it. */
-const LATE_AGE = AGE.late;
-/** The work of each lane on the clock: when it starts, and how long it takes. Two are equally long. */
-const WORK = { start: 0.9, long: 2.4, short: 0.5 };
-
 export default function wireProtocols(s, c) {
-  const b = board(s, STATE.applied);
-  const { triage, checks, plates, fan, packetFrame, approval, writer, targetFrame } = b.nodes;
-  const k = clock(
-    s,
-    [
-      { lane: EVAL, start: WORK.start, length: WORK.long, color: BRANCH_COLOR[EVAL] },
-      { lane: HEALTH, start: WORK.start, length: WORK.long, color: BRANCH_COLOR[HEALTH] },
-      { lane: POLICY, start: WORK.start, length: WORK.short, color: BRANCH_COLOR[POLICY] },
-    ],
-    { seconds: 5 },
-  );
-  k.now.set(0);
-  b.card[EVAL].age.set(LATE_AGE);
-  // A card starts after the name of the protocol of its lane, and not on it.
-  b.card.forEach((card) => card.pos.set(0.72));
-  s.add(heading(c.title), k.bars);
-  b.enter(c);
+  const phase = s.value(0);
+  const gateState = s.value(0); // -1 stale/blocked, 0 neutral, +1 ok
+  const st0 = s.value(1);
+  const st1 = s.value(0);
+  const st2 = s.value(0);
 
-  // Beat 0. The framework at the left of the wire. Two protocols at the right of it.
-  const owns = place(
-    column([note('framework owns'), label('scheduling'), label('state')], { gap: 'tight' }),
-    CORNER,
-    'top left',
-  );
-  const fanBox = boxOf(fan);
-  const wireX = fanBox.cx;
-  const wire = line(
-    [wireX, boxOf(plates[EVAL]).top - 6],
-    [wireX, boxOf(plates[POLICY]).bottom + 6],
-    { stroke: MARK, width: 3, dash: [10, 8] },
-  );
-  const wireName = beside(note('wire', { color: MARK }), wire, 'under', 'tight');
-  const tag = (words, lane) =>
-    place(
-      label(words, { size: 36, color: MARK }),
-      boxOf(plates[lane]).inset('normal', 'tight'),
-      'left',
+  // Beat 0: Framework vs Wire Protocol (MCP vs A2A)
+  const fwLit = s.value(0);
+  const wireLit = s.value(0);
+  const crossProc = s.value(0);
+  const mcpLit = s.value(0);
+  const a2aLit = s.value(0);
+
+  // Beat 1: Duration doesn't choose; MCP lookup vs A2A vendor investigator
+  const durLit = s.value(0);
+  const lookupLit = s.value(0);
+  const vendorLit = s.value(0);
+  const taskProg = s.value(0);
+  const directMsg = s.value(0);
+  const streamLit = s.value(0);
+
+  // Beat 2: Artifact age prediction (210s vs 60s) + Writer authorization wall
+  const artDone = s.value(0);
+  const ageReveal = s.value(0); // strictly c.after('receipt-age')!
+  const ageReject = s.value(0); // strictly c.after('completed-not-proof')!
+  const noAuth = s.value(0);
+  const credsPol = s.value(0);
+  const humanRev = s.value(0);
+
+  const bgAtmo = cinemaAtmosphere(ROLE.eval, ROLE.writer);
+  const { view: vault3d } = buildWriterVault3d(phase, gateState, {
+    x: 535,
+    y: 25,
+    theta: -0.72,
+    phi: 1.06,
+    distance: 15.0,
+    unit: 100,
+  });
+
+  const title = heroTitle(['Capability Call vs', 'Independent Agent Task'], {
+    x: -860,
+    y: -440,
+    size: 50,
+    lineHeight: 58,
+    accent: ROLE.eval,
+    eyebrow: `WIRE PROTOCOLS  /  MCP & A2A  /  ${REQUEST.request}`,
+  });
+
+  const live = guardedDynamic(s.value(1), () => {
+    const ph = phase.value;
+    const m0 = st0.value;
+    const m1 = st1.value;
+    const m2 = st2.value;
+    const lx = -860;
+    const nodes = [];
+
+    // Right 3D header & invariant (steady footer, zero crossSwap flash)
+    nodes.push(
+      txt('UNCHANGED AUTH GATE', 535, -420, 26, ROLE.writer, 'mono').glow(6, ROLE.writer),
+      txt('Both protocols stop at policy & credentials', 535, -376, 26, COSMOS.muted, 'sans'),
+      txt(
+        'Remote completion != fresh proof or write permission',
+        535,
+        395,
+        26,
+        COSMOS.muted,
+        'sans',
+      ),
     );
-  const tags = [tag('A2A', EVAL), tag('MCP', HEALTH)];
-  const [exchangeRoom, runRoom] = BAND.rows([5, 1], 'tight');
-  const [hostRoom, crossingRoom, remoteRoom] = exchangeRoom.columns([2, 1, 4], 'normal');
-  const [capabilityRoom, investigatorRoom] = remoteRoom.rows(2, 'wide');
-  const host = place(namedBox('model host', { width: hostRoom.width, height: 110 }), hostRoom);
-  const capability = place(
-    namedBox('capability server', {
-      width: remoteRoom.width,
-      height: 76,
-      color: BRANCH_COLOR[HEALTH],
-    }),
-    capabilityRoom,
-    'top',
-  );
-  const investigator = place(
-    namedBox('vendor investigator', {
-      width: remoteRoom.width,
-      height: 76,
-      color: BRANCH_COLOR[EVAL],
-    }),
-    investigatorRoom,
-    'top',
-  );
-  const capabilityWords = beside(note('tools · resources · prompts'), capability, 'under', 'tight');
-  const apiName = beside(
-    note('lookup API', { color: BRANCH_COLOR[HEALTH] }),
-    capability,
-    'under',
-    'tight',
-  );
-  const investigatorWords = beside(
-    note('discovery · messages · tasks'),
-    investigator,
-    'under',
-    'tight',
-  );
-  const localWire = line(
-    [crossingRoom.cx, exchangeRoom.top + 8],
-    [crossingRoom.cx, exchangeRoom.bottom - 8],
-    { stroke: MARK, width: 3, dash: [10, 8] },
-  );
-  const callPath = connector(host, capability, {
-    route: 'ortho',
-    from: 'right',
-    to: 'left',
-    color: QUIET,
-    width: 3,
-    tip: true,
-    gap: 10,
-  });
-  const messagePath = connector(host, investigator, {
-    route: 'ortho',
-    from: 'right',
-    to: 'left',
-    color: QUIET,
-    width: 3,
-    tip: true,
-    gap: 10,
-  });
-  const exchange = [host, capability, investigator, callPath, messagePath, localWire];
-  const exchangeDetails = [apiName, investigatorWords];
-  const call = { progress: s.value(0), shown: s.value(0) };
-  const request = { progress: s.value(0), shown: s.value(0) };
-  const messages = dynamic(() => [
-    ...(call.shown.value > 0.02
-      ? [dot(10, BRANCH_COLOR[HEALTH]).at(...callPath.pointNow(call.progress.value))]
-      : []),
-    ...(request.shown.value > 0.02
-      ? [dot(10, BRANCH_COLOR[EVAL]).at(...messagePath.pointNow(request.progress.value))]
-      : []),
-  ]);
-  s.add(messages);
-  const restart = place(note(`New run at v${REQUEST.version}`), runRoom, 'left');
-  c.show('wire-protocols-construct-0', restart);
-  c.on('wire-protocols-construct-0', () => {
-    b.request.rev.set(REQUEST.version);
-    b.target.live.set(REQUEST.version);
-    b.target.traffic.set(0);
-  });
-  c.show('wire-protocols-construct-0', owns);
-  c.show('wire-protocols-construct-0', exchange);
-  c.on('wire-protocols-construct-0', () =>
-    s.play(
-      indicate(triage, { color: MARK }),
-      delay(indicate(packetFrame, { color: MARK, scale: 1 }), 0.9),
-    ),
-  );
-  c.show('wire-boundary', [draw(wire, { duration: 0.7 }), wireName]);
-  c.on('cross-processes', () =>
-    s.play(...fan.map((edge) => edge.pulse({ color: MARK })), indicate(checks, { color: MARK })),
-  );
-  c.swap('mcp', restart, [tags[1], capabilityWords]);
-  c.on('mcp', () => s.play(indicate(capability, { color: MARK, scale: 1 })));
-  c.show('a2a', [tags[0], investigatorWords]);
-  c.on('a2a', () => s.play(indicate(investigator, { color: MARK, scale: 1 })));
 
-  // Beat 1. Both lanes run for the same time: the length of the work does not choose the protocol.
-  const beside2 = (words, lane, at) =>
-    label(words, { size: 30, anchor: 'left' }).at(k.x(at) + 16, k.laneY(lane));
-  const lookup = beside2('lookup API', HEALTH, WORK.start + WORK.long);
-  const id = `task/${REQUEST.release}`;
-  const taskId = beside2(id, EVAL, WORK.start + WORK.long);
-  const message = beside2('direct message', POLICY, WORK.start + WORK.short);
-  // The vendor keeps one task record while its status changes. A direct reply has its own lane.
-  const body = BAND.inset('normal');
-  const [titleRow, stateRow, railRow, outputRow] = body.rows([2, 1, 1, 2], 'tight');
-  const taskFrame = rect(BAND.width, BAND.height, {
-    radius: 14,
-    stroke: BRANCH_COLOR[EVAL],
-    width: 3,
-    fill: 'surface',
-  })
-    .at(BAND.cx, BAND.cy)
-    .zIndex(-1);
-  const taskHeader = place(
-    row(
-      [
-        label('Vendor investigation', { size: 40 }),
-        mono(id, {
-          size: 36,
-          color: BRANCH_COLOR[EVAL],
+    // =========================================================================
+    // STAGE 0 (Beat 0): Workflow Framework -> Wire Boundary -> MCP & A2A
+    // =========================================================================
+    if (m0 > 0.02) {
+      // Top band: Workflow Framework
+      nodes.push(
+        lumBar(-370, -155, 980, 76, {
+          color: fwLit.value > 0.3 ? ROLE.triage : COSMOS.rule,
+          fillOpacity: 0.18,
+          strokeWidth: 2.6,
+          glow: 9,
+          opacity: m0,
         }),
-      ],
-      { gap: 'wide' },
-    ),
-    titleRow,
-    'left',
-  );
-  const states = ['submitted', 'working', 'completed'];
-  const cells = stateRow.columns(states.length, 'normal');
-  const stageLabels = states.map((state, i) => place(note(state), cells[i]));
-  const railY = railRow.cy;
-  const stops = cells.map((cell) => cell.cx);
-  const rail = line([stops[0], railY], [stops.at(-1), railY], { stroke: QUIET, width: 4 });
-  const ticks = stops.map((x) => dot(8, QUIET).at(x, railY));
-  const progress = s.value(0);
-  const marker = dynamic(() => {
-    const x = stops[0] + (stops.at(-1) - stops[0]) * progress.value;
-    const travelled =
-      x > stops[0] + 1
-        ? [
-            line([stops[0], railY], [x, railY], {
-              stroke: BRANCH_COLOR[EVAL],
-              width: 7,
-            }),
-          ]
-        : [];
-    return [...travelled, dot(16, MARK).at(x, railY)];
-  });
-  const record = [taskFrame, taskHeader, ...stageLabels, rail, ...ticks, marker];
-  const stream = place(note('Progress updates require support'), outputRow, 'left');
-  const artifact = place(
-    row([
-      pictogram('certificate', { size: 50, accent: BRANCH_COLOR[EVAL] }),
-      label('Attached eval receipt', { size: 36 }),
-    ]),
-    outputRow,
-    'left',
-  );
-  const [ageLabel, scale] = outputRow.inset(12, 0).columns([2, 5], 'normal');
-  const scaleName = place(note('Receipt age'), ageLabel, 'left');
-  const railHeight = scale.cy + 24;
-  const age = mono(`${LATE_AGE} s`, { size: 35, anchor: 'right', color: BRANCH_COLOR[EVAL] })
-    .at(scale.right, scale.cy - 20);
-  const limitX = scale.left + scale.width * FRESH_SECONDS / LATE_AGE;
-  const maxAge = note(`${FRESH_SECONDS} s limit`, { color: MARK }).at(limitX, scale.cy - 20);
-  const ageTrack = line([scale.left, railHeight], [scale.right, railHeight], {
-    stroke: BRANCH_COLOR[EVAL], width: 8,
-  });
-  const observation = dot(12, BRANCH_COLOR[EVAL]).at(scale.right, railHeight);
-  const ageLimit = line([limitX, railHeight - 14], [limitX, railHeight + 14], {
-    stroke: MARK, width: 5,
-  });
-  const both = c.cue('wire-protocols-construct-1');
-  c.on('wire-protocols-construct-1', () =>
-    s.play(
-      ...k.spans.slice(0, 2).map((span) => span.shown.to(1, { duration: 0.3 })),
-      k.now.to(WORK.start + WORK.long, { duration: both.end - both.start - 0.6, ease: linear }),
-    ),
-  );
-  c.show('lookup-tool', lookup);
-  c.swap('lookup-tool', capabilityWords, apiName);
-  c.on('lookup-tool', () =>
-    s.play(
-      seq(
-        call.shown.to(1, { duration: 0.02 }),
-        call.progress.to(1, { duration: 0.6 }),
-        indicate(capability, { color: MARK, scale: 1, duration: 0.4 }),
-        call.progress.to(0, { duration: 0.6 }),
-        call.shown.to(0, { duration: 0.02 }),
-      ),
-    ),
-  );
-  // The message crosses the wire before the vendor creates its persistent task.
-  c.on('vendor-task', () =>
-    s.play(
-      seq(
-        request.shown.to(1, { duration: 0.02 }),
-        request.progress.to(1, { duration: 0.8 }),
-        request.shown.to(0, { duration: 0.02 }),
-      ),
-    ),
-  );
-  c.swap('vendor-task', [...exchange, ...exchangeDetails], [taskId, ...record], { after: true });
-  c.on('task-progress', () => s.play(progress.to(0.5, { duration: 0.9 })));
-  c.show('direct-message', message);
-  c.on('direct-message', () => s.play(k.spans[2].shown.to(1, { duration: 0.3 })));
-  c.show('streaming', stream);
+        txt(
+          'WORKFLOW FRAMEWORK: scheduling & typed state',
+          -370,
+          -155,
+          28,
+          COSMOS.ink,
+          'mono',
+        ).opacity(m0),
+      );
 
-  // Beat 2. The results arrive as cards. The join reads them, whatever the task said about itself.
-  const completed = place(
-    chip(id, { color: BRANCH_COLOR[EVAL], stroke: BRANCH_COLOR[EVAL] }),
-    boxOf(plates[EVAL]).inset(120, 'tight'),
-    'left',
-  );
-  c.hide(2, [lookup, taskId, message]);
-  c.onBeat(2, () => s.play(...k.spans.map((span) => span.shown.to(0, { duration: 0.3 }))));
-  c.show('wire-protocols-construct-2', completed, { lead: -0.5 });
-  c.swap('wire-protocols-construct-2', stream, artifact);
-  c.on('wire-protocols-construct-2', () => s.play(progress.to(1, { duration: 0.8 })));
-  c.on(
-    'wire-protocols-construct-2',
-    () =>
-      s.play(
-        seq(
-          par(...b.card.map((card) => card.shown.to(1, { duration: 0.3 }))),
-          par(
-            ...b.card.map((card, i) =>
-              seq(card.pos.to(1, { duration: 1 }), b.gate[i].lamp.to(1, { duration: 0.15 })),
-            ),
-          ),
-          par(
-            ...b.gate.map((gate) => gate.open.to(1, { duration: 0.3 })),
-            ...b.card.map((card) => card.pos.to(2, { duration: 0.8 })),
-          ),
-        ),
-      ),
-    0.5,
-  );
-  c.swap('receipt-age', artifact, [scaleName, age, ageTrack, observation], { lead: 0 });
-  c.show('completed-not-proof', [maxAge, ageLimit], { lead: 0 });
-  c.on('completed-not-proof', () =>
-    s.play(
-      indicate(stageLabels[2], { color: MARK, scale: 1 }),
-      ...b.card.map((card) => card.read.to(3, { duration: 0.9 })),
-    ),
-  );
-  c.after('completed-not-proof', () => {
-    b.card.forEach((card, i) => card.verdict.set(i === EVAL ? -1 : 1));
-    s.play(
-      seq(
-        b.card[EVAL].pos.to(1, { duration: 0.7 }),
-        b.card[EVAL].pos.to(1.16, { duration: 0.2 }),
-        b.card[EVAL].pos.to(1.08, { duration: 0.2 }),
-      ),
-    );
-  });
-  // A line of text that asks for the effect: it reaches no writer.
-  const said = place(
-    row([note('a transcript says'), chip('"shift traffic"', { font: 'mono', dash: [8, 6] })], {
-      gap: 'normal',
-    }),
-    BAND,
-    'bottom left',
-  );
-  const saidBox = boxOf(said);
-  const target = boxOf(targetFrame);
-  const toTarget = arrow([saidBox.right, saidBox.cy], [target.left, saidBox.cy], {
-    stroke: WRONG,
-    width: 4,
-    dash: [12, 9],
-    pad: 8,
-  });
-  const cut = pictogram('cross', { size: 60, accent: WRONG }).at(
-    (saidBox.right + target.left) / 2 + 120,
-    saidBox.cy,
-  );
-  c.swap('no-authority', [...record, scaleName, age, ageTrack, observation, maxAge, ageLimit], said, { lead: 2.4 });
-  c.show('no-authority', draw(toTarget, { duration: 0.9 }), { lead: 1.4 });
-  const cutFade = 0.3;
-  c.show('no-authority', cut, { after: true, fade: cutFade });
-  // Credentials and policy govern writes. This task still supplied stale evidence.
-  const governs = row(
-    [
-      pictogram('key', { size: 52, color: QUIET, accent: MARK }),
-      chip('credentials', { color: MARK, stroke: MARK }),
-      chip('policy', { color: MARK, stroke: MARK }),
-    ],
-    { gap: 'tight' },
-  );
-  const writerBox = boxOf(writer.frame);
-  beside(governs, [BAND.right, writerBox.cy], 'left', 'none');
-  const chosen = chip('Rollout requires human review', { dash: [8, 6] });
-  beside(chosen, [BAND.right, boxOf(approval.frame).cy], 'left', 'none');
-  // Keep the usual lead when the cross has time to finish fading in.
-  const cueGap = c.cue('credentials-policy').start - c.cue('no-authority').end;
-  c.hide('credentials-policy', [toTarget, cut], { lead: Math.min(0.1, cueGap - cutFade) });
-  c.show('credentials-policy', governs);
-  c.on('credentials-policy', () =>
-    s.play(indicate([writer.frame, writer.title], { color: MARK, scale: 1 })),
-  );
-  c.show('human-review', chosen);
-  c.on('human-review', () =>
-    s.play(indicate([approval.frame, approval.title], { color: MARK, scale: 1 })),
-  );
+      // Middle laser wire boundary (arrows routed outside text span!)
+      const wy = -35;
+      nodes.push(
+        line([lx, wy], [130, wy], {
+          stroke: wireLit.value > 0.3 ? ROLE.mark : COSMOS.muted,
+          width: wireLit.value > 0.3 ? 4 : 2.5,
+          dash: [12, 8],
+        })
+          .glow(8, ROLE.mark)
+          .opacity(m0),
+        txt(
+          crossProc.value > 0.3 ? 'WIRE BOUNDARY (cross-process)' : 'WIRE PROTOCOL BOUNDARY',
+          -365,
+          wy - 34,
+          26,
+          ROLE.mark,
+          'mono',
+        ).opacity(m0),
+      );
 
-  b.leave(c);
+      // Left lower: MCP
+      nodes.push(
+        glowArrow([-760, -110], [-760, 40], ROLE.eval, { width: 3.4, opacity: m0 }),
+        lumBar(-615, 145, 480, 175, {
+          color: mcpLit.value > 0.3 ? ROLE.eval : COSMOS.rule,
+          fillOpacity: mcpLit.value > 0.3 ? 0.22 : 0.1,
+          strokeWidth: 2.8,
+          glow: mcpLit.value > 0.3 ? 11 : 4,
+          opacity: m0,
+        }),
+        txt('MCP', -615, 92, 32, ROLE.eval, 'mono').opacity(m0),
+        txt('Capability Server', -615, 138, 26, COSMOS.ink, 'sans').opacity(m0),
+        txt('Tools / Resources / Prompts', -615, 184, 26, COSMOS.muted, 'mono').opacity(m0),
+      );
+
+      // Right lower: A2A
+      nodes.push(
+        glowArrow([30, -110], [30, 40], ROLE.health, { width: 3.4, opacity: m0 }),
+        lumBar(-110, 145, 480, 175, {
+          color: a2aLit.value > 0.3 ? ROLE.health : COSMOS.rule,
+          fillOpacity: a2aLit.value > 0.3 ? 0.22 : 0.1,
+          strokeWidth: 2.8,
+          glow: a2aLit.value > 0.3 ? 11 : 4,
+          opacity: m0,
+        }),
+        txt('A2A', -110, 92, 32, ROLE.health, 'mono').opacity(m0),
+        txt('Independent Agent', -110, 138, 26, COSMOS.ink, 'sans').opacity(m0),
+        txt('Discovery / Messages / Tasks', -110, 184, 26, COSMOS.muted, 'mono').opacity(m0),
+      );
+    }
+
+    // =========================================================================
+    // STAGE 1 (Beat 1): Dual Protocol Lanes Carrying release-17
+    // =========================================================================
+    if (m1 > 0.02) {
+      nodes.push(
+        txt(
+          durLit.value > 0.3
+            ? 'BOTH SUPPORT LONG WORK -> ROLE CHOOSES PROTOCOL'
+            : `REQUEST ID: ${REQUEST.request}`,
+          lx,
+          -210,
+          26,
+          ROLE.mark,
+          'mono',
+          'left',
+        ).opacity(m1),
+        rule(lx, -186, 120, -186, ROLE.rule, 2).opacity(m1),
+      );
+
+      // Lane 1: MCP Deployment Lookup Tool
+      const y1 = -70;
+      const p1 = conduitPts([-560, y1], [-180, y1]);
+      nodes.push(
+        txt('MCP LANE', lx, y1 - 56, 26, ROLE.eval, 'mono', 'left').opacity(m1),
+        lumBar(-710, y1, 290, 62, { color: ROLE.eval, fillOpacity: 0.18, opacity: m1 }),
+        txt('Host Graph', -710, y1, 26, COSMOS.ink, 'mono').opacity(m1),
+        glowingTrail(p1, {
+          color: lookupLit.value > 0.3 ? ROLE.eval : COSMOS.dim,
+          width: 3.6,
+          opacity: m1,
+          core: false,
+        }),
+        glowDot(...samplePolyline(p1, (ph * 0.32) % 1), {
+          radius: 6,
+          color: ROLE.eval,
+          opacity: m1,
+        }),
+        lumBar(-35, y1, 280, 62, {
+          color: lookupLit.value > 0.3 ? ROLE.eval : COSMOS.rule,
+          fillOpacity: 0.22,
+          glow: lookupLit.value > 0.3 ? 11 : 4,
+          opacity: m1,
+        }),
+        txt('Deploy Lookup API', -35, y1, 26, COSMOS.ink, 'mono').opacity(m1),
+      );
+
+      // Lane 2: A2A Vendor Investigator Task Lifecycle
+      const y2 = 105;
+      const p2 = conduitPts([-560, y2], [-180, y2]);
+      nodes.push(
+        txt('A2A LANE', lx, y2 - 56, 26, ROLE.health, 'mono', 'left').opacity(m1),
+        lumBar(-710, y2, 290, 62, { color: ROLE.health, fillOpacity: 0.18, opacity: m1 }),
+        txt('Client Agent', -710, y2, 26, COSMOS.ink, 'mono').opacity(m1),
+        glowingTrail(p2, {
+          color: vendorLit.value > 0.3 ? ROLE.health : COSMOS.dim,
+          width: 3.6,
+          opacity: m1,
+          core: false,
+        }),
+        glowDot(...samplePolyline(p2, (ph * 0.25 + 0.5) % 1), {
+          radius: 6,
+          color: ROLE.health,
+          opacity: m1,
+        }),
+        lumBar(-35, y2, 280, 62, {
+          color: vendorLit.value > 0.3 ? ROLE.health : COSMOS.rule,
+          fillOpacity: 0.22,
+          glow: vendorLit.value > 0.3 ? 11 : 4,
+          opacity: m1,
+        }),
+        txt('Vendor Agent', -35, y2, 26, COSMOS.ink, 'mono').opacity(m1),
+      );
+
+      // Task lifecycle sub-strip below Lane 2
+      const ly = 225;
+      nodes.push(
+        rule(lx, ly - 30, 120, ly - 30, ROLE.rule, 2).opacity(m1),
+        txt(
+          streamLit.value > 0.3
+            ? 'Direct message optional; streaming & push depend on capabilities'
+            : directMsg.value > 0.3
+              ? 'Direct message need not spawn an async task'
+              : taskProg.value > 0.3
+                ? 'Own task ID + progress updates + typed artifact outputs'
+                : 'Pick capability server vs autonomous remote agent',
+          lx,
+          ly + 20,
+          26,
+          ROLE.health,
+          'sans',
+          'left',
+        ).opacity(m1),
+      );
+    }
+
+    // =========================================================================
+    // STAGE 2 (Beat 2): Artifact Freshness Prediction (210s vs 60s) + Auth Wall
+    // =========================================================================
+    if (m2 > 0.02) {
+      const aRev = ageReveal.value;
+      const aRej = ageReject.value;
+      const wBlk = noAuth.value;
+
+      nodes.push(
+        txt(
+          'ARTIFACT RECEIPT  (TASK STATUS: COMPLETED)',
+          lx,
+          -210,
+          26,
+          artDone.value > 0.3 ? ROLE.health : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m2),
+        rule(lx, -186, 120, -186, ROLE.rule, 2).opacity(m2),
+      );
+
+      // Freshness gauge: withheld until c.after('receipt-age') reveals 210s!
+      const gy = -95;
+      const gW = 780;
+      const frac = aRev > 0.05 ? (STALE_AGE_S / 260) * aRev : 0.08;
+      const cap = FRESH_SECONDS / 260;
+      const g = renderGauge(lx, gy, gW, 34, frac, {
+        cap,
+        color: ROLE.pass,
+        overColor: ROLE.reject,
+        limitColor: ROLE.mark,
+        opacity: m2,
+      });
+      nodes.push(
+        ...g.nodes,
+        txt('60 s limit', g.capX, gy - 58, 26, ROLE.mark, 'mono').opacity(m2),
+        txt(
+          aRev > 0.3 ? `${STALE_AGE_S} s` : 'age: ???',
+          lx + gW + 30,
+          gy,
+          36,
+          aRev > 0.3 ? ROLE.reject : ROLE.mark,
+          'mono',
+          'left',
+        )
+          .glow(8, aRev > 0.3 ? ROLE.reject : ROLE.mark)
+          .opacity(m2),
+      );
+
+      // Join freshness verdict (strictly after completed-not-proof)
+      if (aRej > 0.02) {
+        nodes.push(
+          txt(
+            `JOIN REJECTS STALE ARTIFACT (${STALE_AGE_S} s > ${FRESH_SECONDS} s)`,
+            lx,
+            gy + 68,
+            26,
+            ROLE.reject,
+            'mono',
+            'left',
+          ).opacity(m2 * aRej),
+        );
+      } else {
+        nodes.push(
+          txt('How old is the observation?', lx, gy + 68, 26, ROLE.mark, 'sans', 'left').opacity(
+            m2 * (1 - aRej),
+          ),
+        );
+      }
+
+      // Lower section: Remote transcript asks for traffic shift -> hits Writer Auth Wall
+      const wy = 145;
+      nodes.push(
+        txt('REMOTE TRANSCRIPT REQUEST', lx, wy - 76, 26, COSMOS.muted, 'mono', 'left').opacity(m2),
+        lumBar(-665, wy, 390, 68, { color: ROLE.policy, fillOpacity: 0.16, opacity: m2 }),
+        txt('"shift traffic to 25%"', -665, wy, 26, COSMOS.ink, 'mono').opacity(m2),
+
+        glowArrow([-455, wy], [-345, wy], wBlk > 0.3 ? ROLE.reject : COSMOS.muted, {
+          width: 3.4,
+          opacity: m2,
+        }),
+
+        line([-325, wy - 56], [-325, wy + 56], { stroke: ROLE.reject, width: 6 })
+          .glow(12, ROLE.reject)
+          .opacity(m2),
+        txt(
+          wBlk > 0.3 ? 'STOPPED AT WRITER' : 'AUTH WALL',
+          -295,
+          wy - 22,
+          26,
+          ROLE.reject,
+          'mono',
+          'left',
+        ).opacity(m2),
+        txt(
+          humanRev.value > 0.3
+            ? 'Policy requires human approval + writer creds'
+            : credsPol.value > 0.3
+              ? 'Credentials & app policy decide who writes'
+              : 'Transcript text carries zero write authority',
+          -295,
+          wy + 24,
+          26,
+          humanRev.value > 0.3 ? ROLE.pass : COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(m2),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAtmo, vault3d, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+  orbitScene(s, c, vault3d, { theta: 0.28, phi: 0.98 });
+
+  // Beat 0
+  tweenCue(s, c, 'wire-protocols-construct-0', fwLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'wire-boundary', wireLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'cross-processes', crossProc, 1, { duration: 0.3 });
+  tweenCue(s, c, 'mcp', mcpLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'a2a', a2aLit, 1, { duration: 0.35 });
+
+  // Beat 1
+  crossSwap(s, c, 'wire-protocols-construct-1', st0, st1, { duration: 0.42 });
+  tweenCue(s, c, 'wire-protocols-construct-1', durLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'lookup-tool', lookupLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'vendor-task', vendorLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'task-progress', taskProg, 1, { duration: 0.3 });
+  tweenCue(s, c, 'direct-message', directMsg, 1, { duration: 0.3 });
+  tweenCue(s, c, 'streaming', streamLit, 1, { duration: 0.3 });
+
+  // Beat 2: Prediction gates with strict c.after!
+  crossSwap(s, c, 'wire-protocols-construct-2', st1, st2, { duration: 0.42 });
+  tweenCue(s, c, 'wire-protocols-construct-2', artDone, 1, { duration: 0.3 });
+  c.after('receipt-age', () => {
+    s.play(ageReveal.to(1, { duration: 0.45 }), gateState.to(-1, { duration: 0.4 }));
+  });
+  tweenCue(s, c, 'completed-not-proof', ageReject, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'no-authority', noAuth, 1, { duration: 0.35 });
+  tweenCue(s, c, 'credentials-policy', credsPol, 1, { duration: 0.35 });
+  tweenCue(s, c, 'human-review', humanRev, 1, { duration: 0.35 });
 }

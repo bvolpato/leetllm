@@ -311,7 +311,7 @@ N=256 tokens -> attn=936.0 ms, ssm=609.0 ms
 
 <figure>
   <img src="illustrations/_generated/prefill_decode_crossing_dark.png" alt="Top line chart plots total generation latency against output tokens N from 1 to 64, showing Attention (120 ms + 3.2 ms/step) crossing SSM (150 ms + 1.8 ms/step) at 22.4 tokens. Bottom stacked bar breakdown compares prefill versus decode at 16 tokens (168 vs 177 ms) and 256 tokens (936 vs 609 ms)." />
-  <figcaption>Attention wins short 16-token answers thanks to lower prefill latency, while lower per-token decode cost lets the SSM overtake after 23 tokens and lead by 327 ms at 256 tokens.</figcaption>
+  <figcaption>Attention wins short 16-token answers thanks to lower prefill latency, while lower per-token decode cost lets the SSM overtake at 23 tokens and lead by 327 ms at 256 tokens.</figcaption>
 </figure>
 
 ## When to use SSMs vs. transformers vs. hybrids

@@ -98,7 +98,7 @@ alpha_bar=0.001  xt=[-0.368, 0.225, 0.084]  SNR=0.001
 ```
 <!-- leetllm: output:end -->
 
-By $\bar{\alpha}_t = 0.001$, the first coordinate swings from $+1.0$ to $-0.368$, nearly pure static. Generation simply runs this corruption backward.[^ho2020]
+By $\bar{\alpha}_t = 0.001$, the first coordinate swings from $+1.0$ to $-0.368$, nearly pure static. Generation runs this corruption backward.[^ho2020]
 
 ## Why iterative denoising displaced one-shot generators
 
@@ -151,7 +151,7 @@ $$
 \mathcal{L}_{\text{simple}} = \mathbb{E}_{t, x_0, \epsilon}\left[\|\epsilon - \epsilon_\theta(x_t, t)\|^2\right]
 $$
 
-Below, a four-parameter linear denoiser trains under a cosine schedule on a 2D cluster, cutting MSE from `0.9679` to `~0.20`:
+Below, an eight-parameter linear denoiser (four weights per output coordinate) trains under a cosine schedule on a 2D cluster, cutting MSE from `0.9679` to `~0.20`:
 
 <!-- leetllm: test, output=show -->
 ```python title="ddpm-training.py"
@@ -209,7 +209,7 @@ $$
 \mathcal{L}_{\text{FM}} = \mathbb{E}_{\tau, x_0, x_1}\left[\|v_\theta(x_\tau, \tau) - (x_1 - x_0)\|^2\right]
 $$
 
-Straight paths have minimal curvature, so simple Euler ODE steps $x_{\tau - \Delta\tau} = x_\tau - \Delta\tau\, v_\theta(x_\tau, \tau)$ follow them accurately in 4 to 8 evaluations, powering models such as Stable Diffusion 3 and Flux.[^esser2024] Watch how four equal Euler steps carry a noisy state cleanly to $x_0$ along a straight trajectory:
+Straight paths have minimal curvature, so simple Euler ODE steps $x_{\tau - \Delta\tau} = x_\tau - \Delta\tau\, v_\theta(x_\tau, \tau)$ follow them accurately in ~20 to 30 steps for base flow models such as Stable Diffusion 3 and Flux, and in 4 to 8 evaluations after reflow or step distillation.[^esser2024] Watch how four equal Euler steps carry a noisy state cleanly to $x_0$ along a straight trajectory:
 
 <!-- leetllm: test, output=show -->
 ```python title="rectified-flow-euler.py"

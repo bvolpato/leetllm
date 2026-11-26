@@ -1,72 +1,79 @@
-// Scene `gated-learning`: detection and magnitude are two lanes, and a threshold makes a jump.
-//
-// The picture: the rebuilt example, with a lane of gates over the strip of magnitudes. The L1
-// penalty presses on the gate lane: its levels fall, the lamps stay on, and the magnitude bar and
-// the pink arrow keep their length. Then JumpReLU: one pre-activation slides across a threshold,
-// and the pink arrow is absent or has its full length, with no size between.
-import {
-  assertEqual,
-  axes,
-  circle,
-  column,
-  dot,
-  dynamic,
-  fitted,
-  indicate,
-  line,
-  place,
-  polyline,
-  rect,
-  tex,
-  text,
-} from 'vizmatic/stage';
+// Scene 7: gated-learning - "Separate detection from estimated magnitude"
+// Left: Glowing 2D activation plane with live blue + pink reconstruction arrows and dashed
+//       shared encoder rows / auxiliary gate reconstruction.
+// Right: Two luminous stacked lanes (upper gold gate pre-activations + binary gate lamps,
+//        lower full-size magnitude strip), then swaps to a glowing JumpReLU step-and-ramp
+//        transfer curve with animated straight-through estimator window band.
+import { assertEqual, dynamic, indicate, line } from 'vizmatic/stage';
 import { encoderFixture } from '../../../films/sparse-autoencoders/model.mjs';
-import { chipRow, heading, label, note } from '../../kit-narrated.mjs';
 import {
-  COLOR,
+  COSMOS,
   EXAMPLE_SLOTS,
-  SIDE,
-  board,
+  ROLE,
+  cinemaAtmosphere,
+  cinemaPlane,
+  cinemaRebuild,
   code,
   dictionary,
-  rebuild,
-  strip,
-  target,
+  glowCodeStrip,
+  glowDot,
+  glowRing,
+  glowTex,
+  heroTitle,
+  lumBar,
+  playCue,
+  rule,
+  txt,
   vec,
 } from '../parts.mjs';
 
-/** The levels of the gate lane before the penalty: a picture of pre-activations, with no scale. */
 const GATE_LEVEL = [0.9, 0.6, 0, 0, 0];
-/** The scale of a gate row in the picture of the shared directions: shorter than its magnitude row. */
 const GATE_ROW_SCALE = 0.6;
-/** The threshold of the JumpReLU picture, and the pre-activation that the scene moves. */
 const THETA = 0.5;
 const jumpRelu = (u, theta) => (u > theta ? u : 0);
 
 export default function gatedLearning(s, c) {
-  const b = board();
   const encoder = encoderFixture();
-  assertEqual(
-    jumpRelu(code[1], THETA),
-    code[1],
-    'a pre-activation over the threshold keeps its full size',
-  );
-  const [gateBand, stripBand, lower] = SIDE.rows([2, 3.4, 4], 'tight');
-  const [ruleBand, noteBand, extraBand] = lower.rows([2, 1, 1], 'tight');
+  assertEqual(jumpRelu(code[1], THETA), code[1], 'JumpReLU keeps full size above threshold');
 
-  /** The pre-activation of the second feature. Its output is its full size over the threshold, and zero under it. */
+  const atmo = cinemaAtmosphere(ROLE.mark, ROLE.second);
+  const title = heroTitle(['Separate detection from', 'estimated magnitude'], {
+    x: -855,
+    y: -435,
+    size: 48,
+    lineHeight: 56,
+    accent: ROLE.mark,
+  });
+
+  const b = cinemaPlane(s, {
+    cx: -365,
+    cy: 95,
+    width: 960,
+    height: 700,
+    x: [-1.3, 2.9],
+    y: [-1.4, 1.8],
+  });
+
   const pre = s.value(code[1]);
   const theta = s.value(0);
-  const second = () => jumpRelu(pre.value, theta.value);
-  const z = strip(s, stripBand, {
+  const secondVal = () => jumpRelu(pre.value, theta.value);
+
+  const z = glowCodeStrip(s, {
+    x: 515,
+    y: -65,
+    width: 640,
+    height: 220,
     max: 2,
     colors: EXAMPLE_SLOTS,
     start: code,
-    read: (i) => (i === 1 ? second() : undefined),
+    read: (i) => (i === 1 ? secondVal() : undefined),
   });
-  const live = rebuild(b, () => [code[0], second()]);
+  const live = cinemaRebuild(b, () => [code[0], secondVal()]);
+
   s.add(
-    heading(c.title),
+    atmo,
+    title,
+    b.node,
     live.error,
     live.blue,
     live.pink,
@@ -77,186 +84,272 @@ export default function gatedLearning(s, c) {
     z.bars,
     z.numbers,
   );
-  c.take(b.plane);
 
-  // The gate lane: a level and a lamp for each slot. The lamp is on while its level is over zero.
+  const rx = 515;
+
+  // --- Upper Gate Lane (gold pre-activations + glowing binary gate orbs) ---
   const pressure = s.value(0);
-  const level = (i) => GATE_LEVEL[i] * (1 - 0.75 * pressure.value);
-  const floor = gateBand.bottom - 8;
-  const gates = dynamic(() =>
+  const levelOf = (i) => GATE_LEVEL[i] * (1 - 0.75 * pressure.value);
+  const gateFloor = -220;
+  const gateRail = rule(195, gateFloor, 835, gateFloor, '#3b4a70', 2.5);
+  const gateNodes = dynamic(() =>
     dictionary.flatMap((_, i) => {
-      const height = level(i) * 110;
-      const lamp = circle(
-        18,
-        level(i) > 0
-          ? { fill: COLOR.activation, stroke: null }
-          : { fill: null, stroke: 'faint', width: 3 },
-      ).at(z.x(i) + z.barWidth * 0.5, floor - 22);
-      if (height < 1) return [lamp];
+      const lv = levelOf(i);
+      const h = lv * 105;
+      const gx = z.x(i);
+      const lamp =
+        lv > 0
+          ? glowDot(gx + z.barWidth * 0.44, gateFloor - 20, {
+              radius: 13,
+              color: ROLE.activation,
+              glow: 12,
+            })
+          : glowRing(gx + z.barWidth * 0.44, gateFloor - 20, 13, '#435275', {
+              width: 2.5,
+              glow: 0,
+              fillOpacity: 0.05,
+            });
+      if (h < 2) return [lamp];
       return [
-        rect(z.barWidth * 0.5, height, {
-          fill: COLOR.mark,
-          stroke: null,
+        lumBar(gx - z.barWidth * 0.18, gateFloor - h / 2, z.barWidth * 0.46, h, {
+          color: ROLE.mark,
+          fillOpacity: 0.42,
+          strokeWidth: 2,
+          glow: 8,
           radius: 5,
-          opacity: 0.55,
-        }).at(z.x(i) - z.barWidth * 0.2, floor - height / 2),
+        }),
         lamp,
       ];
     }),
   );
-  const gateRail = line([gateBand.left, floor], [gateBand.right, floor], {
-    stroke: 'faint',
-    width: 3,
+
+  const gateLbl = txt('Gate pre-activation', 195, -360, 26, ROLE.mark, 'sans', 'left');
+  const binLbl = txt('Orbs: binary gate', 835, -360, 26, COSMOS.ink, 'sans', 'right');
+  const magLbl = txt('Magnitude lane', 835, -182, 26, ROLE.second, 'sans', 'right');
+  const productEq = glowTex('z = \\text{gate} \\times \\text{magnitude}', {
+    x: rx,
+    y: 125,
+    size: 42,
+    color: COSMOS.ink,
+    glow: 6,
   });
-  const gateName = place(
-    note('rectified gate pre-activation', { color: COLOR.mark }),
-    gateBand,
-    'top left',
-  );
-  const binaryName = place(note('dots: binary gate'), gateBand, 'top right');
-  const magnitudeName = place(note('magnitude'), stripBand, 'top right');
-  c.show('gated-learning-b0', [gateRail, gates, gateName, binaryName]);
-  const product = place(tex('z = \\text{gate} \\times \\text{magnitude}', { size: 46 }), ruleBand);
-  c.show('gated-magnitude', [magnitudeName, product]);
 
-  // One direction for the two rows of a feature, with two scales.
-  const rows = [0, 1].flatMap((i) => [
-    b.arrowOf([0, 0], encoder.weights[i], EXAMPLE_SLOTS[i], { width: 4, dash: [14, 10] }),
-    b.arrowOf([0, 0], vec.scale(encoder.weights[i], GATE_ROW_SCALE), COLOR.mark, { width: 7 }),
+  c.show('gated-learning-b0', [gateRail, gateNodes, gateLbl, binLbl]);
+  c.show('gated-magnitude', [magLbl, productEq]);
+
+  // Shared projection directions with separate row scales
+  const sharedRows = [0, 1].flatMap((i) => [
+    b.arrowOf([0, 0], encoder.weights[i], EXAMPLE_SLOTS[i], { width: 4, dash: [13, 9] }),
+    b.arrowOf([0, 0], vec.scale(encoder.weights[i], GATE_ROW_SCALE), ROLE.mark, { width: 6.5 }),
   ]);
-  const shared = place(label('one direction, two row scales'), noteBand);
-  c.show('gated-shared', [...rows, shared]);
+  const sharedNote = txt(
+    'Shared projection direction, separate row scales',
+    rx,
+    225,
+    28,
+    COSMOS.ink,
+    'sans',
+    'center',
+  );
+  c.show('gated-shared', [...sharedRows, sharedNote]);
 
-  // The penalty presses on the gate lane only.
-  const press = place(label('L1 presses on gate pre-activations', { color: COLOR.mark }), noteBand);
-  c.swap('gated-l1', [...rows, shared], press);
-  c.on('gated-l1', () => s.play(pressure.to(1, { duration: 2.4 })), 0.4);
-  const untouched = place(note('the magnitude and the arrow keep their size'), extraBand);
-  c.show('gated-l1', untouched, { lead: -0.8 });
+  // L1 pressure hits gate lane only
+  const l1Note = txt(
+    'L1 presses on gate pre-activations only',
+    rx,
+    225,
+    30,
+    ROLE.mark,
+    'sans',
+    'center',
+  ).glow(6, ROLE.mark);
+  const untouched = txt(
+    'Magnitude bar & pink arrow keep full size',
+    rx,
+    285,
+    26,
+    ROLE.second,
+    'sans',
+    'center',
+  );
+  c.swap('gated-l1', [...sharedRows, sharedNote], l1Note);
+  playCue(s, c, 'gated-l1', (d) => s.play(pressure.to(1, { duration: d })), {
+    offset: 0.35,
+    dur: 2.2,
+  });
+  c.show('gated-l1', untouched, { lead: -0.7 });
 
-  // The auxiliary rebuild: the gate levels alone, through the same columns, which this path does not train.
+  // Auxiliary gate reconstruction with frozen decoder output path
   const auxTip = (count) =>
-    dictionary.slice(0, count).reduce((sum, d, i) => vec.add(sum, vec.scale(d, level(i))), [0, 0]);
-  const aux = [
-    b.arrowOf([0, 0], () => auxTip(1), COLOR.mark, { width: 4, dash: [10, 8] }),
+    dictionary
+      .slice(0, count)
+      .reduce((sum, d, i) => vec.add(sum, vec.scale(d, levelOf(i))), [0, 0]);
+  const auxPath = [
+    b.arrowOf([0, 0], () => auxTip(1), ROLE.mark, { width: 4, dash: [10, 8] }),
     b.arrowOf(
       () => auxTip(1),
       () => auxTip(2),
-      COLOR.mark,
+      ROLE.mark,
       { width: 4, dash: [10, 8] },
     ),
-    b.ringOf(() => auxTip(2), COLOR.mark, 16),
+    b.ringOf(() => auxTip(2), ROLE.mark, 15, 3.5),
   ];
-  const auxNote = place(
-    label('an auxiliary rebuild trains the gates', { color: COLOR.mark, size: 36 }),
-    noteBand,
+  const auxNote = txt(
+    'Auxiliary gate rebuild trains detection',
+    rx,
+    225,
+    30,
+    ROLE.mark,
+    'sans',
+    'center',
   );
-  const frozen = place(
-    column([note('decoder output path frozen'), note('centering bias can still learn')], {
-      gap: 'none',
-      align: 'center',
-    }),
-    extraBand,
-  );
-  c.swap('gated-aux', [press, untouched], [...aux, auxNote]);
-  // The auxiliary rebuild needs the gate levels, so it holds them up against the penalty.
-  c.on('gated-aux', () => s.play(pressure.to(0.3, { duration: 1.6 })), 0.4);
-  c.show('gated-aux-stop', frozen);
-
-  // Beat 1. No direct penalty on the magnitude. Then JumpReLU: one threshold, and a jump.
-  const free = place(label('no direct L1 on the magnitude'), noteBand);
-  c.swap('gated-learning-b1', [...aux, auxNote, frozen], free);
-  c.on('gated-learning-b1', () =>
-    s.play(
-      ...z.z.slice(0, 1).map(() => indicate(magnitudeName, { color: COLOR.mark, scale: 1.2 })),
-    ),
+  const frozen1 = txt('Decoder output path frozen', rx, 285, 26, ROLE.other, 'sans', 'center');
+  const frozen2 = txt(
+    '(centering bias path can still receive gradient)',
+    rx,
+    330,
+    26,
+    COSMOS.muted,
+    'sans',
+    'center',
   );
 
-  const [plotBand, sideBand] = lower.columns([3, 2], 'normal');
-  const graph = place(
-    fitted(plotBand, (width) =>
-      axes({
-        x: [0, 1.5],
-        y: [0, 1.5],
-        xStep: 0.5,
-        yStep: 0.5,
-        width,
-        height: plotBand.height - 120,
-        labelSize: 28,
-      }),
-    ),
-    plotBand,
-    'top',
-  );
-  const transfer = dynamic(() => [
-    line(graph.world(0, 0), graph.world(theta.value, 0), { stroke: COLOR.second, width: 6 }),
-    line(graph.world(theta.value, theta.value), graph.world(1.5, 1.5), {
-      stroke: COLOR.second,
-      width: 6,
-    }),
-    line(graph.world(theta.value, 0), graph.world(theta.value, theta.value), {
-      stroke: COLOR.mark,
-      width: 3,
-      dash: [8, 8],
-    }),
-    dot(12, COLOR.activation).at(...graph.world(pre.value, second())),
-  ]);
-  const band = s.value(0);
-  const window = dynamic(() => {
-    if (band.value < 0.01) return null;
-    const left = graph.world(Math.max(0, theta.value - band.value / 2), 0),
-      right = graph.world(theta.value + band.value / 2, 1.5);
-    return rect(right[0] - left[0], left[1] - right[1], {
-      fill: COLOR.mark,
-      stroke: null,
-      opacity: 0.2,
-    }).at((left[0] + right[0]) / 2, (left[1] + right[1]) / 2);
+  c.swap('gated-aux', [l1Note, untouched], [...auxPath, auxNote]);
+  playCue(s, c, 'gated-aux', (d) => s.play(pressure.to(0.3, { duration: d })), {
+    offset: 0.35,
+    dur: 1.5,
   });
-  const axisNames = [
-    place(note('pre-activation'), plotBand, 'bottom right'),
-    place(note('output'), sideBand, 'top left'),
+  c.show('gated-aux-stop', [frozen1, frozen2]);
+
+  // --- Beat 1: No direct L1 on magnitude -> JumpReLU transfer curve & windowed STE ---
+  const freeNote = txt('No direct L1 on magnitude lane', rx, 225, 30, COSMOS.ink, 'sans', 'center');
+  c.swap('gated-learning-b1', [...auxPath, auxNote, frozen1, frozen2], freeNote);
+  playCue(
+    s,
+    c,
+    'gated-learning-b1',
+    (d) => s.play(indicate(magLbl, { color: ROLE.mark, scale: 1.2, duration: d })),
+    { dur: 0.7 },
+  );
+
+  // Glowing JumpReLU transfer plot in lower right (x: 0..1.5, y: 0..1.5)
+  const pLeft = 225;
+  const pRight = 565;
+  const pTop = 105;
+  const pBottom = 385;
+  const toPlot = (vx, vy) => [
+    pLeft + (vx / 1.5) * (pRight - pLeft),
+    pBottom - (vy / 1.5) * (pBottom - pTop),
   ];
-  const thetaName = place(
-    dynamic(() =>
-      text(`θ = ${theta.value.toFixed(2)}`, { size: 40, font: 'mono', color: COLOR.mark }),
+
+  const jumpAxes = [
+    rule(pLeft, pBottom, pRight, pBottom, '#4c608d', 2.5),
+    rule(pLeft, pBottom, pLeft, pTop, '#4c608d', 2.5),
+    ...[0, 0.5, 1.0, 1.5].flatMap((v) => {
+      const [sx] = toPlot(v, 0);
+      return [
+        line([sx, pBottom], [sx, pBottom + 8], { stroke: '#4c608d', width: 2 }),
+        txt(v === 0 ? '0' : v.toFixed(1), sx, pBottom + 32, 26, COSMOS.dim, 'mono', 'center'),
+      ];
+    }),
+    ...[0.5, 1.0, 1.5].flatMap((v) => {
+      const [, sy] = toPlot(0, v);
+      return [
+        line([pLeft - 8, sy], [pLeft, sy], { stroke: '#4c608d', width: 2 }),
+        txt(v.toFixed(1), pLeft - 18, sy, 26, COSMOS.dim, 'mono', 'right'),
+      ];
+    }),
+    txt('pre-activation u', (pLeft + pRight) / 2, pBottom + 68, 26, COSMOS.muted, 'sans', 'center'),
+    txt('JumpReLU(u)', pLeft, pTop - 24, 26, ROLE.second, 'mono', 'left'),
+  ];
+
+  const bandW = s.value(0);
+  const steWindow = dynamic(() => {
+    if (bandW.value < 0.01) return [];
+    const l = toPlot(Math.max(0, theta.value - bandW.value / 2), 0);
+    const r = toPlot(Math.min(1.5, theta.value + bandW.value / 2), 1.5);
+    return [
+      lumBar(
+        (l[0] + r[0]) / 2,
+        (l[1] + r[1]) / 2,
+        Math.max(4, r[0] - l[0]),
+        Math.max(4, l[1] - r[1]),
+        {
+          color: ROLE.mark,
+          fillOpacity: 0.2,
+          strokeWidth: 1.8,
+          glow: 6,
+          radius: 4,
+        },
+      ),
+    ];
+  });
+
+  const transfer = dynamic(() => {
+    const th = theta.value;
+    const [ox, oy] = toPlot(0, 0);
+    const [tx, ty0] = toPlot(th, 0);
+    const [, ty1] = toPlot(th, th);
+    const [ex, ey] = toPlot(1.5, 1.5);
+    const [px, py] = toPlot(pre.value, secondVal());
+    return [
+      line([ox, oy], [tx, ty0], { stroke: ROLE.second, width: 5.5 }).glow(8, ROLE.second),
+      line([tx, ty1], [ex, ey], { stroke: ROLE.second, width: 5.5 }).glow(8, ROLE.second),
+      line([tx, ty0], [tx, ty1], { stroke: ROLE.mark, width: 3, dash: [8, 7] }),
+      glowDot(px, py, { radius: 9, color: ROLE.activation, glow: 14 }),
+    ];
+  });
+
+  const thetaReadout = dynamic(() =>
+    txt(`θ = ${theta.value.toFixed(2)}`, 720, 175, 38, ROLE.mark, 'mono', 'center').glow(
+      7,
+      ROLE.mark,
     ),
-    sideBand,
   );
-  const count = place(
-    dynamic(() =>
-      text(`active: ${1 + (second() > 0 ? 1 : 0)}`, { size: 40, color: COLOR.activation }),
+  const activeL0 = dynamic(() =>
+    txt(`L₀ = ${1 + (secondVal() > 0 ? 1 : 0)} active`, 720, 265, 34, COSMOS.ink, 'mono', 'center'),
+  );
+  const steLbl = txt('Windowed STE', 720, 340, 26, ROLE.mark, 'sans', 'center');
+
+  // Floating matched-comparison criteria in upper right (zero boxed cards!)
+  const matchHead = txt(
+    'Compare architectures at matched:',
+    rx,
+    -340,
+    28,
+    COSMOS.muted,
+    'sans',
+    'center',
+  );
+  const matchItems = [
+    txt('data  ·  width  ·  sparsity  ·  compute', rx, -285, 30, ROLE.mark, 'mono', 'center').glow(
+      6,
+      ROLE.mark,
     ),
-    sideBand,
-    'bottom',
-  );
+  ];
+
   c.swap(
     'jump-instead',
-    [free, product, gateRail, gates, gateName, binaryName, magnitudeName],
-    [graph, window, transfer, ...axisNames, thetaName],
+    [freeNote, productEq, gateRail, gateNodes, gateLbl, binLbl, magLbl],
+    [...jumpAxes, steWindow, transfer, thetaReadout],
   );
   c.on('jump-instead', () => s.play(theta.to(THETA, { duration: 0.01 })));
-  // The pre-activation goes under the threshold and comes back: the arrow is absent, then whole.
   c.on('jump-threshold', () => {
-    s.play(pre.to(0.3, { duration: 1.5 }));
-    s.wait(0.4);
-    s.play(pre.to(code[1], { duration: 1.5 }));
+    s.play(pre.to(0.3, { duration: 1.3 }));
+    s.wait(0.35);
+    s.play(pre.to(code[1], { duration: 1.3 }));
   });
-  c.show('jump-l0', count);
-  // A small move of the threshold changes no output here: the slope is zero.
+  c.show('jump-l0', activeL0);
   c.on('jump-zero', () => {
-    s.play(theta.to(THETA + 0.2, { duration: 1 }));
-    s.play(theta.to(THETA, { duration: 1 }));
+    s.play(theta.to(THETA + 0.2, { duration: 0.9 }));
+    s.play(theta.to(THETA, { duration: 0.9 }));
   });
-  c.on('jump-window', () => s.play(band.to(0.24, { duration: 0.8 })));
+  c.show('jump-window', steLbl);
+  playCue(s, c, 'jump-window', (d) => s.play(bandW.to(0.24, { duration: d })), { dur: 0.8 });
   c.on('jump-bandwidth', () => {
-    s.play(band.to(0.6, { duration: 0.9 }));
-    s.play(band.to(0.1, { duration: 0.9 }));
-    s.play(band.to(0.24, { duration: 0.6 }));
+    s.play(bandW.to(0.6, { duration: 0.8 }));
+    s.play(bandW.to(0.1, { duration: 0.8 }));
+    s.play(bandW.to(0.24, { duration: 0.5 }));
   });
-  const matched = [
-    note('compare architectures at matched'),
-    chipRow(['data', 'width', 'sparsity', 'compute'], { color: COLOR.mark, stroke: COLOR.mark }),
-  ];
-  place(column(matched, { gap: 'tight', align: 'center' }), gateBand);
-  c.show('jump-matched', matched);
+  c.show('jump-matched', [matchHead, ...matchItems]);
 }

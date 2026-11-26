@@ -1,100 +1,151 @@
-import { arrow, arc, dot, dynamic, group, line, rect } from 'vizmatic/stage';
-import { area, label, mono } from '../kit-narrated.mjs';
-import { PASSAGES, QUERY } from '../../films/embedding-geometry/fixtures.mjs';
+// Luminous cinema 2D vector-plane helper for Embedding Geometry scenes.
+// Pure cinematic-kit module; all labels >= 26 px with guaranteed clearances.
+import { arc, dot, dynamic, group, line } from 'vizmatic/stage';
+import { COSMOS, aura, glowDot, markDecoration, txt } from '../cinematic-kit.mjs';
+import { GUIDES, QUERY, ROLE, glowArc, glowVector } from './parts.mjs';
 
-export const guides = PASSAGES.map(({ id, vector }, i) => ({
-  id,
-  vector,
-  name: ['Rotation', 'Audit'][i],
-  color: ['green', 'pink'][i],
-}));
-export { QUERY };
+export { GUIDES as guides, QUERY };
 
-const [body, footer] = area.rows([7, 1], 'wide');
-const [plotArea, scoreArea] = body.columns([3, 2], 'loose');
-export { plotArea, scoreArea, footer };
-
-export function guidePlot(extent = () => 4.6, region = plotArea) {
-  const origin = [region.left + 58, region.bottom - 105];
-  const scale = () => Math.min((region.width - 170) / extent(), region.height - 175);
-  const p = ([x, y]) => [origin[0] + x * scale(), origin[1] - y * scale()];
-  const span = ([x, y], [u, v], options) => line(p([x, y]), p([u, v]), options);
-  const grid = dynamic(() => {
-    const height = (origin[1] - region.top - 65) / scale();
-    const step = extent() < 2 ? 0.5 : extent() > 6 ? 2 : 1;
-    const marks = [];
-    for (let x = step; x <= extent() + 0.0001; x += step) {
-      marks.push(span([x, 0], [x, height], { stroke: 'faint', width: 2 }));
-      const [cx, cy] = p([x, 0]);
-      marks.push(mono(String(x), { color: 'dim', size: 29 }).moveTo([cx, cy + 72]));
-    }
-    for (let y = step; y <= height; y += step) {
-      marks.push(span([0, y], [extent(), y], { stroke: 'faint', width: 2 }));
-      const [cx, cy] = p([0, y]);
-      marks.push(mono(String(y), { color: 'dim', size: 29 }).moveTo([cx - 38, cy]));
-    }
-    return group(
-      ...marks,
-      span([0, 0], [extent(), 0], { stroke: 'dim', width: 3 }),
-      span([0, 0], [0, height], { stroke: 'dim', width: 3 }),
-      dot(6, 'dim').moveTo(origin),
-    );
-  });
-  const vector = (value, name, color, offset, backed) => {
-    const shaft = () => arrow(origin, p(value()), { stroke: color, width: 6, tip: 17, pad: 0 });
-    const caption = () => {
-      const end = p(value());
-      return label(name, { size: 36, color }).moveTo([end[0] + offset[0], end[1] + offset[1]]);
-    };
-    if (!backed) return dynamic(() => group(shaft(), caption()));
-    const foreground = dynamic(() => {
-      const letter = caption();
-      const { width, height } = letter.bounds();
-      const backing = rect(width + 10, height + 10, { fill: 'bg', stroke: null }).moveTo(letter);
-      return group(backing, letter);
-    }).zIndex(1);
-    return [dynamic(shaft), foreground];
+/**
+ * Full-bleed dark-cosmos 2D vector plane with dynamic zoom extent, glowing grid,
+ * luminous vectors, perpendicular projection drops, angle wedges, L2 chords, and unit circle arc.
+ */
+export function cinemaVectorPlane({
+  originX = -760,
+  originY = 300,
+  width = 920,
+  height = 560,
+  extent = () => 4.6,
+  yPadTop = 40,
+  maxYFixed = null,
+} = {}) {
+  const origin = [originX, originY];
+  const scale = () => {
+    const yBound = maxYFixed ?? Math.max(1.2, extent() * 0.56);
+    return Math.min((width - 70) / extent(), (height - yPadTop) / yBound);
   };
-  const angle = (value, radius, color, query = () => QUERY) =>
+  const p = ([x, y]) => [origin[0] + x * scale(), origin[1] - y * scale()];
+  const span = (a, b, opts) => line(p(a), p(b), opts);
+
+  const grid = dynamic(() => {
+    const ext = extent();
+    const sc = scale();
+    const maxY = Math.max(1.15, (height - yPadTop) / sc);
+    const step = ext <= 1.6 ? 0.5 : ext > 6 ? 2 : 1;
+    const nodes = [
+      markDecoration(
+        aura(origin[0] + width * 0.45, origin[1] - height * 0.42, 420, '#1e356426', '#07091000'),
+      ),
+    ];
+
+    for (let x = step; x <= ext + 1e-4; x += step) {
+      const [sx, sy] = p([x, 0]);
+      nodes.push(
+        line([sx, sy], p([x, maxY]), { stroke: '#233152', width: 1.4 }).opacity(0.65),
+        txt(Number.isInteger(x) ? String(x) : x.toFixed(1), sx, sy + 42, 26, COSMOS.dim, 'mono'),
+      );
+    }
+    for (let y = step; y <= maxY + 1e-4; y += step) {
+      const [sx, sy] = p([0, y]);
+      nodes.push(
+        line([sx, sy], p([ext, y]), { stroke: '#233152', width: 1.4 }).opacity(0.65),
+        txt(
+          Number.isInteger(y) ? String(y) : y.toFixed(1),
+          sx - 32,
+          sy,
+          26,
+          COSMOS.dim,
+          'mono',
+          'right',
+        ),
+      );
+    }
+
+    nodes.push(
+      line(origin, p([ext + 0.12 * step, 0]), { stroke: '#556c9e', width: 2.8 }),
+      line(origin, p([0, maxY + 0.08 * step]), { stroke: '#556c9e', width: 2.8 }),
+      glowDot(origin[0], origin[1], { radius: 5, color: COSMOS.ink, glow: 6 }),
+    );
+    return group(...nodes);
+  });
+
+  const vector = (
+    getVec,
+    labelText,
+    color,
+    offset = [28, -26],
+    { width: sw = 5.5, tip = 18 } = {},
+  ) =>
     dynamic(() => {
-      const [x, y] = value(),
-        [qx, qy] = query();
-      const ends = [-Math.atan2(y, x), -Math.atan2(qy, qx)].sort((a, b) => a - b);
-      return arc(radius, ends[0], ends[1], { stroke: color, width: 5 }).at(...origin);
-    });
-  const gap = (value, query = () => QUERY) =>
-    dynamic(() => span(query(), value(), { stroke: 'yellow', width: 6, dash: [9, 7] }));
-  const drop = (value, color) =>
-    dynamic(() => {
-      const [x, y] = value();
+      const v = getVec();
+      const end = p(v);
       return group(
-        span([x, y], [x, 0], { stroke: color, width: 3, dash: [8, 7] }),
-        dot(8, color).moveTo(p([x, 0])),
+        glowVector(origin, end, { color, width: sw, tipSize: tip, glow: 9, dotRadius: 5 }),
+        txt(labelText, end[0] + offset[0], end[1] + offset[1], 32, color, 'mono', 'left').glow(
+          5,
+          color,
+        ),
       );
     });
+
+  const angle = (getVec, radius, color, getQuery = () => QUERY, getSweep = () => 1) =>
+    dynamic(() => {
+      const [vx, vy] = getVec();
+      const [qx, qy] = getQuery();
+      const a0 = -Math.atan2(qy, qx);
+      const a1 = -Math.atan2(vy, vx);
+      const cur = a0 + (a1 - a0) * getSweep();
+      return glowArc(origin[0], origin[1], radius, a0, cur, { color, width: 5, glow: 8 });
+    });
+
+  const gap = (getVec, getQuery = () => QUERY, color = ROLE.gold) =>
+    dynamic(() => {
+      const a = p(getQuery());
+      const b = p(getVec());
+      return group(
+        line(a, b, { stroke: color, width: 4.5, dash: [10, 8] }).glow(7, color),
+        dot(5, color).at(b[0], b[1]),
+      );
+    });
+
+  const drop = (getVec, color) =>
+    dynamic(() => {
+      const [vx, vy] = getVec();
+      const foot = p([vx, 0]);
+      return group(
+        span([vx, vy], [vx, 0], { stroke: color, width: 3.2, dash: [8, 7] }).glow(5, color),
+        glowDot(foot[0], foot[1], { radius: 7, color, glow: 10 }),
+      );
+    });
+
   const unitArc = dynamic(() =>
     arc(scale(), -Math.PI / 2, 0, {
-      stroke: 'dim',
-      width: 3,
-    }).at(...origin),
+      stroke: ROLE.code,
+      width: 3.2,
+      dash: [8, 6],
+    })
+      .at(origin[0], origin[1])
+      .glow(6, ROLE.code)
+      .opacity(0.82),
   );
-  return { grid, vector, angle, gap, drop, unitArc, point: p };
+
+  return { origin, scale, p, span, grid, vector, angle, gap, drop, unitArc };
 }
 
-export function guideArrows(
-  plot,
+/** Standard query + Rotation (A) + Audit (B) arrow trio with safe non-colliding label offsets. */
+export function guideVectors(
+  plane,
   {
     query = () => QUERY,
-    vectors = () => guides.map((g) => g.vector),
-    queryOffset = [0, 35],
-    unitCircle = false,
+    vectors = () => GUIDES.map((g) => g.vector),
+    queryOffset = [22, 42],
+    aOffset = [30, -34],
+    bOffset = [30, -34],
   } = {},
 ) {
-  const auditOffset = unitCircle ? [36, -54] : [27, -27];
   return [
-    plot.vector(query, 'q', 'cyan', queryOffset, unitCircle),
-    ...guides.map((g, i) =>
-      plot.vector(() => vectors()[i], g.id, g.color, i ? auditOffset : [27, -13], unitCircle),
-    ),
-  ].flat();
+    plane.vector(query, 'q', ROLE.query, queryOffset, { width: 5.5, tip: 18 }),
+    plane.vector(() => vectors()[0], 'A', ROLE.A, aOffset, { width: 5.8, tip: 18 }),
+    plane.vector(() => vectors()[1], 'B', ROLE.B, bOffset, { width: 5.8, tip: 18 }),
+  ];
 }

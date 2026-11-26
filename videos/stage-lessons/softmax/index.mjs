@@ -1,5 +1,6 @@
-// The lesson `softmax` as a narrated film. One file for each scene, in the order of lesson.yaml.
-import { narratedLesson } from '../../lib/narrated-lesson.mjs';
+// Full-bleed dark-cinema 21-scene Softmax & Cross-Entropy stage lesson (vizmatic@0.10.0).
+import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
+import { verifySoftmaxInvariants } from './parts.mjs';
 import classNotPosition from './scenes/class-not-position.mjs';
 import earnedTransfer from './scenes/earned-transfer.mjs';
 import entropyReference from './scenes/entropy-reference.mjs';
@@ -11,6 +12,8 @@ import loss from './scenes/loss.mjs';
 import lossInputContract from './scenes/loss-input-contract.mjs';
 import mass from './scenes/mass.mjs';
 import scores from './scenes/scores.mjs';
+import smoothingEquilibrium from './scenes/smoothing-equilibrium.mjs';
+import squaredVsCe from './scenes/squared-vs-ce.mjs';
 import teacherForcing from './scenes/teacher-forcing.mjs';
 import temperature from './scenes/temperature.mjs';
 import temperatureLimits from './scenes/temperature-limits.mjs';
@@ -19,11 +22,11 @@ import transfer from './scenes/transfer.mjs';
 import update from './scenes/update.mjs';
 import vocabularyTiles from './scenes/vocabulary-tiles.mjs';
 import weightedReduction from './scenes/weighted-reduction.mjs';
-import smoothingEquilibrium from './scenes/smoothing-equilibrium.mjs';
-import squaredVsCe from './scenes/squared-vs-ce.mjs';
 
-export default narratedLesson({
+export default cinematicLesson({
   id: 'softmax',
+  accent: COSMOS.emerald,
+  invariants: verifySoftmaxInvariants,
   scenes: {
     intro,
     scores,

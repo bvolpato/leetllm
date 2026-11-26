@@ -1,60 +1,286 @@
-import { codeBlock, column, lanes, place } from 'vizmatic/stage';
-import { label, mono } from '../../kit-narrated.mjs';
-import { BOARD, FOOT, CLAIM_CODE, context } from '../parts.mjs';
+// Scene 3: claim - "Where can a second worker enter?"
+// Signature 3D orbiting atomic lock chamber (`buildLockChamber3d`, `wireframeSlab3d`, `curve3d`)
+// paired with live Python claim spotlight and strict Barrier(2) prediction withholding!
+import { line, rect } from 'vizmatic/stage';
+import {
+  CLAIM_LINES,
+  COSMOS,
+  ROLE,
+  ambientClock,
+  buildLockChamber3d,
+  cinemaAtmosphere,
+  codeSpotlight,
+  glowDot,
+  glowPill,
+  guardedDynamic,
+  hexAlpha,
+  lowerFooter,
+  orbitScene,
+  playCue,
+  sceneHeading,
+  txt,
+} from '../parts.mjs';
 
-export default function scene(s, c) {
-  context(s, c);
-  const [main, readouts] = BOARD.rows([3, 1], 'normal');
-  const [source, workerArea] = main.columns([5, 6], 'wide');
-  const code = place(
-    codeBlock(CLAIM_CODE, { language: 'python', size: 34, leading: 1.4, panel: true }),
-    source,
+export default function claim(s, c) {
+  const title = sceneHeading(['Where can a second', 'worker enter?'], { accent: ROLE.focus });
+
+  const amb = ambientClock(s, c);
+  const lockActive = s.value(0);
+  const activeLines = s.value(0); // 0=none, 1=enter(1,2), 2=insert(4), 3=fetch(6), 4=skip(2,3), 5=verdict(1..4)
+  const seenClaimed = s.value(0);
+  const fetchProg = s.value(0);
+  const bSkipped = s.value(0);
+  const barrierMode = s.value(0);
+  const verdictShown = s.value(0); // STRICTLY AFTER 'claim-verdict'!
+
+  const view3d = buildLockChamber3d(lockActive, { x: 430, y: -115 });
+
+  const layer = guardedDynamic(
+    () => 1,
+    (alpha) => {
+      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
+      const mode = Math.round(activeLines.value);
+      const lineSet =
+        mode === 1
+          ? [1, 2]
+          : mode === 2
+            ? [4]
+            : mode === 3
+              ? [6]
+              : mode === 4
+                ? [2, 3]
+                : mode === 5
+                  ? [1, 2, 3, 4]
+                  : [];
+      const lineCol =
+        mode === 3 ? ROLE.workerA : mode === 4 ? ROLE.workerB : mode === 5 ? ROLE.ok : ROLE.focus;
+
+      const nodes = [
+        // Left: Python atomic claim code spotlight
+        codeSpotlight(CLAIM_LINES, -825, -215, {
+          lineH: 50,
+          size: 27,
+          activeLines: lineSet,
+          activeColor: lineCol,
+          beamW: 660,
+          alpha,
+        }),
+      ];
+
+      if (barrierMode.value < 0.5) {
+        // Right bottom: Clean timeline bars below the orbiting 3D lock chamber
+        const tx0 = 20;
+        const tx1 = 835;
+        const xOf = (u) => tx0 + (tx1 - tx0) * u;
+        const yA = 135;
+        const yB = 225;
+
+        nodes.push(
+          txt('3D ATOMIC LOCK CHAMBER', 430, -325, 26, ROLE.focus, 'mono', 'center').opacity(alpha),
+          txt('A', -28, yA, 28, ROLE.workerA, 'mono', 'center').opacity(alpha),
+          txt('B', -28, yB, 28, ROLE.workerB, 'mono', 'center').opacity(alpha),
+          line([tx0, yA], [tx1, yA], { stroke: '#263455', width: 3 }).opacity(alpha),
+          line([tx0, yB], [bSkipped.value > 0.05 ? xOf(0.64) : tx1, yB], {
+            stroke: '#263455',
+            width: 3,
+          }).opacity(alpha),
+        );
+
+        // A lock bar [0..0.28]
+        if (lockActive.value > 0.1) {
+          const w = Math.max(210, (xOf(0.3) - xOf(0)) * Math.min(1, lockActive.value));
+          nodes.push(
+            rect(w, 44, { radius: 8, fill: COSMOS.bg, stroke: null }).at(tx0 + w / 2, yA),
+            rect(w, 44, {
+              radius: 8,
+              fill: hexAlpha(ROLE.focus, 0.28 * alpha),
+              stroke: ROLE.focus,
+              width: 2.5,
+            })
+              .at(tx0 + w / 2, yA)
+              .glow(8, ROLE.focus),
+            txt('lock + claim', tx0 + w / 2, yA, 26, ROLE.focus, 'mono', 'center').opacity(
+              Math.min(1, lockActive.value) * alpha,
+            ),
+          );
+        }
+
+        // A fetch outside lock [0.34..0.98]
+        if (fetchProg.value > 0.05) {
+          const fx0 = xOf(0.34);
+          const fw = (xOf(0.98) - fx0) * fetchProg.value;
+          nodes.push(
+            rect(fw, 44, { radius: 8, fill: COSMOS.bg, stroke: null }).at(fx0 + fw / 2, yA),
+            rect(fw, 44, {
+              radius: 8,
+              fill: hexAlpha(ROLE.workerA, 0.26 * alpha),
+              stroke: ROLE.workerA,
+              width: 2.5,
+            })
+              .at(fx0 + fw / 2, yA)
+              .glow(7, ROLE.workerA),
+          );
+          if (fw > 340) {
+            nodes.push(
+              txt('fetch outside lock', fx0 + fw / 2, yA, 26, COSMOS.ink, 'mono', 'center').opacity(
+                alpha,
+              ),
+            );
+          }
+        }
+
+        // B lock & skip [0.36..0.60]
+        if (bSkipped.value > 0.1) {
+          const bx0 = xOf(0.36);
+          const bw = Math.max(120, (xOf(0.6) - bx0) * bSkipped.value);
+          nodes.push(
+            rect(bw, 44, { radius: 8, fill: COSMOS.bg, stroke: null }).at(bx0 + bw / 2, yB),
+            rect(bw, 44, {
+              radius: 8,
+              fill: hexAlpha(ROLE.workerB, 0.24 * alpha),
+              stroke: ROLE.workerB,
+              width: 2.4,
+            }).at(bx0 + bw / 2, yB),
+            txt('lock', bx0 + bw / 2, yB, 26, ROLE.workerB, 'mono', 'center').opacity(
+              bSkipped.value * alpha,
+            ),
+            glowPill('skip fetch', xOf(0.82), yB, ROLE.workerB, {
+              size: 26,
+              fixedW: 225,
+              alpha: bSkipped.value * alpha,
+              glow: 8,
+            }),
+          );
+        }
+
+        // Shared set & call log pills on lower-left
+        const seenStr = seenClaimed.value > 0.5 ? 'seen = {"/guide"}' : 'seen = set()';
+        const callStr = fetchProg.value > 0.2 ? 'calls = ["/guide"]' : 'calls = []';
+        nodes.push(
+          glowPill(seenStr, -660, 225, seenClaimed.value > 0.5 ? ROLE.ok : ROLE.focus, {
+            size: 27,
+            fixedW: 365,
+            alpha,
+          }),
+          glowPill(callStr, -270, 225, fetchProg.value > 0.2 ? ROLE.workerA : COSMOS.muted, {
+            size: 27,
+            fixedW: 365,
+            alpha,
+          }),
+          txt(
+            bSkipped.value > 0.5
+              ? 'Lock only guards the set check-and-insert, never the slow network fetch.'
+              : 'Check and insert happen together inside one short lock turn.',
+            0,
+            345,
+            27,
+            bSkipped.value > 0.5 ? ROLE.ok : COSMOS.muted,
+            'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      } else {
+        // Barrier(2) concurrency test on fresh URL /docs (strict verdict withholding!)
+        const ba = barrierMode.value * alpha;
+        const showV = verdictShown.value > 0.5;
+        nodes.push(
+          txt('CONCURRENT BARRIER TEST', 430, -325, 26, ROLE.focus, 'mono', 'center').opacity(ba),
+          glowPill('fresh URL:  /docs', 430, 120, ROLE.workerB, {
+            size: 28,
+            fixedW: 390,
+            alpha: ba,
+          }),
+          glowPill('threading.Barrier(2)', 430, 210, ROLE.focus, {
+            size: 28,
+            fixedW: 430,
+            alpha: ba,
+            glow: 11,
+          }),
+          glowDot(245, 210, {
+            radius: 7 + 3 * pulse,
+            color: ROLE.workerA,
+            glow: 10,
+            opacity: ba,
+          }),
+          glowDot(615, 210, {
+            radius: 7 + 3 * pulse,
+            color: ROLE.workerB,
+            glow: 10,
+            opacity: ba,
+          }),
+          glowPill(
+            showV ? 'sorted(results) == [False, True]' : 'sorted(results) == ?',
+            0,
+            340,
+            showV ? ROLE.ok : ROLE.focus,
+            {
+              size: 30,
+              fixedW: 680,
+              alpha: ba,
+              glow: showV ? 14 : 8,
+            },
+          ),
+        );
+      }
+
+      nodes.push(
+        lowerFooter(
+          'ATOMIC CLAIM UNDER SHORT LOCK',
+          verdictShown.value > 0.5
+            ? 'EXACTLY ONE WINNER: [False, True]'
+            : barrierMode.value > 0.5
+              ? 'EITHER THREAD MAY WIN'
+              : 'FETCH RUNS OUTSIDE LOCK',
+          { accent: verdictShown.value > 0.5 ? ROLE.ok : ROLE.focus, alpha },
+        ),
+      );
+
+      return nodes;
+    },
   );
-  const race = place(
-    lanes(
-      ['A', 'B'],
-      [
-        { lane: 0, start: 0, end: 2, label: 'lock', color: 'yellow' },
-        { lane: 0, start: 2.6, end: 8, label: 'fetch', color: 'blue' },
-        { lane: 1, start: 3, end: 4.8, label: 'lock', color: 'yellow' },
-        { lane: 1, at: 5.3, label: 'skip', labelSide: 'under', color: 'cyan' },
-      ],
-      {
-        domain: [0, 8],
-        width: workerArea.width * 0.78,
-        size: 34,
-        pitch: 145,
-        barHeight: 62,
-        ticks: [],
-        cursor: false,
-        axisLabel: 'one possible schedule',
-      },
-    ),
-    workerArea,
+
+  s.add(cinemaAtmosphere(ROLE.focus, ROLE.workerA), title, view3d, layer);
+  orbitScene(s, c, view3d, { theta: -0.32, phi: 0.96 });
+
+  playCue(
+    s,
+    c,
+    'claim-enter',
+    (d) => s.play(lockActive.to(0.6, { duration: d }), activeLines.to(1, { duration: 0.1 })),
+    { dur: 0.45 },
   );
-  const [stateArea, logArea] = readouts.columns([5, 6], 'wide');
-  const read = (value, area) => place(mono(value, { size: 40 }), area);
-  const empty = read('seen = set()', stateArea);
-  const claimed = read('seen = {"/guide"}', stateArea);
-  const before = read('calls = []', logArea);
-  const one = read('calls = ["/guide"]', logArea);
-  s.add(code, race, empty, before);
-  c.on('claim-enter', () => s.play(race.advance(0.8), code.focus([1, 2], { color: 'yellow' })));
-  c.after('claim-insert', () => s.play(code.focus(4, { color: 'yellow' })));
-  c.swap('claim-insert', empty, claimed, { after: true });
-  c.after('claim-release', () => s.play(race.advance(2.2)));
-  c.on('claim-slow', () =>
-    s.play(race.advance(4.7, { duration: 1 }), code.focus(7, { color: 'blue' })),
+  playCue(
+    s,
+    c,
+    'claim-insert',
+    (d) => s.play(seenClaimed.to(1, { duration: d }), activeLines.to(2, { duration: 0.1 })),
+    { after: true, dur: 0.35 },
   );
-  c.swap('claim-slow', before, one, { after: true });
-  c.after('claim-skip', () => s.play(race.advance(8), code.focus([2, 3], { color: 'cyan' })));
-  const sync = place(
-    column([label('New URL   /docs'), mono('Barrier(2)', { color: 'yellow' })], { gap: 'wide' }),
-    workerArea,
+  playCue(s, c, 'claim-release', (d) => s.play(lockActive.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(
+    s,
+    c,
+    'claim-slow',
+    (d) => s.play(fetchProg.to(1, { duration: d }), activeLines.to(3, { duration: 0.1 })),
+    { after: true, dur: 0.7 },
   );
-  const pending = read('sorted(results) = ?', FOOT);
-  const outcome = read('sorted(results) == [False, True]', FOOT);
-  c.swap('claim-barrier', [race, claimed, one], [sync, pending]);
-  c.swap('claim-verdict', pending, outcome, { after: true });
-  c.after('claim-verdict', () => s.play(code.focus([1, 2, 3, 4], { color: 'green' })));
+  playCue(
+    s,
+    c,
+    'claim-skip',
+    (d) => s.play(bSkipped.to(1, { duration: d }), activeLines.to(4, { duration: 0.1 })),
+    { after: true, dur: 0.55 },
+  );
+  playCue(s, c, 'claim-barrier', (d) => s.play(barrierMode.to(1, { duration: d })), { dur: 0.4 });
+  // Strict withholding: reveal [False, True] ONLY AFTER 'claim-verdict'!
+  playCue(
+    s,
+    c,
+    'claim-verdict',
+    (d) => s.play(verdictShown.to(1, { duration: d }), activeLines.to(5, { duration: 0.1 })),
+    { after: true, dur: 0.35 },
+  );
 }

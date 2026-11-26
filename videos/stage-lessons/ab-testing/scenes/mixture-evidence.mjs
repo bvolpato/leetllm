@@ -1,223 +1,262 @@
+// Scene 13 (mixture-evidence): "Which model expected this outcome?"
+// Single stream mSPRT: 1 success -> 0.5 & 1.5 (avg 1.0) -> 1 failure -> 0.667 & 1.0 (avg 0.833) -> 20-outcome stream (10 S -> peak 28.833 > 20 -> prediction hold -> 10 F -> drops to 0.509, running max stays 28.833, p = 0.0347!).
+import { line } from 'vizmatic/stage';
 import {
-  assertEqual,
-  axes,
-  column,
-  dot,
-  dynamic,
-  line,
-  place,
-  polyline,
-  rect,
-} from 'vizmatic/stage';
-import { area, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { mixtureEvidence } from '../../../films/ab-testing/model.mjs';
+  BAD_COLOR,
+  COSMOS,
+  CTRL_COLOR,
+  GOOD_COLOR,
+  TRT_COLOR,
+  WARN_COLOR,
+  aura,
+  glowDot,
+  glowingTrail,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  makePlot,
+  mixtureEvidence,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
 
-export default function mixture(s, c) {
-  const [context, work, reading, foot] = area.rows([0.9, 3, 1, 1], 'wide');
-  const alternatives = [0.2, 0.6];
-  const nullRate = 0.4;
-  const pair = mixtureEvidence([1, 0], nullRate, alternatives);
-  const scope = place(
-    label('One stream   ·   known null success rate 40%   ·   equal weights'),
-    context,
-  );
-  const slots = work.columns(2, 'wide');
-  const ratios = alternatives.map(() => s.value(1));
-  const readouts = slots.map((slot, i) => {
-    const [name, formula, track, number] = slot.rows([1, 1, 1, 1], 'tight');
-    const q = alternatives[i];
-    const color = i ? 'blue' : 'cyan';
-    const rail = track.inset(72, 0);
-    const x = (ratio) => rail.left + (ratio * rail.width) / 2;
-    const bar = dynamic(() => [
-      line([x(0), rail.cy], [x(ratios[i].value), rail.cy], { stroke: color, width: 18 }),
-      dot(14, color).moveTo([x(ratios[i].value), rail.cy]),
-      place(mono(ratios[i].value.toFixed(3) + '×', { size: 58, color }), number),
-    ]);
-    const multiplier = (step, chance, baseline) =>
-      place(
-        mono(
-          pair[step - 1].ratios[i].toFixed(1) +
-            ' × (' +
-            Math.round(chance * 100) +
-            '% / ' +
-            Math.round(baseline * 100) +
-            '%)',
-          { size: 44 },
-        ),
-        formula,
-      );
-    return {
-      frame: [
-        place(label(Math.round(100 * q) + '% success model', { color }), name),
-        line([x(0), rail.cy], [x(2), rail.cy], { stroke: 'gridStrong', width: 5 }),
-        line([x(1), rail.cy - 25], [x(1), rail.cy + 25], { stroke: 'ink', width: 3 }),
-        bar,
-      ],
-      success: multiplier(1, q, nullRate),
-      failure: multiplier(2, 1 - q, 1 - nullRate),
-    };
-  });
-  const names = [
-    'Likelihood ratios start at one',
-    'Success   ·   the null gave it a 40% chance',
-    'Failure   ·   the null gave it a 60% chance',
-  ].map((txt) => place(label(txt), reading));
-  const mix = (step) =>
-    place(
-      mono('Equal-weight average   ' + pair[step].current.toFixed(3), {
-        size: 48,
-        color: 'yellow',
-      }),
-      foot,
-    );
-  const meanHit = mix(1),
-    meanMiss = mix(2);
-  const expectation = place(
-    mono('0.4 × (q / 0.4) + 0.6 × [(1 − q) / 0.6] = 1', { size: 45 }),
-    foot,
-  );
-  s.add(
-    heading(c.title),
-    scope,
-    readouts.map((r) => r.frame),
-    names[0],
-  );
-  function update(cue, i, step, formula) {
-    c.show(cue, formula);
-    c.on(cue, () => s.play(ratios[i].to(pair[step].ratios[i], { duration: 0.9 })));
-  }
-  c.swap('success', names[0], names[1]);
-  update('first-hit', 0, 1, readouts[0].success);
-  update('second-hit', 1, 1, readouts[1].success);
-  c.show('average', meanHit, { after: true });
-  c.swap('failure', [names[1], meanHit, readouts.map((r) => r.success)], names[2]);
-  update('first-miss', 0, 2, readouts[0].failure);
-  update('second-miss', 1, 2, readouts[1].failure);
-  c.show('second-average', meanMiss, { after: true });
-  c.swap('expected', meanMiss, expectation);
+const ROWS = mixtureEvidence(); // n = 0..20
 
-  const data = mixtureEvidence();
-  const threshold = 1 / 0.05;
-  const look = s.value(0);
-  const prefix = () => Math.round(look.value);
-  const axis = place(
-    axes({
-      x: [0, 21],
-      y: [0, 32],
-      width: work.width * 0.73,
-      height: work.height * 0.95,
-      labels: false,
-      tips: false,
-    }),
-    work,
-  );
-  const cutoff = [
-    line(axis.world(0, threshold), axis.world(20.5, threshold), {
-      stroke: 'yellow',
-      width: 4,
-      dash: [10, 9],
-    }),
-    note('Threshold 20', { color: 'yellow' }).moveTo([
-      axis.world(0, threshold)[0] - 104,
-      axis.world(0, threshold)[1],
-    ]),
-    place(note('Likelihood ratio'), work, 'top left'),
-  ];
-  const plots = dynamic(() => {
-    const rows = data.slice(0, prefix() + 1);
-    const series = (k) => rows.map((r) => axis.world(r.n, r[k]));
-    const current = series('current'),
-      maximum = series('maximum');
-    return [
-      ...(rows.length > 1
-        ? [
-            polyline(current, { stroke: 'cyan', width: 6 }),
-            polyline(maximum, { stroke: 'ink', width: 3, dash: [9, 8] }),
-          ]
-        : []),
-      dot(12, 'cyan').moveTo(current.at(-1)),
-    ];
+export default function mixtureEvidenceScene(s, c) {
+  const phase = s.value(0);
+  const step1 = s.value(0); // 0 -> 1 (first success), 2 (then failure)
+  const hitA = s.value(0);
+  const hitB = s.value(0);
+  const showAvg = s.value(0);
+  const showExp = s.value(0);
+  const toStream = s.value(0);
+  const streamN = s.value(0); // 0 -> 10 -> 20
+  const showAsk = s.value(0);
+  const showAnytime = s.value(0);
+  const showTwoArms = s.value(0);
+
+  const bgAura = aura(0, 20, 620, '#133a4a30', '#261b4f20');
+  const title = heroTitle(['Always-Valid Inference:', 'Mixture Martingale & Running Max'], {
+    x: -855,
+    y: -430,
+    size: 50,
+    lineHeight: 58,
+    accent: CTRL_COLOR,
+    eyebrow: 'mSPRT · VILLE’S INEQUALITY (1/α = 20)',
   });
-  const [streamName, streamPlot] = context.columns([1, 3], 'normal');
-  const outcomes = place(note('Observed outcomes'), streamName);
-  const cells = streamPlot.columns(20, 'tight');
-  const stream = dynamic(() =>
-    cells.map((slot, i) =>
-      place(
-        rect(33, 33, {
-          fill: i >= prefix() ? 'surface' : i < 10 ? 'green' : 'red',
-          stroke: i >= prefix() ? 'dim' : i < 10 ? 'green' : 'red',
-          width: 2,
+
+  const live = guardedDynamic(s.value(1), () => {
+    const nodes = [];
+
+    // Part 1: 2-step hand calculation (Model 20% vs Model 60% against Null 40%)
+    const p1Op = Math.max(0, 1 - toStream.value * 2.6);
+    if (p1Op > 0.02) {
+      const s1 = step1.value;
+      const r20 = s1 < 0.5 ? 1.0 : s1 < 1.5 ? 0.5 : 2 / 3;
+      const r60 = s1 < 0.5 ? 1.0 : s1 < 1.5 ? 1.5 : 1.0;
+      const avg = (r20 + r60) / 2;
+
+      nodes.push(
+        txt(
+          'NULL = 40% SUCCESS   ·   EQUAL WEIGHTS ON 20% AND 60% MODELS',
+          -855,
+          -245,
+          26,
+          CTRL_COLOR,
+          'mono',
+          'left',
+        ).opacity(p1Op),
+        lumBar(-430, -100, 810, 130, {
+          color: CTRL_COLOR,
+          fillOpacity: 0.16,
+          glow: 7,
+          opacity: p1Op,
         }),
-        slot,
-      ),
-    ),
-  );
-  const tally = dynamic(() => {
-    const r = data[prefix()];
-    return place(
-      mono(
-        'n = ' +
-          r.n +
-          '     Current ' +
-          r.current.toFixed(3) +
-          '     Maximum ' +
-          r.maximum.toFixed(3),
-        { size: 45 },
-      ),
-      reading,
-    );
+        txt('Model A (20% alt)', -805, -130, 28, CTRL_COLOR, 'mono', 'left').opacity(p1Op),
+        txt(`Likelihood ratio = ${r20.toFixed(3)}`, -805, -75, 36, CTRL_COLOR, 'mono', 'left')
+          .glow(7, CTRL_COLOR)
+          .opacity(p1Op),
+
+        lumBar(445, -100, 800, 130, {
+          color: TRT_COLOR,
+          fillOpacity: 0.16,
+          glow: 7,
+          opacity: p1Op,
+        }),
+        txt('Model B (60% alt)', 75, -130, 28, TRT_COLOR, 'mono', 'left').opacity(p1Op),
+        txt(`Likelihood ratio = ${r60.toFixed(3)}`, 75, -75, 36, TRT_COLOR, 'mono', 'left')
+          .glow(7, TRT_COLOR)
+          .opacity(p1Op),
+
+        lumBar(0, 105, 1690, 124, { color: WARN_COLOR, fillOpacity: 0.16, glow: 8, opacity: p1Op }),
+        txt(
+          `MIXTURE AVERAGE Λ = (${r20.toFixed(3)} + ${r60.toFixed(3)}) / 2 = ${avg.toFixed(3)}`,
+          0,
+          82,
+          36,
+          WARN_COLOR,
+          'mono',
+        )
+          .glow(8, WARN_COLOR)
+          .opacity(p1Op),
+        txt(
+          'Under the null, E[next Λ | history] = current Λ (nonnegative martingale)',
+          0,
+          135,
+          26,
+          COSMOS.muted,
+          'sans',
+        ).opacity(p1Op),
+      );
+    }
+
+    // Part 2: 20-outcome stream (10 successes -> peak 28.833 -> 10 failures -> drops to 0.509 while max stays 28.833!)
+    const p2Op = Math.max(0, (toStream.value - 0.45) / 0.55);
+    if (p2Op > 0.02) {
+      const plot = makePlot(-820, -230, 1140, 440, { x: [0, 20], y: [0, 32] });
+      const nCur = Math.max(0, Math.min(20, Math.round(streamN.value)));
+      const curPts = [];
+      const maxPts = [];
+      for (let i = 0; i <= nCur; i++) {
+        curPts.push(plot.pt([ROWS[i].n, ROWS[i].current]));
+        maxPts.push(plot.pt([ROWS[i].n, ROWS[i].maximum]));
+      }
+
+      nodes.push(
+        ...plot.axesNodes(0.85),
+        txt(
+          '20-OUTCOME STREAM (10 SUCCESSES THEN 10 FAILURES)',
+          -820,
+          -265,
+          26,
+          CTRL_COLOR,
+          'mono',
+          'left',
+        ).opacity(p2Op),
+        // Stopping line 1/alpha = 20
+        line(plot.pt([0, 20]), plot.pt([20, 20]), {
+          stroke: WARN_COLOR,
+          width: 3.5,
+          dash: [9, 6],
+        })
+          .glow(7, WARN_COLOR)
+          .opacity(p2Op),
+        txt(
+          '1 / α = 20',
+          plot.left + 18,
+          plot.yPx(20) - 24,
+          26,
+          WARN_COLOR,
+          'mono',
+          'left',
+        ).opacity(p2Op),
+        ...[0, 5, 10, 15, 20].map((k) =>
+          txt(
+            `n=${k}`,
+            plot.xPx(k),
+            plot.bottom + 36,
+            26,
+            k === 10 ? GOOD_COLOR : COSMOS.muted,
+            'mono',
+          ).opacity(p2Op),
+        ),
+      );
+
+      if (maxPts.length >= 2) {
+        nodes.push(
+          glowingTrail(maxPts, { color: WARN_COLOR, width: 4.5, glow: 10, opacity: p2Op }),
+        );
+      }
+      if (curPts.length >= 2) {
+        nodes.push(
+          glowingTrail(curPts, {
+            gradientColors: [CTRL_COLOR, GOOD_COLOR, BAD_COLOR],
+            width: 4.2,
+            glow: 9,
+            opacity: p2Op,
+          }),
+        );
+      }
+      if (curPts.length >= 1) {
+        const last = ROWS[nCur];
+        const ptC = curPts[curPts.length - 1];
+        nodes.push(
+          glowDot(ptC[0], ptC[1], { radius: 9, color: COSMOS.ink, glow: 12, opacity: p2Op }),
+          txt(
+            `Current Λ = ${last.current.toFixed(3)}`,
+            390,
+            -145,
+            30,
+            CTRL_COLOR,
+            'mono',
+            'left',
+          ).opacity(p2Op),
+          txt(`Running max = ${last.maximum.toFixed(3)}`, 390, -75, 30, WARN_COLOR, 'mono', 'left')
+            .glow(7, WARN_COLOR)
+            .opacity(p2Op),
+          txt(`Anytime p = ${last.p.toFixed(4)}`, 390, -5, 30, GOOD_COLOR, 'mono', 'left')
+            .glow(7, GOOD_COLOR)
+            .opacity(Math.max(0.25, showAnytime.value) * p2Op),
+        );
+      }
+
+      // Strict prediction withholding before failures deal
+      const askOp = showAsk.value * Math.max(0, 1 - showAnytime.value * 2.6) * p2Op;
+      if (askOp > 0.02) {
+        nodes.push(
+          txt(
+            'Ten failures arrive next and pull Λ down. What happens to the running maximum?',
+            -855,
+            345,
+            30,
+            WARN_COLOR,
+            'serif',
+            'left',
+          )
+            .glow(7, WARN_COLOR)
+            .opacity(askOp),
+        );
+      }
+      const anyOp = Math.max(0, (showAnytime.value - 0.45) / 0.55) * p2Op;
+      if (anyOp > 0.02) {
+        nodes.push(
+          txt(
+            showTwoArms.value > 0.5
+              ? 'Two-arm tests leave the shared null rate unknown: use a derived two-arm mSPRT!'
+              : 'Current Λ drops to 0.509, yet running max STAYS at 28.833 (anytime p = 0.0347)!',
+            -855,
+            345,
+            28,
+            showTwoArms.value > 0.5 ? COSMOS.cyan : GOOD_COLOR,
+            'mono',
+            'left',
+          )
+            .glow(6, showTwoArms.value > 0.5 ? COSMOS.cyan : GOOD_COLOR)
+            .opacity(anyOp),
+        );
+      }
+    }
+
+    return nodes;
   });
-  const ask = place(
-    label('If the ratio falls, what happens to the running maximum?', { color: 'yellow' }),
-    foot,
-  );
-  const p = place(
-    mono('Anytime p = min(1, 1 / ' + data[10].maximum.toFixed(3) + ') ≈ ' + data[20].p.toFixed(4), {
-      size: 46,
-      color: 'yellow',
-    }),
-    foot,
-  );
-  assertEqual(data[10].current.toFixed(3), '28.833', 'mixture at ten successes');
-  assertEqual(data[20].current.toFixed(3), '0.509', 'mixture at twenty outcomes');
-  assertEqual(data[10].maximum, data[20].maximum, 'running maximum after ten failures');
-  c.swapAll('restart', [
-    heading('How much evidence has this stream reached?'),
-    outcomes,
-    stream,
-    axis,
-    cutoff,
-    plots,
-    tally,
-  ]);
-  c.on('ten', () => s.play(look.to(10, { duration: 2 })));
-  c.show('ask', ask);
-  c.on('failures', () => s.play(look.to(20, { duration: 2 })));
-  c.swap('anytime', ask, p, { after: true });
-  const [known, unknown] = work.columns(2, 'loose');
-  const knownRate = place(
-    column(
-      [
-        label('One stream'),
-        mono('p₀ = 0.40', { size: 60, color: 'cyan' }),
-        note('Probability of each outcome is specified'),
-      ],
-      { gap: 'normal' },
-    ),
-    known,
-  );
-  const unknownRate = place(
-    column(
-      [
-        label('Two-arm experiment'),
-        mono('pC = pT = ?', { size: 60, color: 'yellow' }),
-        note('Equality leaves the shared rate unknown'),
-      ],
-      { gap: 'normal' },
-    ),
-    unknown,
-  );
-  c.swapAll('two-arms', [heading('Which null does the test cover?'), knownRate, unknownRate]);
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  tweenCue(s, c, 'success', step1, 1, { duration: 0.45 });
+  tweenCue(s, c, 'first-hit', hitA, 1, { duration: 0.35 });
+  tweenCue(s, c, 'second-hit', hitB, 1, { duration: 0.35 });
+  tweenCue(s, c, 'average', showAvg, 1, { duration: 0.35 });
+  tweenCue(s, c, 'failure', step1, 2, { duration: 0.45 });
+  tweenCue(s, c, 'first-miss', hitA, 0.5, { duration: 0.35 });
+  tweenCue(s, c, 'second-miss', hitB, 0.5, { duration: 0.35 });
+  tweenCue(s, c, 'second-average', showAvg, 0.6, { duration: 0.35 });
+  tweenCue(s, c, 'expected', showExp, 1, { duration: 0.4 });
+  tweenCue(s, c, 'restart', toStream, 1, { duration: 0.55 });
+  tweenCue(s, c, 'ten', streamN, 10, { duration: 0.9 });
+  tweenCue(s, c, 'ask', showAsk, 1, { duration: 0.45 });
+  tweenCue(s, c, 'failures', streamN, 20, { duration: 1.0, after: true });
+  tweenCue(s, c, 'anytime', showAnytime, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'two-arms', showTwoArms, 1, { duration: 0.45 });
 }

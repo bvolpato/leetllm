@@ -1,113 +1,278 @@
-import { group, indicate, line, linear, moveTo, place, polygon, polyline } from 'vizmatic/stage';
-import { chip, heading, label } from '../../kit-narrated.mjs';
-import { carryIdentity, CORPUS, evidenceFrame } from '../parts.mjs';
+// Scene 01 (subject-intro): "Where did 30 days come from?"
+// Luminous citation beam firing from Assistant Draft through [E1] photon into Cited Policy,
+// revealing the browser-session clock vs service-key clock mismatch with strict prediction withholding.
+import { dynamic, group, line } from 'vizmatic/stage';
+import {
+  CORPUS,
+  COSMOS,
+  ROLE,
+  callerTag,
+  cinemaAtmosphere,
+  glowDot,
+  glowRing,
+  glowingTrail,
+  heroTitle,
+  lumBar,
+  playCue,
+  runPhase,
+  statusPill,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
 
 export default function subjectIntro(s, c) {
-  const f = evidenceFrame(c, { page: false });
-  const [reply, link, page] = f.body.columns([5, 2, 5], 'normal');
   const session = CORPUS.find((record) => record.id === 'eu-session-v1');
   const [subject, clock] = session.text.split(' expire after ');
   const [duration, condition] = clock.split(' of ');
-  const y = reply.cy;
-  const top = y - 238,
-    bottom = y + 238;
-  const bubble = polygon(
-    [
-      [reply.left, top],
-      [reply.right, top],
-      [reply.right, bottom],
-      [reply.left + 120, bottom],
-      [reply.left + 58, bottom + 45],
-      [reply.left + 58, bottom],
-      [reply.left, bottom],
-    ],
-    { fill: 'surface', stroke: 'blue', width: 4 },
-  );
-  const replyTitle = label('Assistant draft', { size: 38, color: 'blue' }).moveTo([
-    reply.cx,
-    top + 72,
-  ]);
-  const amount = label(duration, { size: 122 }).moveTo([reply.cx, y - 25]);
-  const purpose = label('to rotate a stale key automatically', { size: 40 }).moveTo([
-    reply.cx,
-    y + 112,
-  ]);
 
-  const fold = 65;
-  const paper = polygon(
-    [
-      [page.left, top],
-      [page.right - fold, top],
-      [page.right, top + fold],
-      [page.right, bottom],
-      [page.left, bottom],
-    ],
-    { fill: 'surface', stroke: 'cyan', width: 4 },
-  );
-  const corner = polyline(
-    [
-      [page.right - fold, top],
-      [page.right - fold, top + fold],
-      [page.right, top + fold],
-    ],
-    { stroke: 'cyan', width: 4 },
-  );
-  const pageTitle = label('Cited policy', { size: 38, color: 'cyan' }).moveTo([page.cx, top + 72]);
-  const unread = group(
-    ...[0.78, 0.93, 0.6].map((fraction, i) =>
-      line(
-        [page.left + 66, y - 47 + i * 69],
-        [page.left + (page.width - 40) * fraction, y - 47 + i * 69],
-        { stroke: 'dim', width: 8 },
-      ),
-    ),
-  );
-  const sourceSubject = label(subject, { size: 52 }).moveTo([page.cx, y - 58]);
-  const verb = label('expire after', { size: 37 }).moveTo([page.cx, y + 5]);
-  const sourceAmount = label(duration, { size: 72 }).moveTo([page.cx, y + 85]);
-  const sourceCondition = label('of ' + condition, { size: 39 }).moveTo([page.cx, y + 164]);
-  const excerpt = [sourceSubject, verb, sourceAmount, sourceCondition];
+  const phase = s.value(0);
+  const beamPos = s.value(0); // 0 -> 1 photon travel across citation rail
+  const showExcerpt = s.value(0); // 0 -> 1 reveals cited sentence after `open`
+  const highlightNum = s.value(0); // highlights "30 days" on both sides
+  const highlightSession = s.value(0); // highlights "Idle browser sessions"
+  const highlightKey = s.value(0); // highlights "rotate a stale key"
+  const showCaller = s.value(0); // shows Luna identity on `retrieve`
+  // Footer mode: 0 = inspect citation, 1 = question, 2 = hold draft, 3 = search EU key policy
+  const footMode = s.value(0);
 
-  const rail = line([reply.right, y], [page.left, y], { stroke: 'cyan', width: 4 });
-  const citation = place(chip('[E1]', { size: 42, color: 'cyan' }), link, 'left');
-  const opening = [
-    heading(c.title),
-    bubble,
-    replyTitle,
-    amount,
-    purpose,
-    rail,
-    paper,
-    corner,
-    pageTitle,
-    unread,
-    citation,
-  ];
-  s.add(opening);
-  for (const node of opening) node.opacity(1);
-  s.play(moveTo(citation, [page.left - citation.bounds().width / 2, y]), {
-    duration: c.cue('open').end - c.window.from,
-    ease: linear,
+  const title = heroTitle(['Where Did "30 Days"', 'Come From?'], {
+    x: -855,
+    y: -440,
+    size: 54,
+    lineHeight: 64,
+    accent: ROLE.policy,
+    eyebrow: 'PRODUCTION RETRIEVAL · CITATION AUDIT',
   });
-  c.swap('open', unread, excerpt, { after: true, lead: 0 });
-  c.on('shared-number', () =>
-    s.play(indicate([amount, sourceAmount], { color: 'yellow', scale: 1 })),
+
+  const live = dynamic(() => {
+    const p = phase.value;
+    const pulse = 0.78 + 0.22 * Math.sin(p * 3.0);
+    const bp = Math.max(0, Math.min(1, beamPos.value));
+    const ex = showExcerpt.value;
+    const hn = highlightNum.value;
+    const hs = highlightSession.value;
+    const hk = highlightKey.value;
+    const sc = showCaller.value;
+    const fm = Math.round(footMode.value);
+
+    const leftCx = -515;
+    const rightCx = 515;
+    const midY = 30;
+
+    const nodes = [];
+
+    if (sc > 0.02) {
+      nodes.push(callerTag(sc));
+    }
+
+    // Subtle glowing left & right holographic frames (open floating cinema feel, zero heavy card)
+    nodes.push(
+      lumBar(leftCx, midY, 640, 420, {
+        color: hk > 0.3 ? ROLE.request : ROLE.request,
+        fillAlpha: 0.08 + hk * 0.08,
+        strokeWidth: 2.2 + hk * 1.4,
+        glow: 8 + hk * 6,
+        radius: 16,
+      }),
+      txt('ASSISTANT DRAFT REPLY', leftCx, midY - 165, 26, ROLE.request, 'mono', 'center'),
+      txt(
+        duration,
+        leftCx,
+        midY - 40,
+        108,
+        hn > 0.3 ? ROLE.focus : COSMOS.ink,
+        'serif',
+        'center',
+      ).glow(hn > 0.3 ? 14 * pulse : 5, hn > 0.3 ? ROLE.focus : ROLE.request),
+      txt(
+        'to rotate a stale service key',
+        leftCx,
+        midY + 86,
+        36,
+        hk > 0.3 ? ROLE.request : COSMOS.ink,
+        'sans',
+        'center',
+      ).glow(hk > 0.3 ? 10 : 0, ROLE.request),
+      txt('automatically · cites [E1]', leftCx, midY + 144, 28, COSMOS.muted, 'mono', 'center'),
+    );
+
+    // Right holographic frame: Cited Policy [E1]
+    nodes.push(
+      lumBar(rightCx, midY, 640, 420, {
+        color: hs > 0.3 ? ROLE.session : ROLE.policy,
+        fillAlpha: 0.08 + hs * 0.08,
+        strokeWidth: 2.2 + hs * 1.4,
+        glow: 8 + hs * 6,
+        radius: 16,
+      }),
+      txt(
+        'CITED POLICY PAGE  [E1]',
+        rightCx,
+        midY - 165,
+        26,
+        hs > 0.3 ? ROLE.session : ROLE.policy,
+        'mono',
+        'center',
+      ),
+    );
+
+    // Unread shimmer lines before citation arrives (non-overlapping fade with excerpt)
+    const unreadOp = Math.max(0, 1 - ex * 2.6);
+    if (unreadOp > 0.02) {
+      [0.72, 0.88, 0.56].forEach((frac, i) => {
+        const ly = midY - 55 + i * 64;
+        nodes.push(
+          line([rightCx - 245, ly], [rightCx - 245 + 490 * frac, ly], {
+            stroke: '#3c4e74',
+            width: 8,
+          }).opacity(unreadOp),
+        );
+      });
+      nodes.push(
+        txt(
+          'following citation link...',
+          rightCx,
+          midY + 145,
+          26,
+          COSMOS.dim,
+          'mono',
+          'center',
+        ).opacity(unreadOp),
+      );
+    }
+
+    // Excerpt revealed after `open`
+    const exOp = Math.max(0, (ex - 0.45) / 0.55);
+    if (exOp > 0.02) {
+      nodes.push(
+        txt(
+          subject,
+          rightCx,
+          midY - 68,
+          44,
+          hs > 0.3 ? ROLE.session : COSMOS.ink,
+          'serif',
+          'center',
+        )
+          .glow(hs > 0.3 ? 12 * pulse : 0, ROLE.session)
+          .opacity(exOp),
+        txt('expire after', rightCx, midY - 4, 32, COSMOS.muted, 'sans', 'center').opacity(exOp),
+        txt(duration, rightCx, midY + 66, 68, hn > 0.3 ? ROLE.focus : COSMOS.ink, 'serif', 'center')
+          .glow(hn > 0.3 ? 14 * pulse : 4, hn > 0.3 ? ROLE.focus : ROLE.policy)
+          .opacity(exOp),
+        txt('of ' + condition, rightCx, midY + 146, 32, COSMOS.muted, 'sans', 'center').opacity(
+          exOp,
+        ),
+      );
+    }
+
+    // Luminous citation beam rail connecting Draft -> Policy (split cleanly around [E1] ring)
+    const railL = leftCx + 320;
+    const railR = rightCx - 320;
+    const ringR = 54;
+    const photonX = -115 + 230 * bp;
+    if (photonX - ringR - 6 > railL) {
+      nodes.push(
+        glowingTrail(
+          [
+            [railL, midY],
+            [photonX - ringR - 6, midY],
+          ],
+          { color: ROLE.policy, width: 3.4, glow: 8, opacity: 0.75, core: true },
+        ),
+      );
+    }
+    if (photonX + ringR + 6 < railR) {
+      nodes.push(
+        glowingTrail(
+          [
+            [photonX + ringR + 6, midY],
+            [railR, midY],
+          ],
+          { color: ROLE.policy, width: 3.4, glow: 8, opacity: 0.75, core: true },
+        ),
+      );
+    }
+    nodes.push(
+      glowRing(photonX, midY, ringR, ROLE.policy, {
+        width: 2.8,
+        glow: 10 * pulse,
+        fillAlpha: 0.14,
+      }),
+      txt('[E1]', photonX, midY, 30, ROLE.policy, 'mono', 'center').glow(6, ROLE.policy),
+    );
+
+    // Contrasting clock-mismatch orbital indicators below frames once revealed
+    if (hs > 0.02) {
+      nodes.push(
+        statusPill('CLOCK: BROWSER SESSION', rightCx, midY + 258, {
+          color: ROLE.session,
+          width: 410,
+          height: 48,
+          opacity: hs,
+        }),
+      );
+    }
+    if (hk > 0.02) {
+      nodes.push(
+        statusPill('ASKED: SERVICE KEY', leftCx, midY + 258, {
+          color: ROLE.request,
+          width: 370,
+          height: 48,
+          opacity: hk,
+        }),
+      );
+    }
+
+    // Discrete bottom caption (zero overlap across cues)
+    const footMap = [
+      { text: 'Trace the citation before trusting the number.', color: COSMOS.muted, font: 'sans' },
+      { text: 'What expires after 30 days?', color: ROLE.focus, font: 'serif' },
+      {
+        text: 'Browser session clock',
+        color: ROLE.session,
+        font: 'mono',
+      },
+      {
+        text: 'Hold the draft  ·  wrong clock for a service key',
+        color: ROLE.danger,
+        font: 'mono',
+      },
+      { text: 'Search for the current EU key policy (RAG)', color: ROLE.policy, font: 'mono' },
+    ];
+    const foot = footMap[Math.max(0, Math.min(footMap.length - 1, fm))];
+    nodes.push(
+      txt(foot.text, 0, 425, 38, foot.color, foot.font, 'center').glow(fm > 0 ? 8 : 0, foot.color),
+    );
+
+    return group(...nodes);
+  });
+
+  s.add(cinemaAtmosphere(ROLE.request, ROLE.policy), title, live);
+  runPhase(s, c, phase, 14);
+
+  // Cue choreography (strict prediction withholding on `which-clock` -> `session-clock` / `hold-reply`)
+  playCue(s, c, 'open', (d) => s.play(beamPos.to(1, { duration: d })), { dur: 1.1 });
+  tweenCue(s, c, 'open', showExcerpt, 1, { after: true, dur: 0.55 });
+  tweenCue(s, c, 'shared-number', highlightNum, 1, { dur: 0.45 });
+  playCue(s, c, 'which-clock', () => s.play(footMode.to(1, { duration: 0.05 })), { dur: 0.1 });
+  playCue(
+    s,
+    c,
+    'session-clock',
+    (d) => s.play(highlightSession.to(1, { duration: d }), footMode.to(2, { duration: 0.001 })),
+    { dur: 0.45 },
   );
-  const question = place(
-    label('What expires after 30 days?', { size: 49, color: 'yellow' }),
-    f.foot,
+  playCue(s, c, 'hold-reply', () => s.play(footMode.to(3, { duration: 0.001 })), {
+    after: true,
+    dur: 0.1,
+  });
+  tweenCue(s, c, 'key-clock', highlightKey, 1, { dur: 0.45 });
+  playCue(
+    s,
+    c,
+    'retrieve',
+    (d) => s.play(footMode.to(4, { duration: 0.001 }), showCaller.to(1, { duration: d })),
+    { dur: 0.5 },
   );
-  c.show('which-clock', question);
-  c.on('session-clock', () => s.play(indicate(sourceSubject, { color: 'pink', scale: 1 })));
-  const hold = place(label('Hold the draft', { size: 49, color: 'yellow' }), f.foot);
-  c.swap('hold-reply', question, hold, { after: true, lead: 0 });
-  c.on('key-clock', () => s.play(indicate(purpose, { color: 'blue', scale: 1 })));
-  const search = place(
-    label('Search for the current EU key policy', { size: 49, color: 'cyan' }),
-    f.foot,
-  );
-  c.swap('retrieve', hold, search);
-  c.show('retrieve', f.identity);
-  c.clear([rail], 0.8, 0.2);
-  carryIdentity(c, f);
 }

@@ -50,7 +50,7 @@ Treating that timeout as proof that nothing ran queues a duplicate revert on top
 
 ## Gate actions by blast radius and undo cost
 
-Treat every model <span data-glossary="tool-calling">tool call</span> as an untrusted proposal: JSON schema validation checks syntax only, never caller authorization or whether a read-only question (*"What happened to deploy-412?"*) permits a production write.[^openai2023ReproducibleOutputs][^owaspExcessiveAgency2025] Sort tool calls in host code outside the prompt along **blast radius** and **undo cost**:
+Treat every model <span data-glossary="tool-calling">tool call</span> as an untrusted proposal: JSON schema validation checks syntax only, never caller authorization or whether a read-only question (*"What happened to deploy-412?"*) permits a production write.[^openai_structured_outputs][^owaspExcessiveAgency2025] Sort tool calls in host code outside the prompt along **blast radius** and **undo cost**:
 
 | Risk tier | Action class | Examples | Runtime behavior |
 |---|---|---|---|
@@ -441,6 +441,8 @@ class CircuitBreaker:
             raise
         async with self.lock:
             if gen == self.generation:
+                if is_probe:
+                    self.generation += 1
                 self.state, self.failures, self.probe_in_flight = "closed", 0, False
         return res
 
@@ -484,7 +486,7 @@ post-cancel recovery probe: closed
 
 <figure>
   <img src="illustrations/_generated/breaker_concurrent_state_dark.png" alt="State diagram for a generation-scoped circuit breaker. Calls start in Closed generation 4 while dependency failures trip Open generation 5. A delayed completion from generation 4 returns to its caller without resetting the newer Open state. After cooldown, a single half-open probe restores traffic to Closed generation 6." />
-  <figcaption>Incrementing a generation counter whenever the circuit opens lets delayed responses return to their callers without closing an active outage.</figcaption>
+  <figcaption>Incrementing a generation counter on state transitions (opening or recovering) lets delayed responses return to their callers without closing an active outage.</figcaption>
 </figure>
 
 > **Key insight:** A stale success can still be valid data for the caller that waited on it, without being valid evidence that the downstream service is healthy right now.
@@ -536,59 +538,59 @@ Finally, never collapse degraded fallbacks and human handoffs into a single "suc
 ```mastery-quiz
 [
   {
-    "question": "A release agent pauses for human approval on a 25% canary shift at cluster revision 41. Forty minutes later an engineer approves it, after an emergency patch already moved the cluster to revision 42. What must durable checkpoint-and-resume do?",
+    "question": "A release agent pauses for human approval on a 15% canary shift at cluster revision 83. Forty minutes later an engineer approves it, after an emergency patch already moved the cluster to revision 84. What must durable checkpoint-and-resume do?",
     "options": [
-      "Execute immediately because the approval grant has not expired.",
-      "Verify the canonical digest and compare-and-swap against live revision 41, rejecting dispatch on revision drift.",
-      "Re-run the pre-interrupt node to fetch revision 42 and reuse the old approval.",
-      "Downgrade the action to read-only and report completion."
+      "Dispatch the canary shift right away because the human approval grant has not expired yet.",
+      "Reject dispatch on revision drift after checking the canonical digest against live revision 83.",
+      "Re-run the pre-interrupt node to read revision 84 and apply the existing approval grant to it.",
+      "Convert the approved canary shift into a read-only status lookup and mark the workflow complete."
     ],
-    "answer": "Verify the canonical digest and compare-and-swap against live revision 41, rejecting dispatch on revision drift.",
-    "explanation": "Checkpoints survive restarts, not external drift. Verify expiry, canonical digest, and live revision before mutating production."
+    "answer": "Reject dispatch on revision drift after checking the canonical digest against live revision 83.",
+    "explanation": "Checkpoints survive worker restarts, not external cluster drift. Before mutating production, host code checks expiry, canonical payload digest, and live target revision via compare-and-swap."
   },
   {
     "question": "A controller commits a queued revert job, then the TCP link drops before confirmation arrives. Which retry preserves idempotency?",
     "options": [
-      "Mint a new operation key with the same payload and a new trace ID.",
-      "Reuse the original logical operation key with the unchanged payload and a new transport trace ID.",
-      "Reuse the original logical operation key with an updated revision.",
-      "Wait 5 seconds and assume the job completed."
+      "Mint a new logical operation key, send the unchanged payload, and keep the old trace ID.",
+      "Reuse the original logical operation key, send the unchanged payload, and rotate the trace ID.",
+      "Reuse the original logical operation key, bump the target revision, and rotate the trace ID.",
+      "Pause five seconds without calling the controller again and record the revert as completed."
     ],
-    "answer": "Reuse the original logical operation key with the unchanged payload and a new transport trace ID.",
-    "explanation": "Replaying the same operation key with identical arguments returns the existing job without duplicating work, while rotating transport trace IDs."
+    "answer": "Reuse the original logical operation key, send the unchanged payload, and rotate the trace ID.",
+    "explanation": "Replaying the original operation key with identical arguments returns the existing job without duplicating work, while each network attempt receives a fresh transport trace ID."
   },
   {
     "question": "A read fails with 1.3s left before deadline. Retry-After is 1.1s plus 0.4s of jitter. What should happen?",
     "options": [
-      "Sleep 1.1s because the server floor fits inside 1.3s.",
-      "Sleep 0.4s because jitter fits inside 1.3s.",
-      "Compute 1.5s and abort immediately because the combined wait exceeds 1.3s.",
-      "Clamp the sleep to 1.3s and retry at the deadline."
+      "Sleep 1.1s and retry once because the server floor fits inside 1.3s.",
+      "Sleep 0.4s and retry once because the jitter term fits inside 1.3s.",
+      "Abort without sleeping because the 1.5s combined wait exceeds 1.3s.",
+      "Clamp the sleep to 1.3s and issue the final retry right at deadline."
     ],
-    "answer": "Compute 1.5s and abort immediately because the combined wait exceeds 1.3s.",
-    "explanation": "Add jitter above Retry-After (1.1 + 0.4 = 1.5s) to prevent thundering herds, then abort without sleeping when the total wait exceeds the remaining deadline."
+    "answer": "Abort without sleeping because the 1.5s combined wait exceeds 1.3s.",
+    "explanation": "Add jitter on top of Retry-After (1.1 + 0.4 = 1.5s) to prevent thundering herds, then abort immediately without sleeping when the combined wait exceeds the remaining deadline."
   },
   {
-    "question": "Call A starts in closed circuit generation 4. Another request fails and opens generation 5 before Call A returns a valid result. What should the breaker do?",
+    "question": "Call A starts in closed circuit generation 11. Another request fails and opens generation 12 before Call A returns a valid result. What should the breaker do?",
     "options": [
-      "Return Call A's result and close the circuit.",
-      "Return Call A's result while keeping the circuit open in generation 5.",
-      "Discard Call A's result and keep the circuit open.",
-      "Discard Call A's result and move to half-open."
+      "Return Call A's valid result to its caller and close generation 12.",
+      "Return Call A's valid result to its caller while keeping generation 12 open.",
+      "Discard Call A's valid result from its caller while keeping generation 12 open.",
+      "Discard Call A's valid result from its caller and shift generation 12 to half-open."
     ],
-    "answer": "Return Call A's result while keeping the circuit open in generation 5.",
-    "explanation": "Call A's data is still valid for its caller, yet it belongs to generation 4 and cannot clear newer outage evidence in generation 5."
+    "answer": "Return Call A's valid result to its caller while keeping generation 12 open.",
+    "explanation": "Call A's data is still valid for its caller, yet it belongs to generation 11 and cannot clear newer outage evidence recorded in generation 12."
   },
   {
     "question": "During an outage, the newest cached record is a 25-minute-old 'completed' snapshot while the freshness limit is 90s. What should fallback report?",
     "options": [
-      "Report completion now because 'completed' is terminal.",
-      "Report current status unavailable and date any earlier observation explicitly.",
-      "Swap to a backup LLM and raise the freshness limit to 30 minutes.",
-      "Retry the write with a fresh operation key."
+      "Report completion in the present tense because a completed state is terminal.",
+      "Report current status unavailable and date any earlier snapshot explicitly.",
+      "Switch to a backup LLM provider and extend the freshness limit to 30 minutes.",
+      "Replay the underlying write request immediately with a fresh operation key."
     ],
-    "answer": "Report current status unavailable and date any earlier observation explicitly.",
-    "explanation": "Host freshness rules bound present-tense claims regardless of model swaps or cached terminal states."
+    "answer": "Report current status unavailable and date any earlier snapshot explicitly.",
+    "explanation": "Host freshness rules bound present-tense claims regardless of model swaps or cached terminal states; stale observations cannot certify current status."
   }
 ]
 ```

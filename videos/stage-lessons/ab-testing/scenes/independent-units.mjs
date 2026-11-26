@@ -1,39 +1,180 @@
-import { column, dot, indicate, place, row, to } from 'vizmatic/stage';
-import { chip, heading, label, mono, namedBox, note } from '../../kit-narrated.mjs';
-import { FOOT, SIDE, experiment, interval, liftInterval, seLift } from '../parts.mjs';
-export default function units(s, c) {
-  const b = experiment(s, true);
-  const [copies, confidence] = SIDE.rows([2, 3], 'wide');
-  const [origin, outputs] = copies.rows(2, 'wide');
-  const incident = place(chip('one incident outcome', { color: 'green' }), origin);
-  const slots = outputs.columns(4, 'normal');
-  const rows = slots.map((slot, i) => place(chip(`message ${i + 1}`, { color: 'dim' }), slot));
-  const dots = rows.map((_, i) => dot(13, 'green').moveTo(slots[i].point('top')));
-  const starts = dots.map(() => origin.point('bottom'));
-  dots.forEach((d, i) => d.moveTo(starts[i]));
-  const ci = interval(s, confidence, { low: liftInterval[0] * 100, high: liftInterval[1] * 100 });
-  const falsePrecision = place(label('Copied outcomes add no evidence.', { color: 'red' }), FOOT);
-  const formula = place(mono('SE = √[pC(1−pC)/nC + pT(1−pT)/nT]', { size: 36 }), FOOT);
-  s.add(heading('Four copies are still one outcome'), incident, rows, ci.frame, ci.band);
-  c.take(b.standing);
-  c.onBeat(0, () => ci.spread.set(1));
-  c.show('duplicate', dots);
-  c.on('duplicate', () =>
-    s.play(...dots.map((d, i) => to(d, (n) => n.moveTo(slots[i].point('top')), { duration: 1.4 }))),
+// Scene 07 (independent-units): "A duplicated outcome cannot supply new precision"
+// 1 incident copied into 4 message rows -> rates unchanged (38%, 42%), SE falsely halves (1.55 -> 0.77 pp), CI falsely shrinks [1.0, 7.0] -> [2.5, 5.5] -> aggregate once per incident!
+import { line } from 'vizmatic/stage';
+import {
+  BAD_COLOR,
+  COSMOS,
+  CTRL_COLOR,
+  GOOD_COLOR,
+  WARN_COLOR,
+  aura,
+  glowDot,
+  glowTex,
+  guardedDynamic,
+  heroTitle,
+  lift,
+  liftInterval,
+  lumBar,
+  rule,
+  runAmbientPhase,
+  seLift,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
+
+const FALSE_SE = seLift / 2;
+const FALSE_LO = lift - 1.96 * FALSE_SE;
+const FALSE_HI = lift + 1.96 * FALSE_SE;
+
+export default function independentUnits(s, c) {
+  const phase = s.value(0);
+  const dupAmt = s.value(0);
+  const showFalseSe = s.value(0);
+  const showAgg = s.value(0);
+  const showFormula = s.value(0);
+
+  const bgAura = aura(0, 20, 620, '#3a183b28', '#133a4a24');
+  const title = heroTitle(['The Analysis-Unit Trap:', 'Copying Rows Fakes Precision'], {
+    x: -855,
+    y: -430,
+    size: 52,
+    lineHeight: 60,
+    accent: BAD_COLOR,
+    eyebrow: 'RANDOMIZATION UNIT = ANALYSIS UNIT',
+  });
+
+  const eqForm = glowTex(
+    '\\text{SE} = \\sqrt{\\frac{\\hat p_c(1-\\hat p_c)}{n_c} + \\frac{\\hat p_t(1-\\hat p_t)}{n_t}}, \\quad \\text{margin} = 1.96\\,\\text{SE}',
+    { x: 0, y: 315, size: 34, color: COSMOS.cyan, glow: 7 },
   );
-  c.after('false-se', () =>
-    s.play(
-      ci.low.to(4 - 1.96 * seLift * 50, { duration: 1.3 }),
-      ci.high.to(4 + 1.96 * seLift * 50, { duration: 1.3 }),
-    ),
-  );
-  c.show('false-se', falsePrecision, { after: true });
-  c.on('aggregate', () =>
-    s.play(
-      ci.low.to(liftInterval[0] * 100, { duration: 1.3 }),
-      ci.high.to(liftInterval[1] * 100, { duration: 1.3 }),
-    ),
-  );
-  c.swap('formula', falsePrecision, formula);
-  c.keep(b.standing);
+
+  const live = guardedDynamic(s.value(1), () => {
+    const d = dupAmt.value;
+    const isAgg = showAgg.value > 0.5;
+    const nodes = [
+      txt(
+        '1 RANDOMIZED INCIDENT  →  4 MESSAGE ROWS (SAME OUTCOME)',
+        -855,
+        -245,
+        26,
+        COSMOS.cyan,
+        'mono',
+        'left',
+      ),
+      lumBar(-680, -130, 320, 108, { color: GOOD_COLOR, fillOpacity: 0.22, glow: 8 }),
+      txt('inc-14 (1 unit)', -680, -152, 26, GOOD_COLOR, 'mono'),
+      txt('resolved = 1', -680, -108, 26, COSMOS.ink, 'mono'),
+    ];
+
+    // Four duplicated message rows fanning out
+    [0, 1, 2, 3].forEach((k) => {
+      const rx = -240 + k * 295;
+      nodes.push(
+        lumBar(rx, -130, 255, 86, {
+          color: isAgg ? COSMOS.dim : BAD_COLOR,
+          fillOpacity: isAgg ? 0.08 : 0.16,
+          dash: isAgg ? [7, 5] : undefined,
+          glow: isAgg ? 2 : 7,
+          opacity: (0.3 + 0.7 * d) * (isAgg ? 0.45 : 1),
+        }),
+        txt(`msg #${k + 1} (=1)`, rx, -130, 26, isAgg ? COSMOS.muted : BAD_COLOR, 'mono').opacity(
+          0.3 + 0.7 * d,
+        ),
+      );
+    });
+
+    // Side-by-side confidence interval comparison (TRUE vs FALSE 4x)
+    const axL = -760;
+    const axR = 760;
+    const xP = (pp) => axL + (pp / 8) * (axR - axL);
+    const yTrue = 35;
+    const yFalse = 140;
+
+    nodes.push(
+      txt(
+        'TRUE INCIDENT-LEVEL (n = 2,000/arm):  SE = 1.55 pp',
+        -855,
+        yTrue - 46,
+        26,
+        GOOD_COLOR,
+        'mono',
+        'left',
+      ),
+      rule(axL, yTrue, axR, yTrue, COSMOS.rule, 2),
+      line([xP(liftInterval[0] * 100), yTrue], [xP(liftInterval[1] * 100), yTrue], {
+        stroke: GOOD_COLOR,
+        width: 8,
+      }).glow(8, GOOD_COLOR),
+      glowDot(xP(lift * 100), yTrue, { radius: 10, color: GOOD_COLOR, glow: 10 }),
+      txt(
+        `[+${(liftInterval[0] * 100).toFixed(1)}, +${(liftInterval[1] * 100).toFixed(1)}] pp`,
+        xP(liftInterval[1] * 100) + 22,
+        yTrue,
+        26,
+        GOOD_COLOR,
+        'mono',
+        'left',
+      ),
+
+      txt(
+        '4× DUPLICATED ROWS (fake n = 8,000/arm):  SE = 0.77 pp (÷√4 = ÷2!)',
+        -855,
+        yFalse - 46,
+        26,
+        BAD_COLOR,
+        'mono',
+        'left',
+      ).opacity(0.4 + 0.6 * showFalseSe.value),
+      rule(axL, yFalse, axR, yFalse, COSMOS.rule, 2).opacity(0.4 + 0.6 * showFalseSe.value),
+      line([xP(FALSE_LO * 100), yFalse], [xP(FALSE_HI * 100), yFalse], {
+        stroke: BAD_COLOR,
+        width: 8,
+        dash: isAgg ? [8, 6] : undefined,
+      })
+        .glow(8, BAD_COLOR)
+        .opacity(0.4 + 0.6 * showFalseSe.value),
+      glowDot(xP(lift * 100), yFalse, {
+        radius: 10,
+        color: BAD_COLOR,
+        glow: 10,
+        opacity: 0.4 + 0.6 * showFalseSe.value,
+      }),
+      txt(
+        `[+${(FALSE_LO * 100).toFixed(1)}, +${(FALSE_HI * 100).toFixed(1)}] pp (FALSE!)`,
+        xP(FALSE_HI * 100) + 22,
+        yFalse,
+        26,
+        BAD_COLOR,
+        'mono',
+        'left',
+      ).opacity(0.4 + 0.6 * showFalseSe.value),
+    );
+
+    if (showAgg.value > 0.02) {
+      nodes.push(
+        txt(
+          'Aggregate strictly to ONE row per randomized incident before computing SE',
+          -855,
+          225,
+          28,
+          WARN_COLOR,
+          'mono',
+          'left',
+        )
+          .glow(6, WARN_COLOR)
+          .opacity(showAgg.value),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  tweenCue(s, c, 'duplicate', dupAmt, 1, { duration: 0.6 });
+  tweenCue(s, c, 'false-se', showFalseSe, 1, { duration: 0.5 });
+  tweenCue(s, c, 'aggregate', showAgg, 1, { duration: 0.45 });
+  c.show('formula', eqForm);
+  tweenCue(s, c, 'formula', showFormula, 1, { duration: 0.45 });
 }

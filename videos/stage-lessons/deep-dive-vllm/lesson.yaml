@@ -1,0 +1,1835 @@
+version: 1
+id: deep-dive-vllm
+title: "vLLM: Trace Token Work, Cached State and Useful Completions"
+source: projects/deep-dive-vllm/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: vLLM architecture overview
+    url: https://docs.vllm.ai/en/latest/design/arch_overview/
+  - title: vLLM automatic prefix caching design
+    url: https://docs.vllm.ai/en/latest/design/prefix_caching/
+  - title: vLLM optimization guide
+    url: https://docs.vllm.ai/en/latest/configuration/optimization/
+  - title: vLLM v0.28.0 pinned KV manager
+    url: https://github.com/vllm-project/vllm/blob/v0.28.0/vllm/v1/core/kv_cache_manager.py
+  - title: vLLM v0.28.0 pinned block pool
+    url: https://github.com/vllm-project/vllm/blob/v0.28.0/vllm/v1/core/block_pool.py
+  - title: vLLM v0.31.0 tagged cache identity
+    url: https://github.com/vllm-project/vllm/blob/v0.31.0/vllm/v1/core/kv_cache_utils.py
+  - title: vLLM current security boundaries
+    url: https://docs.vllm.ai/en/stable/usage/security/
+  - title: Efficient Memory Management for Large Language Model Serving with PagedAttention
+    url: https://arxiv.org/abs/2309.06180
+scenes:
+  - id: intro
+    title: "Can the next word run?"
+    visual: "Follow the fifth word of R1’s prompt to the open place in a six-input GPU step. Keep the four proposed prompt inputs aligned with the words in one KV block. Give R1 a second block and admit the fifth word."
+    beats:
+      - say: >-
+          Can the word “on” take that last place? The GPU can process six inputs together. R0 needs one to
+          keep its answer streaming. Its cache has room. R1 brings nine uncached tokens. The first four
+          words fit beside R0. Each needs a cell in R1’s only block for its keys and values. Where would
+          “on” go?
+        hold: 2.8
+        visual_cues:
+          - id: intro-word
+            phrase: "Can the word “on” take that last place"
+            targets: [intro-prompt, intro-step]
+            color: yellow
+          - id: intro-whole-step
+            phrase: "The GPU can process six inputs together"
+            targets: [intro-step]
+            color: blue
+          - id: intro-reserve
+            phrase: "R0 needs one to keep its answer streaming"
+            targets: [intro-step]
+            color: blue
+          - id: intro-storage
+            phrase: "Each needs a cell in R1’s only block"
+            targets: [intro-storage]
+            color: cyan
+        caption_starts: ["The GPU can process six inputs together", "R0 needs one", "R1 brings nine uncached tokens", "Each needs a cell in R1’s only block", "Where would “on” go"]
+      - say: >-
+          The block is full. Leave “on” in the prompt. Four of R1’s words can run with R0, and five wait.
+          That last GPU place stays empty.
+        hold: 1.4
+        visual_cues:
+          - id: intro-wait
+            phrase: "The block is full"
+            targets: [intro-storage, intro-step, intro-decision]
+            color: yellow
+        caption_starts: ["Four of R1’s words can run"]
+      - say: >-
+          Give R1 a second block. Now “on” fits. Its keys and values have a place in the new block, and it
+          can take the sixth place in the step. The engine sends the worker one decode input for R0 and five
+          prompt inputs for R1. The API front end streams each reply to its reader.
+        hold: 0.8
+        visual_cues:
+          - id: intro-second-block
+            phrase: "Give R1 a second block"
+            targets: [intro-storage]
+            color: cyan
+          - id: intro-fifth
+            phrase: "Now “on” fits"
+            targets: [intro-prompt, intro-step, intro-storage]
+            color: pink
+        caption_starts: ["Now “on” fits", "The engine sends the worker"]
+  - id: entry-contract
+    title: Choose the entry path and preserve the version
+    visual: Keep the same R0/R1 request records. One caller uses offline LLM.generate; another uses HTTP through
+      vllm serve. Reveal the pinned source tag and separate route/task capabilities.
+    beats:
+      - say: >-
+          Call LLM.generate from Python and the caller waits for its results. The engine and workers can run
+          in separate processes while it waits. With the online server, the client sends an HTTP request and
+          can receive each token as it arrives. The model and its runner determine which tasks the service
+          can handle, such as generation, pooling or reranking.
+        hold: 0.65
+        visual_cues:
+          - id: vv-entry-contract-op-0
+            phrase: "Call LLM.generate from Python and the caller waits for its results. The engine and workers can run in separate processes while it waits. With the online server, the client sends an HTTP request and can receive each token as it arrives. The model and its runner determine which tasks the service can handle, such as generation, pooling or reranking."
+            targets:
+              - vllm-entry-contract-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          The request trace follows vLLM zero point twenty-eight. The block calculations run on a CPU and
+          describe a decoder with full attention. The trace keeps the KV cache on the GPU and uses ordinary
+          decoding. Later we’ll compare how this release and zero point thirty-one identify the same adapter.
+        hold: 0.65
+        visual_cues:
+          - id: vv-entry-contract-op-1
+            phrase: "The request trace follows vLLM zero point twenty-eight. The block calculations run on a CPU and describe a decoder with full attention. The trace keeps the KV cache on the GPU and uses ordinary decoding. Later we’ll compare how this release and zero point thirty-one identify the same adapter."
+            targets:
+              - vllm-entry-contract-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Use vllm serve for the online entrypoint. In zero point thirty, the older Python API-server module became
+          a deprecated compatibility shim, and ordinary scale-out routes require the enable-scale-out flag. A
+          copied environment variable can leave a route absent. Preserve the installed revision, registered
+          routes and resolved configuration before comparing requests or attributing a capability to the
+          engine.
+        hold: 0.65
+        visual_cues:
+          - id: vv-entry-contract-op-2
+            phrase: "Use vllm serve for the online entrypoint. In zero point thirty, the older Python API-server module became a deprecated compatibility shim, and ordinary scale-out routes require the enable-scale-out flag. A copied environment variable can leave a route absent. Preserve the installed revision, registered routes and resolved configuration before comparing requests or attributing a capability to the engine."
+            targets:
+              - vllm-entry-contract-mechanism
+            color: cyan
+            linger: 0.2
+  - id: fragmentation
+    title: Derive the wasted space before introducing blocks
+    visual: Lay out one contiguous twelve-position reservation with seven occupied cells, then independent free
+      runs of two and three beside a four-position request. Convert logical growth into separately allocated
+      four-position blocks.
+    beats:
+      - say: >-
+          A request reserves twelve token positions but finishes after seven. Five positions remain unused
+          inside its reservation. That is internal fragmentation. Now put two free positions in one region
+          and three in another. Five positions are free overall, yet a request needing four contiguous
+          positions cannot fit into either region. That is external fragmentation.
+        hold: 0.65
+        visual_cues:
+          - id: vv-fragmentation-op-0
+            phrase: "A request reserves twelve token positions but finishes after seven. Five positions remain unused inside its reservation. That is internal fragmentation. Now put two free positions in one region and three in another. Five positions are free overall, yet a request needing four contiguous positions cannot fit into either region. That is external fragmentation."
+            targets:
+              - vllm-fragmentation-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-fragmentation-internal
+            phrase: "Five positions remain unused inside its reservation."
+            targets:
+              - vllm-fragmentation-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-fragmentation-external
+            phrase: "Five positions are free overall, yet a request needing four contiguous positions cannot fit into either region."
+            targets:
+              - vllm-fragmentation-mechanism
+            color: green
+            linger: 0.45
+      - say: >-
+          Fixed-size KV blocks let the request grow by acquiring another physical block without requiring its
+          neighbors. The request keeps its own logical order in a table. Physical placement can change
+          without permuting that logical sequence. Count the empty cells in the final block. Those cells are
+          the unused part of this request’s allocation.
+        hold: 0.65
+        visual_cues:
+          - id: vv-fragmentation-op-1
+            phrase: "Fixed-size KV blocks let the request grow by acquiring another physical block without requiring its neighbors. The request keeps its own logical order in a table. Physical placement can change without permuting that logical sequence. Count the empty cells in the final block. Those cells are the unused part of this request’s allocation."
+            targets:
+              - vllm-fragmentation-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Each cached position holds attention keys and values for the relevant layers and heads. Our four-position
+          blocks make addresses inspectable; actual supported block sizes depend on the backend. For a
+          zero-based position, divide by block size and discard the fraction for its logical block. The
+          remainder gives its within-block offset; the table maps that logical block to a physical ID. Keep
+          the same token identities while changing the view.
+        hold: 0.65
+        visual_cues:
+          - id: vv-fragmentation-op-2
+            phrase: "Each cached position holds attention keys and values for the relevant layers and heads. Our four-position blocks make addresses inspectable; actual supported block sizes depend on the backend. For a zero-based position, divide by block size and discard the fraction for its logical block. The remainder gives its within-block offset; the table maps that logical block to a physical ID. Keep the same token identities while changing the view."
+            targets:
+              - vllm-fragmentation-mechanism
+            color: cyan
+            linger: 0.2
+  - id: blocks
+    title: Logical neighbors can live in distant physical blocks
+    visual: R0's eight illustrative word tokens form two logical blocks mapped to physical slots twelve and
+      forty-one. Selecting positions resolves both the logical block and within-block offset without sorting
+      physical IDs.
+    beats:
+      - say: >
+          Autoregressive decoding reuses keys and values computed for earlier positions. Reserving each
+          request's maximum history would leave unused capacity when it finishes early. vLLM divides cached
+          state into fixed-size blocks and gives each request a table that names its physical blocks.
+        hold: 0.6
+        visual_cues:
+          - id: blocks-beat-1-focus-1
+            phrase: vLLM divides cached state into fixed-size blocks and gives each request a table that names its
+              physical blocks
+            targets:
+              - blocks-first-block
+              - blocks-second-block
+              - blocks-request-table
+            color: cyan
+            linger: 0.65
+          - id: blocks-beat-1-focus-2
+            phrase: Reserving each request's maximum history would leave unused capacity when it finishes early
+            targets:
+              - blocks-r0
+            color: yellow
+            linger: 0.65
+      - say: >
+          Our small sentence occupies two four-position blocks. The first lives in one physical slot and the
+          next in another, far away in the pool. Logical order comes from the request's table. The model can
+          read a continuous history without requiring adjacent physical storage.
+        hold: 0.6
+        visual_cues:
+          - id: blocks-beat-2-focus-1
+            phrase: The first lives in one physical slot and the next in another
+            targets:
+              - blocks-request-table
+              - blocks-physical-slot-offset
+            color: cyan
+            linger: 0.65
+          - id: blocks-beat-2-focus-2
+            phrase: Our small sentence occupies two four-position blocks
+            targets:
+              - blocks-first-block
+              - blocks-second-block
+            color: yellow
+            linger: 0.65
+      - say: >
+          Follow the selected position through integer division and its within-block offset. A kernel consumes
+          that mapping when loading attention state. Paged addressing describes a memory contract. The actual
+          attention implementation still depends on the model, hardware, dtype and enabled features.
+        hold: 0.6
+        visual_cues:
+          - id: blocks-beat-3-focus-1
+            phrase: Follow the selected position through integer division and its within-block offset
+            targets:
+              - blocks-selected-position
+              - blocks-logical-block
+              - blocks-physical-slot-offset
+              - blocks-address-calculation
+            color: cyan
+            linger: 0.65
+          - id: blocks-beat-3-focus-2
+            phrase: The actual attention implementation still depends on the model, hardware, dtype and enabled features
+            targets:
+              - blocks-r0
+            color: yellow
+            linger: 0.65
+  - id: historical-evidence
+    title: Read the original throughput result with its denominator
+    visual: Place the PagedAttention paper receipt beside the same growing KV history. Reveal hardware,
+      model/workload, baseline reservation variants and normalized mean latency as independent constraints.
+    beats:
+      - say: The twenty twenty-three PagedAttention paper reported two to four times higher throughput than
+          FasterTransformer and Orca at comparable latency in its experiments. Its basic sampling workloads
+          used OPT thirteen, sixty-six and one hundred seventy-five billion parameter models with ShareGPT and
+          Alpaca length distributions and Poisson arrivals. Shared-prefix experiments used LLaMA thirteen
+          billion and WMT sixteen translation examples.
+        hold: 0.65
+        visual_cues:
+          - id: vv-historical-evidence-op-0
+            phrase: "The twenty twenty-three PagedAttention paper reported two to four times higher throughput than FasterTransformer and Orca at comparable latency in its experiments. Its basic sampling workloads used OPT thirteen, sixty-six and one hundred seventy-five billion parameter models with ShareGPT and Alpaca length distributions and Poisson arrivals. Shared-prefix experiments used LLaMA thirteen billion and WMT sixteen translation examples."
+            targets:
+              - vllm-historical-evidence-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          Those measurements used GCP A2 instances with A100 GPUs. FasterTransformer had a custom dynamic
+          batcher; the authors reimplemented Orca with different reservation variants. Most traces lasted one
+          hour, while the largest OPT experiment used fifteen minutes. The reported latency was mean
+          end-to-end latency normalized by output length.
+        hold: 0.65
+        visual_cues:
+          - id: vv-historical-evidence-op-1
+            phrase: "Those measurements used GCP A2 instances with A100 GPUs. FasterTransformer had a custom dynamic batcher; the authors reimplemented Orca with different reservation variants. Most traces lasted one hour, while the largest OPT experiment used fifteen minutes. The reported latency was mean end-to-end latency normalized by output length."
+            targets:
+              - vllm-historical-evidence-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          To compare two servers today, send each the same arrivals with the same prompt and output lengths.
+          Match the hardware and topology, software versions, model, dtypes and sampling. Warm up both
+          servers, check their outputs, then compare useful completions and latency distributions. To
+          identify the kernel that read the paged blocks, check the attention backend selected by the runner.
+        hold: 0.65
+        visual_cues:
+          - id: vv-historical-evidence-op-2
+            phrase: "To compare two servers today, send each the same arrivals with the same prompt and output lengths. Match the hardware and topology, software versions, model, dtypes and sampling. Warm up both servers, check their outputs, then compare useful completions and latency distributions. To identify the kernel that read the paged blocks, check the attention backend selected by the runner."
+            targets:
+              - vllm-historical-evidence-mechanism
+            color: cyan
+            linger: 0.2
+  - id: process-owners
+    title: Count the processes that own one request
+    visual: Carry R1 through API processing to its engine core and four GPU workers. Expand the same topology to
+      DP ranks and compute the documented main-process count without counting auxiliary OS processes.
+    beats:
+      - say: In the documented V1 online multiprocessing topology, API servers parse requests, tokenize, load media
+          and stream outputs. They connect through ZeroMQ to engine cores, one per data-parallel rank. Each
+          core owns scheduling and KV management. Each GPU has a worker. With data parallelism, API-server
+          count defaults to the number of ranks, and every API server can reach every engine core.
+        hold: 0.65
+        visual_cues:
+          - id: vv-process-owners-op-0
+            phrase: "In the documented V1 online multiprocessing topology, API servers parse requests, tokenize, load media and stream outputs. They connect through ZeroMQ to engine cores, one per data-parallel rank. Each core owns scheduling and KV management. Each GPU has a worker. With data parallelism, API-server count defaults to the number of ranks, and every API server can reach every engine core."
+            targets:
+              - vllm-process-owners-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Let A count API servers, D count data-parallel ranks and N count GPUs. Add A, D and N, then add one
+          coordinator when D exceeds one. Four GPUs with tensor parallelism four and one data-parallel rank
+          give one plus one plus four, or six main processes. Eight GPUs with two-way tensor parallelism and
+          four data-parallel ranks give four plus four plus eight plus one, or seventeen.
+        hold: 0.65
+        visual_cues:
+          - id: vv-process-owners-op-1
+            phrase: "Let A count API servers, D count data-parallel ranks and N count GPUs. Add A, D and N, then add one coordinator when D exceeds one. Four GPUs with tensor parallelism four and one data-parallel rank give one plus one plus four, or six main processes. Eight GPUs with two-way tensor parallelism and four data-parallel ranks give four plus four plus eight plus one, or seventeen."
+            targets:
+              - vllm-process-owners-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-process-owners-single-six
+            phrase: "Four GPUs with tensor parallelism four and one data-parallel rank give one plus one plus four, or six main processes."
+            targets:
+              - vllm-process-owners-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-process-owners-parallel-seventeen
+            phrase: "Eight GPUs with two-way tensor parallelism and four data-parallel ranks give four plus four plus eight plus one, or seventeen."
+            targets:
+              - vllm-process-owners-mechanism
+            color: green
+            linger: 0.45
+      - say: >-
+          Use those process boundaries to trace a slow reply. The API server tokenizes the request. The core
+          queues it and allocates its blocks. The workers run the kernels and collectives. CPU starvation can
+          delay the GPU handoff even when the GPU has spare capacity.
+        hold: 0.65
+        visual_cues:
+          - id: vv-process-owners-op-2
+            phrase: "Use those process boundaries to trace a slow reply. The API server tokenizes the request. The core queues it and allocates its blocks. The workers run the kernels and collectives. CPU starvation can delay the GPU handoff even when the GPU has spare capacity."
+            targets:
+              - vllm-process-owners-mechanism
+            color: cyan
+            linger: 0.2
+  - id: prefix
+    title: Exact full blocks carry reusable prompt work
+    visual: R0 and R1 share six word positions, but only their complete first four-position block matches. R1 maps
+      that block to the same physical slot and allocates its divergent suffix and partial tail separately.
+    beats:
+      - say: >
+          The second sentence begins with the same words and later diverges. In this full-attention teaching
+          path, automatic prefix caching reuses complete matching blocks. Compare the first block, then
+          inspect the next one. A partially matching block does not provide an exact cached block for the new
+          request.
+        hold: 0.7
+        visual_cues:
+          - id: prefix-beat-1-focus-1
+            phrase: The second sentence begins with the same words and later diverges
+            targets:
+              - prefix-shared-block
+              - prefix-divergent-block
+            color: cyan
+            linger: 0.65
+          - id: prefix-beat-1-focus-2
+            phrase: A partially matching block does not provide an exact cached block for the new request
+            targets:
+              - prefix-divergent-block
+              - prefix-tail-block
+            color: yellow
+            linger: 0.65
+      - say: >
+          Both requests can point to the first physical slot. Its reference count becomes two. The new request
+          still computes the divergent suffix and its partial final block. The shared-prefix count and
+          skipped-computation count differ because the cache's reuse unit is a whole block.
+        hold: 0.6
+        visual_cues:
+          - id: prefix-beat-2-focus-1
+            phrase: The new request still computes the divergent suffix and its partial final block
+            targets:
+              - prefix-r1-recompute
+              - prefix-block-tables
+              - prefix-reference-count
+            color: cyan
+            linger: 0.65
+          - id: prefix-shared-references
+            phrase: Its reference count becomes two
+            targets:
+              - prefix-shared-block
+              - prefix-block-tables
+              - prefix-reference-count
+            color: green
+            linger: 0.65
+      - say: >
+          Cache identity also includes preceding context and relevant configuration, such as an adapter or an
+          enforced trust namespace. Equal text alone cannot establish compatible state. Reuse saves prompt
+          processing. Each new generated token still needs its decoding computation, even when much of the
+          prompt was cached.
+        hold: 0.6
+        visual_cues:
+          - id: prefix-beat-3-focus-1
+            phrase: Cache identity also includes preceding context and relevant configuration
+            targets:
+              - prefix-cache-key
+              - prefix-block-tables
+            color: cyan
+            linger: 0.65
+          - id: prefix-config-change
+            phrase: such as an adapter or an enforced trust namespace
+            targets:
+              - prefix-cache-key
+              - prefix-block-tables
+              - prefix-reference-count
+              - prefix-r1-recompute
+            color: pink
+            linger: 0.65
+  - id: prefix-limit
+    title: Compute the block-rounded hit and the remaining logits work
+    visual: Keep R0 cached ABCD/EFGH and R1 ABCDEFXYZ. Move a match boundary from six to seven to eight tokens,
+      then change prompt length from nine to eight while leaving cached bytes fixed.
+    beats:
+      - say: The pinned full-attention reference takes the smaller of the shared-prefix length and prompt length minus
+          one. Divide that limit by block size, discard the fractional part, then multiply by block size. The
+          result counts skipped input positions. Subtract skipped positions from prompt length to obtain
+          remaining computation. This assumes eligible cached blocks exist and their complete context matches.
+          For a new request with a block-aligned reused prefix, round the remaining count upward to a whole
+          number of new blocks.
+        hold: 0.65
+        visual_cues:
+          - id: vv-prefix-limit-op-0
+            phrase: "The pinned full-attention reference takes the smaller of the shared-prefix length and prompt length minus one. Divide that limit by block size, discard the fractional part, then multiply by block size. The result counts skipped input positions. Subtract skipped positions from prompt length to obtain remaining computation. This assumes eligible cached blocks exist and their complete context matches. For a new request with a block-aligned reused prefix, round the remaining count upward to a whole number of new blocks."
+            targets:
+              - vllm-prefix-limit-mechanism
+            color: cyan
+            linger: 0.2
+      - say: For our nine-position prompt and four-position blocks, six matching positions permit four skips and leave
+          five computations. Seven matching positions give the same result. Eight matching positions permit
+          eight skips and leave one. Turning APC on in the earlier six-position scheduling step would let R0
+          consume one decode input and R1 compute its remaining five prompt inputs in that same step.
+        hold: 0.65
+        visual_cues:
+          - id: vv-prefix-limit-op-1
+            phrase: "For our nine-position prompt and four-position blocks, six matching positions permit four skips and leave five computations. Seven matching positions give the same result. Eight matching positions permit eight skips and leave one. Turning APC on in the earlier six-position scheduling step would let R0 consume one decode input and R1 compute its remaining five prompt inputs in that same step."
+            targets:
+              - vllm-prefix-limit-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-prefix-limit-match-six
+            phrase: "For our nine-position prompt and four-position blocks, six matching positions permit four skips and leave five computations."
+            targets:
+              - vllm-prefix-limit-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-prefix-limit-match-seven
+            phrase: "Seven matching positions give the same result."
+            targets:
+              - vllm-prefix-limit-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-prefix-limit-match-eight
+            phrase: "Eight matching positions permit eight skips and leave one."
+            targets:
+              - vllm-prefix-limit-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-prefix-limit-apc-step
+            phrase: "Turning APC on in the earlier six-position scheduling step would let R0 consume one decode input and R1 compute its remaining five prompt inputs in that same step."
+            targets:
+              - vllm-prefix-limit-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-prefix-limit-apc-input
+            phrase: "let R0 consume one decode input and R1 compute its remaining five prompt inputs"
+            targets:
+              - vllm-prefix-limit-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Now make the prompt itself eight positions long, with all eight cached. KV entries do not contain the
+          final logits needed to sample its reply. The pinned code caps the hit at seven positions; block
+          alignment rounds that to four, so the last whole block is recomputed. A one-position prompt skips
+          zero. Sliding-window, hybrid-state, offloaded and prompt-logprob paths require their own contracts.
+        hold: 0.65
+        visual_cues:
+          - id: vv-prefix-limit-op-2
+            phrase: "Now make the prompt itself eight positions long, with all eight cached. KV entries do not contain the final logits needed to sample its reply. The pinned code caps the hit at seven positions; block alignment rounds that to four, so the last whole block is recomputed. A one-position prompt skips zero. Sliding-window, hybrid-state, offloaded and prompt-logprob paths require their own contracts."
+            targets:
+              - vllm-prefix-limit-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-prefix-limit-prompt-eight
+            phrase: "The pinned code caps the hit at seven positions; block alignment rounds that to four, so the last whole block is recomputed."
+            targets:
+              - vllm-prefix-limit-mechanism
+            color: green
+            linger: 0.45
+  - id: hash-context
+    title: "Which cache record follows the adapter?"
+    visual: "Hold parent history and suffix tokens fixed. Change only the adapter manifest path, then compare the identity fields recorded by the two revisions."
+    beats:
+      - say: >-
+          Look at the block ending in “green branch.” Its keys and values depend on the words before it. Its
+          cache record carries a parent hash for that history, the exact token IDs in this block, and context
+          such as the adapter, media identity and cache namespace. A different earlier history changes the
+          parent, even when all four words here stay the same.
+        hold: 0.65
+        visual_cues:
+          - id: hash-parent
+            phrase: "A different earlier history changes the parent"
+            targets: [hash-record]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Our service calls its adapter Finch. We’ve installed a new revision in a different directory. The
+          display name stays Finch. Look at what changed in the manifest. Which version of the cache key
+          records that path change?
+        hold: 2
+        visual_cues:
+          - id: hash-revision
+            phrase: "a new revision in a different directory"
+            targets: [hash-record]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: hash-ask
+            phrase: "Which version of the cache key records that path change"
+            targets: [hash-record]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Version zero point twenty-eight records the adapter name, which stayed Finch. It also leaves the
+          source of some extra fields implicit. A hash function sees only the serialized input it receives.
+          Version zero point thirty-one tags those fields and includes the adapter path. That input changes
+          when the path changes. The default digest is SHA two fifty-six. Choosing a different hash changes
+          collision risk. Verifying the adapter’s actual weights is a separate deployment check.
+        hold: 0.7
+        visual_cues:
+          - id: hash-name-only
+            phrase: "Version zero point twenty-eight records the adapter name"
+            targets: [hash-record]
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: hash-tagged
+            phrase: "Version zero point thirty-one tags those fields and includes the adapter path"
+            targets: [hash-record]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: pool-structures
+    title: Keep live ownership separate from cached content
+    visual: Expand the original four physical slots into immutable IDs, hash map, request tables and an intrusive
+      free queue. Touch a zero-reference cached slot and physically remove it from the queue before allocating
+      another head.
+    beats:
+      - say: The pool preconstructs block objects. A block retains its physical ID, reference count, optional
+          full-block hash and links in a doubly linked free queue. Request tables name their current blocks; a
+          separate hash map finds reusable cached content. A zero reference count can coexist with a cached
+          hash because finished content may still be useful before overwrite.
+        hold: 0.65
+        visual_cues:
+          - id: vv-pool-structures-op-0
+            phrase: "The pool preconstructs block objects. A block retains its physical ID, reference count, optional full-block hash and links in a doubly linked free queue. Request tables name their current blocks; a separate hash map finds reusable cached content. A zero reference count can coexist with a cached hash because finished content may still be useful before overwrite."
+            targets:
+              - vllm-pool-structures-mechanism
+            color: cyan
+            linger: 0.2
+      - say: On a cache hit, touch the matching block. Increase its reference count; if it had zero references, remove
+          it from the free queue first so an allocator cannot overwrite its new reader. New allocations pop
+          queue heads, evict their old hash identities and acquire live references. A hash match and free
+          capacity are consequently related decisions, not interchangeable counters.
+        hold: 0.65
+        visual_cues:
+          - id: vv-pool-structures-op-1
+            phrase: "On a cache hit, touch the matching block. Increase its reference count; if it had zero references, remove it from the free queue first so an allocator cannot overwrite its new reader. New allocations pop queue heads, evict their old hash identities and acquire live references. A hash match and free capacity are consequently related decisions, not interchangeable counters."
+            targets:
+              - vllm-pool-structures-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-pool-structures-touch
+            phrase: "Increase its reference count; if it had zero references, remove it from the free queue first so an allocator cannot overwrite its new reader."
+            targets:
+              - vllm-pool-structures-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-pool-structures-allocate
+            phrase: "New allocations pop queue heads, evict their old hash identities and acquire live references."
+            targets:
+              - vllm-pool-structures-mechanism
+            color: green
+            linger: 0.45
+      - say: For a changed toy queue, suppose the head order is seventy-one, fifty-five, nine, and slot nine is
+          cached. A new request hits nine. Nine leaves that queue and gains a live reference. Another
+          allocation takes seventy-one, leaving only fifty-five free. The request tables, reference counts,
+          free queue and hash map must agree after each operation.
+        hold: 0.65
+        visual_cues:
+          - id: vv-pool-structures-op-2
+            phrase: "For a changed toy queue, suppose the head order is seventy-one, fifty-five, nine, and slot nine is cached. A new request hits nine. Nine leaves that queue and gains a live reference. Another allocation takes seventy-one, leaving only fifty-five free. The request tables, reference counts, free queue and hash map must agree after each operation."
+            targets:
+              - vllm-pool-structures-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-pool-structures-touch-nine
+            phrase: "Nine leaves that queue and gains a live reference."
+            targets:
+              - vllm-pool-structures-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-pool-structures-allocate-head
+            phrase: "Another allocation takes seventy-one, leaving only fifty-five free."
+            targets:
+              - vllm-pool-structures-mechanism
+            color: green
+            linger: 0.45
+  - id: budget
+    title: "What comes out of a six-input step?"
+    visual: "Place the words from R1 beside R0’s decode input. The prompt changes only when the worker finishes. Carry R1’s first sampled word from the output line into the next step."
+    beats:
+      - say: >-
+          Replay the nine-word prompt with prefix reuse off and enough KV space throughout. Reserve one place
+          for R0. Put R1’s first five words beside it. That’s one batch of six inputs. When the worker
+          finishes, R1 has processed five words. Its reader is still waiting for the first token.
+        hold: 0.8
+        visual_cues:
+          - id: budget-active-decode
+            phrase: "Reserve one place for R0"
+            targets: [budget-step]
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: budget-first-prompt-slice
+            phrase: "Put R1’s first five words beside it"
+            targets: [budget-prompt, budget-step]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: budget-first-return
+            phrase: "When the worker finishes"
+            targets: [budget-prompt, budget-output]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Reserve one for R0 again. Put the last four words in the step. One place stays empty. The last
+          prompt position gives the model scores for the next token. Suppose it samples “and.” That’s R1’s
+          first output, even though every R1 input in this step came from the prompt.
+        hold: 1.1
+        visual_cues:
+          - id: budget-reserve-again
+            phrase: "Reserve one for R0 again"
+            targets: [budget-step]
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: budget-prompt-tail
+            phrase: "Put the last four words in the step"
+            targets: [budget-step, budget-prompt]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: budget-first-output
+            phrase: "Suppose it samples “and”"
+            targets: [budget-prompt, budget-step, budget-output]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Feed “and” back in beside R0’s next decode input. Two positions run. This time R1 samples “sang.” A
+          step’s input count tells you how much token work the scheduler assigned. To count what reached a
+          reader, follow the output. The engine can change which requests are active between steps. That is
+          continuous batching.
+        hold: 0.8
+        visual_cues:
+          - id: budget-both-decode
+            phrase: "Feed “and” back in beside R0’s next decode input"
+            targets: [budget-step, budget-output]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: budget-next-output
+            phrase: "This time R1 samples “sang”"
+            targets: [budget-output]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: chunk-clock
+    title: "Two readers on one clock"
+    visual: "Lay both caps on the same millisecond ruler. Grow the six-input and five-input steps end to end, then replay the ten-input step underneath and mark each reader’s first available output."
+    beats:
+      - say: >-
+          Start the clock as R0’s reader gets a token. R1’s reader is still waiting for the prompt to finish.
+          In this example, each sampled token reaches its reader as soon as the step ends. To choose a prompt
+          slice, reserve each ready decode input first.
+          Take whichever is smaller, the remaining budget or the prompt work left. With room for six and
+          enough KV blocks, that gives us slices of five and four. Chunked prefill lets one prompt stretch
+          across those two steps.
+        hold: 0.7
+        visual_cues:
+          - id: vv-chunk-clock-inputs
+            phrase: "slices of five and four"
+            targets: [clock-six]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Give each step two milliseconds of setup and one millisecond per computed input. This is an
+          illustrative clock. The first six inputs take eight milliseconds. R0 gets a token there. The next
+          five inputs take seven more. At fifteen milliseconds R1 can sample its first token. Now raise the
+          cap to ten. The two readers start together again. Which reader gets a token sooner with the larger
+          cap?
+        hold: 2.5
+        visual_cues:
+          - id: vv-chunk-clock-cost-eight
+            phrase: "The first six inputs take eight milliseconds"
+            targets: [clock-axis, clock-six]
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-chunk-clock-cost-seven
+            phrase: "The next five inputs take seven more"
+            targets: [clock-axis, clock-six]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-chunk-clock-larger-budget
+            phrase: "Now raise the cap to ten"
+            targets: [clock-axis, clock-six, clock-ten, clock-choice]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          One decode and all nine prompt positions take twelve milliseconds together. R1 starts three
+          milliseconds sooner. Look up at R0’s first mark. Its reader waited eight milliseconds before, and
+          twelve this time. That’s four milliseconds longer between tokens. On the target GPU, measure both
+          delays. A real step also depends on sequence lengths and memory traffic.
+        hold: 1
+        caption_starts: ["Look up at R0’s first mark", "That’s four milliseconds longer", "On the target GPU"]
+        visual_cues:
+          - id: vv-chunk-clock-cap-ten
+            phrase: "One decode and all nine prompt positions take twelve milliseconds together"
+            targets: [clock-axis, clock-ten]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-chunk-clock-compare
+            phrase: "R1 starts three milliseconds sooner"
+            targets: [clock-six, clock-ten, clock-choice]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-chunk-clock-gap
+            phrase: "That’s four milliseconds longer between tokens"
+            targets: [clock-six, clock-ten, clock-choice]
+            color: blue
+            linger: 0.25
+  - id: running-preemption
+    title: A running-set limit and a full cache block different work
+    visual: Keep spare token slots visible while the running-set counter reaches its independent cap. Then free a
+      preempted request’s physical blocks, retain its request record and rebuild only required computation.
+    beats:
+      - say: Zero point thirty-one adds a separate maximum-active-sequences cap for the RUNNING set. With an execution
+          capacity of two hundred fifty-six sequences and an active cap of sixty-four, the sixty-fifth running
+          request still waits even if token slots remain. The token cap, sequence execution capacity and live
+          running-set limit constrain different quantities.
+        hold: 0.65
+        visual_cues:
+          - id: vv-running-preemption-op-0
+            phrase: "Zero point thirty-one adds a separate maximum-active-sequences cap for the RUNNING set. With an execution capacity of two hundred fifty-six sequences and an active cap of sixty-four, the sixty-fifth running request still waits even if token slots remain. The token cap, sequence execution capacity and live running-set limit constrain different quantities."
+            targets:
+              - vllm-running-preemption-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-running-preemption-running-cap
+            phrase: "With an execution capacity of two hundred fifty-six sequences and an active cap of sixty-four, the sixty-fifth running request still waits even if token slots remain."
+            targets:
+              - vllm-running-preemption-mechanism
+            color: green
+            linger: 0.45
+      - say: >-
+          When KV capacity runs out, V1’s default preemption mode is recompute. The engine frees a running
+          request’s blocks, retains the request record and returns it to waiting with computation reset. When
+          capacity returns, the engine can rebuild the history from the retained prompt and generated tokens.
+          Any eligible prefix still in the cache saves part of that work.
+        hold: 0.65
+        visual_cues:
+          - id: vv-running-preemption-op-1
+            phrase: "When KV capacity runs out, V1’s default preemption mode is recompute. The engine frees a running request’s blocks, retains the request record and returns it to waiting with computation reset. When capacity returns, the engine can rebuild the history from the retained prompt and generated tokens. Any eligible prefix still in the cache saves part of that work."
+            targets:
+              - vllm-running-preemption-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-running-preemption-preempt-reset
+            phrase: "The engine frees a running request’s blocks, retains the request record and returns it to waiting with computation reset."
+            targets:
+              - vllm-running-preemption-mechanism
+            color: green
+            linger: 0.45
+      - say: Recomputation consumes work and can worsen latency. V0’s CPU-swap preemption and an explicitly configured
+          KV-offload path have different ownership and movement rules. Inspect free blocks, KV usage,
+          preemptions, queue wait and token latency together. More KV capacity or a smaller active set can
+          help a thrashing workload, while larger parallel groups can add communication cost.
+        hold: 0.65
+        visual_cues:
+          - id: vv-running-preemption-op-2
+            phrase: "Recomputation consumes work and can worsen latency. V0’s CPU-swap preemption and an explicitly configured KV-offload path have different ownership and movement rules. Inspect free blocks, KV usage, preemptions, queue wait and token latency together. More KV capacity or a smaller active set can help a thrashing workload, while larger parallel groups can add communication cost."
+            targets:
+              - vllm-running-preemption-mechanism
+            color: cyan
+            linger: 0.2
+  - id: lifetime
+    title: "Four physical slots, three requests"
+    visual: "Keep all four physical slots and their payloads fixed. Each live request places its ID beside the slots it reads. Release R0, follow slot 41 through the free queue and prefix index, then write R2’s first position."
+    beats:
+      - say: >-
+          R2 needs one block. These four physical slots are all we have. Read across slot twelve. R0 and R1
+          both use those four words, so it has two live readers. Forty-one holds the end of R0’s history.
+          Seventy-three and ninety belong to R1. For now the free queue is empty. When R0 finishes, which slot
+          can R2 take?
+        hold: 2.8
+        visual_cues:
+          - id: lifetime-readers
+            phrase: "Read across slot twelve"
+            targets: [lifetime-pool]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: lifetime-choice
+            phrase: "When R0 finishes, which slot can R2 take"
+            targets: [lifetime-pool, lifetime-queue, lifetime-choice]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Cross R0 off both slots. Twelve goes from two readers to one. R1 still needs it. Forty-one goes from
+          one reader to zero and joins the free queue. Look at the words in forty-one. They’re still there,
+          and the prefix index can still find them. Another compatible request could reuse that cached block
+          before the allocator takes it.
+        hold: 1.2
+        caption_starts: ["Twelve goes from two readers to one", "Forty-one goes from one reader to zero"]
+        visual_cues:
+          - id: lifetime-retire-r0
+            phrase: "Cross R0 off both slots"
+            targets: [lifetime-pool, lifetime-queue]
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: lifetime-retained
+            phrase: "Look at the words in forty-one"
+            targets: [lifetime-pool, lifetime-queue]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          R2 needs fresh space. Take forty-one off the free queue. Remove its old entry from the prefix index.
+          Give R2 the block and write “Rain” at the first position. R1 can still read its whole history from
+          twelve, seventy-three and ninety. Slot forty-one kept its address while the words and the owner
+          changed.
+        hold: 0.9
+        visual_cues:
+          - id: lifetime-pop
+            phrase: "Take forty-one off the free queue"
+            targets: [lifetime-queue]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: lifetime-remove-old-hash
+            phrase: "Remove its old entry from the prefix index"
+            targets: [lifetime-queue]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: lifetime-assign-live-reference
+            phrase: "Give R2 the block and write “Rain” at the first position"
+            targets: [lifetime-pool, lifetime-queue]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: queue-order
+    title: "Which block gets used next?"
+    visual: "Move R1’s three physical blocks into the free queue as its last references drop. Take two blocks from the head for a new request. Keep R2’s live slot and the surviving cached prefix visible."
+    beats:
+      - say: >-
+          R1 has finished. Its table lists three blocks from the start of the prompt to the end. Slot
+          ninety holds the last word alone. Seventy-three and twelve each hold a whole cached block. R2 is
+          still using forty-one. Watch R1 release its blocks in reverse order. Out come ninety, seventy-three,
+          twelve. Each loses its last reader and joins the free queue.
+        hold: 0.65
+        visual_cues:
+          - id: vv-queue-order-release-backward
+            phrase: "ninety, seventy-three, twelve"
+            targets: [vllm-queue-order-mechanism]
+            color: cyan
+        caption_starts: ["Watch R1 release", "Each loses its last reader"]
+      - say: >-
+          In this version of the pool, a partial block with no cached hash goes to the head. Cached blocks
+          join the tail. Of the two cached blocks, the suffix arrived first. The prefix can serve more
+          prompts, so it helps to keep it longer. A new request needs two fresh blocks. Which cached block
+          will it take?
+        hold: 2.4
+        visual_cues:
+          - id: vv-queue-order-free-order
+            phrase: "A new request needs two fresh blocks"
+            targets: [vllm-queue-order-mechanism]
+            color: yellow
+        caption_starts: ["Of the two cached blocks", "A new request needs two fresh blocks", "Which cached block"]
+      - say: >-
+          First take ninety, the partial block. Next take seventy-three. Remove its old suffix hash before
+          writing fresh keys and values there. Twelve stays in the free queue with its hash intact. A
+          matching prompt can still pick up that prefix.
+        hold: 1.4
+        visual_cues:
+          - id: vv-queue-order-take-partial
+            phrase: "First take ninety, the partial block"
+            targets: [vllm-queue-order-mechanism]
+            color: green
+          - id: vv-queue-order-take-suffix
+            phrase: "Next take seventy-three"
+            targets: [vllm-queue-order-mechanism]
+            color: green
+          - id: vv-queue-order-remove-hash
+            phrase: "Remove its old suffix hash"
+            targets: [vllm-queue-order-mechanism]
+            color: cyan
+          - id: vv-queue-order-prefix
+            phrase: "Twelve stays in the free queue with its hash intact"
+            targets: [vllm-queue-order-mechanism]
+            color: green
+        caption_starts: ["Next take seventy-three", "Remove its old suffix hash", "Twelve stays in the free queue"]
+  - id: admission
+    title: "Does this particular slice fit?"
+    visual: "Trace each proposed input to a place in the step and a cell in the cache. Leave one cell in the request’s current block and vary the free pool and the requested slice independently."
+    beats:
+      - say: >-
+          Here’s a request with one empty place in its current block. The engine proposes two more inputs.
+          Four places remain in the step, but the pool has no free blocks. Place the two inputs. The first can
+          extend the current block. The second needs a new block. This two-input slice has to wait.
+        hold: 1.25
+        visual_cues:
+          - id: admission-two
+            phrase: "Place the two inputs"
+            targets: [admission-plan]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Release one block and try those two inputs again. The second has a place now. The same slice fits.
+          If the engine had to preempt another request to make room, that request might later need to rebuild
+          its state. Check preemptions and free blocks alongside queue time and token delays.
+        hold: 0.9
+        visual_cues:
+          - id: admission-release
+            phrase: "Release one block"
+            targets: [admission-plan]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Replay from before the slice ran. Keep that free block, but propose five inputs this time. Place all
+          five. One could go in the original block and four in the new one. The step only has four places. A
+          smaller slice could run. To explain why a particular proposal waited, compare its demand with both
+          resources at the same attempt.
+        hold: 0.8
+        visual_cues:
+          - id: admission-bigger
+            phrase: "propose five inputs this time"
+            targets: [admission-plan]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: admission-five
+            phrase: "Place all five"
+            targets: [admission-plan]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+  - id: runner-contract
+    title: Keep admitted work intact across the worker boundary
+    visual: Carry R1’s ID, assigned token slice, sequence length, block IDs and sampling fields as one actual
+      handoff. Expand its block-table addresses into the model runner, then select graph or eager execution
+      without changing the operands.
+    beats:
+      - say: >-
+          The scheduler output carries admitted request IDs, assigned token counts, block tables, sampling
+          metadata and execution inputs. A worker must keep those fields associated. Mixing one request’s
+          sequence length with another table can read valid addresses that contain the wrong history. Follow
+          the address for position six. Look which word the worker found.
+        hold: 0.65
+        visual_cues:
+          - id: vv-runner-contract-op-0
+            phrase: "The scheduler output carries admitted request IDs, assigned token counts, block tables, sampling metadata and execution inputs. A worker must keep those fields associated. Mixing one request’s sequence length with another table can read valid addresses that contain the wrong history. Follow the address for position six. Look which word the worker found."
+            targets:
+              - vllm-runner-contract-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-runner-contract-handoff
+            phrase: "The scheduler output carries admitted request IDs, assigned token counts, block tables, sampling metadata and execution inputs."
+            targets:
+              - vllm-runner-contract-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-runner-contract-wrong-history
+            phrase: "Mixing one request’s sequence length with another table can read valid addresses that contain the wrong history."
+            targets:
+              - vllm-runner-contract-mechanism
+            color: green
+            linger: 0.45
+      - say: The model runner prepares tensor layouts, loads the required weights, selects graph or eager execution,
+          calls the model and hands results to sampling. At attention, the backend combines logical lengths
+          with physical block IDs to locate keys and values. The page table is metadata; the selected kernel
+          implements the load and computation contract.
+        hold: 0.65
+        visual_cues:
+          - id: vv-runner-contract-op-1
+            phrase: "The model runner prepares tensor layouts, loads the required weights, selects graph or eager execution, calls the model and hands results to sampling. At attention, the backend combines logical lengths with physical block IDs to locate keys and values. The page table is metadata; the selected kernel implements the load and computation contract."
+            targets:
+              - vllm-runner-contract-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-runner-contract-runner-load
+            phrase: "At attention, the backend combines logical lengths with physical block IDs to locate keys and values."
+            targets:
+              - vllm-runner-contract-mechanism
+            color: green
+            linger: 0.45
+      - say: >-
+          Kernel comparisons need warmed compilation and graphs, synchronized timing, fixed shapes, dtypes,
+          block size, sampling and topology, plus reference output checks. Separate launch overhead, KV
+          traffic, arithmetic and collectives. Time those operations on the GPU that will serve the request.
+        hold: 0.65
+        visual_cues:
+          - id: vv-runner-contract-op-2
+            phrase: "Kernel comparisons need warmed compilation and graphs, synchronized timing, fixed shapes, dtypes, block size, sampling and topology, plus reference output checks. Separate launch overhead, KV traffic, arithmetic and collectives. Time those operations on the GPU that will serve the request."
+            targets:
+              - vllm-runner-contract-mechanism
+            color: cyan
+            linger: 0.2
+  - id: parallel-costs
+    title: Split weights, layers, replicas and experts deliberately
+    visual: Use one model’s layer matrices and depth stack, then create independent request replicas and route
+      expert tokens. Retain actual weight ownership as TP/PP/DP/EP choices change.
+    beats:
+      - say: Tensor parallelism splits matrix dimensions across GPUs and adds collectives within the layer. Pipeline
+          parallelism splits layer depth across stages and can expose bubbles at low concurrency. Both can
+          reduce per-GPU weight residency and leave more room for KV blocks. Their communication and
+          scheduling costs still belong in the same request timeline.
+        hold: 0.65
+        visual_cues:
+          - id: vv-parallel-costs-op-0
+            phrase: "Tensor parallelism splits matrix dimensions across GPUs and adds collectives within the layer. Pipeline parallelism splits layer depth across stages and can expose bubbles at low concurrency. Both can reduce per-GPU weight residency and leave more room for KV blocks. Their communication and scheduling costs still belong in the same request timeline."
+            targets:
+              - vllm-parallel-costs-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-parallel-costs-tensor
+            phrase: "Tensor parallelism splits matrix dimensions across GPUs and adds collectives within the layer."
+            targets:
+              - vllm-parallel-costs-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-parallel-costs-pipeline
+            phrase: "Pipeline parallelism splits layer depth across stages and can expose bubbles at low concurrency."
+            targets:
+              - vllm-parallel-costs-mechanism
+            color: green
+            linger: 0.45
+      - say: >-
+          Data parallelism routes request groups to model replicas, adding engine cores and replicated
+          weights in the simple dense case. Expert parallelism distributes mixture-of-experts parameters and
+          routes token work between them. Combining data and expert parallelism can change which weights are
+          replicated. Check which ranks store the shared layers and which store each expert.
+        hold: 0.65
+        visual_cues:
+          - id: vv-parallel-costs-op-1
+            phrase: "Data parallelism routes request groups to model replicas, adding engine cores and replicated weights in the simple dense case. Expert parallelism distributes mixture-of-experts parameters and routes token work between them. Combining data and expert parallelism can change which weights are replicated. Check which ranks store the shared layers and which store each expert."
+            targets:
+              - vllm-parallel-costs-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-parallel-costs-data
+            phrase: "Data parallelism routes request groups to model replicas, adding engine cores and replicated weights in the simple dense case."
+            targets:
+              - vllm-parallel-costs-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-parallel-costs-expert
+            phrase: "Expert parallelism distributes mixture-of-experts parameters and routes token work between them."
+            targets:
+              - vllm-parallel-costs-mechanism
+            color: green
+            linger: 0.45
+      - say: A shared configuration connects model, scheduler, cache and parallelism choices. Model implementations
+          and backend registries support different architecture, dtype, quantization and feature combinations.
+          More GPUs can improve fit while worsening a small workload’s latency. Keep the actual compatibility
+          matrix and measured topology beside any proposed change in the number of workers.
+        hold: 0.65
+        visual_cues:
+          - id: vv-parallel-costs-op-2
+            phrase: "A shared configuration connects model, scheduler, cache and parallelism choices. Model implementations and backend registries support different architecture, dtype, quantization and feature combinations. More GPUs can improve fit while worsening a small workload’s latency. Keep the actual compatibility matrix and measured topology beside any proposed change in the number of workers."
+            targets:
+              - vllm-parallel-costs-mechanism
+            color: cyan
+            linger: 0.2
+  - id: runner-versions
+    title: Read the constructed runner inside the installed engine
+    visual: Expose the exact gpu_worker conditional and keep V1 engine identity fixed while switching between
+      established and modular runner paths. Compare a versioned full-attention path with unresolved
+      hybrid-state support.
+    beats:
+      - say: In zero point twenty-eight, gpu-worker branches on use-v-two-model-runner. The established implementation
+          is under V1 worker gpu-model-runner; the modular implementation is under V1 worker GPU model-runner.
+          V2 here names a model runner inside the V1 engine. Inspect the branch that the resolved
+          configuration constructs before following its tensor preparation and kernels.
+        hold: 0.65
+        visual_cues:
+          - id: vv-runner-versions-op-0
+            phrase: "In zero point twenty-eight, gpu-worker branches on use-v-two-model-runner. The established implementation is under V1 worker gpu-model-runner; the modular implementation is under V1 worker GPU model-runner. V2 here names a model runner inside the V1 engine. Inspect the branch that the resolved configuration constructs before following its tensor preparation and kernels."
+            targets:
+              - vllm-runner-versions-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-runner-versions-v1-engine
+            phrase: "V2 here names a model runner inside the V1 engine."
+            targets:
+              - vllm-runner-versions-mechanism
+            color: green
+            linger: 0.45
+      - say: The V1 guide lists functional paths for NVIDIA, AMD, Intel GPU, TPU and CPU, with more through plugins.
+          Platform support does not settle tuning or every feature combination. A full-attention block
+          calculation also does not describe all state-space or hybrid cache groups. Their checkpoint and
+          retention rules can differ from keys and values for an ordinary decoder.
+        hold: 0.65
+        visual_cues:
+          - id: vv-runner-versions-op-1
+            phrase: "The V1 guide lists functional paths for NVIDIA, AMD, Intel GPU, TPU and CPU, with more through plugins. Platform support does not settle tuning or every feature combination. A full-attention block calculation also does not describe all state-space or hybrid cache groups. Their checkpoint and retention rules can differ from keys and values for an ordinary decoder."
+            targets:
+              - vllm-runner-versions-mechanism
+            color: cyan
+            linger: 0.2
+      - say: "The article found a version conflict: a moving guide restricted Mamba prefix caching while the pinned
+          release advertised default support. Later releases added model-specific checkpoints and renamed a
+          related flag. Resolve such a conflict with installed implementation, model/cache configuration and
+          relevant tests. A moving guide and a release headline each need that exact execution context."
+        hold: 0.65
+        visual_cues:
+          - id: vv-runner-versions-op-2
+            phrase: "The article found a version conflict: a moving guide restricted Mamba prefix caching while the pinned release advertised default support. Later releases added model-specific checkpoints and renamed a related flag. Resolve such a conflict with installed implementation, model/cache configuration and relevant tests. A moving guide and a release headline each need that exact execution context."
+            targets:
+              - vllm-runner-versions-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-runner-versions-guide-conflict
+            phrase: "The article found a version conflict: a moving guide restricted Mamba prefix caching while the pinned release advertised default support."
+            targets:
+              - vllm-runner-versions-mechanism
+            color: green
+            linger: 0.45
+  - id: goodput
+    title: Count successful completions that meet the latency promise
+    visual: Two supplied one-hundred-second candidate receipts compare offered requests, successful completions
+      and completions meeting both latency targets. Goodput is calculated from passing completions over
+      elapsed time, alongside an inflated completion-only-denominator estimate.
+    beats:
+      - say: >
+          A faster token counter can still produce a worse interactive service. Evaluate completions against
+          the promised first-token and between-token delays. Our supplied candidate receipts keep offered
+          requests, successful completions and latency-compliant completions separate, so failures and
+          unfinished work remain visible.
+        hold: 0.6
+        visual_cues:
+          - id: goodput-beat-1-focus-1
+            phrase: A faster token counter can still produce a worse interactive service
+            targets:
+              - goodput-candidate-a
+              - goodput-candidate-b
+            color: cyan
+            linger: 0.65
+          - id: goodput-offered-receipts
+            phrase: offered requests
+            targets:
+              - goodput-a-offered
+              - goodput-b-offered
+            color: blue
+            linger: 0.65
+          - id: goodput-successful-receipts
+            phrase: successful completions
+            targets:
+              - goodput-a-complete
+              - goodput-b-complete
+            color: green
+            linger: 0.65
+          - id: goodput-compliant-receipts
+            phrase: latency-compliant completions
+            targets:
+              - goodput-a-passed
+              - goodput-b-passed
+            color: cyan
+            linger: 0.65
+      - say: >
+          Goodput is the number of completions meeting both latency limits divided by the full measurement
+          window. Candidate B serves more useful completions here despite receiving fewer offers. The receipt
+          displays the numerator and rate while keeping failed and unfinished requests visible.
+        hold: 0.7
+        visual_cues:
+          - id: goodput-beat-2-focus-1
+            phrase: number of completions meeting both latency limits
+            targets:
+              - goodput-a-passed
+              - goodput-b-passed
+            color: cyan
+            linger: 0.65
+          - id: goodput-divide-window
+            phrase: divided by the full measurement window
+            targets:
+              - goodput-window
+              - goodput-a-rate
+              - goodput-b-rate
+            color: yellow
+            linger: 0.65
+          - id: goodput-compare-candidates
+            phrase: Candidate B serves more useful completions here despite receiving fewer offers
+            targets:
+              - goodput-a-offered
+              - goodput-b-offered
+              - goodput-a-rate
+              - goodput-b-rate
+            color: green
+            linger: 0.65
+      - say: >
+          Using a completion-only pass fraction with the offered rate inflates the estimate. Keep the
+          numerator and denominator tied to the same population and time window. Replay the same workload,
+          preserve output checks, and compare queueing and tail latency alongside useful completion rate.
+        hold: 0.6
+        visual_cues:
+          - id: goodput-beat-3-focus-1
+            phrase: Using a completion-only pass fraction with the offered rate inflates the estimate
+            targets:
+              - goodput-a-wrong
+              - goodput-b-wrong
+              - goodput-a-rate
+              - goodput-b-rate
+            color: cyan
+            linger: 0.65
+  - id: goodput-denominator
+    title: Calculate the actual passing-completion rate
+    visual: Retain the two original candidate records with a common absolute count scale and100s window. Count
+      incomplete/failed and outside-limit segments explicitly, then derive correct and inflated rates.
+    beats:
+      - say: Our supplied one-hundred-second receipts give A one thousand offered requests, six hundred successful
+          completions and five hundred fifty completions meeting both limits. B receives eight hundred offers,
+          completes seven hundred eighty and passes seven hundred fifty-two. The limits are first token under
+          three hundred milliseconds and per-request p ninety-nine inter-token delay under fifty milliseconds.
+        hold: 0.65
+        visual_cues:
+          - id: vv-goodput-denominator-op-0
+            phrase: "Our supplied one-hundred-second receipts give A one thousand offered requests, six hundred successful completions and five hundred fifty completions meeting both limits. B receives eight hundred offers, completes seven hundred eighty and passes seven hundred fifty-two. The limits are first token under three hundred milliseconds and per-request p ninety-nine inter-token delay under fifty milliseconds."
+            targets:
+              - vllm-goodput-denominator-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-goodput-denominator-counts-a
+            phrase: "Our supplied one-hundred-second receipts give A one thousand offered requests, six hundred successful completions and five hundred fifty completions meeting both limits."
+            targets:
+              - vllm-goodput-denominator-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-goodput-denominator-counts-b
+            phrase: "B receives eight hundred offers, completes seven hundred eighty and passes seven hundred fifty-two."
+            targets:
+              - vllm-goodput-denominator-mechanism
+            color: green
+            linger: 0.45
+      - say: "Divide passing completions by the full window: A delivers five point five useful requests per second; B
+          delivers seven point five two. A’s four hundred failed or unfinished offers remain part of the
+          evidence. A completion-only pass fraction, five hundred fifty divided by six hundred, multiplied by
+          ten offered requests per second, instead produces about nine point one seven. It overstates the
+          actual useful completions."
+        hold: 0.65
+        visual_cues:
+          - id: vv-goodput-denominator-op-1
+            phrase: "Divide passing completions by the full window: A delivers five point five useful requests per second; B delivers seven point five two. A’s four hundred failed or unfinished offers remain part of the evidence. A completion-only pass fraction, five hundred fifty divided by six hundred, multiplied by ten offered requests per second, instead produces about nine point one seven. It overstates the actual useful completions."
+            targets:
+              - vllm-goodput-denominator-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-goodput-denominator-rates
+            phrase: "Divide passing completions by the full window: A delivers five point five useful requests per second; B delivers seven point five two."
+            targets:
+              - vllm-goodput-denominator-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-goodput-denominator-inflated
+            phrase: "A completion-only pass fraction, five hundred fifty divided by six hundred, multiplied by ten offered requests per second, instead produces about nine point one seven."
+            targets:
+              - vllm-goodput-denominator-mechanism
+            color: green
+            linger: 0.45
+      - say: Equivalently multiply offered requests per second by passing completions divided by all offered requests.
+          That preserves the population and gives the same correct rate. Compare candidates at matched loads
+          with output checks, warmup, a stated steady-state window and boundary policy. Requests with no
+          inter-token gaps need an explicit evaluation rule rather than disappearing from the report.
+        hold: 0.65
+        visual_cues:
+          - id: vv-goodput-denominator-op-2
+            phrase: "Equivalently multiply offered requests per second by passing completions divided by all offered requests. That preserves the population and gives the same correct rate. Compare candidates at matched loads with output checks, warmup, a stated steady-state window and boundary policy. Requests with no inter-token gaps need an explicit evaluation rule rather than disappearing from the report."
+            targets:
+              - vllm-goodput-denominator-mechanism
+            color: cyan
+            linger: 0.2
+  - id: event-metrics
+    title: A streamed event can contain more than one token
+    visual: Place four generated tokens on a request timeline, but bundle the first two into one output event.
+      Measure event gaps and request-level mean spacing from their own denominators without inventing unseen
+      token timestamps.
+    beats:
+      - say: The metric named inter-token-latency-seconds measures gaps between engine-core output events in this
+          pinned path. Those timestamps describe engine outputs, rather than the final HTTP transport chunks.
+          An event can contain several tokens. A histogram of event gaps therefore does not automatically
+          supply every token’s timestamp or each request’s ninety-ninth-percentile token gap. Retain the
+          actual request timeline and output counts for the product’s chosen latency contract.
+        hold: 0.65
+        visual_cues:
+          - id: vv-event-metrics-op-0
+            phrase: "The metric named inter-token-latency-seconds measures gaps between engine-core output events in this pinned path. Those timestamps describe engine outputs, rather than the final HTTP transport chunks. An event can contain several tokens. A histogram of event gaps therefore does not automatically supply every token’s timestamp or each request’s ninety-ninth-percentile token gap. Retain the actual request timeline and output counts for the product’s chosen latency contract."
+            targets:
+              - vllm-event-metrics-mechanism
+            color: cyan
+            linger: 0.2
+      - say: "In a constructed example, the first event at zero milliseconds contains two tokens, then one-token
+          events arrive at twelve and twenty-four milliseconds. Observed event gaps are twelve and twelve.
+          Request-mean time per output token divides the difference between last and first output times
+          by the quantity output-token count minus one: twenty-four divided by three, or eight milliseconds. That is a different statistic."
+        hold: 0.65
+        visual_cues:
+          - id: vv-event-metrics-op-1
+            phrase: "In a constructed example, the first event at zero milliseconds contains two tokens, then one-token events arrive at twelve and twenty-four milliseconds. Observed event gaps are twelve and twelve. Request-mean time per output token divides the difference between last and first output times by the quantity output-token count minus one: twenty-four divided by three, or eight milliseconds. That is a different statistic."
+            targets:
+              - vllm-event-metrics-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-event-metrics-events
+            phrase: "In a constructed example, the first event at zero milliseconds contains two tokens, then one-token events arrive at twelve and twenty-four milliseconds."
+            targets:
+              - vllm-event-metrics-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-event-metrics-event-gaps
+            phrase: "Observed event gaps are twelve and twelve."
+            targets:
+              - vllm-event-metrics-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-event-metrics-tpot
+            phrase: "Request-mean time per output token divides the difference between last and first output times by the quantity output-token count minus one: twenty-four divided by three, or eight milliseconds."
+            targets:
+              - vllm-event-metrics-mechanism
+            color: green
+            linger: 0.45
+      - say: The unseen gap between the first bundled tokens cannot be recovered from these event timestamps alone.
+          DistServe’s request-mean TPOT and this lesson’s per-request p ninety-nine ITL consequently require
+          different graders. Track TTFT, queueing, errors, KV occupancy and preemptions with those named
+          definitions instead of converting one aggregate histogram into a stronger promise.
+        hold: 0.65
+        visual_cues:
+          - id: vv-event-metrics-op-2
+            phrase: "The unseen gap between the first bundled tokens cannot be recovered from these event timestamps alone. DistServe’s request-mean TPOT and this lesson’s per-request p ninety-nine ITL consequently require different graders. Track TTFT, queueing, errors, KV occupancy and preemptions with those named definitions instead of converting one aggregate histogram into a stronger promise."
+            targets:
+              - vllm-event-metrics-mechanism
+            color: cyan
+            linger: 0.2
+  - id: route-security
+    title: "Who can send a scoring request?"
+    visual: "Map two registered route names to the same access rule. Follow an authorized scoring request through the gateway, then show a KV transfer on the cluster’s private network."
+    beats:
+      - say: >-
+          A scoring service has two names for the same operation. Start with the route list for the installed
+          server. Its built-in API key covers particular route prefixes. Give both names the same access
+          rule at the gateway. Health, metrics and management routes also need an explicit access policy.
+        hold: 0.65
+        visual_cues:
+          - id: vv-route-security-aliases
+            phrase: "Give both names the same access rule at the gateway"
+            targets: [vllm-route-security-mechanism]
+            color: green
+            linger: 0.45
+      - say: >-
+          A client sends a scoring request. The gateway authenticates the caller and checks the route
+          against its allowlist. This caller has permission, so the gateway forwards the request. The
+          scoring server accepts client traffic only through that gateway.
+        hold: 0.65
+        visual_cues:
+          - id: vv-route-security-gateway
+            phrase: "the gateway forwards the request"
+            targets: [vllm-route-security-mechanism]
+            color: green
+            linger: 0.45
+      - say: >-
+          Inside the cluster, one worker sends cached keys and values to another. The workers use a private
+          network. Firewall rules limit these ports to the peers that need them. Apply that boundary to
+          process groups and to tensor, pipeline and data parallel communication as well.
+        hold: 0.65
+        visual_cues:
+          - id: vv-route-security-internal
+            phrase: "one worker sends cached keys and values to another"
+            targets: [vllm-route-security-mechanism]
+            color: green
+            linger: 0.45
+  - id: media-limits
+    title: Budget compressed input and decoded media separately
+    visual: Expand two color runs into twelve pixels. Compare limits on downloaded bytes and decoded media,
+      then trace image processing to the API server for the same request.
+    beats:
+      - say: >-
+          Six red pixels, then six blue. Two runs of color describe the whole image. Expand those runs and
+          you get twelve pixels. A download cap limits the compressed bytes coming in. A pixel cap limits
+          the size of the image the server has to decode.
+        hold: 0.65
+        visual_cues:
+          - id: vv-media-limits-op-0
+            phrase: "Six red pixels, then six blue"
+            targets: [vllm-media-limits-mechanism]
+            color: blue
+          - id: vv-media-limits-expand
+            phrase: "Expand those runs and you get twelve pixels"
+            targets: [vllm-media-limits-mechanism]
+            color: cyan
+        caption_starts: ["Expand those runs", "A download cap"]
+      - say: >-
+          For remote media, allow only approved domains and disable redirects for untrusted inputs. For
+          audio, limit the file size, the clip duration and the decoded bytes. In the online server at
+          version zero point thirty-one, a server trust flag controls whether a request can override
+          processor settings. The offline Python caller controls its own inputs.
+        hold: 0.65
+        visual_cues:
+          - id: vv-media-limits-op-1
+            phrase: "For remote media, allow only approved domains"
+            targets: [vllm-media-limits-mechanism]
+            color: cyan
+          - id: vv-media-limits-trust-override
+            phrase: "a server trust flag controls whether a request can override processor settings"
+            targets: [vllm-media-limits-mechanism]
+            color: green
+      - say: >-
+          If the first token is slow for a request with an image, time the download and decoding at the API
+          server. Record the permitted source, the bytes received and the decoded pixel count on that
+          request. Compare that input time with the worker’s prefill time.
+        hold: 0.65
+        visual_cues:
+          - id: vv-media-limits-op-2
+            phrase: "If the first token is slow for a request with an image, time the download and decoding at the API server. Record the permitted source, the bytes received and the decoded pixel count on that request. Compare that input time with the worker’s prefill time."
+            targets:
+              - vllm-media-limits-mechanism
+            color: cyan
+            linger: 0.2
+  - id: tenant-cache
+    title: "Who assigns the cache namespace?"
+    visual: "Two authenticated groups send the same first block. Their gateway records keep the namespaces separate. Change the adapter on one authorized request and retain its cache miss."
+    beats:
+      - say: >-
+          Orchard sends four prompt tokens under adapter A. Meadow sends the same four. A cache salt enters
+          the hash of the first block, and later blocks inherit that history through their parent hashes. Give
+          the groups separate namespaces and their requests can keep separate cache identities even when the
+          words match.
+        hold: 0.8
+        visual_cues:
+          - id: tenant-second
+            phrase: "Meadow sends the same four"
+            targets: [tenant-records]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          The gateway authenticates each group and assigns its namespace. Only the gateway can set that value.
+          Unguessable salts help limit what one group can learn from another group’s cache timing. The service
+          still has to authorize access to source documents, protect memory and isolate internal traffic.
+        hold: 0.8
+        visual_cues:
+          - id: tenant-enforce
+            phrase: "authenticates each group and assigns its namespace"
+            targets: [tenant-records]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Keep Orchard’s namespace and change its requested adapter to B. The cached block was computed with
+          A. A miss here preserves the meaning of the request. Compute the block under B. Model, tokenizer and
+          media context also need to agree before a hit counts as useful work saved.
+        hold: 0.8
+        visual_cues:
+          - id: tenant-adapter
+            phrase: "change its requested adapter to B"
+            targets: [tenant-records]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+  - id: synthesis
+    title: "Where did R1 wait?"
+    visual: "Follow R1 on a single arrival-to-first-token ruler. Open the queue interval to compare two admission records for the same five prompt inputs, then follow the successful handoff to the worker."
+    beats:
+      - say: >-
+          Start R1’s clock at arrival. Input handling takes twenty milliseconds. R1 waits another eighty in
+          the queue. Its prompt runs for forty. Delivery takes ten more, and the first token reaches the
+          reader at one hundred fifty milliseconds. Which interval would you investigate first?
+        hold: 2.3
+        visual_cues:
+          - id: synthesis-input
+            phrase: "Input handling takes twenty milliseconds"
+            targets: [synthesis-clock]
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: synthesis-queue
+            phrase: "another eighty in the queue"
+            targets: [synthesis-clock]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: synthesis-prefill
+            phrase: "Its prompt runs for forty"
+            targets: [synthesis-clock]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: synthesis-deliver
+            phrase: "Delivery takes ten more"
+            targets: [synthesis-clock]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: synthesis-question
+            phrase: "Which interval would you investigate first"
+            targets: [synthesis-clock, synthesis-question]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Open the long queue interval. Here are two admission records from our example. At twenty
+          milliseconds R1 asks to run all five remaining prompt inputs. They fit the step, but need two new
+          blocks. Only one is free. At one hundred milliseconds two blocks are free and the same slice can
+          run. The first record explains one refusal. To account for the whole wait, check the attempts
+          between them and the time the engine spent scheduling.
+        hold: 1
+        visual_cues:
+          - id: synthesis-first-attempt
+            phrase: "At twenty milliseconds R1 asks to run all five remaining prompt inputs"
+            targets: [synthesis-clock, synthesis-attempts]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: synthesis-second-attempt
+            phrase: "At one hundred milliseconds two blocks are free"
+            targets: [synthesis-clock, synthesis-attempts]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Follow the successful handoff. The worker gets R1, five inputs, and its block table. Twelve holds
+          the shared prefix. Seventy-three and ninety hold the suffix. Keep that record together when checking
+          the runner, its attention backend and the sampled result. If worker time is the long interval on a
+          real trace, compare warmed runs on the same topology and check the outputs. The authenticated API
+          streams the reply. The worker traffic stays on the private network.
+        hold: 0.8
+        visual_cues:
+          - id: synthesis-handoff
+            phrase: "The worker gets R1, five inputs, and its block table"
+            targets: [synthesis-attempts, synthesis-handoff]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: source-diagnosis
+    title: Follow the owner before changing a kernel
+    visual: Pin the exact six-file source route beside a request timeline. On a second supplied dashboard,
+      distinguish block exhaustion/recompute from tokenizer or scheduler CPU delay, preserving the actual
+      current counters.
+    beats:
+      - say: Read the CLI and API server, then the engine core, scheduler, KV manager, block pool and the runner
+          actually selected by gpu-worker. The pinned scheduler assigns token counts; the KV manager finds
+          computed blocks and reserves slots; the pool controls references and free capacity. Follow the same
+          request ID through these files instead of treating every low token rate as an attention-kernel
+          problem.
+        hold: 0.65
+        visual_cues:
+          - id: vv-source-diagnosis-op-0
+            phrase: "Read the CLI and API server, then the engine core, scheduler, KV manager, block pool and the runner actually selected by gpu-worker. The pinned scheduler assigns token counts; the KV manager finds computed blocks and reserves slots; the pool controls references and free capacity. Follow the same request ID through these files instead of treating every low token rate as an attention-kernel problem."
+            targets:
+              - vllm-source-diagnosis-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          With rising inter-token latency, a quiet GPU and increasing recompute preemptions, first inspect KV
+          usage and free blocks. Then inspect token and sequence caps and prompt lengths, engine-core CPU and
+          scheduling latency, and tensor or pipeline communication. The hit rate tells you how often cached
+          prefixes were reused. The free-block count tells you how much room was left.
+        hold: 0.65
+        visual_cues:
+          - id: vv-source-diagnosis-op-1
+            phrase: "With rising inter-token latency, a quiet GPU and increasing recompute preemptions, first inspect KV usage and free blocks. Then inspect token and sequence caps and prompt lengths, engine-core CPU and scheduling latency, and tensor or pipeline communication. The hit rate tells you how often cached prefixes were reused. The free-block count tells you how much room was left."
+            targets:
+              - vllm-source-diagnosis-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-source-diagnosis-kv-first
+            phrase: "With rising inter-token latency, a quiet GPU and increasing recompute preemptions, first inspect KV usage and free blocks."
+            targets:
+              - vllm-source-diagnosis-mechanism
+            color: green
+            linger: 0.45
+      - say: >-
+          For a request with eighty milliseconds of input handling, five of queueing, seven of prefill and
+          three of delivery, investigate the API input stage first. A different request with three,
+          seventy-five, six and two milliseconds points to admission or scheduling. Open each request’s trace
+          at its longest interval.
+        hold: 0.65
+        visual_cues:
+          - id: vv-source-diagnosis-op-2
+            phrase: "For a request with eighty milliseconds of input handling, five of queueing, seven of prefill and three of delivery, investigate the API input stage first. A different request with three, seventy-five, six and two milliseconds points to admission or scheduling. Open each request’s trace at its longest interval."
+            targets:
+              - vllm-source-diagnosis-mechanism
+            color: cyan
+            linger: 0.2
+          - id: vv-source-diagnosis-input-trace
+            phrase: "For a request with eighty milliseconds of input handling, five of queueing, seven of prefill and three of delivery, investigate the API input stage first."
+            targets:
+              - vllm-source-diagnosis-mechanism
+            color: green
+            linger: 0.45
+          - id: vv-source-diagnosis-queue-trace
+            phrase: "A different request with three, seventy-five, six and two milliseconds points to admission or scheduling."
+            targets:
+              - vllm-source-diagnosis-mechanism
+            color: green
+            linger: 0.45
+  - id: project-identity
+    title: Keep source stewardship and loaded artifacts separate
+    visual: Link the paper’s memory contribution to the community source tree, then assign an individual committer
+      review and a separate model-weight license check without turning company logos into owners.
+    beats:
+      - say: vLLM grew from UC Berkeley’s Sky Computing Lab and the PagedAttention paper by Woosuk Kwon, Zhuohan Li,
+          Siyuan Zhuang, Ying Sheng and collaborators. Its community engine combines block memory, scheduling,
+          runner integration and serving interfaces. Companies fund and operate the project, while governance
+          assigns committer authority to individuals through sustained contributions, reviews and subsystem
+          work.
+        hold: 0.65
+        visual_cues:
+          - id: vv-project-identity-op-0
+            phrase: "vLLM grew from UC Berkeley’s Sky Computing Lab and the PagedAttention paper by Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng and collaborators. Its community engine combines block memory, scheduling, runner integration and serving interfaces. Companies fund and operate the project, while governance assigns committer authority to individuals through sustained contributions, reviews and subsystem work."
+            targets:
+              - vllm-project-identity-mechanism
+            color: cyan
+            linger: 0.2
+      - say: The pinned source carries Apache two point zero. That license covers the repository under its terms;
+          loaded model weights, tokenizers, datasets and remote code retain their own licensing and trust
+          requirements. A compatible server can still load an artifact whose rights or behavior need separate
+          review. Preserve those identities with the release.
+        hold: 0.65
+        visual_cues:
+          - id: vv-project-identity-op-1
+            phrase: "The pinned source carries Apache two point zero. That license covers the repository under its terms; loaded model weights, tokenizers, datasets and remote code retain their own licensing and trust requirements. A compatible server can still load an artifact whose rights or behavior need separate review. Preserve those identities with the release."
+            targets:
+              - vllm-project-identity-mechanism
+            color: cyan
+            linger: 0.2
+      - say: The strengths and costs follow the constructed boundaries. Blocks improve memory use but add metadata
+          work. Scheduling mixes useful work but trades latency under pressure. Backends broaden model and
+          hardware coverage while creating a compatibility matrix. Parallelism improves fit while adding
+          communication. Judge the combined system by correct useful completions under the actual workload and
+          resource constraints.
+        hold: 0.65
+        visual_cues:
+          - id: vv-project-identity-op-2
+            phrase: "The strengths and costs follow the constructed boundaries. Blocks improve memory use but add metadata work. Scheduling mixes useful work but trades latency under pressure. Backends broaden model and hardware coverage while creating a compatibility matrix. Parallelism improves fit while adding communication. Judge the combined system by correct useful completions under the actual workload and resource constraints."
+            targets:
+              - vllm-project-identity-mechanism
+            color: cyan
+            linger: 0.2
+  - id: fresh-admission
+    title: "Admission and wait time"
+    visual: "Try two requested adapters against the same thirteen-position prompt. Lay the uncached positions into actual four-place block outlines, including a fourth block outside the free pool. Finish with an independent request clock and an admission diagnosis."
+    beats:
+      - say: >-
+          Try this one. Q has thirteen prompt positions in blocks of four. Its first ten token IDs match a
+          live prefix computed under adapter A. Q asks for B. Three other blocks are free. The step can handle
+          fourteen inputs, and one place is already spoken for by an active decode with its own storage. Can
+          the entire prompt run beside it?
+        hold: 2.6
+        visual_cues:
+          - id: vv-fresh-admission-matches
+            phrase: "Its first ten token IDs match a live prefix computed under adapter A"
+            targets: [fresh-prompt]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-fresh-admission-resources
+            phrase: "Three other blocks are free"
+            targets: [fresh-prompt, fresh-pool]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-fresh-admission-whole-prompt
+            phrase: "Can the entire prompt run beside it"
+            targets: [fresh-prompt, fresh-pool, fresh-decision]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          B needs its own keys and values for all thirteen positions. Count them into the free blocks.
+          Four in the first. Eight across two. Twelve across three. The last position needs a fourth block.
+          Thirteen prompt inputs plus one decode fit
+          the step exactly, yet the proposal to run the entire prompt has to wait. A scheduler that allows a
+          shorter slice could process twelve now and leave the last position for later.
+        hold: 1.5
+        visual_cues:
+          - id: vv-fresh-admission-miss
+            phrase: "B needs its own keys and values for all thirteen positions"
+            targets: [fresh-prompt, fresh-decision]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-fresh-admission-first-four
+            phrase: "Four in the first"
+            targets: [fresh-pool]
+          - id: vv-fresh-admission-next-four
+            phrase: "Eight across two"
+            targets: [fresh-pool]
+          - id: vv-fresh-admission-third-four
+            phrase: "Twelve across three"
+            targets: [fresh-pool]
+          - id: vv-fresh-admission-overflow
+            phrase: "The last position needs a fourth block"
+            targets: [fresh-pool]
+            color: yellow
+            caption_boundary: true
+          - id: vv-fresh-admission-memory-wait
+            phrase: "the proposal to run the entire prompt has to wait"
+            targets: [fresh-pool, fresh-decision]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Reset the pool. A separate request asks for adapter A from the outset. It has the same thirteen
+          tokens and the same ten matching positions. Those prefix blocks are already live, so sharing one
+          leaves all three free blocks available for new storage. Does the entire prompt fit this time?
+        hold: 2.7
+        caption_starts: ["Those prefix blocks are already live", "Does the entire prompt fit this time"]
+        visual_cues:
+          - id: vv-fresh-admission-restore-adapter
+            phrase: "A separate request asks for adapter A"
+            targets: [fresh-prompt, fresh-pool, fresh-decision]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Two complete matching blocks cover eight positions. The next two matches lie in a block that
+          diverges. Five positions still need computing. Place four in one new block and the last in another.
+          With the active decode, six inputs run and one block is still free. Each request kept the adapter
+          its caller asked for.
+        hold: 1.15
+        caption_starts: ["The next two matches lie in a block that diverges", "Five positions still need computing"]
+        visual_cues:
+          - id: vv-fresh-admission-matching-blocks
+            phrase: "Two complete matching blocks cover eight positions"
+            targets: [fresh-prompt]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-fresh-admission-hit-counts
+            phrase: "Five positions still need computing"
+            targets: [fresh-prompt]
+            color: green
+            linger: 0.25
+          - id: vv-fresh-admission-tail-four
+            phrase: "Place four in one new block"
+            targets: [fresh-prompt, fresh-pool]
+          - id: vv-fresh-admission-tail-one
+            phrase: "the last in another"
+            targets: [fresh-pool]
+          - id: vv-fresh-admission-hit-admitted
+            phrase: "With the active decode, six inputs run"
+            targets: [fresh-pool, fresh-decision]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          How long did a reader actually wait? Take a separate timed request for A. Input handling took seven
+          milliseconds. The request waited sixty-five in the queue. Its prompt took twenty-four to run. Six
+          more brought the first token to the reader. Which interval would you open first?
+        hold: 2.4
+        visual_cues:
+          - id: vv-fresh-admission-input
+            phrase: "Input handling took seven milliseconds"
+            targets: [fresh-clock]
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-fresh-admission-queue
+            phrase: "The request waited sixty-five in the queue"
+            targets: [fresh-clock]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-fresh-admission-prefill
+            phrase: "Its prompt took twenty-four to run"
+            targets: [fresh-clock]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-fresh-admission-delivery
+            phrase: "Six more brought the first token to the reader"
+            targets: [fresh-clock]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-fresh-admission-question
+            phrase: "Which interval would you open first"
+            targets: [fresh-clock, fresh-diagnosis]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Of the hundred and two milliseconds, sixty-five were spent in the engine queue. Open the engine’s
+          admission records for that interval. At each attempt, did the requested slice have both the input
+          budget and the blocks it needed? If both were available, check when the scheduler actually issued
+          the work.
+        hold: 1.35
+        caption_starts: ["Open the engine’s admission records", "At each attempt", "If both were available"]
+        visual_cues:
+          - id: vv-fresh-admission-latency-total
+            phrase: "sixty-five were spent in the engine queue"
+            targets: [fresh-clock, fresh-diagnosis]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: vv-fresh-admission-dispatch
+            phrase: "check when the scheduler actually issued the work"
+            targets: [fresh-diagnosis]
+            color: pink
+            linger: 0.25

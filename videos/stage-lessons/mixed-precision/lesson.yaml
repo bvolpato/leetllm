@@ -1,0 +1,1071 @@
+version: 1
+id: mixed-precision
+title: Training Between Floating-Point Grids
+source: training/mixed-precision-training-loss-scaling/content.md
+sources:
+  - title: Micikevicius et al. Mixed Precision Training
+    url: https://arxiv.org/abs/1710.03740
+  - title: PyTorch Automatic Mixed Precision Examples
+    url: https://docs.pytorch.org/docs/stable/notes/amp_examples.html
+  - title: PyTorch Numerical Accuracy
+    url: https://docs.pytorch.org/docs/stable/notes/numerical_accuracy.html
+scenes:
+  - id: intro
+    title: Which weight keeps the update?
+    visual: A yellow readout slides from one toward the requested weight on two aligned rulers. A
+      close-up shows the FP32 ticks on either side of the target. Each stored weight then lands.
+    beats:
+      - say: Subtract one ten-thousandth from a weight of one. The yellow mark stops at point nine nine nine nine.
+          The blue ticks are neighbors in FP16. FP32 fits thousands of ticks between them. Zoom in on
+          the yellow mark. Which weight keeps the update?
+        hold: 2.2
+        caption_starts:
+          - The blue ticks are neighbors in FP16
+          - Which weight keeps the update
+        visual_cues:
+          - id: request-step
+            phrase: Subtract one ten-thousandth from a weight of one
+            targets:
+              - weight-request
+            color: yellow
+            linger: 0.3
+          - id: inspect-ticks
+            phrase: Zoom in on the yellow mark
+            targets: [fine-grid]
+            color: cyan
+            linger: 0.3
+      - say: The yellow mark is closest to the blue tick on the right. FP16 rounds back to one.
+          Now look at the close-up. FP32 lands on the tick just below the target. That weight keeps the update.
+        hold: 0.9
+        caption_starts:
+          - FP32 lands on the tick just below the target
+        visual_cues:
+          - id: half-landing
+            caption_boundary: true
+            phrase: FP16 rounds back to one
+            targets:
+              - half-store
+            color: blue
+            linger: 0.3
+          - id: single-landing
+            phrase: FP32 lands on the tick just below the target
+            targets:
+              - single-store
+            color: cyan
+            linger: 0.3
+      - say: Give the optimizer the FP32 weight to update. The matrix multiply can still read a sixteen-bit copy.
+          It takes half the operand bytes, and supported kernels can multiply faster. Choosing a format
+          separately for each job is what makes this mixed precision.
+        hold: 0.85
+  - id: grid
+    title: The two neighbors of one
+    visual: Two FP16 stores start at one. Equal additions and subtractions travel different distances
+      relative to their directional midpoints.
+    beats:
+      - say: Stay at one and look at the pink ticks. Each is halfway to a stored neighbor. The gap on the left is
+          half as wide as the one on the right. This time, subtract three ten-thousandths on one row and
+          add it on the other. Which sign changes the weight?
+        hold: 2.15
+        visual_cues:
+          - id: both-directions
+            phrase: subtract three ten-thousandths on one row and add it on the other
+            targets:
+              - midpoints
+            color: pink
+            linger: 0.3
+      - say: The subtraction crosses the left midpoint. It lands on the lower neighbor. The addition stops short
+          of the right midpoint and lands back on one. Compare the change with half the gap in its own
+          direction. Exactly halfway, the tie goes to the value with an even last fraction bit.
+        hold: 0.85
+        caption_starts:
+          - It lands on the lower neighbor
+          - The addition stops short
+          - Compare the change with half the gap
+        visual_cues:
+          - id: round-down
+            phrase: lands on the lower neighbor
+            targets:
+              - subtract
+            color: blue
+            linger: 0.3
+          - id: round-up
+            phrase: lands back on one
+            targets:
+              - add
+            color: blue
+            linger: 0.3
+      - say: One is a power of two. Crossing it changes the binary exponent, so the same set of fraction bits now
+          spans twice the distance. Moving the exponent changes the range you can reach. Adding fraction
+          bits puts more ticks inside each interval. The sign bit chooses the side of zero.
+        hold: 0.7
+  - id: formats
+    title: Compare range and local resolution
+    visual: FP16 and BF16 bit allocations, true normal-range bounds, and adjacent values on the same
+      numerical axis reveal the range-versus-resolution tradeoff.
+    beats:
+      - say: FP16 and BF16 both use sixteen bits, but divide them differently. FP16 spends more on fraction bits
+          and has a narrower exponent range. BF16 keeps an exponent range similar to FP32 while using
+          fewer fraction bits for nearby resolution.
+        hold: 0.6
+        visual_cues:
+          - id: formats-b1-1
+            phrase: divide them differently
+            targets:
+              - format-bits
+            linger: 0.45
+      - say: On screen, the BF16 grid near one is visibly coarser. Far from one, its range can preserve
+          magnitudes that overflow or underflow FP16. For a small update, look at the distance between
+          ticks near the weight. For a large activation, look at the end of the range.
+        hold: 0.6
+        visual_cues:
+          - id: formats-b2-1
+            phrase: visibly coarser
+            targets:
+              - format-grid
+            linger: 0.45
+          - id: formats-b2-2
+            phrase: preserve magnitudes
+            targets:
+              - format-range
+            linger: 0.45
+      - say: A training recipe can keep parameters and optimizer state in FP32 while using lower precision for
+          selected operations. Accumulation precision is another choice. Record compute, persistent
+          storage, and communication policies separately so that the actual arithmetic contract can be
+          checked.
+        hold: 0.8
+        visual_cues:
+          - id: formats-b3-1
+            phrase: arithmetic contract
+            targets:
+              - format-bits
+            linger: 0.45
+      - say: Autocast chooses an operation-specific dtype. Eligible matrix multiplication can use low-precision
+          operands while a loss such as cross entropy runs in FP32. Explicit dtype arguments and in-place
+          operations have different eligibility rules. Keep backward outside the autocast region. Its
+          operations follow the corresponding forward dtypes, and FP32 parameters still accumulate FP32
+          gradient buffers. Calling model dot half would convert the parameters themselves to FP16.
+        hold: 0.8
+        visual_cues:
+          - id: formats-extension-4
+            phrase: Autocast chooses an operation-specific dtype
+            targets:
+              - formats-extension-4
+            linger: 0.5
+          - id: autocast-matmul
+            phrase: Eligible matrix multiplication can use low-precision operands
+            targets:
+              - formats-extension-4
+            linger: 0.4
+          - id: autocast-loss
+            phrase: a loss such as cross entropy runs in FP32
+            targets:
+              - formats-extension-4
+            linger: 0.4
+          - id: autocast-backward
+            phrase: its operations follow the corresponding forward dtypes
+            targets:
+              - formats-extension-4
+            linger: 0.4
+          - id: autocast-buffer
+            phrase: FP32 parameters still accumulate FP32 gradient buffers
+            targets:
+              - formats-extension-4
+            linger: 0.4
+  - id: range-check
+    title: Two values at opposite ends of the range
+    visual: Two input magnitudes sit on a logarithmic ruler beside the FP16 half-step and finite maximum. The
+      same two values then pass through FP16 and BF16 casts.
+    beats:
+      - say: Move away from one. The yellow dot on the left is a backward gradient. It sits below half the
+          smallest positive FP16 value. Put a forward activation of one hundred thousand on the same ruler.
+          It sits beyond the finite limit of sixty-five thousand five hundred four. What will FP16 store
+          for each?
+        hold: 2.1
+        visual_cues:
+          - id: range-large
+            phrase: a forward activation of one hundred thousand
+            targets:
+              - activation-input
+            color: yellow
+            linger: 0.3
+      - say: Round both to FP16. The gradient becomes zero and the activation becomes infinity. They failed on
+          opposite sides of the range. You can scale the loss before backward to help the gradient. By then
+          the activation has already overflowed in the forward pass.
+        hold: 0.8
+        caption_starts:
+          - The gradient becomes zero
+        visual_cues:
+          - id: range-half
+            phrase: Round both to FP16
+            targets:
+              - fp16-casts
+            color: blue
+            linger: 0.3
+      - say: Now cast the original inputs to BF16. Both fit. The gradient stays close to its starting value. The
+          activation comes back as ninety-nine thousand eight hundred forty. A wider exponent range kept it
+          finite, and the fraction bits determined where it landed. BF16 usually needs no loss scaling for
+          range, though you still check for non-finite values.
+        hold: 0.8
+        visual_cues:
+          - id: range-wide
+            phrase: cast the original inputs to BF16
+            targets:
+              - bf16-casts
+            color: cyan
+            linger: 0.3
+  - id: underflow
+    title: Follow the gradient through the cast
+    visual: A close-up holds the first subnormal interval. A second ruler shows the scaled gradient in those
+      same units, above two rows that track storage and unscaling.
+    beats:
+      - say: Let’s make the tiny gradient exactly a quarter of the first FP16 spacing. The left end is zero. The
+          right end is two to the minus twenty-four, the smallest positive subnormal. Start at the yellow
+          mark and round to the nearest end. The cast stores zero. Multiplying that stored zero later still
+          gives zero.
+        hold: 0.85
+        visual_cues:
+          - id: underflow-zero-result
+            caption_boundary: true
+            phrase: The cast stores zero
+            targets:
+              - first-spacing
+            color: blue
+            linger: 0.3
+      - say: Run the same backward pass again, but first multiply the loss by two hundred fifty-six. The
+          derivative picks up that factor too. A quarter of a spacing becomes sixty-four whole spacings.
+          The cast stores that point exactly. It is still a subnormal, so this example requires a path that
+          preserves subnormals.
+        hold: 0.8
+        visual_cues:
+          - id: underflow-storage-operation
+            phrase: A quarter of a spacing becomes sixty-four whole spacings
+            targets:
+              - scaled-spacings
+            color: yellow
+            linger: 0.3
+          - id: underflow-stored-result
+            caption_boundary: true
+            phrase: The cast stores that point exactly
+            targets:
+              - rescue-row
+            color: cyan
+            linger: 0.3
+      - say: Move that stored value into FP32 and divide by the same scale. We recover the original gradient. The
+          optimizer gets the value we meant to give it. Other inputs can pick up rounding error on the way
+          through, so check the actual kernel if small gradients matter.
+        hold: 0.9
+        visual_cues:
+          - id: underflow-recovered-result
+            caption_boundary: true
+            phrase: We recover the original gradient
+            targets:
+              - rescue-row
+            color: cyan
+            linger: 0.3
+  - id: update
+    title: Six writes to the same weight
+    visual: Each optimizer step subtracts the opening decrement. A direct FP16 store, an FP32 parameter and
+      its refreshed FP16 compute copy retain their identities.
+    beats:
+      - say: Go back to the weight that started at one. Subtract the same ten-thousandth twice. The direct FP16
+          update starts from one both times. The blue readout still says one. The FP32 weight remembers
+          both subtractions. Look at its yellow compute copy. Has the weight crossed the pink midpoint yet?
+        hold: 1.9
+        visual_cues:
+          - id: two-updates
+            phrase: Subtract the same ten-thousandth twice
+            targets:
+              - update-trace
+            linger: 0.3
+      - say: After two steps, the FP32 weight is still above the midpoint. Now take the third step.
+          The FP32 weight crosses the midpoint, so refreshing the FP16 copy picks the next tick down.
+          The next matrix multiply will see a different weight.
+        hold: 0.9
+        caption_starts:
+          - Now take the third step
+          - The FP32 weight crosses the midpoint
+        visual_cues:
+          - id: third-update
+            phrase: take the third step
+            targets:
+              - update-trace
+            color: yellow
+            linger: 0.3
+      - say: Keep going to six steps. The direct FP16 weight still reads one. With ordinary PyTorch AMP, the
+          optimizer can update the original FP32 parameters. An explicit master-copy recipe keeps a
+          separate FP32 weight. That distinction matters when you count the bytes.
+        hold: 0.8
+        visual_cues:
+          - id: six-updates
+            phrase: Keep going to six steps
+            targets:
+              - update-trace
+            color: cyan
+            linger: 0.3
+  - id: controller
+    title: One large gradient in the window
+    visual: A gradient of 300 crosses the FP16 ceiling at scale 256. The optimizer keeps its weight and both
+      moments, then a smaller scale brings the same spike back into range.
+    beats:
+      - say: The scale that saved the small gradient was two hundred fifty-six. Keep that scale and try a
+          gradient of three hundred. Multiply them. The product is seventy-six thousand eight hundred. Look
+          at the FP16 ceiling. The cast overflows to infinity.
+        hold: 0.6
+        caption_starts:
+          - The product is seventy-six thousand eight hundred
+          - The cast overflows to infinity
+        visual_cues:
+          - id: scale-spike
+            phrase: Multiply them
+            targets:
+              - scaled-value
+            color: yellow
+            linger: 0.3
+          - id: controller-b1-1
+            phrase: FP16 ceiling
+            targets:
+              - overflow-boundary
+            linger: 0.45
+          - id: controller-b1-2
+            phrase: The cast overflows to infinity
+            targets:
+              - cast-result
+            linger: 0.45
+      - say: One non-finite gradient is enough for the scaler to skip this entire optimizer step. The weight and
+          both Adam moments keep their old values. For the next window, this controller cuts its scale to
+          sixty-four. That same gradient would reach nineteen thousand two hundred, safely inside the
+          range.
+        hold: 0.6
+        visual_cues:
+          - id: controller-b2-1
+            phrase: skip this entire optimizer step
+            targets:
+              - skip-decision
+            linger: 0.45
+          - id: controller-b2-2
+            phrase: The weight and both Adam moments keep their old values
+            targets:
+              - preserved-state
+            linger: 0.45
+          - id: backoff-scale
+            phrase: cuts its scale to sixty-four
+            targets:
+              - next-scale
+            color: yellow
+            linger: 0.3
+      - say: Suppose we kept the weight fixed but let Adam read that infinity. Both moments would become
+          infinite. Even the next finite gradient would inherit a broken history. Keep the optimizer step
+          intact when you skip it, and decide whether your scheduler counts attempted updates or successful
+          ones.
+        hold: 0.8
+        visual_cues:
+          - id: controller-b3-1
+            phrase: Both moments would become infinite
+            targets:
+              - wrong-moment
+              - wrong-variance
+            linger: 0.45
+      - say: There’s another way to get an infinite loss. Take a weight of two. Its square is four. Add a
+          constant infinity and the loss is infinite. The constant contributes zero to the derivative. The
+          weight derivative is still four, so the scaler alone can still allow a step. Check the loss
+          separately. The scaler can grow its scale after a configured run of finite gradient checks and
+          back off when a gradient becomes non-finite.
+        hold: 0.8
+        visual_cues:
+          - id: controller-extension-4
+            phrase: another way to get an infinite loss
+            targets:
+              - controller-extension-4
+            linger: 0.5
+          - id: finite-square
+            phrase: Its square is four
+            targets:
+              - controller-extension-4
+            linger: 0.4
+          - id: finite-loss
+            phrase: Add a constant infinity and the loss is infinite
+            targets:
+              - controller-extension-4
+            linger: 0.4
+          - id: finite-gradient
+            phrase: The weight derivative is still four
+            targets:
+              - controller-extension-4
+            linger: 0.4
+          - id: finite-scaler
+            phrase: the scaler alone can still allow a step
+            targets:
+              - controller-extension-4
+            linger: 0.4
+      - say: Give two ordinary optimizers separate weights. Each makes its own step decision. Both weights start
+          at one. A uses gradient one and a learning rate of one tenth, so its weight moves from one to
+          zero point nine. B has a non-finite gradient and keeps weight one. Now call the shared scale
+          update once. In this example the backoff halves the scale, from two hundred fifty-six to one
+          hundred twenty-eight. If your algorithm needs both optimizers to move together, implement a joint
+          check. Save the scheduler and scaler state at the complete update boundary.
+        hold: 0.8
+        visual_cues:
+          - id: controller-extension-5
+            phrase: Give two ordinary optimizers separate weights
+            targets:
+              - controller-extension-5
+            linger: 0.5
+          - id: optimizer-a
+            phrase: its weight moves from one to zero point nine
+            targets:
+              - controller-extension-5
+            linger: 0.4
+          - id: optimizer-b
+            phrase: B has a non-finite gradient and keeps weight one
+            targets:
+              - controller-extension-5
+            linger: 0.4
+          - id: optimizer-shared-scale
+            phrase: the backoff halves the scale, from two hundred fifty-six to one hundred twenty-eight
+            targets:
+              - controller-extension-5
+            linger: 0.4
+  - id: ordering
+    title: Which norm reaches the optimizer?
+    visual: Two orders of operations act on the same scaled norm. A common ruler measures what reaches the
+      optimizer, followed by a complete accumulation window.
+    beats:
+      - say: This gradient has norm point zero two. Scaling the loss by one thousand twenty-four gives us twenty
+          point four eight in the buffer. The clipping limit is one in the original units. Try clipping
+          first, then dividing by the scale. The optimizer gets less than one thousandth. Now unscale first
+          and then clip. The original norm is already below one, so the entire gradient survives.
+        hold: 0.8
+        visual_cues:
+          - id: clip-too-early
+            phrase: clipping first, then dividing by the scale
+            targets:
+              - early-clip
+            color: pink
+            linger: 0.3
+          - id: clip-in-units
+            phrase: unscale first and then clip
+            targets:
+              - true-clip
+            color: cyan
+            linger: 0.3
+      - say: Now use a scale of two hundred fifty-six for a whole window of three microbatches. Watch the two
+          coordinates in the buffer. The first batch adds to the left coordinate. The second adds to the
+          right. The third adds to both. Only now unscale the accumulated buffer. Both entries are finite.
+          Check the norm, clip if needed, and take one optimizer step. Update the scale once for the next
+          window.
+        hold: 0.8
+        visual_cues:
+          - id: first-batch
+            phrase: The first batch adds to the left coordinate
+            targets:
+              - accumulation-buffer
+            linger: 0.3
+          - id: second-batch
+            phrase: The second adds to the right
+            targets:
+              - accumulation-buffer
+            linger: 0.3
+          - id: third-batch
+            phrase: The third adds to both
+            targets:
+              - accumulation-buffer
+            linger: 0.3
+          - id: window-unscale
+            phrase: unscale the accumulated buffer
+            targets:
+              - accumulation-buffer
+            linger: 0.3
+          - id: window-finite
+            phrase: Both entries are finite
+            targets:
+              - accumulation-buffer
+            linger: 0.3
+          - id: window-step
+            phrase: take one optimizer step
+            targets:
+              - accumulation-buffer
+            linger: 0.3
+      - say: Which loss should we scale? If the objective is a mean over active tokens, count every active token
+          in the window. Here the batches have two, one and three. Divide the total loss of five by all six
+          tokens. Then multiply that normalized loss by the scale. When you checkpoint, save the scaler
+          with the optimizer state and your place in the data.
+        hold: 0.8
+        caption_starts:
+          - If the objective is a mean over active tokens
+          - Divide the total loss of five by all six tokens
+        visual_cues:
+          - id: ordering-b3-1
+            phrase: Divide the total loss of five by all six tokens
+            targets:
+              - normalized-loss
+            linger: 0.3
+          - id: ordering-b3-2
+            phrase: multiply that normalized loss by the scale
+            targets:
+              - normalized-loss
+            linger: 0.3
+      - say: Work an unequal-token window. One token contributes gradient plus two. Three other tokens each
+          contribute minus two, giving their group sum minus six. The full-token mean is plus two minus
+          six, divided by four, or minus one. Averaging the two group means gives zero and weights the
+          one-token group too heavily. A short final window uses its actual valid-token count; an
+          all-masked window has zero tokens and must skip or reject before division.
+        hold: 0.8
+        visual_cues:
+          - id: ordering-extension-4
+            phrase: Work an unequal-token window
+            targets:
+              - ordering-extension-4
+            linger: 0.5
+          - id: unequal-first
+            phrase: One token contributes gradient plus two
+            targets:
+              - ordering-extension-4
+            linger: 0.4
+          - id: unequal-group
+            phrase: Three other tokens each contribute minus two, giving their group sum minus six
+            targets:
+              - ordering-extension-4
+            linger: 0.4
+          - id: unequal-mean
+            phrase: The full-token mean is plus two minus six, divided by four, or minus one
+            targets:
+              - ordering-extension-4
+            linger: 0.4
+          - id: unequal-means
+            phrase: Averaging the two group means gives zero and weights the one-token group too heavily
+            targets:
+              - ordering-extension-4
+            linger: 0.4
+  - id: memory
+    title: Memory for one training step
+    visual: Two strips share one byte scale. Weights, gradients and Adam moments keep their widths as only
+      the activation segment contracts. A bracket measures the gap against the original total.
+    beats:
+      - say: Count the memory for one hundred million parameters and eight hundred million saved activation
+          values. The weights, gradients and two Adam moments all stay in FP32. Together they occupy the
+          three short segments. The long segment holds the activations. For this inventory, what share of
+          the original memory would we free by storing just those activations in sixteen bits?
+        hold: 2
+        visual_cues:
+          - id: memory-b1-1
+            phrase: weights, gradients and two Adam moments
+            targets:
+              - memory-components
+            linger: 0.3
+      - say: Halve the width of the activation segment. Its count stays the same. Each value now takes two bytes
+          instead of four. The gap is one point six gigabytes. Compare that gap with the original four
+          point eight. We freed one third of the inventory.
+        hold: 0.85
+        caption_starts:
+          - The gap is one point six gigabytes
+          - We freed one third of the inventory
+        visual_cues:
+          - id: memory-contraction
+            phrase: Halve the width of the activation segment. Its count stays the same. Each value now takes two
+              bytes instead of four
+            targets:
+              - memory-components
+            color: cyan
+            linger: 0.3
+          - id: memory-b2-1
+            phrase: We freed one third of the inventory
+            targets:
+              - memory-savings
+            color: cyan
+            linger: 0.3
+      - say: This is a byte count for selected tensors. Real activations can have several dtypes, and casts and
+          kernels may need temporary space. Measure peak allocated and reserved memory on a representative
+          step. Warm up before timing, track overflows and skipped updates, and compare held-out quality at
+          the same training exposure.
+        hold: 0.8
+        visual_cues:
+          - id: memory-b3-1
+            phrase: selected tensors
+            targets:
+              - memory-components
+            linger: 0.3
+      - say: Zoom in on one parameter in unsharded Adam. An FP32 weight, its gradient and two moments each cost
+          four bytes. That’s sixteen bytes per parameter. Ordinary FP32-model AMP can keep those same
+          sixteen static bytes. Now count a master-copy recipe. It has two-byte compute weights, two-byte
+          gradients, four-byte master weights and eight-byte moments. The total is sixteen again. An
+          optional four-byte gradient staging buffer makes twenty. Saved activations and temporary
+          workspace still go on a separate line.
+        hold: 0.8
+        visual_cues:
+          - id: memory-extension-4
+            phrase: Zoom in on one parameter in unsharded Adam
+            targets:
+              - memory-extension-4
+            linger: 0.5
+          - id: memory-fp32-parts
+            phrase: An FP32 weight, its gradient and two moments each cost four bytes
+            targets:
+              - memory-extension-4
+            linger: 0.4
+          - id: memory-fp32-total
+            phrase: sixteen bytes per parameter
+            targets:
+              - memory-extension-4
+            linger: 0.4
+          - id: memory-amp-total
+            phrase: Ordinary FP32-model AMP can keep those same sixteen static bytes
+            targets:
+              - memory-extension-4
+            linger: 0.4
+          - id: memory-master-parts
+            phrase: two-byte compute weights, two-byte gradients, four-byte master weights and eight-byte moments
+            targets:
+              - memory-extension-4
+            linger: 0.4
+          - id: memory-master-total
+            phrase: The total is sixteen again
+            targets:
+              - memory-extension-4
+            linger: 0.4
+          - id: memory-staging
+            phrase: An optional four-byte gradient staging buffer makes twenty
+            targets:
+              - memory-extension-4
+            linger: 0.4
+  - id: transfer
+    title: Follow one small gradient through FP16
+    visual: One gradient rounds to zero, moves into FP16's subnormal range after scaling, returns after
+      unscaling, and contrasts with information already lost in a forward cast.
+    beats:
+      - say: The yellow dot marks a gradient of two to the minus twenty-six. The pink line marks half the
+          smallest positive FP16 subnormal. The dot falls below that threshold. What value will the cast
+          store? FP16 rounds it to zero.
+        hold: 0.45
+        visual_cues:
+          - id: tiny-gradient
+            caption_boundary: true
+            phrase: FP16 rounds it to zero
+            targets:
+              - zero-gradient-result
+            color: pink
+            linger: 0.4
+      - say: Scaling the loss multiplies this gradient by two hundred fifty-six before the cast. Its exponent
+          rises by eight, from minus twenty-six to minus eighteen. FP16 stores about three point eight
+          one times ten to the minus six.
+        hold: 0.5
+        visual_cues:
+          - id: scale-gradient
+            phrase: multiplies this gradient by two hundred fifty-six before the cast
+            targets:
+              - scale-path
+            color: green
+            linger: 0.35
+          - id: scaled-storage
+            phrase: FP16 stores about three point eight one times ten to the minus six
+            targets:
+              - scaled-storage
+            color: green
+            linger: 0.4
+          - id: transfer-scaled-exponent
+            phrase: Its exponent rises by eight, from minus twenty-six to minus eighteen
+            targets:
+              - scale-path
+            linger: 0.4
+      - say: Divide the stored value by two hundred fifty-six in FP32. We recover our original gradient, two
+          to the minus twenty-six, or about one point four nine times ten to the minus eight. The
+          separate forward input was one point zero zero zero one. FP16 had already rounded it to one.
+          Scaling the loss comes too late to recover that input.
+        hold: 0.6
+        visual_cues:
+          - id: unscale-gradient
+            phrase: Divide the stored value by two hundred fifty-six in FP32
+            targets:
+              - unscale-path
+            color: cyan
+            linger: 0.35
+          - id: recovered-gradient
+            phrase: We recover our original gradient, two to the minus twenty-six, or about one point four
+              nine times ten to the minus eight
+            targets:
+              - recovered-gradient
+            color: cyan
+            linger: 0.35
+          - id: forward-rounding
+            phrase: Scaling the loss comes too late to recover that input
+            targets:
+              - forward-rounding
+            color: pink
+            linger: 0.45
+          - id: transfer-forward-cast
+            phrase: The separate forward input was one point zero zero zero one. FP16 had already rounded it to one
+            targets:
+              - forward-rounding
+            linger: 0.4
+  - id: communication
+    title: Adding gradients across workers
+    visual: Three contributions build different partial sums in BF16 and FP32. Two workers then
+      exchange full gradient tensors, one in each direction.
+    beats:
+      - say: A worker can multiply BF16 matrices and accumulate gradients in an FP32 buffer.
+          When workers add their gradients together, which format holds the running sum?
+          Check the reduction setting and the arithmetic your collective uses.
+        hold: 1.2
+        visual_cues:
+          - id: communication-b1
+            phrase: A worker can multiply BF16 matrices and accumulate gradients in an FP32 buffer
+            targets:
+              - communication-mechanism
+            linger: 0.5
+      - say: Add three workers’ contributions in a fixed order. Start the sum at two hundred fifty-six. Add one.
+          In BF16, two hundred fifty-seven is halfway to the next tick. Nearest-even rounding takes it back
+          to two hundred fifty-six. Subtract the last two hundred fifty-six and the sum is zero. FP32 kept
+          the one in its partial sum, so the same subtraction leaves one. Keep BF16 matrix operands if
+          appropriate, but try FP32 for the reduction. Also record the order. A collective tree can group
+          the additions differently.
+        hold: 0.8
+        visual_cues:
+          - id: communication-b2
+            phrase: Start the sum at two hundred fifty-six
+            targets:
+              - communication-mechanism
+            linger: 0.5
+          - id: reduction-bf16-round
+            phrase: Nearest-even rounding takes it back to two hundred fifty-six
+            targets:
+              - communication-mechanism
+            linger: 0.4
+          - id: reduction-bf16-final
+            phrase: Subtract the last two hundred fifty-six and the sum is zero
+            targets:
+              - communication-mechanism
+            linger: 0.4
+          - id: reduction-fp32-final
+            phrase: the same subtraction leaves one
+            targets:
+              - communication-mechanism
+            linger: 0.4
+      - say: A hundred million gradient values occupy four hundred million bytes at FP32 or two hundred
+          million at BF16. Watch two workers swap their BF16 tensors so each can add the pair locally.
+          Each worker sends two hundred megabytes and receives two hundred. In a larger group, the
+          algorithm, network layout and sharding determine which pieces cross each link.
+          Measure transfer time and check what rounding did to the sum.
+        hold: 0.8
+        caption_starts:
+          - Watch two workers swap their BF16 tensors
+          - Each worker sends two hundred megabytes
+        visual_cues:
+          - id: communication-b3
+            phrase: A hundred million gradient values occupy four hundred million bytes at FP32 or two hundred
+              million at BF16
+            targets:
+              - communication-mechanism
+            linger: 0.5
+          - id: payload-bytes
+            phrase: four hundred million bytes at FP32 or two hundred million at BF16
+            targets:
+              - communication-mechanism
+            linger: 0.4
+          - id: exchange-tensors
+            phrase: Watch two workers swap their BF16 tensors so each can add the pair locally
+            targets: [worker-exchange]
+            color: pink
+            linger: 0.3
+  - id: policy-mismatch
+    title: One draw from two versions of a policy
+    visual: A fixed uniform draw runs through both probability rulers. Rounding the logits moves the boundary
+      between actions across that draw.
+    beats:
+      - say: Suppose a reinforcement learning policy earns less reward after deployment. Replay the same prompt
+          with the same random draw. Here either of two actions can follow. The yellow line is our draw. If
+          it falls below the probability of action zero, the sampler takes action zero. Otherwise it takes
+          action one. We’ll move just the probability boundary.
+        hold: 1.2
+        visual_cues:
+          - id: policy-mismatch-b1
+            phrase: Replay the same prompt with the same random draw
+            targets:
+              - policy-mismatch-mechanism
+            linger: 0.5
+      - say: Start with the two scores above the chart. In FP32 the probability boundary falls just left of the
+          draw. We get action one. Now cast the logits to BF16. They both round to one. Two equal scores
+          give each action half the probability. That puts the boundary to the right of the same draw. Now
+          we get action zero.
+        hold: 0.8
+        caption_starts:
+          - We get action one
+          - Now cast the logits to BF16
+          - Now we get action zero
+        visual_cues:
+          - id: policy-mismatch-b2
+            phrase: Start with the two scores above the chart
+            targets:
+              - policy-mismatch-mechanism
+            linger: 0.5
+          - id: policy-wide-probability
+            phrase: the probability boundary falls just left of the draw
+            targets:
+              - policy-mismatch-mechanism
+            linger: 0.4
+          - id: policy-wide-action
+            phrase: We get action one
+            targets:
+              - policy-mismatch-mechanism
+            linger: 0.4
+          - id: policy-rounded-logits
+            phrase: They both round to one
+            targets:
+              - policy-mismatch-mechanism
+            linger: 0.4
+          - id: policy-rounded-probability
+            phrase: Two equal scores give each action half the probability
+            targets:
+              - policy-mismatch-mechanism
+            linger: 0.4
+          - id: policy-rounded-action
+            phrase: Now we get action zero
+            targets:
+              - policy-mismatch-mechanism
+            linger: 0.4
+      - say: One different action changes what the policy sees next. To find out whether rounding explains a
+          reward drop, compare logits and sampled actions on matched inputs using the training and serving
+          kernels, batch shapes and sampling rules. Then compare held-out reward across seeds. A different
+          pair of scores can land on different ticks. A backward loss scale can’t recover a difference the
+          forward pass has already erased.
+        hold: 0.8
+        visual_cues:
+          - id: policy-mismatch-b3
+            phrase: One different action changes what the policy sees next
+            targets:
+              - policy-mismatch-mechanism
+            linger: 0.5
+  - id: fp8-contract
+    title: How FP8 stores a spike
+    visual: Keep bit fields, current and delayed scales, and thirty-two-value MX blocks visually distinct.
+    beats:
+      - say: The OCP FP8 encodings make another range-resolution tradeoff. E-four-M-three has one sign bit, four
+          exponent bits and three fraction bits, reaches finite magnitude four hundred forty-eight and
+          has no infinity encoding. E-five-M-two uses five exponent and two fraction bits, reaches
+          fifty-seven thousand three hundred forty-four and includes infinity. Similarly named variants
+          can use different special-value rules.
+        hold: 1.2
+        visual_cues:
+          - id: fp8-contract-b1
+            phrase: The OCP FP8 encodings make another range-resolution tradeoff
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.5
+          - id: fp8-e4-limit
+            phrase: reaches finite magnitude four hundred forty-eight and has no infinity encoding
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.4
+          - id: fp8-e5-limit
+            phrase: reaches fifty-seven thousand three hundred forty-four and includes infinity
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.4
+      - say: Both rows clamp at the same FP8 ceiling. Send the same spike of five hundred twelve through both
+          paths. The top row scans this tensor for its largest magnitude, five hundred twelve. Divide
+          that maximum by four hundred forty-eight to get the step. The spike encodes as four hundred
+          forty-eight and restores to five hundred twelve. The bottom row still uses the old maximum of
+          eight. The spike hits the same ceiling, but the smaller step restores only eight. A hybrid
+          recipe can use E-four-M-three for forward operands and E-five-M-two for gradients, with
+          wider accumulation.
+        hold: 0.8
+        caption_starts:
+          - The spike encodes as four hundred forty-eight
+          - The bottom row still uses the old maximum of eight
+          - The spike hits the same ceiling
+        visual_cues:
+          - id: fp8-contract-b2
+            phrase: Both rows clamp at the same FP8 ceiling
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.5
+          - id: fp8-spike
+            phrase: Send the same spike of five hundred twelve through both paths
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.4
+          - id: fp8-current-scale
+            phrase: Divide that maximum by four hundred forty-eight to get the step
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.4
+          - id: fp8-current-result
+            phrase: The spike encodes as four hundred forty-eight and restores to five hundred twelve
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.4
+          - id: fp8-delayed-result
+            phrase: The spike hits the same ceiling, but the smaller step restores only eight
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.4
+      - say: MXFP8 shares one E-eight-M-zero power-of-two scale across thirty-two consecutive FP8 values. One
+          such block contains thirty-two element bytes and one scale byte, thirty-three bytes before
+          layout overhead. The next block gets its own scale. When choosing a kernel, check how it
+          lays out and transposes these blocks and where it rounds the intermediate results.
+        hold: 0.8
+        visual_cues:
+          - id: fp8-contract-b3
+            phrase: MXFP8 shares one E-eight-M-zero power-of-two scale across thirty-two consecutive FP8 values
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.5
+          - id: mx-elements
+            phrase: thirty-two element bytes
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.4
+          - id: mx-scale
+            phrase: one scale byte
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.4
+          - id: mx-total
+            phrase: thirty-three bytes before layout overhead
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.4
+      - say: Try storing five hundred in OCP E-four-M-three. With saturation on, the dot stops at four
+          hundred forty-eight. We lost fifty-two, and the result is still finite. With saturation off,
+          this conversion can produce NaN. Track how often values clip, how the scale changes and
+          whether training produces non-finite values. On the target hardware, compare step time and
+          held-out quality with your measured BF16 or scaled-FP16 baseline.
+        hold: 0.8
+        caption_starts:
+          - With saturation on
+          - We lost fifty-two
+        visual_cues:
+          - id: fp8-contract-b4
+            phrase: Try storing five hundred in OCP E-four-M-three
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.5
+          - id: fp8-saturation
+            phrase: With saturation on, the dot stops at four hundred forty-eight
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.4
+          - id: fp8-error
+            phrase: We lost fifty-two, and the result is still finite
+            targets:
+              - fp8-contract-mechanism
+            linger: 0.4
+  - id: earned-transfer
+    title: Comparing two training runs
+    visual: Two held-out pass rates place each candidate relative to two minimums. A kernel replay checks
+      arithmetic comparability. Back on the same axes, A moves exactly onto the policy cutoff.
+    beats:
+      - say: Here are two invented runs on the same GPU. Hold the model, training data, seeds, batch shape,
+          optimizer and evaluation fixed. Both runs finish with finite steps. The vertical line marks the
+          minimum for correctly formatted answers, ninety-eight percent. The horizontal line marks the
+          minimum for answers that follow the policy, ninety-three percent. Put A on the chart. Now place
+          B.
+        hold: 0.6
+        visual_cues:
+          - id: place-a
+            phrase: Put A on the chart
+            targets:
+              - run-a
+            color: blue
+            linger: 0.3
+          - id: place-b
+            phrase: Now place B
+            targets:
+              - run-b
+            color: cyan
+            linger: 0.3
+      - say: A is the faster run. Which run meets both minimum pass rates?
+        hold: 2.2
+      - say: A falls below the policy line. B clears both lines. Only B qualifies, at thirteen hundred examples
+          per second. Running A faster would leave that policy score exactly where it is.
+        hold: 0.85
+        visual_cues:
+          - id: quality-a
+            caption_boundary: true
+            phrase: A falls below the policy line
+            targets:
+              - run-a
+            color: pink
+            linger: 0.3
+          - id: quality-b
+            caption_boundary: true
+            phrase: B clears both lines
+            targets:
+              - run-b
+            color: green
+            linger: 0.3
+          - id: quality-speed
+            phrase: Only B qualifies
+            targets:
+              - run-b
+            color: green
+            linger: 0.3
+      - say: Before you repeat B, record how its sums were computed. Even FP32 tensors can go through a TF32
+          matrix multiply or convolution. Record the kernel, compiler settings and partial-sum precision.
+          On the target GPU, time repeated steps after warm-up and synchronize at the timing boundaries.
+        hold: 0.65
+      - say: Look inside one such sum. Start both accumulators at zero. Add forty thousand to each. Now add forty
+          thousand again. The FP32 partial is eighty thousand. The FP16 partial has overflowed to infinity.
+          Subtract forty thousand. FP32 comes back to forty thousand. FP16 stays at infinity. The final
+          mathematical answer fits in FP16. It was the intermediate addition that needed more range.
+        hold: 1
+        visual_cues:
+          - id: partial-inputs
+            phrase: Start both accumulators at zero
+            targets:
+              - kernel-partials
+            linger: 0.3
+          - id: partial-first
+            phrase: Add forty thousand to each
+            targets:
+              - kernel-partials
+            linger: 0.3
+          - id: partial-second
+            phrase: Now add forty thousand again
+            targets:
+              - kernel-partials
+            linger: 0.3
+          - id: partial-final
+            phrase: Subtract forty thousand
+            targets:
+              - kernel-partials
+            linger: 0.3
+      - say: Back to the two runs. Suppose a repeat of A under those same conditions reaches exactly ninety-three
+          percent on policy. Leave every other result as shown. If you need the fastest run that meets both
+          minimums, which would you choose?
+        hold: 2.2
+        visual_cues:
+          - id: policy-retest
+            phrase: reaches exactly ninety-three percent on policy
+            targets:
+              - run-a
+            color: blue
+            linger: 0.3
+      - say: A is on the line, so it qualifies. Choose A at fifteen hundred examples per second.
+          Look at one parameter in A. If its weight, gradient and two Adam moments are all in FP32,
+          each takes four bytes. That’s sixteen bytes for one parameter. Which worker holds those bytes?
+          That is what FSDP and ZeRO change in the next lesson.
+        hold: 1.2
+        caption_starts:
+          - Look at one parameter in A
+          - That’s sixteen bytes for one parameter
+          - Which worker holds those bytes
+          - That is what FSDP and ZeRO change
+        visual_cues:
+          - id: final-selection
+            caption_boundary: true
+            phrase: choose A at fifteen hundred examples per second
+            targets:
+              - run-a
+            color: green
+            linger: 0.3
+          - id: state-ownership
+            phrase: If its weight, gradient and two Adam moments are all in FP32
+            targets: [parameter-bytes]
+            linger: 0.3
+          - id: byte-total
+            phrase: That’s sixteen bytes for one parameter
+            targets: [parameter-bytes]
+            linger: 0.3
+          - id: which-worker
+            phrase: Which worker holds those bytes
+            targets: [parameter-bytes]
+            linger: 0.3

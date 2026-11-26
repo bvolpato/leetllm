@@ -1,0 +1,1123 @@
+version: 1
+id: graph-rag
+title: Following Evidence Through a Graph
+source: retrieval/graphrag-knowledge-graphs-vector-search/content.md
+source_files:
+  - web/src/content/retrieval/graphrag-knowledge-graphs-vector-search/assets/incident_graph_lab.py
+sources:
+  - title: "From Local to Global: A Graph RAG Approach"
+    url: https://arxiv.org/abs/2404.16130
+  - title: GraphRAG indexing dataflow
+    url: https://microsoft.github.io/graphrag/index/default_dataflow/
+  - title: GraphRAG local search
+    url: https://microsoft.github.io/graphrag/query/local_search/
+  - title: Leiden guarantees
+    url: https://arxiv.org/abs/1810.08473
+  - title: LightRAG architecture
+    url: https://arxiv.org/html/2410.05779v3
+  - title: LazyGraphRAG experiment and mechanism
+    url: https://www.microsoft.com/en-us/research/blog/lazygraphrag-setting-a-new-standard-for-quality-and-cost/
+  - title: GraphRAG indexing methods
+    url: https://microsoft.github.io/graphrag/index/methods/
+  - title: GraphRAG global search
+    url: https://microsoft.github.io/graphrag/query/global_search/
+  - title: GraphRAG DRIFT search
+    url: https://microsoft.github.io/graphrag/query/drift_search/
+  - title: Dynamic community selection experiment
+    url: https://www.microsoft.com/en-us/research/blog/graphrag-improving-global-search-via-dynamic-community-selection/
+scenes:
+  - id: subject-intro
+    title: Who published Lena’s book?
+    visual: A library card, a book cover and a park sign share the frame. Both objects say River Walk. The ID
+      on the card leads to the book record, which opens to reveal its publisher.
+    beats:
+      - say: Lena wrote River Walk. There’s the book, and beside it a park with the same name.
+          Which catalogue ID matches the one on Lena’s card?
+        hold: 2.3
+        visual_cues:
+          - id: subject-intro-book-entry
+            phrase: There’s the book
+            targets:
+              - subject-intro-book
+            linger: 0.35
+          - id: subject-intro-park-entry
+            phrase: a park with the same name
+            targets:
+              - subject-intro-park
+            linger: 0.35
+          - id: subject-intro-which-record
+            phrase: Which catalogue ID matches
+            targets:
+              - subject-intro-author
+              - subject-intro-book
+              - subject-intro-park
+              - subject-intro-question
+            linger: 0.35
+      - say: Follow the matching ID. Open the book record. Its publisher is Willow Press.
+        hold: 0.9
+        visual_cues:
+          - id: subject-intro-choose-book
+            phrase: Follow the matching ID
+            targets:
+              - subject-intro-author
+              - subject-intro-book
+              - subject-intro-match
+            linger: 0.35
+          - id: subject-intro-open
+            phrase: Open the book record
+            targets: [subject-intro-book]
+            linger: 0.35
+          - id: subject-intro-publisher
+            phrase: Willow Press
+            targets:
+              - subject-intro-book
+            caption_boundary: true
+            linger: 0.35
+      - say: A gets us from Lena to the book. B gets us from the book to its publisher. Store those two
+          relationships in a graph and a search can bring back both records for the answer.
+        hold: 0.7
+  - id: triples
+    title: Give relationships direction and type
+    visual: Person, book, and publisher cards form directed triples with source receipts kept beneath the relation.
+    beats:
+      - say: "Start with three kinds of entity: a person, a book, and a publisher. A relationship joins two entities
+          with a meaningful direction. Lena wrote River Walk. River Walk was published by Willow Press.
+          Reversing either arrow would change the statement."
+        hold: 0.55
+        visual_cues:
+          - id: triples-b1-1
+            phrase: person, a book, and a publisher
+            targets:
+              - triples-mechanism
+            linger: 0.45
+          - id: triples-b1-2
+            phrase: meaningful direction
+            targets:
+              - triples-mechanism
+            linger: 0.45
+          - id: triples-typed-person
+            phrase: a person
+            targets:
+              - triples-mechanism
+            linger: 0.7
+          - id: triples-typed-book
+            phrase: a book
+            targets:
+              - triples-mechanism
+            linger: 0.7
+          - id: triples-typed-publisher
+            phrase: a publisher
+            targets:
+              - triples-mechanism
+            linger: 0.7
+          - id: triples-edge-wrote
+            phrase: Lena wrote River Walk
+            targets:
+              - triples-mechanism
+            linger: 0.7
+          - id: triples-edge-published
+            phrase: River Walk was published by Willow Press
+            targets:
+              - triples-mechanism
+            linger: 0.7
+          - id: triples-reverse-edge
+            phrase: Reversing either arrow
+            targets:
+              - triples-mechanism
+            linger: 0.7
+      - say: Each relationship keeps its own source reference. The author edge comes from one record and the publisher
+          edge from another. Combining the nodes into a graph must preserve those separate receipts so we can
+          retrieve the supporting text for each step.
+        hold: 0.75
+        visual_cues:
+          - id: triples-b2-1
+            phrase: own source reference
+            targets:
+              - triples-mechanism
+            linger: 0.45
+          - id: triples-receipt-a
+            phrase: The author edge comes from one record
+            targets:
+              - triples-mechanism
+            linger: 0.7
+          - id: triples-receipt-b
+            phrase: publisher edge from another
+            targets:
+              - triples-mechanism
+            linger: 0.7
+      - say: Our typed graph is deliberately small and reviewed. A model can propose entities and relationships, but
+          extraction may omit a link, reverse a relation, or invent a fact. A valid structured object is only
+          the beginning of checking whether the text supports the edge.
+        hold: 0.55
+        visual_cues:
+          - id: triples-b3-1
+            phrase: text supports the edge
+            targets:
+              - triples-mechanism
+            linger: 0.45
+          - id: triples-omit-edge
+            phrase: omit a link
+            targets:
+              - triples-mechanism
+            linger: 0.7
+          - id: triples-reverse-failure
+            phrase: reverse a relation
+            targets:
+              - triples-mechanism
+            linger: 0.7
+          - id: triples-invent-edge
+            phrase: invent a fact
+            targets:
+              - triples-mechanism
+            linger: 0.7
+      - say: Follow the arrow on the left. It brings back the sentence about Lena. On the right, a graph neural
+          network gathers messages from two neighbors. Point four and point eight have mean point six. That
+          value feeds the next node update and can help rank search results. This is learned message passing.
+          Standard GraphRAG builds its index by extracting relationships, clustering the graph and writing reports.
+        hold: 0.7
+        visual_cues:
+          - id: triples-core-4
+            phrase: Follow the arrow on the left
+            targets:
+              - triples-mechanism
+            color: cyan
+            linger: 0.7
+          - id: triples-gather-messages
+            phrase: gathers messages from two neighbors
+            targets: [triples-mechanism]
+            linger: 0.35
+          - id: triples-messages-mean
+            phrase: mean point six
+            targets:
+              - triples-node-0-4
+              - triples-node-0-8
+            linger: 0.7
+  - id: resolve-identity
+    title: A link arrives without a type
+    visual: An imported endpoint named River Walk could refer to either of two records. The link waits until a
+      reviewed correction supplies a book type and edition alias.
+    beats:
+      - say: A new record arrives with a link to River Walk. Someone left the type field blank. You have a book and a
+          park with exactly that title. Where can you store the link on this evidence?
+        hold: 1.9
+        visual_cues:
+          - id: resolve-identity-ambiguous
+            phrase: Where can you store the link
+            targets:
+              - resolve-identity-lookup
+            linger: 0.35
+      - say: Hold the link. Either destination would be a guess. The cataloguer checks the original and supplies the
+          full edition name and its type, Book. Our reviewed alias table maps that edition to the book on file.
+          Now join the link to that book ID. The park keeps its own ID.
+        hold: 0.75
+        visual_cues:
+          - id: resolve-identity-hold
+            phrase: Hold the link
+            targets:
+              - resolve-identity-lookup
+            caption_boundary: true
+            linger: 0.35
+          - id: resolve-identity-typed
+            phrase: the full edition name and its type, Book
+            targets:
+              - resolve-identity-lookup
+            linger: 0.35
+          - id: resolve-identity-join
+            phrase: join the link to that book ID
+            targets:
+              - resolve-identity-lookup
+            linger: 0.35
+      - say: Deciding when two names identify the same thing is entity resolution. In this catalogue, the title and type
+          narrow the candidates and the reviewed alias settles the match. In a service catalogue, also check the
+          tenant, environment and stable source identifiers. If descriptions disagree, preserve their dates and
+          sources so someone can resolve the disagreement.
+        hold: 0.75
+  - id: walk-evidence
+    title: Follow a path, then fetch its sources
+    visual: A query cursor travels author to book to publisher; each completed edge admits its own source record
+      into the evidence set.
+    beats:
+      - say: Now start at Lena. Follow the wrote relation to the book, then the published-by relation to the
+          publisher. At each hop, collect the source record supporting that edge. The path tells us which
+          records to inspect together.
+        hold: 0.55
+        visual_cues:
+          - id: walk-evidence-b1-1
+            phrase: Follow the wrote relation
+            targets:
+              - walk-evidence-mechanism
+            linger: 0.45
+          - id: walk-evidence-b1-2
+            phrase: collect the source record
+            targets:
+              - walk-evidence-mechanism
+            linger: 0.45
+          - id: walk-evidence-walk-author
+            phrase: Follow the wrote relation
+            targets:
+              - walk-evidence-node-lena
+              - walk-evidence-node-river-walk
+            linger: 0.7
+          - id: walk-evidence-walk-publisher
+            phrase: then the published-by relation
+            targets:
+              - walk-evidence-node-river-walk
+              - walk-evidence-node-willow-press
+            linger: 0.7
+      - say: Before admitting their text, check current access, source version, and the relationship's provenance. In
+          our constructed example both needed records survive. The answer can name Willow Press and cite the
+          records establishing the book and its publisher.
+        hold: 0.75
+        visual_cues:
+          - id: walk-evidence-b2-1
+            phrase: needed records survive
+            targets:
+              - walk-evidence-mechanism
+            linger: 0.45
+          - id: walk-evidence-admit-evidence
+            phrase: both needed records survive
+            targets:
+              - walk-evidence-paper-a-current-permitted
+              - walk-evidence-paper-b-current-permitted
+            linger: 0.7
+          - id: walk-evidence-publisher-answer
+            phrase: The answer can name Willow Press
+            targets:
+              - walk-evidence-paper-b-current-permitted
+            linger: 0.7
+      - say: A short path is a retrieval lead. Its meaning depends on the relations and their support. A path through
+          a shared topic does not automatically establish authorship, ownership, or causation. Read the
+          supporting text before turning a connected diagram into an answer.
+        hold: 0.55
+        visual_cues:
+          - id: walk-evidence-b3-1
+            phrase: supporting text
+            targets:
+              - walk-evidence-mechanism
+            linger: 0.45
+  - id: unsupported-edge
+    title: Two claims cite the same sentence
+    visual: Two candidate arrows share their endpoints and their source revision. The review preserves the supported
+      arrow while it withholds the other.
+    beats:
+      - say: Read the sentence from record A again. Lena wrote River Walk. Here are two proposed links. The second
+          changes just the verb to owns. The names match, and both citations lead back to these exact words. Which
+          claim can we keep?
+        hold: 2.4
+        visual_cues:
+          - id: unsupported-edge-source
+            phrase: Read the sentence
+            targets:
+              - unsupported-edge-source
+            linger: 0.35
+          - id: unsupported-edge-candidate
+            phrase: changes just the verb to owns
+            targets:
+              - unsupported-edge-comparison
+            linger: 0.35
+          - id: unsupported-edge-decide
+            phrase: Which claim can we keep
+            targets:
+              - unsupported-edge-source
+              - unsupported-edge-comparison
+            linger: 0.35
+      - say: Keep wrote. The author record says that directly. Withhold owns. Lena could have written the book and sold
+          the rights. To add ownership, find a source that actually identifies the owner.
+        hold: 1
+        visual_cues:
+          - id: unsupported-edge-authorship
+            phrase: Keep wrote
+            targets:
+              - unsupported-edge-comparison
+            caption_boundary: true
+            linger: 0.35
+          - id: unsupported-edge-ownership
+            phrase: Withhold owns
+            targets:
+              - unsupported-edge-comparison
+            caption_boundary: true
+            linger: 0.35
+      - say: A matching hash tells you which version of the text you read. Deciding what that text supports takes a
+          separate judgment. Test both kinds of claim on reviewed examples, including uncertain wording, changed
+          dates and ambiguous names. Count the relevant sources you retrieved separately from the relationships a
+          reader could verify.
+        hold: 0.75
+  - id: extraction-contract
+    title: Read the words that produced the edge
+    visual: The article’s 1842 sentence supplies typed endpoints and a directed predicate. The host attaches the
+      source reference. Scoped names and co-occurring noun phrases illustrate what a safe merge or assertion
+      requires.
+    beats:
+      - say: Take that same reading habit to an incident note. Record eighteen forty-two says the inference API depends
+          on the Redis cache. The extractor proposes a service, a datastore and the dependency between them. The
+          program attaches the source ID from the record it read. Validate the proposed fields and types, then
+          check the meaning against the sentence. A phrase like “might depend on” would require keeping that
+          uncertainty. Standard GraphRAG builds text units, extracts entities and relationship descriptions and
+          can extract claims. It merges records, clusters the graph, writes reports and embeds the artifacts used
+          in search.
+        hold: 0.75
+        visual_cues:
+          - id: extraction-contract-fields
+            phrase: The extractor proposes a service, a datastore and the dependency between them
+            targets:
+              - extraction-contract-mechanism
+            linger: 0.35
+          - id: extraction-contract-host-source
+            phrase: attaches the source ID
+            targets:
+              - extraction-contract-paper-host-owned-source-1842
+            linger: 0.35
+      - say: Suppose one entry spells Redis Cache with capital letters and the next uses lowercase. The article’s
+          resolver normalizes case and spaces and checks a reviewed alias table. It keeps punctuation, because a
+          dash can distinguish two services. Match a canonical title and type within the same tenant and
+          environment. Reject unknown or ambiguous endpoints. If two descriptions conflict, keep both sources and
+          dates through the merge. A summary can smooth away the disagreement.
+        hold: 0.75
+        visual_cues:
+          - id: extraction-contract-scope
+            phrase: within the same tenant and environment
+            targets:
+              - extraction-contract-mechanism
+            linger: 0.35
+      - say: The article’s little extractor accepts two exact reviewed texts. Change the text and it asks for review.
+          Its numeric weights were supplied for the example. Now read the phrase “cache timeout during migration.”
+          FastGraphRAG can link noun phrases that occur in one text unit. That gives us co-occurrence. To say the
+          migration caused the timeout would take more evidence. A broad extractor can create hubs out of common
+          nouns, while a narrow type list can miss real links. Inspect high-degree nodes and measure what useful
+          evidence filtering removes. FastGraphRAG still uses a model for reports. These artifacts can live in
+          tables without a dedicated graph database.
+        hold: 0.75
+        visual_cues:
+          - id: extraction-contract-cooccur
+            phrase: link noun phrases that occur in one text unit
+            targets:
+              - extraction-contract-mechanism
+            linger: 0.35
+  - id: incident-comparison
+    title: What can the on-call engineer report?
+    visual: Three incident notes keep their positions. One search ranks term matches. A directed walk fills the
+      missing policy slot. A second run cites the same policy with a different predicate. Revocation then
+      withdraws its contribution.
+    beats:
+      - say: An engineer wants to know why a service breached its latency target, and whether it will happen again. In
+          the article’s three-note lab, search for the service name, latency and S L O. Rank the notes by the
+          number of distinct search terms they contain. Which note will a top-two search leave out?
+        hold: 2.2
+        visual_cues:
+          - id: incident-comparison-look
+            phrase: Rank the notes
+            targets:
+              - incident-comparison-notes
+            linger: 0.35
+      - say: The cache policy drops out. The breach note matches all three terms. The dependency note matches two. Those
+          are two of the three notes the test author marked as relevant. This search matches words. The lab runs
+          without embeddings, a learned extractor or an answer generator.
+        hold: 0.6
+        visual_cues:
+          - id: incident-comparison-baseline
+            phrase: The cache policy drops out
+            targets:
+              - incident-comparison-notes
+            caption_boundary: true
+            linger: 0.35
+      - say: Keep the two hits. Start at the service and follow its dependency to the cache. That first link cites a
+          note we already have. From the cache, follow the policy link. Which note does this second hop add?
+        hold: 1.8
+        visual_cues:
+          - id: incident-comparison-dependency
+            phrase: follow its dependency to the cache
+            targets:
+              - incident-comparison-path
+              - incident-comparison-notes
+            linger: 0.35
+          - id: incident-comparison-policy
+            phrase: follow the policy link
+            targets:
+              - incident-comparison-path
+              - incident-comparison-notes
+            linger: 0.35
+      - say: Note twenty thirty-one completes the set. It says the old policy is still in use and a compatibility test
+          is holding up the migration. Now we have three of three annotated notes. If we start at the policy and
+          follow only outbound links, or remove the policy edge, we lose that extra note.
+        hold: 0.7
+        visual_cues:
+          - id: incident-comparison-third-note
+            phrase: Note twenty thirty-one completes the set
+            targets:
+              - incident-comparison-notes
+            caption_boundary: true
+            linger: 0.35
+      - say: Replay the search with one change to the graph. Replace the policy edge with a proposed link straight from
+          the service to a future breach. It cites the very same sentence. This time one hop retrieves all three
+          notes. The lab checks that this reader has access, that the source exists, and that the stored hash and
+          quotation still match. Read that quotation. Would you tell the engineer another breach is likely?
+        hold: 2.4
+        visual_cues:
+          - id: incident-comparison-replace
+            phrase: from the service to a future breach
+            targets:
+              - incident-comparison-path
+              - incident-comparison-reading
+            linger: 0.35
+          - id: incident-comparison-same-three
+            phrase: one hop retrieves all three notes
+            targets:
+              - incident-comparison-notes
+              - incident-comparison-evidence
+            caption_boundary: true
+            linger: 0.35
+          - id: incident-comparison-quote
+            phrase: Read that quotation
+            targets:
+              - incident-comparison-reading
+            linger: 0.35
+      - say: Leave the forecast open. The quote establishes which policy the cache used. The other notes establish that
+          evictions and a breach occurred, and that latency recovered after rollback. To test a causal role for
+          the policy, compare the two settings under the same release and load. A full set of source IDs cannot do
+          that comparison for you.
+        hold: 0.75
+        visual_cues:
+          - id: incident-comparison-leave-open
+            phrase: Leave the forecast open
+            targets:
+              - incident-comparison-reading
+            caption_boundary: true
+            linger: 0.35
+      - say: Now withdraw this reader’s access to the policy note. The other two notes can still enter context. Withhold
+          the old report that used the policy note as well. Editing or deleting the source also invalidates
+          evidence tied to that version. Check retrieval coverage, the extractor’s precision and recall, and
+          support for the final answer separately.
+        hold: 0.8
+        visual_cues:
+          - id: incident-comparison-revoke
+            phrase: withdraw this reader’s access to the policy note
+            targets:
+              - incident-comparison-notes
+            linger: 0.35
+  - id: community-construction
+    title: Score a grouping without changing the graph
+    visual: Six undirected edges stay fixed. Node labels become degrees. Each group contributes to the same
+      modularity calculation. Removing the boundary changes the score while every edge stays put. A separate
+      forest shows hierarchical splits.
+    beats:
+      - say: Keep the original, directed relationships for retrieval. To look for groups, make a second view.
+          Microsoft’s clustering step normalizes the direction, combines duplicate pairs and carries their
+          weights. In this unweighted example, look at the little pair on the right. A filter that keeps only the
+          largest connected component would discard that pair.
+        hold: 0.8
+        visual_cues:
+          - id: community-construction-projection
+            phrase: the little pair on the right
+            targets:
+              - community-construction-graph
+            linger: 0.35
+      - say: Here’s a way to score these groups. Count the lines that touch each node. That number is its degree. There
+          are six edges and twelve edge ends, because each line has two ends. For each group, take its share of
+          internal edges out of all six. Subtract the square of its share of all twelve ends. Add the group
+          contributions. That score is modularity at resolution one.
+        hold: 0.85
+        visual_cues:
+          - id: community-construction-degrees
+            phrase: Count the lines that touch each node
+            targets:
+              - community-construction-graph
+            linger: 0.35
+      - say: In the cache group the degrees add to ten. Five of the six edges lie inside. Five sixths minus ten twelfths
+          squared gives five thirty-sixths. In the little eval group, one sixth minus two twelfths squared also
+          gives five thirty-sixths. Add the two contributions and you get five eighteenths, about point two seven
+          eight. What would happen to that score if we put all six nodes in one group?
+        hold: 2.2
+        visual_cues:
+          - id: community-construction-cache-term
+            phrase: Five sixths minus ten twelfths squared gives five thirty-sixths
+            targets:
+              - community-construction-score
+            linger: 0.35
+          - id: community-construction-eval-term
+            phrase: one sixth minus two twelfths squared also gives five thirty-sixths
+            targets:
+              - community-construction-score
+            linger: 0.35
+          - id: community-construction-modularity-result
+            phrase: about point two seven eight
+            targets:
+              - community-construction-score
+            caption_boundary: true
+            linger: 0.35
+      - say: Remove the group boundary. Every edge is now internal. Every edge end belongs to the one group. One minus
+          one squared gives zero. We changed the partition without changing a single fact. Modularity compares
+          adjacency with a degree-based expectation. An individual pair’s expected contribution can exceed one.
+          The total scores structure. To name a theme or a cause, read the sources.
+        hold: 0.8
+        visual_cues:
+          - id: community-construction-merge
+            phrase: Remove the group boundary
+            targets:
+              - community-construction-graph
+            linger: 0.35
+          - id: community-construction-all-one
+            phrase: One minus one squared gives zero
+            targets:
+              - community-construction-score
+            caption_boundary: true
+            linger: 0.35
+      - say: We scored two partitions by hand. Leiden searches for communities and refines them so they stay connected
+          under the algorithm’s assumptions. Further guarantees depend on iteration. Leiden can use different
+          objectives. The GraphRAG implementation in the article uses modularity at resolution one. It then splits
+          large communities toward a size limit. See the two roots? The cache branch splits again while the eval
+          branch stops. That hierarchy is a separate operation from aggregation inside one Leiden run. Each
+          community report includes a title, summary, referenced findings and a model-rated impact from zero to
+          ten. Use its references to check a finding. An impact rating tells you neither its frequency nor its
+          relevance to your question.
+        hold: 0.85
+        visual_cues:
+          - id: community-construction-forest
+            phrase: See the two roots
+            targets:
+              - community-construction-mechanism
+            linger: 0.35
+  - id: community-overview
+    title: What’s on the rest of the shelf?
+    visual: The same four book IDs stay in place. Two gardening hits occupy both search slots. Three source-linked
+      community reports form two batches, which yield two partial answers and one collection-wide answer.
+    beats:
+      - say: Back at the library, a visitor asks what subjects the collection covers. Suppose the search returns the
+          compost passage and the balcony herb passage. Both are relevant. Look down the rest of the shelf. Which
+          subjects did those two hits leave out?
+        hold: 1.95
+        visual_cues:
+          - id: community-overview-hits
+            phrase: the compost passage and the balcony herb passage
+            targets:
+              - community-overview-search
+            linger: 0.35
+      - say: Travel and cooking. To cover more of the collection, build reports for groups of related books. Here the
+          two gardening books share one report. Travel and cooking each have their own. We supplied these groups.
+          In standard GraphRAG, the indexing pipeline finds communities in the extracted graph and writes the
+          reports ahead of time.
+        hold: 0.65
+        visual_cues:
+          - id: community-overview-reports
+            phrase: build reports for groups of related books
+            targets:
+              - community-overview-search
+              - community-overview-shelf
+            linger: 0.35
+      - say: At query time, pack the reports into batches that fit the prompt. Here the first batch holds gardening and
+          travel. Cooking goes in the second. Ask the question of each batch. One partial answer mentions
+          gardening and travel, and the other mentions cooking. Combine those partial answers. Now all three
+          subjects appear, and you can follow the references back to the books. A summary can still omit a detail.
+          A reader who asks how many books cover a subject needs a count of the underlying books.
+        hold: 0.9
+        visual_cues:
+          - id: community-overview-batches
+            phrase: pack the reports into batches
+            targets:
+              - community-overview-search
+            linger: 0.35
+          - id: community-overview-partials
+            phrase: the other mentions cooking
+            targets:
+              - community-overview-search
+            linger: 0.35
+          - id: community-overview-reduce
+            phrase: Combine those partial answers
+            targets:
+              - community-overview-search
+            linger: 0.35
+  - id: local-context-budget
+    title: Pack a local answer into ninety tokens
+    visual: Three ranked candidates keep their scores beside their token costs. Whole items fill a fixed ruler.
+      Changing only the report score forces a second packing under the same limit.
+    beats:
+      - say: A question about one service gives us a starting point. Basic search ranks text passages by vector
+          similarity. Microsoft’s local search instead starts with semantically related entity descriptions. It
+          ranks nearby entities, relationships, linked text and reports for a shared context. Optional claim
+          records are called covariates. Our earlier walk followed directed edges. The article also sketches
+          looking in both directions for candidates while keeping each edge’s original meaning.
+        hold: 0.65
+        visual_cues:
+          - id: local-context-budget-local
+            phrase: starts with semantically related entity descriptions
+            targets:
+              - local-context-budget-mechanism
+            linger: 0.35
+      - say: Give the evidence ninety tokens. These scores and lengths are supplied. Work from the highest score down
+          and take a whole item whenever it fits. Place the dependency first. Slide the policy note in beside it.
+          We’ve spent eighty-five tokens and have five left. Will the cache report fit?
+        hold: 1.8
+        visual_cues:
+          - id: local-context-budget-place-edge
+            phrase: Place the dependency first
+            targets:
+              - local-context-budget-mechanism
+            linger: 0.35
+          - id: local-context-budget-pack-first
+            phrase: Slide the policy note in beside it
+            targets:
+              - local-context-budget-mechanism
+            linger: 0.35
+          - id: local-context-budget-pack-total
+            phrase: spent eighty-five tokens and have five left
+            targets:
+              - local-context-budget-mechanism
+            caption_boundary: true
+            linger: 0.35
+      - say: Leave out the report. It costs eighty tokens. A high score can move a source up the list, but its whole
+          text still has to fit the space that’s left.
+        hold: 0.7
+        visual_cues:
+          - id: local-context-budget-pack-reject
+            phrase: Leave out the report
+            targets:
+              - local-context-budget-mechanism
+            caption_boundary: true
+            linger: 0.35
+      - say: Try the same three items again. Raise just the report’s score to point nine nine. The lengths and the
+          budget stay fixed. Which items will the packer take now?
+        hold: 2.1
+        visual_cues:
+          - id: local-context-budget-new-score
+            phrase: Raise just the report’s score to point nine nine
+            targets:
+              - local-context-budget-mechanism
+            linger: 0.35
+      - say: Take the report first. That leaves ten tokens, too little for either remaining item. The order changed
+          which sources the model could read. This greedy rule can leave space unused. In a real prompt, count the
+          fully serialized evidence with the target tokenizer and reserve room for instructions, the question and
+          the answer.
+        hold: 0.8
+        visual_cues:
+          - id: local-context-budget-place-report
+            phrase: Take the report first
+            targets:
+              - local-context-budget-mechanism
+            caption_boundary: true
+            linger: 0.35
+          - id: local-context-budget-report-budget
+            phrase: That leaves ten tokens
+            targets:
+              - local-context-budget-mechanism
+            caption_boundary: true
+            linger: 0.35
+      - say: A vector hit can supply the next entity to search for. A cited edge can bridge that hit to a passage with
+          different wording. Try short supported paths as a ranking feature, then check whether more answers have
+          evidence. Three chunks from the same book can occupy three result slots. Removing duplicates makes room
+          for other sources. It still takes a separate count to measure how common a theme is.
+        hold: 0.7
+        visual_cues:
+          - id: local-context-budget-bridge
+            phrase: A cited edge can bridge that hit
+            targets:
+              - local-context-budget-mechanism
+            linger: 0.35
+  - id: dynamic-selection
+    title: Which reports get a turn?
+    visual: Twelve reports fit into two batches. A two-root selector next rates only children of passing parents.
+      Lowering the Serving score changes which leaves the selector can visit.
+    beats:
+      - say: Here are twelve reports at one level of the hierarchy. At these lengths, six reports fit into each map
+          call. Each map returns points rated for the question. A reducer combines the points that pass its
+          filter. Longer reports could mean more batches for those same twelve reports. Running calls in parallel
+          can shorten the wait while you still pay for the tokens in each call.
+        hold: 0.75
+        visual_cues:
+          - id: dynamic-selection-batches
+            phrase: six reports fit into each map call
+            targets:
+              - dynamic-selection-mechanism
+            linger: 0.35
+      - say: We can also choose which reports to visit. Start at the two roots. In this example a score of at least
+          point five opens a branch. Serving scores point nine. Its children get a turn. Cache gets point eight
+          and Queue gets point seven. Both leaves pass. Eval gets point one, so its child stays unrated.
+        hold: 0.85
+        visual_cues:
+          - id: dynamic-selection-rate-serving
+            phrase: Serving scores point nine
+            targets:
+              - dynamic-selection-node-serving
+            linger: 0.35
+          - id: dynamic-selection-rate-cache
+            phrase: Cache gets point eight
+            targets:
+              - dynamic-selection-node-cache
+            linger: 0.35
+          - id: dynamic-selection-rate-queue
+            phrase: Queue gets point seven
+            targets:
+              - dynamic-selection-node-queue
+            linger: 0.35
+          - id: dynamic-selection-prune-eval
+            phrase: Eval gets point one
+            targets:
+              - dynamic-selection-node-eval
+            linger: 0.35
+      - say: Run the same selector again. Change just the Serving score to point two. Leave the other inputs alone.
+          Which leaves will it visit on this pass?
+        hold: 2.1
+        visual_cues:
+          - id: dynamic-selection-parent-change
+            phrase: Change just the Serving score to point two
+            targets:
+              - dynamic-selection-mechanism
+            linger: 0.35
+      - say: It visits neither leaf under Serving. Both roots failed, so it rates no children at all. The cache report
+          that passed last time never gets a chance. This little selector has no fallback. The reference
+          implementation has recovery behavior. When you measure savings from pruning, count the extra rating
+          calls and check what evidence they hide.
+        hold: 0.8
+        visual_cues:
+          - id: dynamic-selection-no-leaves
+            phrase: it rates no children at all
+            targets:
+              - dynamic-selection-mechanism
+            caption_boundary: true
+            linger: 0.35
+      - say: In Microsoft’s November twenty twenty-four AP News experiment, dynamic selection used seventy-seven percent
+          fewer tokens on average than static level-one search across fifty global questions. The model judges
+          found no statistically significant difference on their criteria. Factual accuracy still needs its own
+          evaluation. The level-three comparison used the twenty-nine questions where it included more reports,
+          and average cost rose thirty-four percent on that subset.
+        hold: 0.7
+        visual_cues:
+          - id: dynamic-selection-study
+            phrase: seventy-seven percent fewer tokens
+            targets:
+              - dynamic-selection-mechanism
+            linger: 0.35
+  - id: drift-followups
+    title: Following a travel report back to its sources
+    visual: A travel report supplies a title. A follow-up opens the author and publisher records. A correction
+      withdraws the old publisher. Two prompts then put the same current author card in different positions.
+    beats:
+      - say: A reader wants travel books and their publishers. DRIFT starts its answer from community reports
+          related to that request. The travel report lists River Walk. That gives us a title and a follow-up
+          question. Who published River Walk?
+        hold: 0.7
+        visual_cues:
+          - id: drift-followups-b1
+            phrase: The travel report
+            targets: [drift-followups-report]
+            linger: 0.35
+          - id: drift-followups-question
+            phrase: Who published River Walk
+            targets: [drift-followups-question]
+            linger: 0.35
+      - say: Local search brings back two records. A identifies the book and B names Willow Press.
+          Each local answer can raise another question. DRIFT combines the answers from those branches
+          with the broad answer. Now the library corrects B. Block the old record and any reports that used
+          it. Fetch the current version before naming the publisher again.
+        hold: 0.7
+        visual_cues:
+          - id: drift-followups-followup-source
+            phrase: Local search brings back two records
+            targets: [drift-followups-sources]
+            linger: 0.35
+          - id: drift-followups-answer
+            phrase: B names Willow Press
+            targets: [drift-followups-sources]
+            caption_boundary: true
+            linger: 0.35
+          - id: drift-followups-followup-stale
+            phrase: the library corrects B
+            targets: [drift-followups-sources]
+            linger: 0.35
+      - say: Could we just put all the current records in one long prompt? Try asking who wrote River Walk. Put card A
+          first, then move it to the middle and ask again. A model can overlook evidence in the middle.
+          Check whether both answers cite the sentence that names Lena. For broad questions the original
+          GraphRAG study compared answers about podcasts and news. Its model judges preferred the report-based
+          answers for breadth and variety. For your own questions, compare the details each route supports,
+          how many calls it makes and how long the reader waits.
+        hold: 0.7
+        visual_cues:
+          - id: drift-followups-b3
+            phrase: Put card A first
+            targets: [drift-followups-prompts]
+            linger: 0.35
+          - id: drift-followups-middle
+            phrase: move it to the middle
+            targets: [drift-followups-prompts]
+            linger: 0.35
+          - id: drift-followups-study
+            phrase: For broad questions
+            targets: [drift-followups-study]
+            linger: 0.35
+  - id: index-strategies
+    title: What goes into the index?
+    visual: Three rows compare what gets built before a question with what runs at query time. A study shows
+      the relative indexing cost. A new service note then attaches a second dependency to one Redis node.
+    beats:
+      - say: Suppose the collection changes every morning. Standard GraphRAG uses a model to extract entities
+          and relationships, summarize their descriptions and write reports in advance. FastGraphRAG links noun phrases
+          that occur together and still uses a model to write the reports. LazyGraphRAG builds a phrase
+          graph and records statistics. It waits for a question before spending model calls to test which
+          passages are relevant. Its budget sets how many relevance tests it can run.
+        hold: 0.7
+        visual_cues:
+          - id: index-strategies-b1
+            phrase: Standard GraphRAG
+            targets: [index-strategies-standard]
+            linger: 0.35
+          - id: index-strategies-fast
+            phrase: FastGraphRAG
+            targets: [index-strategies-fast]
+            linger: 0.35
+          - id: index-strategies-lazy-query
+            phrase: It waits for a question
+            targets: [index-strategies-lazy]
+            linger: 0.35
+      - say: How much did that save on one collection? In Microsoft’s November twenty twenty-four study,
+          building the Lazy index on five thousand five hundred ninety AP news articles cost about a tenth of one
+          percent of the full GraphRAG index. The researchers also ran a hundred synthetic questions and used
+          model judges to compare the answers. For a collection that changes daily, count both the rebuilds
+          and the questions people actually ask between them.
+        hold: 0.7
+        visual_cues:
+          - id: index-strategies-b2
+            phrase: a tenth of one percent
+            targets: [index-strategies-study]
+            linger: 0.35
+      - say: LightRAG keeps text profiles for entities and relationships. A low-level keyword like Redis
+          can retrieve an entity profile. High-level keywords like service dependencies can retrieve a
+          relationship and its source passage. Now add one note. Search also depends on Redis. LightRAG extracts the new
+          document’s graph and merges it with the existing one. Both services now point to the same cache.
+          Now test a deletion. Withdraw the new note. The link from Search should drop out because it lost
+          its only source. The original dependency still has one.
+        hold: 0.7
+        visual_cues:
+          - id: index-strategies-b3
+            phrase: low-level keyword like Redis
+            targets: [index-strategies-cache]
+            linger: 0.35
+          - id: index-strategies-relationship
+            phrase: service dependencies
+            targets: [index-strategies-dependency]
+            linger: 0.35
+          - id: index-strategies-document
+            phrase: Now add one note
+            targets: [index-strategies-document]
+            linger: 0.35
+          - id: index-strategies-light-merge
+            phrase: merges it with the existing one
+            targets: [index-strategies-merge]
+            linger: 0.35
+          - id: index-strategies-withdraw
+            phrase: Withdraw the new note
+            targets: [index-strategies-document]
+            linger: 0.35
+  - id: workload-cost
+    title: How often will people ask?
+    visual: A cursor moves from ten to five hundred queries between refreshes. Each strategy keeps its own cost
+      equation and total. A separate table checks the quality and latency of fact and trend routes.
+    beats:
+      - say: Suppose both strategies meet our ninety percent floor for supported answers. The yellow line defers model
+          work. It costs one unit to index and one point seven for each query. Blue precomputes reports. That
+          costs two hundred up front, then point eight per query. These are example units. If ten queries arrive
+          before the next refresh, which bill is smaller?
+        hold: 1.8
+        visual_cues:
+          - id: workload-cost-volume
+            phrase: If ten queries arrive before the next refresh
+            targets:
+              - workload-cost-mechanism
+            linger: 0.35
+      - say: At ten queries, deferred costs eighteen units. Precomputing costs two hundred eight. Now move to five
+          hundred queries before the next refresh. Which strategy makes better use of that many requests?
+        hold: 1.8
+        visual_cues:
+          - id: workload-cost-volume-ten
+            phrase: Precomputing costs two hundred eight
+            targets:
+              - workload-cost-mechanism
+            caption_boundary: true
+            linger: 0.35
+          - id: workload-cost-move
+            phrase: move to five hundred queries
+            targets:
+              - workload-cost-mechanism
+            linger: 0.35
+      - say: Precomputing now costs six hundred units. Deferred work costs eight hundred fifty-one. You pay an extra
+          hundred ninety-nine up front to save point nine on each query. Divide the extra cost by that saving. The
+          two lines cross at about two hundred twenty-one queries per refresh. Refresh more often at the same
+          traffic level and you have fewer queries to pay back each build.
+        hold: 0.8
+        visual_cues:
+          - id: workload-cost-volume-many
+            phrase: Deferred work costs eight hundred fifty-one
+            targets:
+              - workload-cost-mechanism
+            caption_boundary: true
+            linger: 0.35
+          - id: workload-cost-cost-crossing
+            phrase: about two hundred twenty-one queries per refresh
+            targets:
+              - workload-cost-mechanism
+            linger: 0.35
+      - say: Now decide which routes to release. In this example every route needs at least ninety percent supported
+          accuracy. Fact lookups get two hundred milliseconds at the ninety-fifth percentile. Trend questions get
+          seven hundred. Which route passes both tests for each class?
+        hold: 2.2
+        visual_cues:
+          - id: workload-cost-rules
+            phrase: Which route passes both tests
+            targets:
+              - workload-cost-mechanism
+            linger: 0.35
+      - say: Release Basic for facts. Local gets the same accuracy, but takes two hundred forty milliseconds, beyond the
+          limit. Release Global for trends. The fast Basic route supports only sixty-one percent of its answers.
+          If every candidate for a question class misses a limit, hold that class back.
+        hold: 0.85
+        visual_cues:
+          - id: workload-cost-fact-route
+            phrase: Release Basic for facts
+            targets:
+              - workload-cost-mechanism
+            caption_boundary: true
+            linger: 0.35
+          - id: workload-cost-trend-route
+            phrase: Release Global for trends
+            targets:
+              - workload-cost-mechanism
+            caption_boundary: true
+            linger: 0.35
+      - say: Measure those tradeoffs on a representative corpus. A new source can change an entity match, move a
+          community boundary or add report and embedding work. If a deleted source was the only support for a
+          fact, withdraw the fact and block any report that used it. Rebuild more broadly when an incremental
+          update cannot repair those changes. Compare supported answers, access failures, latency and total spend
+          with the simpler retrieval route.
+        hold: 0.7
+        visual_cues:
+          - id: workload-cost-refresh
+            phrase: A new source can change an entity match
+            targets:
+              - workload-cost-mechanism
+            linger: 0.35
+  - id: counts-and-access
+    title: Who can read the report?
+    visual: Two reports share public sources. One also uses a restricted source. The reader changes before the map
+      step. A separate revision change then blocks the old publisher chain and preserves an independent report.
+    beats:
+      - say: Before a global search sends a report to the model, check who can read the sources it used. A and B are
+          open to staff and security. Record R is open to security alone. This reader is staff. Which report can
+          go into the map step?
+        hold: 2.1
+        visual_cues:
+          - id: counts-and-access-readers
+            phrase: Record R is open to security alone
+            targets:
+              - counts-and-access-sources
+            linger: 0.35
+      - say: Send the public report alone. The mixed report could disclose R even if we removed its citation. We can
+          build a report from just the permitted sources, precompute reports for readers who share access, or fall
+          back to authorized local search.
+        hold: 0.8
+        visual_cues:
+          - id: counts-and-access-public-only
+            phrase: Send the public report alone
+            targets:
+              - counts-and-access-reports
+            caption_boundary: true
+            linger: 0.35
+      - say: Switch to a security reader. Can this reader open A, B and R? Yes. Admit both reports. The permitted
+          audience of a report is the intersection of all its sources’ current audiences.
+        hold: 0.9
+        visual_cues:
+          - id: counts-and-access-reader
+            phrase: Switch to a security reader
+            targets:
+              - counts-and-access-sources
+            linger: 0.35
+          - id: counts-and-access-security-reads
+            phrase: Admit both reports
+            targets:
+              - counts-and-access-reports
+            caption_boundary: true
+            linger: 0.35
+      - say: Back at the library, a child report uses the publisher edge, and its parent quotes the child. The library
+          replaces record B with version two. Block the old edge and both old reports immediately. Apply the same
+          check to any cached context that used them. The separate travel report can stay in service. Rebuilding
+          takes time. Someone is already waiting at the desk.
+        hold: 0.65
+        visual_cues:
+          - id: counts-and-access-corrected
+            phrase: replaces record B with version two
+            targets:
+              - counts-and-access-versions
+            linger: 0.35
+  - id: transfer
+    title: Back at the library desk
+    visual: The opening catalogue returns with a current source and a stale report. A second reader asks for a
+      frequency count. A repeated travel ID and then a new travel ID test which evidence changes the answer.
+    beats:
+      - say: The original reader is back. Record A still identifies the same book. You can read the corrected publisher
+          record. The old report still says Willow Press and its rebuild hasn’t finished. Which source can you
+          cite now?
+        hold: 2.3
+        visual_cues:
+          - id: transfer-choose
+            phrase: Which source can you cite now
+            targets:
+              - transfer-files
+            linger: 0.35
+      - say: Follow A to the current book record. Version two names Juniper Press. You can answer from those two sources
+          today. A report built from the old version stays out of context.
+        hold: 0.8
+        visual_cues:
+          - id: transfer-follow
+            phrase: Follow A to the current book record
+            targets:
+              - transfer-files
+            linger: 0.35
+          - id: transfer-lookup-result
+            phrase: Version two names Juniper Press
+            targets:
+              - transfer-files
+            caption_boundary: true
+            linger: 0.35
+      - say: The next reader wants to know which topic has the most books. Each book has one reviewed topic label. These
+          five entries cover the shelf. Count books by their catalogue IDs. Which topic leads?
+        hold: 2.35
+        visual_cues:
+          - id: transfer-entries
+            phrase: These five entries
+            targets:
+              - transfer-shelf
+            linger: 0.35
+      - say: The two travel entries refer to the same book. Count it once. Look at the two gardening IDs. Gardening leads with two of the four books.
+          Travel and cooking have one each. A community report can describe themes across the shelf. Its impact
+          rating gives you no way to count those books.
+        hold: 0.85
+        visual_cues:
+          - id: transfer-same-book
+            phrase: refer to the same book
+            targets:
+              - transfer-shelf
+            linger: 0.35
+          - id: transfer-count-two
+            phrase: the two gardening IDs
+            targets: [transfer-tally]
+            linger: 0.35
+          - id: transfer-count-result
+            phrase: Gardening leads with two of the four books
+            targets:
+              - transfer-tally
+            caption_boundary: true
+            linger: 0.35
+      - say: One more travel entry arrives. This one has a new ID, B five. Who leads now?
+        hold: 2.25
+        visual_cues:
+          - id: transfer-fifth-book
+            phrase: This one has a new ID
+            targets:
+              - transfer-shelf
+            linger: 0.35
+      - say: Gardening and travel now tie. Each has two of the five books. It was the new book that changed the answer.
+          A second mention of the old one left the count exactly where it was.
+        hold: 1.25
+        visual_cues:
+          - id: transfer-tie
+            phrase: Gardening and travel now tie
+            targets:
+              - transfer-tally
+            caption_boundary: true
+            linger: 0.35

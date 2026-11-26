@@ -1,0 +1,339 @@
+version: 1
+id: gemm
+title: GEMM at the edge of a tile
+opening: lesson
+source: fundamentals/gemm-naive-cuda-tensor-cores/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "NVIDIA CUDA C++ Programming Guide: Matrix Multiplication"
+    url: https://docs.nvidia.com/cuda/cuda-c-programming-guide/
+  - title: NVIDIA CUTLASS Efficient GEMM
+    url: https://docs.nvidia.com/cutlass/latest/media/docs/cpp/efficient_gemm.html
+  - title: NVIDIA Matrix Multiplication Background User Guide
+    url: https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/
+scenes:
+  - id: intro
+    title: Who still needs the three?
+    visual: A blue three multiplies a two-entry row of B. A copy of the three lands beside each partner. The bracket closes around the one when the right column disappears.
+    beats:
+      - say: Load this three once. Multiply it by one for the left sum and by four for the right.
+        hold: 0.7
+        caption_starts: [Multiply it by one, and by four]
+        visual_cues:
+          - { id: left-product, phrase: Multiply it by one for the left sum, targets: [left-term] }
+          - { id: right-product, phrase: and by four for the right, targets: [right-term] }
+      - say: Crop the right column of B. Its product disappears. Can we skip loading the three?
+        hold: 2.6
+        caption_starts: [Can we skip loading the three]
+        visual_cues:
+          - { id: crop-column, phrase: Crop the right column of B, targets: [b-row] }
+      - say: Keep the load. Three times one still adds three to the left sum.
+        hold: 0.9
+        visual_cues:
+          - { id: credit-three, phrase: Three times one still adds three to the left sum, targets: [left-term], caption_boundary: true }
+  - id: dot
+    title: Build the bottom-left answer
+    visual: The bottom row and left column align by k. Each signed product appears above a single running sum.
+    beats:
+      - say: Put the right column back. We're multiplying A by B, a matrix multiply often called GEMM. Start the bottom-left sum at zero. In the first pair, minus one times two gives minus two.
+        hold: 0.8
+        visual_cues:
+          - { id: minus-two, phrase: minus one times two gives minus two, targets: [dot-pairs] }
+      - say: Move one place to the right along A and one place down B. That's our three again. Three times one adds three, bringing the sum to one.
+        hold: 0.9
+        visual_cues:
+          - { id: plus-three, phrase: bringing the sum to one, targets: [dot-pairs] }
+      - say: There's one pair left. Two times three adds six. The bottom-left answer is seven.
+        hold: 1.2
+        visual_cues:
+          - { id: plus-six, phrase: The bottom-left answer is seven, targets: [dot-pairs], caption_boundary: true }
+      - say: Each of the four answers needs three such pairs. A multiply and an add count as two floating-point operations, or FLOPs. That's twenty-four FLOPs for this product. Now let's count the reads.
+        hold: 0.7
+  - id: naive
+    title: Count the reads of each input
+    visual: A dot appears beneath the exact source word on each scalar read. A second sweep gives each input just one dot while the arithmetic stays fixed.
+    beats:
+      - say: Give each output to a separate thread. Run the three pairs for each of the four outputs. Every multiply-add reads one value from A and one from B. That's twenty-four scalar input reads. Look under the three in A. Two different threads asked for it.
+        hold: 0.9
+        visual_cues:
+          - { id: independent-reads, phrase: Run the three pairs for each of the four outputs, targets: [load-count] }
+      - say: Try the same work with a block of threads that shares its copies. Load each A value once and each B value once. The same three now serves both threads from a single copy.
+        hold: 0.9
+        visual_cues:
+          - { id: unique-reads, phrase: Load each A value once and each B value once, targets: [load-count] }
+      - say: Six reads from each matrix make twelve. Both plans do twelve multiply-adds and store four answers. These dots count the reads we wrote into each plan. The GPU can merge requests, and a cache can satisfy a read before it reaches device memory.
+        hold: 1.1
+        visual_cues:
+          - { id: same-work, phrase: Both plans do twelve multiply-adds and store four answers, targets: [load-count] }
+  - id: addresses
+    title: Where do neighboring lanes land?
+    visual: The same warp remaps to consecutive columns. Byte offsets and distinct sector counts change for each instruction. Four groups of eight words expand the B request.
+    beats:
+      - say: Scale up to a row sixty-four floats wide. A warp has thirty-two lanes. CUDA numbers thread x first. In this sixteen by sixteen block, x picks the row. Compare lanes zero and one. Their A addresses are two hundred fifty-six bytes apart. Lane sixteen returns to the first row.
+        hold: 0.8
+        visual_cues:
+          - { id: strided-warp, phrase: Compare lanes zero and one, targets: [address-map] }
+      - say: Now use a block thirty-two threads wide and let x pick the column. All thirty-two lanes request the same A word. B reads and the final C stores now run across consecutive columns. The table counts distinct thirty-two-byte sectors for each instruction across the whole warp.
+        hold: 1.0
+        visual_cues:
+          - { id: remap-warp, phrase: let x pick the column, targets: [address-map] }
+      - say: Look at the B row. Eight four-byte floats fit in each sector. Thirty-two adjacent floats starting on a sector boundary span four sectors. Add the separate A load and the final C store and you get nine requested sectors across those three instructions. The old mapping needed thirty-three. Device-memory bytes still need a hardware counter.
+        hold: 0.9
+        visual_cues:
+          - { id: four-sectors, phrase: Eight four-byte floats fit in each sector, targets: [address-map] }
+          - { id: total-sectors, phrase: The old mapping needed thirty-three, targets: [address-map] }
+      - say: There's another way to get the addresses wrong. Keep these six words in place. Read them by rows, then by columns. The top middle entry changes from two to three without moving a byte. Check storage order, leading dimension, alignment and type with a nonsymmetric input before you compare times.
+        hold: 1.1
+        visual_cues:
+          - { id: layout-words, phrase: Keep these six words in place, targets: [address-map] }
+  - id: tile
+    title: Four sums share the same panel
+    visual: The selected column of A supplies the row headers of a multiplication table. The selected row of B supplies its column headers. Both routes meet at each of four retained C cells.
+    beats:
+      - say: Back to the two by two output. The block loads two inner positions at a time into shared memory. We call those slices of A and B a panel. Look at its first position. The two blue numbers feed rows. The two pink numbers feed columns.
+        hold: 0.9
+        visual_cues:
+          - { id: load-panel, phrase: The two blue numbers feed rows, targets: [panel-loom] }
+      - say: Follow minus one across the bottom row. It meets two on the left and minus one on the right. Update all four crossings. Each crossing keeps its own running sum.
+        hold: 1.0
+        visual_cues:
+          - { id: first-crossing, phrase: Update all four crossings, targets: [panel-loom] }
+      - say: Slide to the second position. The blue three now meets one and four. Add both products to their waiting sums. The bottom row holds one and thirteen. Keep all four cells in place while we load the last position.
+        hold: 1.0
+        visual_cues:
+          - { id: second-crossing, phrase: Add both products to their waiting sums, targets: [panel-loom] }
+  - id: accumulate
+    title: One inner position remains
+    visual: The camera holds the four running sums. The last A column and B row replace the headers. A single cell changes when their products land.
+    beats:
+      - say: The last panel has just one real position. Read its blue and pink headers. There's a zero on the top row and a zero over the right column. Which of the four sums will change?
+        hold: 3.0
+        visual_cues:
+          - { id: last-inputs, phrase: Read its blue and pink headers, targets: [panel-loom] }
+      - say: Only the bottom-left sum changes. Two meets three there. The one becomes seven. The other three sums each get a zero. All four answers can go to memory now.
+        hold: 1.2
+        visual_cues:
+          - { id: locate-cell, phrase: Only the bottom-left sum changes, targets: [panel-loom], caption_boundary: true }
+          - { id: last-crossing, phrase: The one becomes seven, targets: [panel-loom], caption_boundary: true }
+      - say: Splitting the inner dimension into panels worked because we included every pair in the same sum. These small integers are exact. When floating-point terms are rounded, regrouping them can change the last few bits.
+        hold: 0.6
+  - id: edge-ownership
+    title: A thread crosses the right edge
+    visual: Cropping C to one column masks two stores. The lower-right thread owns the second A entry of its row. Skipping the copy zeroes one product in a controlled trace. Restoring the copy repairs its neighbor.
+    beats:
+      - say: Take away the right column again. Each thread copies an A entry and a B entry for its neighbors. Its horizontal position picks the entry in its A row. Its vertical position picks the entry down its B column. The lower-right thread has no output. Can it leave before the first panel loads?
+        hold: 2.8
+        visual_cues:
+          - { id: edge-question, phrase: The lower-right thread has no output, targets: [edge-pairs] }
+      - say: Start the shared slots at zero so we can see a missed load. Skip the lower-right thread's copy. The middle product stays at zero. The bottom-left thread adds minus two, zero and six. It stores four.
+        hold: 1.8
+        visual_cues:
+          - { id: skip-thread, phrase: Skip the lower-right thread's copy, targets: [edge-pairs] }
+          - { id: bad-sum, phrase: It stores four, targets: [edge-pairs], color: red, caption_boundary: true }
+      - say: Replay the panel. Keep the copy of three. The middle product goes from zero to three. Zero-fill the out-of-range B slot and skip the right-hand store. The left thread now stores seven.
+        hold: 1.3
+        visual_cues:
+          - { id: keep-copy, phrase: Keep the copy of three, targets: [edge-pairs] }
+          - { id: fixed-sum, phrase: The left thread now stores seven, targets: [edge-pairs], caption_boundary: true }
+      - say: For each panel, the whole block stages its inputs and meets at a barrier before reading them. After computing, it meets again before anyone overwrites the panel. Test each input address when you load it. Test the output address when you store it.
+        hold: 0.9
+  - id: banks
+    title: Which words meet in bank three?
+    visual: One mark in bank three represents a broadcast. Distinct words stack there with stride 32. One word of padding spreads those same lanes. An XOR layout exchanges physical neighbors without changing their logical identities.
+    beats:
+      - say: Inside shared memory, consecutive four-byte words cycle through thirty-two banks. If every lane reads word three, bank three can broadcast it once. Now give the lanes different words. Three, thirty-five and sixty-seven all leave remainder three when divided by thirty-two. They need separate service from the same bank.
+        hold: 1.2
+        visual_cues:
+          - { id: bank-requests, phrase: Now give the lanes different words, targets: [bank-words, gemm-bank-map] }
+      - say: A column with a stride of thirty-two words stacks all thirty-two requests in bank three. Add one word of row padding. Lane one now reads word thirty-six in bank four. Each lane lands in its own bank. Padding costs space and changes row alignment. The stack counts service groups for this scalar access. A profiler can tell you what it costs in time.
+        caption_starts: [Add one word of row padding, Lane one now reads word thirty-six in bank four, Padding costs space]
+        hold: 1.0
+        visual_cues:
+          - { id: padding-repair, phrase: Add one word of row padding, targets: [gemm-bank-lane] }
+          - { id: padded-lane, phrase: Lane one now reads word thirty-six in bank four, targets: [gemm-bank-lane] }
+          - { id: padded-map, phrase: Each lane lands in its own bank, targets: [bank-words, gemm-bank-map], caption_boundary: true }
+      - say: Another layout keeps the same space and changes the address with a bitwise exclusive or, called XOR. Watch row one swap its neighbors. To read the logical vector in order, visit physical columns one, zero, three and two. A four-word read starting at physical column one would grab the wrong sequence. The writer and reader need the same mapping.
+        caption_starts: [Watch row one swap its neighbors, To read the logical vector in order, visit physical columns, A four-word read]
+        hold: 1.0
+        visual_cues:
+          - { id: xor-layout, phrase: Watch row one swap its neighbors, targets: [xor-words, gemm-xor-map] }
+          - { id: read-first, phrase: visit physical columns one, targets: [xor-words] }
+          - { id: read-second, phrase: zero, targets: [xor-words] }
+          - { id: read-third, phrase: three, targets: [xor-words] }
+          - { id: read-fourth, phrase: and two, targets: [xor-words] }
+  - id: hierarchy
+    title: Give a loaded value sixteen columns
+    visual: One A word lights a B row and the corresponding output row in a full 16 by 16 block tile. One warp spans two rows in this block.
+    beats:
+      - say: Scale the shared panel up to sixteen by sixteen. Keep your eye on one blue word. Send it across all sixteen output columns. Each pink word gives it a different partner. Each cyan cell keeps the result in a separate running sum.
+        hold: 0.9
+        visual_cues:
+          - { id: fan-sixteen, phrase: Send it across all sixteen output columns, targets: [block-panel] }
+      - say: The block has sixteen threads per row and one thread per output. One warp covers two rows here. Warps take pieces of the block's output tile, while the block shares the input panels. The sums live in registers until the block finishes its last panel.
+        hold: 0.9
+        visual_cues:
+          - { id: one-warp, phrase: One warp covers two rows here, targets: [block-panel] }
+      - say: Count the full panel. Two hundred fifty-six outputs each need sixteen multiply-adds. The two input panels together contain five hundred twelve floats. That gives four FLOPs per input byte loaded into shared memory. Larger tiles can reuse inputs more often, but their storage can limit how many blocks fit on the processor.
+        hold: 0.9
+        visual_cues:
+          - { id: block-bytes, phrase: That gives four FLOPs per input byte, targets: [block-panel] }
+  - id: register-blocking
+    title: How many sums should one thread keep?
+    visual: One A operand meets four B operands along a row of accumulators. An eight by eight register tile expands the same construction to sixty-four sums.
+    beats:
+      - say: Give four of those answers to one thread. For one reduction step, one A value and four B values supply four multiply-adds. That's eight FLOPs from twenty operand bytes, or zero point four FLOP per byte. With just one output, the thread reads two floats for two FLOPs, or zero point two five.
+        hold: 1.0
+        visual_cues:
+          - { id: register-reuse, phrase: one A value and four B values, targets: [register-grid] }
+          - { id: register-result, phrase: zero point four FLOP per byte, targets: [gemm-register-demand], caption_boundary: true }
+      - say: Now give that thread eight rows and eight columns. Eight A and eight B values feed every crossing. Sixty-four multiply-adds give one hundred twenty-eight FLOPs from sixty-four bytes. That's two FLOPs per byte. We're counting the operands a thread asks for. Broadcasts can change the traffic that shared memory actually serves.
+        hold: 1.0
+        visual_cues:
+          - { id: register-square, phrase: Eight A and eight B values feed every crossing, targets: [register-grid] }
+          - { id: register-result-square, phrase: two FLOPs per byte, targets: [gemm-register-demand], caption_boundary: true }
+      - say: The thread must keep sixty-four sums alive, along with its operands and indices. If registers run short, fewer blocks may fit, or the compiler may spill values to memory. Check register use in the compiled kernel and look for spills in the profile before increasing the tile again.
+        hold: 0.9
+        visual_cues:
+          - { id: register-pressure, phrase: keep sixty-four sums alive, targets: [register-grid] }
+  - id: tensorcores
+    title: Hand the output tile to a warp
+    visual: A small fragment update keeps its prior sum. A BF16 product enters an FP32 sum. At hardware scale, the final aligned warp fragment contains a nine by thirteen useful output and a three-position reduction tail.
+    beats:
+      - say: One step of our tiny product adds a column times a row to the sums already in C. Add the second pair of slices. A Tensor Core matrix instruction performs that multiply-and-add on pieces of matrices called fragments. In the lab's sixteen by sixteen by sixteen operation, all thirty-two lanes of one warp participate with matching shapes and types.
+        hold: 1.0
+        visual_cues:
+          - { id: warp-add, phrase: Add the second pair of slices, targets: [warp-fragment] }
+      - say: The operand format and the accumulator format can differ. These two inputs happen to fit exactly in bfloat sixteen. Add their product to a running sum of one thousand twenty-four. FP32 keeps the fraction. Storing that sum in bfloat sixteen rounds it back to one thousand twenty-four. Record which instruction and math mode the kernel actually uses.
+        hold: 1.0
+        visual_cues:
+          - { id: wide-sum, phrase: Storing that sum in bfloat sixteen rounds it back to one thousand twenty-four, targets: [warp-fragment] }
+      - say: Now use the lab's half-precision inputs and FP32 sums. Take an output with seventy-three rows and sixty-one columns. The corner tile starts at row sixty-four, column forty-eight. Nine rows and thirteen columns are useful. The inner width is sixty-seven. After four full panels, slide to the final three positions. Only three columns of A meet three rows of B there.
+        hold: 1.2
+        visual_cues:
+          - { id: tail-panel, phrase: slide to the final three positions, targets: [warp-fragment] }
+      - say: The warp still needs whole aligned fragments. The lab zero-pads its inputs and stores a full output fragment. Crop the output to the nine by thirteen corner. For these warp loads and stores the base pointer needs thirty-two-byte alignment. The half-precision input stride must be a multiple of eight elements, and the FP32 output stride a multiple of four. Include padding and cropping in the timing if your application pays for them.
+        hold: 1.1
+        visual_cues:
+          - { id: crop-fragment, phrase: Crop the output to the nine by thirteen corner, targets: [warp-fragment] }
+  - id: precision-contract
+    title: Where does the fraction go?
+    visual: Two stored values share one fixed ruler at 1024. The FP16 marker snaps to a tick while FP32 retains the update. A second experiment holds the accumulation precision fixed and changes the input conversion.
+    beats:
+      - say: Both sums start at one thousand twenty-four. Add a quarter to each. The yellow tick marks the exact sum. Which stored value will move?
+        hold: 2.5
+        visual_cues:
+          - { id: exact-above, phrase: Add a quarter to each, targets: [precision-paths] }
+      - say: Store both results. FP32 moves to the yellow tick. FP16 stays at one thousand twenty-four. Its next value above here is a whole unit away, so the starting value is closer.
+        caption_starts: [FP32 moves to the yellow tick, FP16 stays at one thousand twenty-four]
+        hold: 1.0
+        visual_cues:
+          - { id: round-above, phrase: FP32 moves to the yellow tick, targets: [precision-paths] }
+      - say: Reset both sums. This time subtract three eighths. Store the two results again. FP32 keeps the exact sum. FP16 lands at one thousand twenty-three and a half. The spacing below the boundary is only half a unit. The earlier quarter disappeared when the sum was rounded.
+        caption_starts: [Store the two results again, FP32 keeps the exact sum, FP16 lands at one thousand twenty-three and a half]
+        hold: 0.9
+        visual_cues:
+          - { id: exact-below, phrase: This time subtract three eighths, targets: [precision-paths] }
+          - { id: round-below, phrase: Store the two results again, targets: [precision-paths] }
+      - say: What if the difference disappears before the multiply? Take one point zero zero zero one and one as the two entries of A. B subtracts the second from the first. Keep one copy of the original FP32 inputs. Convert the other copy to FP16. Both entries of A are now one. Accumulate both references in double precision.
+        caption_starts: [Take one point zero zero zero one, Convert the other copy to FP16, Both entries of A are now one]
+        hold: 0.9
+        visual_cues:
+          - { id: input-quantize, phrase: Convert the other copy to FP16, targets: [precision-paths] }
+      - say: Suppose the kernel returns zero. Compare it to the lower reference first. The rounded-input result is zero. Against the original inputs it misses the entire difference. The original result is about one ten-thousandth. That's one hundred percent relative error for this small output. Use an absolute tolerance near zero as well as a relative tolerance. Check application quality separately.
+        hold: 1.2
+        visual_cues:
+          - { id: candidate-zero, phrase: Suppose the kernel returns zero, targets: [precision-paths] }
+          - { id: rounded-zero, phrase: The rounded-input result is zero, targets: [rounded-reference], caption_boundary: true }
+          - { id: dual-reference, phrase: The original result is about one ten-thousandth, targets: [original-reference], caption_boundary: true }
+          - { id: precision-error-result, phrase: That's one hundred percent relative error for this small output, targets: [original-reference], caption_boundary: true }
+  - id: async-ownership
+    title: When can slot zero take another tile?
+    visual: Two shared slots alternate copies and reads on one timeline. An early copy covers the last part of a reader's interval. The repair moves that copy past the reader.
+    beats:
+      - say: Put two panels in different shared-memory slots. Issue the copy into slot zero. Once it arrives, the warp can read it while another copy fills slot one. Follow the reader to the end of its interval. Then release slot zero. Copy completion made it readable. The last reader makes it reusable.
+        hold: 0.8
+        visual_cues:
+          - { id: slot-copy, phrase: Issue the copy into slot zero, targets: [gemm-slot-ownership] }
+          - { id: slot-read, phrase: Follow the reader to the end of its interval, targets: [gemm-slot-ownership] }
+          - { id: slot-release, phrase: Then release slot zero, targets: [gemm-slot-ownership] }
+          - { id: slots, phrase: The last reader makes it reusable, targets: [gemm-slot-ownership] }
+      - say: Try to reuse slot zero at step two. The matrix instruction has already issued. Its reader is still inside the blue interval. The new copy overwrites part of the operand it needs.
+        hold: 1.7
+        visual_cues:
+          - { id: slot-overwrite, phrase: The new copy overwrites part of the operand it needs, targets: [gemm-slot-ownership] }
+      - say: Move the copy past the final read. At step three the old reader has finished and the new tile can own slot zero. Check that dependency whenever a matrix instruction can keep reading after issue.
+        hold: 1.0
+        visual_cues:
+          - { id: slot-repair, phrase: Move the copy past the final read, targets: [gemm-slot-ownership] }
+      - say: Ampere can copy directly from global to shared memory. Hopper's Tensor Memory Accelerator uses a descriptor and a transaction barrier. Its warp-group matrix multiply uses four warps, or one hundred twenty-eight threads. B lives in shared memory. Depending on the instruction, A can come from shared memory or registers. The accumulators stay in registers.
+        hold: 1.0
+        visual_cues:
+          - { id: architecture, phrase: four warps, targets: [gemm-slot-ownership] }
+  - id: shape
+    title: Keep the weights and change the batch
+    visual: A fixed six-by-six weight matrix feeds eight token rows. The highlighted weight and its column stay in place as seven rows leave the input and output.
+    beats:
+      - say: Think of each input row as one token's features. This batch has eight tokens and one weight matrix. Pick the pink weight. One feature from each blue row multiplies that same weight. Its products feed eight different rows of the highlighted output column.
+        hold: 0.9
+        visual_cues:
+          - { id: weight-column, phrase: Pick the pink weight, targets: [batch-rows] }
+      - say: Now shrink the batch to one token. Leave the weights where they are. That weight has just one output row to serve. This is one reason small-batch decoding can spend more of its time moving weights than a many-token prompt does.
+        hold: 0.9
+        visual_cues:
+          - { id: thin-batch, phrase: shrink the batch to one token, targets: [batch-rows] }
+      - say: Count each FP32 input and output just once in a cold-memory model. Six input features, thirty-six weights and six outputs occupy one hundred ninety-two bytes. Six outputs times six multiply-adds gives seventy-two FLOPs. That's three eighths of a FLOP per byte. A warm cache can change how many bytes actually reach device memory.
+        hold: 1.0
+        visual_cues:
+          - { id: shape-model, phrase: That's three eighths of a FLOP per byte, targets: [batch-rows] }
+  - id: roofline-check
+    title: What throughput would those bytes allow?
+    visual: The register tile supplies a known operand count beside an empty HBM byte count. A bandwidth line meets the compute ceiling. A hypothetical workload at ten FLOPs per HBM byte stays on the slope.
+    beats:
+      - say: Remember the thread that kept four answers? It got eight FLOPs out of twenty operand bytes. Can we put its zero point four on a graph of FLOPs per byte of high-bandwidth device memory?
+        hold: 2.5
+        visual_cues:
+          - { id: thread-demand, phrase: twenty operand bytes, targets: [gemm-roofline-bound] }
+      - say: We still need the bytes that crossed device memory. Count those bytes for the same launches as the FLOPs. Now we have the horizontal coordinate. Multiply by peak bandwidth to get a ceiling on work per second. The arithmetic units impose a second ceiling. The lower of the two forms the roof of this plot.
+        hold: 0.8
+        visual_cues:
+          - { id: boundary, phrase: The lower of the two forms the roof of this plot, targets: [gemm-roofline-bound] }
+      - say: Suppose the device can do two hundred teraFLOPs per second and move one terabyte per second. The two ceilings meet at two hundred FLOPs per byte. Now place a kernel at ten HBM FLOPs per byte. It has an ideal bandwidth ceiling of ten teraFLOPs per second. A measured run can fall well below that line.
+        hold: 1.1
+        visual_cues:
+          - { id: roofline-knee, phrase: The two ceilings meet at two hundred FLOPs per byte, targets: [gemm-roofline-bound] }
+          - { id: roofline-point, phrase: a kernel at ten HBM FLOPs per byte, targets: [gemm-roofline-bound] }
+          - { id: roofline-result, phrase: has an ideal bandwidth ceiling of ten teraFLOPs per second, targets: [gemm-roofline-bound], caption_boundary: true }
+      - say: Start with correct outputs on edge shapes and nonsymmetric inputs. Match the layout, operand precision and math mode. Warm up, then time repeated launches with CUDA events in one stream and wait for the ending event. Record which copies and conversions the timer includes. A CPU index check can explain a missing product. Hardware counters and timings tell you whether a change helped on the GPU.
+        hold: 0.9
+        visual_cues:
+          - { id: timing, phrase: time repeated launches with CUDA events, targets: [gemm-roofline-bound] }
+  - id: transfer
+    title: Turn the edge sideways
+    visual: A one-row output replaces the one-column output. Five A and B pairs stay visible through the decision. The masked lower-right thread supplies the second B word of each full panel and zero-fills the tail.
+    beats:
+      - say: Here's a different edge. Keep two output columns, but give A just one row and five inner positions. Panels are two positions wide. The lower-right thread still has no output. How many panels cover those five positions? Which B entries must it load for the top-right answer?
+        caption_starts: [How many panels cover those five positions, Which B entries must it load]
+        hold: 3.0
+        visual_cues:
+          - { id: bottom-question, phrase: Which B entries must it load for the top-right answer, targets: [bottom-pairs] }
+      - say: Group the five positions. Two full panels and one single-coordinate remainder. The lower-right thread takes the second B row in each panel and column one. It loads four at position one and minus two at position three. In the final panel its B address falls past the end, so it fills that shared slot with zero.
+        caption_starts: [In the final panel]
+        hold: 1.1
+        visual_cues:
+          - { id: fresh-panels, phrase: Two full panels and one single-coordinate remainder, targets: [bottom-pairs], caption_boundary: true }
+          - { id: keep-bottom, phrase: It loads four at position one and minus two at position three, targets: [bottom-pairs], caption_boundary: true }
+          - { id: tail-zero, phrase: fills that shared slot with zero, targets: [bottom-pairs] }
+      - say: Follow those loads into the neighbor's sum. Minus one plus eight gives seven in the first panel. The next adds zero and minus two, leaving five. There's still one real pair to add.
+        caption_starts: [Minus one plus eight, gives seven in the first panel, The next adds zero and minus two, leaving five]
+        hold: 1.0
+        visual_cues:
+          - { id: first-products, phrase: Minus one plus eight, targets: [bottom-pairs] }
+          - { id: panel-one, phrase: gives seven in the first panel, targets: [bottom-pairs] }
+          - { id: next-products, phrase: The next adds zero and minus two, targets: [bottom-pairs] }
+          - { id: panel-two, phrase: leaving five, targets: [bottom-pairs] }
+      - say: The upper-right thread loads the last four. One times four brings the top-right answer to nine. The bottom-right thread skips its store. Its neighbor gets the right answer because that thread stayed for the loads. In low-precision GPU programming we'll follow those same operands and ask what survives when their format changes.
+        caption_starts: [The bottom-right thread skips its store, In low-precision GPU programming]
+        hold: 1.7
+        visual_cues:
+          - { id: panel-three, phrase: One times four brings the top-right answer to nine, targets: [bottom-pairs], caption_boundary: true }

@@ -4,7 +4,7 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 780
 export const height = 435
 export const alt =
-    'Retrieval and reranking cascade showing how shortlist cutoffs gate downstream scoring. BM25 and dense lanes fuse via RRF (k=60) into [d1, d4, d2]. A top-2 cutoff drops d2 so the cross-encoder leaves d1 (0.782) on top. A top-3 cutoff retains d2, whose cross-encoder score (0.953) promotes it to rank 1 ahead of d1 (0.782) and d4 (0.068).'
+    'Retrieval and reranking cascade showing how shortlist cutoffs gate downstream scoring. BM25 and dense lanes fuse via RRF (k=60) into [d1, d4, d2]. A top-2 cutoff drops d2 so the cross-encoder leaves d1 (0.810) on top. A top-3 cutoff retains d2, whose cross-encoder score (0.952) promotes it to rank 1 ahead of d1 (0.810) and d4 (0.071).'
 
 export function create(theme: ThemeMode = 'dark') {
     const fig = new Figure(theme, width, height)
@@ -96,9 +96,9 @@ export function create(theme: ThemeMode = 'dark') {
     })
 
     const scores = [
-        { doc: 'd2', val: 0.953, color: green, note: 'paraphrase · true #1' },
-        { doc: 'd1', val: 0.782, color: blue, note: 'partial match' },
-        { doc: 'd4', val: 0.068, color: warm, note: 'distractor rejected' },
+        { doc: 'd2', val: 0.952, color: green, note: 'paraphrase · true #1' },
+        { doc: 'd1', val: 0.81, color: blue, note: 'partial match' },
+        { doc: 'd4', val: 0.071, color: warm, note: 'distractor rejected' },
     ]
     const bx = 56
     const bw = 240
@@ -117,7 +117,7 @@ export function create(theme: ThemeMode = 'dark') {
         })
         const w = Math.max(8, s.val * bw)
         fig.rect(bx, cy - 11, w, 22, { fill: s.color, radius: 5 })
-        fig.text(bx + w + 8, cy, s.val.toFixed(3), {
+        fig.text(bx + bw + 10, cy, s.val.toFixed(3), {
             size: 13.5,
             weight: 700,
             color: s.color,
@@ -141,7 +141,7 @@ export function create(theme: ThemeMode = 'dark') {
         fill: tint(critical, c.bg, theme === 'dark' ? 0.1 : 0.06),
         radius: 6,
     })
-    fig.text(ox + 18, 268, 'K = 2 shortlist  →  Top: d1 (0.782)', {
+    fig.text(ox + 18, 268, 'K = 2 shortlist  →  Top: d1 (0.810)', {
         size: 14,
         weight: 700,
         color: critical,
@@ -157,7 +157,7 @@ export function create(theme: ThemeMode = 'dark') {
         fill: tint(green, c.bg, theme === 'dark' ? 0.12 : 0.07),
         radius: 6,
     })
-    fig.text(ox + 18, 354, 'K = 3 shortlist  →  Top: d2 (0.953)', {
+    fig.text(ox + 18, 354, 'K = 3 shortlist  →  Top: d2 (0.952)', {
         size: 14,
         weight: 700,
         color: green,

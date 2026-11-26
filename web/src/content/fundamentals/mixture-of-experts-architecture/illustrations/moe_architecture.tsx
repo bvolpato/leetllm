@@ -5,7 +5,7 @@ export { createFilm } from './_parts/moe-architecture-film'
 export const width = 760
 export const height = 395
 export const alt =
-    'Token x = [1, 0, 0, 0] enters a four-expert top-2 router with softmax probabilities 0.522 (E1), 0.259 (E3), 0.170 (E2), and 0.050 (E4). E1 and E3 are selected with renormalized weights 0.668 and 0.332 while E2 and E4 stay idle in memory. E1 outputs [2, 0, 0, 0] and E3 outputs [0, 3, 0, 0], blending to y = [1.336, 0.995, 0, 0].'
+    'Token x = [1, 0, 0, 0] enters a four-expert top-2 router with softmax probabilities 0.521 (E1), 0.259 (E3), 0.170 (E2), and 0.050 (E4). E1 and E3 are selected with renormalized weights 0.668 and 0.332 while E2 and E4 stay idle in memory. E1 outputs [2, 0, 0, 0] and E3 outputs [0, 3, 0, 0], blending to y = [1.336, 0.995, 0, 0].'
 
 export function create(theme: ThemeMode = 'dark') {
     const fig = new Figure(theme, width, height)
@@ -31,7 +31,7 @@ export function create(theme: ThemeMode = 'dark') {
         weight: 700,
         color: c.textPrimary,
     })
-    fig.text(left, 44, 'Renormalize top-2: pᵢ / (0.522 + 0.259)', {
+    fig.text(left, 44, 'Renormalize top-2: pᵢ / (0.521 + 0.259)', {
         size: 13.5,
         color: c.textSecondary,
     })
@@ -39,7 +39,7 @@ export function create(theme: ThemeMode = 'dark') {
     const barX = 96
     const barW = 128
     const rows = [
-        { name: 'E1', logit: '−0.65', p: 0.522, note: '0.522 → 0.668', active: true, col: blue },
+        { name: 'E1', logit: '−0.65', p: 0.521, note: '0.521 → 0.668', active: true, col: blue },
         { name: 'E3', logit: '−1.35', p: 0.259, note: '0.259 → 0.332', active: true, col: green },
         { name: 'E2', logit: '−1.77', p: 0.17, note: '0.170 (idle)', active: false, col: muted },
         { name: 'E4', logit: '−3.00', p: 0.05, note: '0.050 (idle)', active: false, col: muted },

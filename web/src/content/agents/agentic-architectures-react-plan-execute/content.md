@@ -32,7 +32,7 @@ A softmax function works on `[0, 1]` and crashes on `[1000, 1001]`. A debugging 
 
 This is familiar from ordinary debugging. You rarely write down every command before opening the first traceback. You form a hypothesis, inspect something, and let the result change what you do next. A language-model agent uses the same feedback structure: the model chooses an action, the application executes it, and the resulting observation becomes input to the next choice.
 
-The [function-calling lesson](/learn/function-calling-tool-use-llms) connected one model request to one tool execution. Here we connect those turns into an investigation. We will first follow a complete ReAct loop, then reorganize independent work into a plan, and finally examine memory and search when the task needs several attempts.
+[Function Calling & Tool Use](/learn/function-calling-tool-use-llms) connected one model request to one tool execution. Here we connect those turns into an investigation. We will first follow a complete ReAct loop, then reorganize independent work into a plan, and finally examine memory and search when the task needs several attempts.
 
 ## A bug we can actually investigate
 
@@ -342,7 +342,7 @@ reused shifted result: True
 
 For this lab, the cases and execution environment stay fixed. A production cache key should also include other inputs that can change the result, such as the dataset version and tool configuration. The important relationship is explicit: a result belongs to the inputs that produced it.
 
-Time-based expiry can complement versioning when a tool reads changing external data. It does not replace dependency tracking. Refreshing a source makes it available for a new computation; it does not update the bytes of an already stored report.
+Time-based expiry can complement versioning when a tool reads changing external data, while dependency tracking remains necessary whenever inputs change. Refreshing a source makes it available for a new computation; it leaves the bytes of an already stored report unchanged.
 
 ## Keep the useful state as an investigation grows
 
@@ -392,7 +392,7 @@ Repeated actions require interpretation. Running the same test after changing th
 
 A good stopping report makes the result usable: name the candidate, state which checks passed, and retain any unresolved observation. In our investigation, selecting `shift` after its numerical checks is a natural finish. Publishing a fix or modifying an external system is a separate tool action with its own application rules.
 
-For tools that change external state, also define retry behavior. If a request times out after an external service accepted it, sending it again can repeat the change. Services that support idempotency keys can recognize a retry of the same operation; keep that identity when retrying and query its status when possible.[^awsIdempotentApis2026] The [agent recovery lesson](/learn/agent-failure-states-retry-fallback) develops that lifecycle in detail.
+For tools that change external state, also define retry behavior. If a request times out after an external service accepted it, sending it again can repeat the change. Services that support idempotency keys can recognize a retry of the same operation; keep that identity when retrying and query its status when possible.[^awsIdempotentApis2026] Online, [Agent Reliability, Recovery & Human Approval](/learn/agent-failure-states-retry-fallback) develops that lifecycle in detail.
 
 ## Add a different control pattern when the task needs it
 
@@ -434,7 +434,7 @@ $$
 
 Here $W_i$ is accumulated reward for child $i$, $N_i$ is its visit count, $N_p$ is the parent's visit count, and $c$ controls exploration. A child with a strong average looks promising. A child with few visits receives a larger bonus because less is known about it. Visit an untried child before applying the formula, which would otherwise divide by zero.
 
-This calculation selects between two already visited branches. The inputs represent stored search statistics; the code computes the next selection:
+This calculation selects between two already visited branches using the standard exploration constant $c = \sqrt{2}$ and parent visits $N_p = 16 + 4 = 20$. The inputs represent stored search statistics; the code computes the next selection:
 
 <!-- leetllm: test, output=show -->
 ```python title="select-a-search-branch.py"

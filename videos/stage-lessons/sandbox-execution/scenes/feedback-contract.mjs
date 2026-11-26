@@ -1,442 +1,604 @@
-// Scene `feedback-contract`: how much of a failure may enter the repair loop.
-//
-// The picture: the loop stays at the top. The cell of the worker sends evidence to the supervisor.
-// Under it, the part that the voice is at. First the packet and its bytes: one line grows to a
-// megabyte and runs past the limit, then it is cut to a beginning and an end that fit. Then the
-// text of the traceback, which is data: a forged line travels to the supervisor and stops at its
-// wall. Then the environment and the paths of the cell, and the limits around the XML input.
+// Scene 03 (feedback-contract): "What goes back to the agent?"
+// Worker-to-supervisor laser channel + byte-capped head/tail shear + untrusted log boundary + XML limits.
 import {
-  arrow,
-  beside,
-  boxOf,
-  column,
+  COSMOS,
+  ROLE,
+  WORKER_ID,
+  cinemaAtmosphere,
   commas,
-  dot,
-  draw,
-  dynamic,
-  fadeIn,
-  grid,
-  indicate,
-  line,
-  moveTo,
-  pictogram,
-  place,
-  recolor,
-  rect,
-  row,
-  seq,
-  text,
-} from 'vizmatic/stage';
-import { repairTrace } from '../../../films/sandbox-execution/model.mjs';
-import { area, chip, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { COLOR, WORKER, gauge, wall } from '../parts.mjs';
+  crossSwap,
+  glowArrow,
+  glowDot,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  renderGauge,
+  repairTrace,
+  rule,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
 
-/** The strip of output bytes, as parts of its track: a usual traceback, the limit, and what a cut keeps at each end. */
 const LONG_BYTES = 256;
 const RETAINED_BYTES = 64;
-const USUAL = 24 / LONG_BYTES;
-const LIMIT = RETAINED_BYTES / LONG_BYTES;
-const KEEP = LIMIT / 2;
+const USUAL_FRAC = 24 / LONG_BYTES;
+const LIMIT_FRAC = RETAINED_BYTES / LONG_BYTES;
+const KEEP_FRAC = LIMIT_FRAC / 2;
 
 export default function feedbackContract(s, c) {
-  const error = repairTrace().first.error;
+  const errText = repairTrace().first.error;
 
-  // The frame: the loop at the top, and the part that the voice is at under it.
-  const [loop, detail] = area.rows([1, 3], 'normal');
-  const [cellSide, pipeSide, supervisorSide] = loop.columns([5, 3, 5], 'none');
-  const cellBox = cellSide.inset('none', 'tight');
-  const supervisorBox = supervisorSide.inset('none', 'tight');
+  const phase = s.value(0);
+  const mode0 = s.value(1); // Byte-capped evidence packet
+  const mode1 = s.value(0); // Untrusted traceback + env + cwd
+  const mode2 = s.value(0); // XML parser limits + scope
 
-  // The cell: the candidate and its fixture. The supervisor: its policy, and its count of attempts.
-  const candidate = chip('parse.py', { color: COLOR.candidate, stroke: COLOR.candidate });
-  const fixture = chip('report.xml', { color: COLOR.evidence, stroke: COLOR.evidence });
-  const frozen = note('fixed while evidence is collected');
-  place(column([row([candidate, fixture]), frozen], { gap: 'tight', align: 'center' }), cellBox);
-  const policy = chip('policy', { color: COLOR.host, stroke: COLOR.host });
-  const attempts = [0, 1, 2].map(() => dot(13, COLOR.quiet));
-  const attemptsName = note('attempts');
-  const sameFailure = note('one failure, three times: diagnose');
-  place(
-    column(
-      [
-        row([policy, attemptsName, row(attempts, { gap: 'tight' })], { align: 'center' }),
-        sameFailure,
-      ],
-      {
-        gap: 'tight',
-        align: 'center',
-      },
-    ),
-    supervisorBox,
-  );
-  const cellWall = wall(cellBox, WORKER);
-  const supervisorWall = wall(supervisorBox, 'supervisor', { color: COLOR.host });
-  const pipe = arrow([cellBox.right, cellBox.cy], [supervisorBox.left, supervisorBox.cy], {
-    stroke: COLOR.evidence,
-    width: 5,
-    pad: 14,
-  });
-  const pipeName = beside(note('evidence', { color: COLOR.evidence }), pipe, 'above', 'tight');
+  // Top channel states
+  const fixedHot = s.value(0);
+  const retriesLit = s.value(0);
+  const sameDiag = s.value(0);
+  const policyHot = s.value(0);
+  const forgedTravel = s.value(0);
+  const showLogData = s.value(0);
 
-  s.add(
-    heading(c.title),
-    cellWall,
-    candidate,
-    fixture,
-    supervisorWall,
-    policy,
-    attemptsName,
-    ...attempts,
-    pipe,
-    pipeName,
-  );
+  // Beat 0 states
+  const pktField = s.value(0);
+  const streamGrow = s.value(USUAL_FRAC);
+  const streamCut = s.value(0);
+  const streamJoin = s.value(0);
+  const showRoot = s.value(0);
 
-  // Beat 0: the packet, and the bytes of its output.
-  const [packetBand, stripBand] = detail.rows([3, 2], 'normal');
-  const [limitBand, stripBox, underBand] = stripBand.rows([2, 3, 2], 'tight');
-  const grow = s.value(USUAL),
-    cut = s.value(0),
-    join = s.value(0);
-  const bytes = () => Math.round(grow.value * LONG_BYTES);
-  const widestWords = `1 line · ${commas(LONG_BYTES)} bytes`;
-  const widest = mono(widestWords, { size: 34 });
-  const fields = [
-    [
-      'fb-command',
-      'command',
-      mono('python parse.py report.xml', { size: 34, color: COLOR.evidence }),
-    ],
-    ['fb-exit', 'exit status', mono('1', { size: 34, color: COLOR.evidence })],
-    ['fb-exception', 'exception', mono(error, { size: 34, color: COLOR.evidence })],
-    ['fb-streams', 'stderr produced', widest],
-  ].map(([cue, name, value]) => ({
-    cue,
-    name: label(name, { size: 34, color: COLOR.quiet }),
-    value,
-  }));
-  const packetTitle = note('one evidence packet');
-  place(
-    column(
-      [
-        packetTitle,
-        grid(
-          fields.flatMap((field) => [field.name, field.value]),
-          { columns: 2, gap: ['wide', 'normal'] },
-        ),
-      ],
-      { gap: 'normal' },
-    ),
-    packetBand,
-    'left',
-  );
-  // The count of lines stays at 1 while the count of bytes runs.
-  const size = boxOf(widest);
-  const sizeText = dynamic(() => {
-    const words = `1 line · ${commas(bytes())} bytes`;
-    const made = text(words, {
-      font: 'mono',
-      size: 34,
-      color: grow.value > LIMIT ? COLOR.fail : COLOR.evidence,
-    });
-    return made.at(size.left + (size.width * words.length) / (2 * widestWords.length), size.cy);
+  // Beat 1 states
+  const untrustHot = s.value(0);
+  const forgedHot = s.value(0);
+  const escHot = s.value(0);
+  const secretHot = s.value(0);
+  const escFixed = s.value(0);
+  const envHot = s.value(0);
+  const envCleared = s.value(0);
+  const cwdHot = s.value(0);
+  const relShown = s.value(0);
+  const absShown = s.value(0);
+  const osDecides = s.value(0);
+
+  // Beat 2 states
+  const gInput = s.value(0);
+  const gDecomp = s.value(0);
+  const gTime = s.value(0);
+  const gMem = s.value(0);
+  const showExpat = s.value(0);
+  const showBug = s.value(0);
+  const scopeStep = s.value(0);
+
+  const bgAtmo = cinemaAtmosphere(ROLE.evidence, ROLE.host);
+  const title = heroTitle(['What Goes Back', 'to the Agent?'], {
+    x: -860,
+    y: -445,
+    size: 48,
+    lineHeight: 56,
+    accent: ROLE.evidence,
+    eyebrow: 'BOUNDED FEEDBACK CONTRACT',
   });
 
-  const x = (part) => stripBox.left + part * stripBox.width;
-  const track = rect(stripBox.width, stripBox.height, {
-    radius: 8,
-    stroke: COLOR.quiet,
-    fill: 'surface',
-    width: 2,
-  }).at(stripBox.cx, stripBox.cy);
-  const piece = (from, to, fill, opacity = 0.9) =>
-    rect(to - from, stripBox.height - 12, { fill, stroke: null, radius: 4, opacity }).at(
-      (from + to) / 2,
-      stripBox.cy,
-    );
-  const strip = dynamic(() => {
-    const end = x(grow.value);
-    if (cut.value < 0.01)
-      return [
-        piece(x(0) + 6, Math.min(end, x(LIMIT)) - 2, COLOR.evidence),
-        ...(end > x(LIMIT) + 8 ? [piece(x(LIMIT) + 2, end - 6, COLOR.fail)] : []),
-      ];
-    // A cut keeps the two ends. The middle goes quiet, and then the end slides up to the beginning.
-    const headEnd = x(KEEP),
-      tailFrom = end - 6 - (x(KEEP) - x(0)),
-      tailTo = x(LIMIT) - 2 - (x(KEEP) - x(0));
-    const tail = tailFrom + (tailTo - tailFrom) * join.value;
-    return [
-      piece(x(0) + 6, headEnd, COLOR.evidence),
-      ...(tail - headEnd > 24
-        ? [piece(headEnd + 6, tail - 6, COLOR.fail, 0.9 - 0.7 * cut.value)]
-        : []),
-      piece(tail, tail + (x(KEEP) - x(0)), COLOR.evidence),
-    ];
-  });
-  const limit = line([x(LIMIT), stripBox.top - 14], [x(LIMIT), stripBox.bottom + 14], {
-    stroke: 'ink',
-    width: 4,
-  });
-  const limitName = note(`${RETAINED_BYTES} B cap`).moveTo([x(LIMIT), limitBand.cy]);
-  const beginning = note('first 32 B', { color: COLOR.evidence }).moveTo([
-    x(KEEP / 2),
-    underBand.cy,
-  ]);
-  const ending = note('last 32 B', { color: COLOR.evidence }).moveTo([
-    x(LIMIT - KEEP / 2),
-    underBand.cy,
-  ]);
-  const removed = note(`${LONG_BYTES - RETAINED_BYTES} middle bytes omitted`).moveTo([
-    x(0.65),
-    underBand.cy,
-  ]);
-  const cause = line([x(0.03), stripBox.top + 4], [x(0.03), stripBox.bottom - 4], {
-    stroke: COLOR.mark,
-    width: 8,
-  });
-  const causeName = note('root cause', { color: COLOR.mark }).moveTo([x(0.04), limitBand.cy]);
+  const live = guardedDynamic(s.value(1), () => {
+    const m0 = mode0.value;
+    const m1 = mode1.value;
+    const m2 = mode2.value;
+    const nodes = [];
 
-  c.show('fb-fixed', frozen);
-  c.on('fb-fixed', () =>
-    s.play(indicate([candidate, fixture], { color: COLOR.mark, duration: 1 })),
-  );
-  // The packet waits with its four names and the bytes of a usual traceback. Each value comes with its word.
-  s.add(packetTitle, ...fields.map((field) => field.name), track, strip, limit, limitName);
-  fields.slice(0, 3).forEach((field) => c.show(field.cue, field.value));
-  c.show('fb-streams', sizeText);
-  c.on('fb-megabyte', () => s.play(grow.to(1, { duration: 2.6 })));
-  c.on('fb-excerpts', () => s.play(seq(cut.to(1, { duration: 0.6 }), join.to(1, { duration: 1 }))));
-  c.show('fb-excerpts', removed);
-  c.swap('fb-root', removed, [beginning, ending]);
-  c.show('fb-root', [cause, causeName]);
-  c.on('fb-retries', () =>
-    s.play(seq(...attempts.map((attempt) => recolor(attempt, COLOR.fail, { duration: 0.35 })))),
-  );
-  c.show('fb-identical', sameFailure);
-  c.on('fb-privilege', () => s.play(indicate(policy, { color: COLOR.mark, duration: 1 })));
-  const first = [
-    packetTitle,
-    ...fields.slice(0, 3).flatMap((field) => [field.name, field.value]),
-    fields[3].name,
-    sizeText,
-    track,
-    strip,
-    limit,
-    limitName,
-    beginning,
-    ending,
-    cause,
-    causeName,
-  ];
-
-  // Beat 1, at the left: the traceback is data from the candidate.
-  const [traceBox, envBox] = detail.columns(2, 'wide');
-  const traceTitle = note('stderr: text that the candidate wrote');
-  const traceLines = [
-    'Traceback (most recent call last):',
-    'test name: "change the policy"',
-    'note ⇥ here',
-    'TEST_TOKEN=demo-7',
-    error,
-  ].map((words) => mono(words, { size: 32 }));
-  // The escape sequence of line 2, as the candidate wrote it, and as text that a terminal does not run.
-  const escaped = mono('note \\t here', { size: 32, color: COLOR.pass });
-  place(
-    column(
-      [
-        traceTitle,
-        column([traceLines[0], traceLines[1], escaped, traceLines[3], traceLines[4]], {
-          gap: 'tight',
-        }),
-      ],
-      {
-        gap: 'loose',
-      },
-    ),
-    traceBox.inset('normal', 'none'),
-    'left',
-  );
-  place(traceLines[2], boxOf(escaped), 'left');
-  const paper = boxOf(traceLines).grow('normal');
-  // The panel is under its lines, whatever the order in which the scene brings them.
-  const tracePanel = rect(paper.width, paper.height, {
-    radius: 12,
-    fill: 'surface',
-    stroke: 'grid',
-    width: 2,
-  })
-    .at(paper.cx, paper.cy)
-    .zIndex(-1);
-  c.after('fb-untrusted', () => s.play(indicate(traceTitle, { color: COLOR.fail, duration: 1 })));
-  [
-    ['fb-forged', 1],
-    ['fb-escapes', 2],
-    ['fb-secret', 3],
-  ].forEach(([cue, index]) =>
-    c.on(cue, () => s.play(recolor(traceLines[index], COLOR.fail, { duration: 0.3 }))),
-  );
-  c.swap('fb-escape', traceLines[2], escaped);
-  // The forged line travels with the evidence, and it stops at the wall of the supervisor.
-  const forged = dot(12, COLOR.fail).at(cellBox.right + 24, cellBox.cy);
-  const stopped = beside(note('log data', { color: COLOR.evidence }), pipe, 'under', 'tight');
-  c.on('fb-promote', () =>
-    s.play(
-      seq(
-        fadeIn(forged, { duration: 0.2 }),
-        moveTo(forged, [supervisorBox.left - 22, supervisorBox.cy], { duration: 1.2 }),
-      ),
-    ),
-  );
-  c.show('fb-promote', stopped, { after: true });
-
-  // Beat 1, at the right: the environment, and the working directory.
-  const [envBand, pathBand] = envBox.rows([1, 3], 'normal');
-  const envName = mono('env =', { size: 34 });
-  const inherited = chip('TEST_TOKEN=demo-7', {
-    color: COLOR.fail,
-    stroke: COLOR.fail,
-    font: 'mono',
-  });
-  const empty = mono('{ }', { size: 34, color: COLOR.pass });
-  place(row([envName, inherited]), envBand, 'left');
-  beside(empty, envName, 'right', 'normal');
-  const [calls, targets] = pathBand.columns([3, 4], 'wide');
-  const [relativeCall, absoluteCall] = calls.rows(2, 'normal').map((band, i) =>
-    place(
-      mono(['report.xml', '/demo/note.txt'][i], {
-        size: 26,
-        color: COLOR.candidate,
+    // Persistent top channel: Worker -> Evidence Conduit -> Supervisor
+    const topY = -360;
+    nodes.push(
+      lumBar(-55, topY, 450, 96, {
+        color: fixedHot.value > 0.4 ? ROLE.mark : ROLE.candidate,
+        fillOpacity: 0.14,
+        strokeWidth: 2.2,
+        glow: 9,
       }),
-      band,
-      'left',
-    ),
-  );
-  const [insideBand, outsideBand] = targets.rows(2, 'normal');
-  const directory = wall(insideBand.inset('tight', 'normal'), 'cwd = /tmp/job-7', {
-    color: COLOR.host,
-    dash: true,
-  });
-  const inside = place(
-    chip('report.xml', { color: COLOR.pass, stroke: COLOR.pass }),
-    insideBand.inset('tight', 'normal'),
-  );
-  const outside = place(
-    chip('/demo/note.txt', { color: COLOR.fail, stroke: COLOR.fail }),
-    outsideBand,
-    'right',
-  );
-  const decides = beside(
-    note('the operating system decides', { color: COLOR.host }),
-    outside,
-    'under',
-    'tight',
-    'right',
-  );
-  const reach = (call, target, color) =>
-    arrow(boxOf(call).point('right'), boxOf(target).point('left'), {
-      stroke: color,
-      width: 4,
-      pad: 12,
-    });
-  const relative = reach(relativeCall, inside, COLOR.pass);
-  const absolute = reach(absoluteCall, outside, COLOR.fail);
-  // The traceback, the environment and the directory are the state of the cell when the beat starts.
-  c.swap(1, first, [tracePanel, traceTitle, ...traceLines, envName, inherited, directory, inside]);
-  c.on('fb-env', () => s.play(indicate(envName, { color: COLOR.mark, duration: 1 })));
-  c.swap('fb-empty', inherited, empty, { after: true });
-  c.on('fb-cwd', () => s.play(indicate(directory.title, { color: COLOR.mark, duration: 1 })));
-  c.show('fb-relative', [relativeCall, draw(relative)]);
-  c.show('fb-absolute', [absoluteCall, draw(absolute), outside]);
-  c.show('fb-os', decides);
-  const second = [
-    tracePanel,
-    traceTitle,
-    ...traceLines.filter((_, index) => index !== 2),
-    escaped,
-    forged,
-    stopped,
-    envName,
-    empty,
-    directory,
-    inside,
-    relativeCall,
-    relative,
-    absoluteCall,
-    absolute,
-    outside,
-    decides,
-  ];
+      txt(WORKER_ID, -260, topY - 22, 26, ROLE.candidate, 'mono', 'left'),
+      txt('parse.py  +  report.xml', -260, topY + 20, 26, COSMOS.ink, 'mono', 'left'),
+      glowArrow([182, topY], [358, topY], ROLE.evidence, { width: 4, tip: 14 }),
+      txt('bounded evidence', 270, topY - 72, 26, ROLE.evidence, 'mono'),
+      lumBar(615, topY, 490, 96, {
+        color: policyHot.value > 0.4 ? ROLE.mark : ROLE.host,
+        fillOpacity: 0.14,
+        strokeWidth: 2.2,
+        glow: 9,
+      }),
+      txt('SUPERVISOR  /  POLICY', 392, topY - 22, 26, ROLE.host, 'mono', 'left'),
+      txt('retries:', 392, topY + 20, 26, COSMOS.muted, 'mono', 'left'),
+    );
 
-  // Beat 2: four limits around the XML input, and what this lesson ran.
-  const [limitsBox, scopeBox] = detail.columns([4, 3], 'wide');
-  const names = ['input size', 'decompressed size', 'parse time', 'memory', 'Expat version'];
-  const [gaugesBox, bugBand] = limitsBox.rows([names.length, 1], 'normal');
-  const bands = gaugesBox.rows(names.length, 'normal');
-  const limits = names.map((name, i) => {
-    const [nameBand, gaugeBand] = bands[i].columns([2, 3], 'normal');
-    const made = place(label(name, { size: 36 }), nameBand, 'left');
-    return {
-      name: made,
-      gauge: i < 4 ? gauge(s, gaugeBand.inset('none', 'normal'), { cap: 0.8 }) : null,
-      band: gaugeBand,
-    };
+    for (let i = 0; i < 3; i++) {
+      const lit = retriesLit.value > i + 0.35;
+      nodes.push(
+        glowDot(548 + i * 38, topY + 20, {
+          radius: 9,
+          color: lit ? ROLE.candidate : COSMOS.dim,
+          glow: lit ? 11 : 3,
+        }),
+      );
+    }
+    if (sameDiag.value > 0.02) {
+      nodes.push(
+        txt('3x same -> diagnose', 615, topY + 76, 26, ROLE.mark, 'mono').opacity(sameDiag.value),
+      );
+    }
+    if (forgedTravel.value > 0.02 && m1 > 0.02) {
+      const fx = 186 + (346 - 186) * forgedTravel.value;
+      nodes.push(glowDot(fx, topY, { radius: 10, color: ROLE.candidate, glow: 14, opacity: m1 }));
+    }
+    if (showLogData.value > 0.02 && m1 > 0.02) {
+      nodes.push(
+        txt('data only', 270, topY + 32, 26, ROLE.evidence, 'mono').opacity(showLogData.value * m1),
+      );
+    }
+
+    // === BEAT 0: Bounded byte stream & head/tail shear ===
+    if (m0 > 0.02) {
+      const px = -860;
+      const py = -200;
+      const byteCount = Math.round(streamGrow.value * LONG_BYTES);
+      const isOver = streamGrow.value > LIMIT_FRAC;
+      nodes.push(
+        txt('EVIDENCE PACKET FIELDS', px, py, 26, ROLE.host, 'mono', 'left').opacity(m0),
+        rule(px, py + 24, 850, py + 24, ROLE.rule, 2).opacity(m0),
+      );
+      const rows = [
+        ['command', 'python parse.py report.xml', ROLE.evidence, 1],
+        ['exit status', '1', ROLE.evidence, 2],
+        ['exception', errText, ROLE.candidate, 3],
+        [
+          'stderr stream',
+          `1 line  /  ${commas(byteCount)} bytes`,
+          isOver ? ROLE.candidate : ROLE.evidence,
+          4,
+        ],
+      ];
+      rows.forEach(([k, v, col, req], i) => {
+        const y = py + 66 + i * 56;
+        nodes.push(txt(k, px, y, 28, COSMOS.muted, 'mono', 'left').opacity(m0));
+        if (pktField.value >= req - 0.1) {
+          nodes.push(txt(v, px + 290, y, 30, col, 'mono', 'left').opacity(m0));
+        }
+      });
+
+      // Live byte strip across full width
+      const sLeft = -860;
+      const sW = 1710;
+      const sY = 210;
+      const sH = 66;
+      const xOf = (f) => sLeft + f * sW;
+      nodes.push(
+        lumBar(sLeft + sW * 0.5, sY, sW, sH, {
+          color: COSMOS.rule,
+          fillOpacity: 0.2,
+          strokeWidth: 2,
+          glow: 0,
+          opacity: m0,
+        }),
+      );
+      const endX = xOf(streamGrow.value);
+      const limX = xOf(LIMIT_FRAC);
+      const cutV = streamCut.value;
+      const joinV = streamJoin.value;
+      if (cutV < 0.02) {
+        const safeW = Math.min(endX, limX) - sLeft;
+        if (safeW > 4) {
+          nodes.push(
+            lumBar(sLeft + safeW * 0.5, sY, safeW, sH - 10, {
+              color: ROLE.evidence,
+              fillOpacity: 0.72,
+              strokeWidth: 2,
+              glow: 9,
+              opacity: m0,
+            }),
+          );
+        }
+        if (endX > limX + 6) {
+          const overW = endX - limX;
+          nodes.push(
+            lumBar(limX + overW * 0.5, sY, overW, sH - 10, {
+              color: ROLE.candidate,
+              fillOpacity: 0.76,
+              strokeWidth: 2,
+              glow: 11,
+              opacity: m0,
+            }),
+          );
+        }
+      } else {
+        const headW = xOf(KEEP_FRAC) - sLeft;
+        const tailW = headW;
+        const tailStart = (endX - tailW) * (1 - joinV) + (limX - tailW) * joinV;
+        nodes.push(
+          lumBar(sLeft + headW * 0.5, sY, headW - 4, sH - 10, {
+            color: ROLE.evidence,
+            fillOpacity: 0.78,
+            strokeWidth: 2,
+            glow: 9,
+            opacity: m0,
+          }),
+          lumBar(tailStart + tailW * 0.5, sY, tailW - 4, sH - 10, {
+            color: ROLE.evidence,
+            fillOpacity: 0.78,
+            strokeWidth: 2,
+            glow: 9,
+            opacity: m0,
+          }),
+        );
+        const midGap = tailStart - (sLeft + headW);
+        if (midGap > 24) {
+          nodes.push(
+            lumBar(sLeft + headW + midGap * 0.5, sY, midGap - 10, sH - 12, {
+              color: ROLE.candidate,
+              fillOpacity: 0.16,
+              strokeWidth: 1.5,
+              glow: 0,
+              dash: [8, 6],
+              opacity: m0 * Math.max(0.15, 1 - cutV * 0.75),
+            }),
+          );
+        }
+      }
+
+      // Cap marker
+      nodes.push(
+        rule(limX, sY - 48, limX, sY + 48, COSMOS.ink, 3.5).opacity(m0),
+        txt(`${RETAINED_BYTES} B cap`, limX, sY - 72, 26, COSMOS.ink, 'mono').opacity(m0),
+      );
+
+      if (showRoot.value > 0.02) {
+        nodes.push(
+          rule(sLeft + 26, sY - 36, sLeft + 26, sY + 36, ROLE.mark, 6)
+            .glow(10, ROLE.mark)
+            .opacity(m0 * showRoot.value),
+          txt('early root cause', sLeft, sY - 72, 26, ROLE.mark, 'mono', 'left').opacity(
+            m0 * showRoot.value,
+          ),
+          txt(
+            'first 32 B + last 32 B retained',
+            sLeft,
+            sY + 86,
+            28,
+            ROLE.evidence,
+            'mono',
+            'left',
+          ).opacity(m0 * showRoot.value),
+        );
+      } else if (cutV > 0.15) {
+        nodes.push(
+          txt(
+            `${LONG_BYTES - RETAINED_BYTES} middle bytes dropped`,
+            sLeft + 520,
+            sY + 86,
+            28,
+            COSMOS.muted,
+            'mono',
+            'left',
+          ).opacity(m0 * cutV),
+        );
+      } else {
+        nodes.push(
+          txt(
+            'Line count stays 1 even at 1 MiB -> cap by bytes, not lines',
+            sLeft,
+            sY + 86,
+            28,
+            COSMOS.muted,
+            'sans',
+            'left',
+          ).opacity(m0),
+        );
+      }
+    }
+
+    // === BEAT 1: Untrusted traceback + explicit empty env + cwd vs OS permissions ===
+    if (m1 > 0.02) {
+      const lx = -860;
+      const ly = -205;
+      nodes.push(
+        txt(
+          'UNTRUSTED STDERR  /  WRITTEN BY WORKER',
+          lx,
+          ly,
+          26,
+          untrustHot.value > 0.4 ? ROLE.candidate : ROLE.evidence,
+          'mono',
+          'left',
+        ).opacity(m1),
+        rule(lx, ly + 24, -40, ly + 24, ROLE.candidate, 2).opacity(m1),
+      );
+      const tLines = [
+        ['Traceback (most recent call last):', COSMOS.muted],
+        ['test name: "change the policy"', forgedHot.value > 0.4 ? ROLE.candidate : COSMOS.ink],
+        [
+          escFixed.value > 0.5 ? 'note \\t here   (escaped)' : 'note [TAB] here  (raw control)',
+          escFixed.value > 0.5 ? ROLE.pass : escHot.value > 0.4 ? ROLE.candidate : COSMOS.ink,
+        ],
+        ['TEST_TOKEN=demo-7', secretHot.value > 0.4 ? ROLE.candidate : COSMOS.ink],
+        [errText, ROLE.evidence],
+      ];
+      tLines.forEach(([lineStr, col], i) => {
+        nodes.push(txt(lineStr, lx, ly + 72 + i * 56, 28, col, 'mono', 'left').opacity(m1));
+      });
+      nodes.push(
+        txt(
+          'Instructions inside logs stay on the data side',
+          lx,
+          ly + 390,
+          26,
+          ROLE.host,
+          'sans',
+          'left',
+        ).opacity(m1),
+      );
+
+      // Right column: explicit env + working directory vs absolute path
+      const rx = 50;
+      nodes.push(
+        txt(
+          'EXPLICIT ENVIRONMENT',
+          rx,
+          ly,
+          26,
+          envHot.value > 0.4 ? ROLE.mark : ROLE.host,
+          'mono',
+          'left',
+        ).opacity(m1),
+        rule(rx, ly + 24, 855, ly + 24, ROLE.host, 2).opacity(m1),
+        txt('env =', rx, ly + 76, 30, COSMOS.ink, 'mono', 'left').opacity(m1),
+      );
+      const envClr = envCleared.value;
+      if (envClr < 0.5) {
+        nodes.push(
+          txt(
+            'TEST_TOKEN=demo-7  (inherited)',
+            rx + 125,
+            ly + 76,
+            28,
+            ROLE.candidate,
+            'mono',
+            'left',
+          ).opacity(m1 * Math.max(0, 1 - envClr * 2.4)),
+        );
+      } else {
+        nodes.push(
+          txt(
+            '{ }  (empty, zero inherited vars)',
+            rx + 125,
+            ly + 76,
+            28,
+            ROLE.pass,
+            'mono',
+            'left',
+          ).opacity(m1 * Math.max(0, (envClr - 0.5) * 2)),
+        );
+      }
+
+      // Path resolution
+      const py = ly + 178;
+      nodes.push(
+        txt(
+          'WORKING DIR  cwd = /tmp/job-7',
+          rx,
+          py,
+          26,
+          cwdHot.value > 0.4 ? ROLE.mark : ROLE.host,
+          'mono',
+          'left',
+        ).opacity(m1),
+        rule(rx, py + 24, 855, py + 24, ROLE.rule, 2).opacity(m1),
+      );
+      if (relShown.value > 0.02) {
+        const op = m1 * relShown.value;
+        nodes.push(
+          txt('report.xml', rx, py + 76, 28, ROLE.candidate, 'mono', 'left').opacity(op),
+          glowArrow([rx + 215, py + 76], [rx + 360, py + 76], ROLE.pass, { opacity: op }),
+          txt('/tmp/job-7/report.xml', rx + 382, py + 76, 28, ROLE.pass, 'mono', 'left').opacity(
+            op,
+          ),
+        );
+      }
+      if (absShown.value > 0.02) {
+        const op = m1 * absShown.value;
+        nodes.push(
+          txt('/demo/note.txt', rx, py + 152, 28, ROLE.candidate, 'mono', 'left').opacity(op),
+          glowArrow([rx + 265, py + 152], [rx + 360, py + 152], ROLE.candidate, { opacity: op }),
+          txt('escapes cwd!', rx + 382, py + 152, 28, ROLE.candidate, 'mono', 'left').opacity(op),
+        );
+      }
+      if (osDecides.value > 0.02) {
+        nodes.push(
+          txt(
+            'Absolute paths still follow OS filesystem permissions',
+            rx,
+            py + 224,
+            26,
+            ROLE.host,
+            'sans',
+            'left',
+          ).opacity(m1 * osDecides.value),
+        );
+      }
+    }
+
+    // === BEAT 2: XML input/decomp/time/mem limits + Expat + verification scope ===
+    if (m2 > 0.02) {
+      const lx = -860;
+      const ly = -210;
+      nodes.push(
+        txt('XML PARSER RESOURCE BOUNDS', lx, ly, 26, ROLE.host, 'mono', 'left').opacity(m2),
+        rule(lx, ly + 24, 80, ly + 24, ROLE.host, 2).opacity(m2),
+      );
+      const gSpecs = [
+        ['Input size', gInput.value, ROLE.evidence],
+        ['Decompressed', gDecomp.value, ROLE.host],
+        ['Parse time', gTime.value, ROLE.mark],
+        ['Memory', gMem.value, ROLE.candidate],
+      ];
+      gSpecs.forEach(([label, val, col], i) => {
+        const y = ly + 78 + i * 74;
+        nodes.push(txt(label, lx, y, 28, COSMOS.ink, 'sans', 'left').opacity(m2));
+        const g = renderGauge(lx + 245, y, 640, 34, val, {
+          cap: 0.8,
+          color: col,
+          opacity: m2,
+        });
+        nodes.push(...g.nodes);
+      });
+      if (showExpat.value > 0.02) {
+        nodes.push(
+          txt('Expat version:', lx, ly + 378, 28, COSMOS.ink, 'sans', 'left').opacity(
+            m2 * showExpat.value,
+          ),
+          txt(
+            'verified against CVE baseline',
+            lx + 245,
+            ly + 378,
+            28,
+            ROLE.pass,
+            'mono',
+            'left',
+          ).opacity(m2 * showExpat.value),
+        );
+      }
+      if (showBug.value > 0.02) {
+        nodes.push(
+          txt(
+            'Small inputs can still exercise parser bugs',
+            lx,
+            ly + 440,
+            26,
+            ROLE.mark,
+            'sans',
+            'left',
+          ).opacity(m2 * showBug.value),
+        );
+      }
+
+      // Right column: Tested regressions vs config templates
+      const rx = 180;
+      const st = scopeStep.value;
+      nodes.push(
+        txt('VERIFICATION SCOPE', rx, ly, 26, ROLE.pass, 'mono', 'left').opacity(m2),
+        rule(rx, ly + 24, 855, ly + 24, ROLE.pass, 2).opacity(m2),
+      );
+      if (st >= 0.5) {
+        nodes.push(
+          txt('Executed in article tests:', rx, ly + 78, 26, COSMOS.muted, 'sans', 'left').opacity(
+            m2,
+          ),
+          glowDot(rx + 14, ly + 132, { radius: 7, color: ROLE.pass, opacity: m2 }),
+          txt('Hand-written XML parsers', rx + 38, ly + 132, 28, ROLE.pass, 'sans', 'left').opacity(
+            m2,
+          ),
+        );
+      }
+      if (st >= 1.5) {
+        nodes.push(
+          glowDot(rx + 14, ly + 186, { radius: 7, color: ROLE.pass, opacity: m2 }),
+          txt(
+            'Bounded WebAssembly guests',
+            rx + 38,
+            ly + 186,
+            28,
+            ROLE.pass,
+            'sans',
+            'left',
+          ).opacity(m2),
+        );
+      }
+      if (st >= 2.5) {
+        nodes.push(
+          txt(
+            'Configs to verify in staging:',
+            rx,
+            ly + 266,
+            26,
+            COSMOS.muted,
+            'sans',
+            'left',
+          ).opacity(m2),
+          glowRing(rx + 14, ly + 320, 7, ROLE.host, { opacity: m2 }),
+          txt(
+            'Docker  /  gVisor  /  Firecracker',
+            rx + 38,
+            ly + 320,
+            28,
+            ROLE.host,
+            'mono',
+            'left',
+          ).opacity(m2),
+        );
+      }
+      if (st >= 3.5) {
+        nodes.push(
+          glowRing(rx + 14, ly + 374, 7, ROLE.mark, { opacity: m2 }),
+          txt(
+            'Disposable worker + harmless fixtures',
+            rx + 38,
+            ly + 374,
+            28,
+            ROLE.mark,
+            'sans',
+            'left',
+          ).opacity(m2),
+        );
+      }
+    }
+
+    return nodes;
   });
-  const version = place(
-    row(
-      [
-        pictogram('check', { size: 44, accent: COLOR.pass }),
-        label('checked', { size: 36, color: COLOR.pass }),
-      ],
-      { gap: 'tight' },
-    ),
-    limits[4].band,
-    'left',
-  );
-  const stillBug = place(
-    note('Size limits cover only input size.', { color: COLOR.host }),
-    bugBand,
-    'left',
-  );
-  const ran = note('Article regressions');
-  const ranChips = ['hand-written parsers', 'bounded Wasm guests'].map((name) =>
-    chip(name, { color: COLOR.pass, stroke: COLOR.pass }),
-  );
-  const notRun = note('Configuration examples');
-  const notRunChips = ['Docker', 'gVisor', 'Firecracker', 'verify with harmless fixtures'].map(
-    (name) => chip(name, { color: COLOR.quiet, stroke: COLOR.quiet, dash: [8, 6] }),
-  );
-  place(
-    column(
-      [ran, ...ranChips, notRun, row(notRunChips.slice(0, 3), { gap: 'tight' }), notRunChips[3]],
-      { gap: 'normal' },
-    ),
-    scopeBox,
-    'left',
-  );
-  c.swap(
-    2,
-    second,
-    limits.flatMap((entry) => [
-      entry.name,
-      ...(entry.gauge ? [entry.gauge.track, entry.gauge.fill] : []),
-    ]),
-  );
-  const fill = (index, level) => limits[index].gauge.level.to(level, { duration: 1 });
-  c.show('fb-input', [limits[0].gauge.limit, limits[1].gauge.limit]);
-  c.on('fb-input', () =>
-    s.play(indicate(fixture, { color: COLOR.mark, duration: 1 }), fill(0, 0.3), fill(1, 0.8)),
-  );
-  c.show('fb-time', limits[2].gauge.limit);
-  c.on('fb-time', () => s.play(fill(2, 0.8)));
-  c.show('fb-memory', limits[3].gauge.limit);
-  c.on('fb-memory', () => s.play(fill(3, 0.8)));
-  c.show('fb-expat', version);
-  c.show('fb-bytecap', stillBug);
-  c.on('fb-bytecap', () =>
-    s.play(indicate(limits[0].gauge.limit, { color: COLOR.mark, duration: 1 })),
-  );
-  c.show('fb-authored', [ran, ranChips[0]]);
-  c.show('fb-guests', ranChips[1]);
-  c.show('fb-notrun', [notRun, ...notRunChips.slice(0, 3)]);
-  c.show('fb-attack', notRunChips[3]);
+
+  s.add(bgAtmo, title, live);
+  runAmbientPhase(s, c, phase, 2.4);
+
+  // Beat 0 cues
+  tweenCue(s, c, 'fb-fixed', fixedHot, 1, { duration: 0.45 });
+  tweenCue(s, c, 'fb-command', pktField, 1, { duration: 0.25 });
+  tweenCue(s, c, 'fb-exit', pktField, 2, { duration: 0.25 });
+  tweenCue(s, c, 'fb-exception', pktField, 3, { duration: 0.25 });
+  tweenCue(s, c, 'fb-streams', pktField, 4, { duration: 0.25 });
+  tweenCue(s, c, 'fb-megabyte', streamGrow, 1, { duration: 2.2 });
+  c.on('fb-excerpts', () => {
+    s.play(streamCut.to(1, { duration: 0.45 }));
+    c.after('fb-excerpts', () => s.play(streamJoin.to(1, { duration: 0.75 })));
+  });
+  tweenCue(s, c, 'fb-root', showRoot, 1, { duration: 0.4 });
+  tweenCue(s, c, 'fb-retries', retriesLit, 3, { duration: 0.9 });
+  tweenCue(s, c, 'fb-identical', sameDiag, 1, { duration: 0.4 });
+  tweenCue(s, c, 'fb-privilege', policyHot, 1, { duration: 0.4 });
+
+  // Beat 1 cues
+  crossSwap(s, c, 'fb-untrusted', mode0, mode1, { duration: 0.42 });
+  tweenCue(s, c, 'fb-untrusted', untrustHot, 1, { duration: 0.4, after: true });
+  tweenCue(s, c, 'fb-forged', forgedHot, 1, { duration: 0.35 });
+  tweenCue(s, c, 'fb-escapes', escHot, 1, { duration: 0.35 });
+  tweenCue(s, c, 'fb-secret', secretHot, 1, { duration: 0.35 });
+  tweenCue(s, c, 'fb-escape', escFixed, 1, { duration: 0.4 });
+  tweenCue(s, c, 'fb-promote', forgedTravel, 1, { duration: 0.95 });
+  tweenCue(s, c, 'fb-promote', showLogData, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'fb-env', envHot, 1, { duration: 0.35 });
+  tweenCue(s, c, 'fb-empty', envCleared, 1, { duration: 0.4, after: true });
+  tweenCue(s, c, 'fb-cwd', cwdHot, 1, { duration: 0.35 });
+  tweenCue(s, c, 'fb-relative', relShown, 1, { duration: 0.4 });
+  tweenCue(s, c, 'fb-absolute', absShown, 1, { duration: 0.4 });
+  tweenCue(s, c, 'fb-os', osDecides, 1, { duration: 0.4 });
+
+  // Beat 2 cues
+  crossSwap(s, c, 'fb-input', mode1, mode2, { duration: 0.42 });
+  c.on('fb-input', () => {
+    s.play(gInput.to(0.32, { duration: 0.75 }), gDecomp.to(0.8, { duration: 0.9 }));
+  });
+  tweenCue(s, c, 'fb-time', gTime, 0.8, { duration: 0.7 });
+  tweenCue(s, c, 'fb-memory', gMem, 0.8, { duration: 0.7 });
+  tweenCue(s, c, 'fb-expat', showExpat, 1, { duration: 0.4 });
+  tweenCue(s, c, 'fb-bytecap', showBug, 1, { duration: 0.4 });
+  tweenCue(s, c, 'fb-authored', scopeStep, 1, { duration: 0.3 });
+  tweenCue(s, c, 'fb-guests', scopeStep, 2, { duration: 0.3 });
+  tweenCue(s, c, 'fb-notrun', scopeStep, 3, { duration: 0.3 });
+  tweenCue(s, c, 'fb-attack', scopeStep, 4, { duration: 0.3 });
 }

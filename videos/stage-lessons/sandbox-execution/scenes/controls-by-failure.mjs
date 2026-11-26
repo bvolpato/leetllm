@@ -1,255 +1,452 @@
-// Scene `controls-by-failure`: each control has one job.
-//
-// The picture: the cell is at the upper left, with a closed network door and an open output pipe
-// to the supervisor. Under them is the instrument panel of the cell: scratch, memory, tasks, CPU
-// and the wall clock. A token leaves through the output pipe. Then each gauge fills to its limit
-// and gives its own answer. The back half puts the numbers of the recipe on the same gauges.
+// Scene 06 (controls-by-failure): "What stops when a limit is reached?"
+// Closed-network stdout leak demo + 5 luminous cgroup / watchdog telemetry instruments
+// (64 MiB scratch inside 512 MiB memory, 64 tasks/threads, 50ms/100ms CPU throttle strip, 30s watchdog).
 import {
-  arrow,
-  assertEqual,
-  beside,
-  boxOf,
-  dot,
-  dynamic,
-  fadeIn,
-  grid,
-  indicate,
+  COSMOS,
+  ROLE,
+  WORKER_ID,
+  cinemaAtmosphere,
+  crossSwap,
+  glowArrow,
+  glowDot,
+  guardedDynamic,
+  heroTitle,
   line,
   linear,
-  moveTo,
-  place,
-  rect,
-  row,
-  seq,
-} from 'vizmatic/stage';
-import { resourceFixture, runtimeProbe } from '../../../films/sandbox-execution/model.mjs';
-import { area, chip, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { COLOR, WORKER, gauge, wall } from '../parts.mjs';
+  lumBar,
+  renderGauge,
+  resourceFixture,
+  rule,
+  runAmbientPhase,
+  runtimeProbe,
+  tweenCue,
+  txt,
+  verifyApprox,
+} from '../parts.mjs';
 
-/** The periods of the CPU strip, and the part of the track at which a gauge has its limit. */
 const PERIODS = 6;
 const CAP = 0.8;
-/** The height of a gauge, with room for a note inside its track. */
-const GAUGE = 52;
 
 export default function controlsByFailure(s, c) {
   const limits = resourceFixture();
   const probes = runtimeProbe();
-  assertEqual(
+  verifyApprox(
     limits.cpuQuota / limits.cpuPeriod,
     limits.cpuEquivalent,
-    'the CPU equivalents of the quota',
+    1e-12,
+    '50ms / 100ms = 0.5 CPU',
   );
 
-  // The frame: the cell and the supervisor at the top, and the instrument panel under them.
-  const [top, panel] = area.rows([316, 560], 'normal');
-  const [cellBox, channel, supervisorBox] = top.inset('none', 'tight').columns([9, 3, 9], 'none');
-  const inner = (box) => box.inset('normal', 36);
-  const paint = (name, color, options = {}) => chip(name, { color, stroke: color, ...options });
-  const cellWall = wall(cellBox, WORKER);
-  const supervisorWall = wall(supervisorBox, 'supervisor', { color: COLOR.host });
+  const phase = s.value(0);
 
-  // The cell: the process, its state, and a token that must not be here.
-  const candidate = paint('parse.py', COLOR.candidate);
-  const running = paint('running', COLOR.pass);
-  const ended = paint('stop requested', COLOR.host);
-  const token = paint('DEMO_TOKEN', COLOR.fail, { font: 'mono' });
-  place(row([candidate, running, token]), inner(cellBox), 'top left');
-  ended.moveTo([boxOf(running).left + boxOf(ended).width / 2, boxOf(running).cy]);
+  // Top worker-to-supervisor leak channel
+  const tokenVis = s.value(1);
+  const tokenHot = s.value(0);
+  const netHot = s.value(0);
+  const leakPos = s.value(0);
+  const leakedVis = s.value(0);
+  const showBounds = s.value(0);
+  const stoppedVis = s.value(0);
+  const aliveHot = s.value(0);
 
-  // Two ways out of the cell: the network, which is closed, and the output, which is open.
-  const [networkY, outputY] = [
-    channel.top + channel.height / 3,
-    channel.top + (2 * channel.height) / 3,
-  ];
-  const network = line([channel.left + 8, networkY], [channel.right - 8, networkY], {
-    stroke: COLOR.quiet,
-    width: 4,
-    dash: [10, 8],
-  });
-  const closed = line([channel.cx, networkY - 20], [channel.cx, networkY + 20], {
-    stroke: COLOR.host,
-    width: 8,
-  });
-  const networkName = beside(
-    note('network: closed', { color: COLOR.host }),
-    closed,
-    'above',
-    'tight',
-  );
-  const output = arrow([channel.left, outputY], [channel.right, outputY], {
-    stroke: COLOR.evidence,
-    width: 5,
-    pad: 10,
-  });
-  const outputName = beside(note('output', { color: COLOR.evidence }), output, 'under', 'tight');
-  const leak = dot(11, COLOR.fail).moveTo(boxOf(token).point('right'));
-  const leaked = place(paint('DEMO_TOKEN in output', COLOR.fail), inner(supervisorBox), 'top left');
+  // Gauges
+  const scratchLvl = s.value(0);
+  const memLvl = s.value(0.28);
+  const taskLvl = s.value(0);
+  const wallLvl = s.value(0);
 
-  // The panel: one row for each control. The fill is what the candidate uses, and the line is the limit.
-  const rowsOf = panel.rows([92, 92, 84, 160, 84], 'tight');
-  const names = ['scratch', 'memory', 'tasks', 'CPU', 'wall clock'];
-  const cells = rowsOf.map((band) => band.columns([2, 7, 5], 'normal'));
-  const nameOf = names.map((name, i) => place(label(name, { size: 36 }), cells[i][0], 'left'));
-  const trackOf = (i) => cells[i][1].inset('none', (cells[i][1].height - GAUGE) / 2);
-  const gauges = [0, 1, 2, 4].map((i) =>
-    gauge(s, trackOf(i), { cap: CAP, start: i === 1 ? 0.3 : 0, color: COLOR.candidate }),
-  );
-  const [scratch, memory, tasks, clock] = gauges;
-  const result = (words, i, color = COLOR.host) =>
-    place(mono(words, { size: 26, color }), cells[i][2], 'left');
-  const beyond = (i) => trackOf(i).columns([4, 1], 'none')[1];
+  const show64 = s.value(0);
+  const show512 = s.value(0);
+  const scratchHot = s.value(0);
+  const showEnospc = s.value(0);
+  const showNoSwap = s.value(0);
+  const showPressure = s.value(0);
+  const showThreads = s.value(0);
+  const showEagain = s.value(0);
 
-  // The CPU strip: six periods, and two lanes for two threads. A block is CPU time that a thread got.
-  const [overStrip, stripBox, underStrip] = cells[3][1].rows([52, 56, 52], 'none');
-  const time = s.value(0),
-    share = s.value(0);
-  const px = (period) => stripBox.left + (period / PERIODS) * stripBox.width;
-  const strip = rect(stripBox.width, stripBox.height, {
-    radius: 8,
-    stroke: COLOR.quiet,
-    fill: 'surface',
-    width: 2,
-  }).at(stripBox.cx, stripBox.cy);
-  const ticks = Array.from({ length: PERIODS - 1 }, (_, k) =>
-    line([px(k + 1), stripBox.top], [px(k + 1), stripBox.bottom], {
-      stroke: COLOR.quiet,
-      width: 2,
-    }),
-  );
-  const blocks = dynamic(() => {
-    const lanes = [0.5 - 0.25 * share.value, 0.25 * share.value];
-    const made = [];
-    for (let period = 0; period < PERIODS; period++)
-      lanes.forEach((width, lane) => {
-        const end = Math.min(period + width, time.value);
-        if (end - period < 0.02) return;
-        const [from, to] = [px(period) + 4, px(end) - 2];
-        const y = stripBox.top + (lane + 0.5) * (stripBox.height / 2);
-        made.push(
-          rect(to - from, stripBox.height / 2 - 10, {
-            fill: COLOR.candidate,
-            stroke: null,
-            radius: 4,
-            opacity: 0.85,
-          }).at((from + to) / 2, y),
-        );
-      });
-    return made;
+  // CPU 6-period strip
+  const cpuTime = s.value(0);
+  const cpuShare = s.value(0);
+  const showPeriod = s.value(0);
+  const showQuota = s.value(0);
+  const showThrottled = s.value(0);
+  const showAggregate = s.value(0);
+  const showEquation = s.value(0);
+  const showLoop = s.value(0);
+
+  // Watchdog
+  const showStopMsg = s.value(0);
+
+  const bgAtmo = cinemaAtmosphere(ROLE.candidate, ROLE.host);
+  const title = heroTitle(['What Stops When', 'a Limit Hits?'], {
+    x: -860,
+    y: -445,
+    size: 46,
+    lineHeight: 54,
+    accent: ROLE.candidate,
+    eyebrow: 'CGROUP QUOTAS & WATCHDOG',
   });
 
-  s.add(
-    heading(c.title),
-    cellWall,
-    supervisorWall,
-    candidate,
-    running,
-    token,
-    network,
-    closed,
-    networkName,
-    output,
-    outputName,
-    ...nameOf,
-    ...gauges.flatMap((made) => [made.track, made.fill, made.limit]),
-    strip,
-    ...ticks,
-    blocks,
-  );
+  const live = guardedDynamic(s.value(1), () => {
+    const nodes = [];
 
-  // Beat 0: the network door is closed, and the token leaves through the output.
-  c.on('cf-credentials', () => s.play(indicate(token, { color: COLOR.mark, duration: 1 })));
-  c.on('cf-network', () => s.play(indicate(networkName, { color: COLOR.mark, duration: 1 })));
-  c.on('cf-print', () =>
-    s.play(
-      seq(
-        fadeIn(leak, { duration: 0.2 }),
-        moveTo(leak, [cellBox.right - 22, outputY - 22], { duration: 0.8 }),
-        moveTo(leak, [supervisorBox.left + 22, outputY - 22], { duration: 1.1 }),
+    // === TOP CHANNEL: Worker -> (Network CLOSED / Output OPEN) -> Supervisor ===
+    const ty = -356;
+    const isStopped = stoppedVis.value > 0.5;
+    nodes.push(
+      lumBar(-80, ty, 490, 108, {
+        color: isStopped ? ROLE.host : ROLE.candidate,
+        fillOpacity: 0.14,
+        strokeWidth: 2.2,
+        glow: 9,
+      }),
+      txt(WORKER_ID, -305, ty - 26, 26, ROLE.candidate, 'mono', 'left'),
+      txt(
+        isStopped ? 'stop requested' : 'parse.py  (running)',
+        -305,
+        ty + 22,
+        26,
+        isStopped ? ROLE.host : aliveHot.value > 0.4 ? ROLE.mark : ROLE.pass,
+        'mono',
+        'left',
       ),
-    ),
-  );
-  c.show('cf-returns', leaked);
+    );
 
-  // Beat 1: two limits that answer with an error, and leave the process alive.
-  c.hide(1, [token, leak, leaked]);
-  c.on('cf-scratch', () => s.play(indicate(scratch.limit, { color: COLOR.mark, duration: 0.9 })));
-  c.show('cf-write-fails', result(probes[2].outcome, 0), { after: true });
-  c.on('cf-tasks', () =>
-    s.play(
-      seq(
-        ...Array.from({ length: 8 }, (_, i) =>
-          tasks.level.to(((i + 1) * CAP) / 8, { duration: 0.14 }),
+    if (tokenVis.value > 0.02) {
+      nodes.push(
+        lumBar(70, ty - 24, 172, 38, {
+          color: tokenHot.value > 0.4 ? ROLE.mark : ROLE.candidate,
+          fillOpacity: 0.22,
+          strokeWidth: 2,
+          glow: 9,
+          opacity: tokenVis.value,
+        }),
+        txt('DEMO_TOKEN', 70, ty - 24, 26, ROLE.candidate, 'mono').opacity(tokenVis.value),
+      );
+    }
+
+    // Closed network vs open stdout channel
+    const netY = ty - 26;
+    const outY = ty + 28;
+    nodes.push(
+      line([178, netY], [340, netY], { stroke: COSMOS.dim, width: 3, dash: [8, 6] }),
+      line([259, netY - 16], [259, netY + 16], {
+        stroke: netHot.value > 0.4 ? ROLE.mark : ROLE.host,
+        width: 6,
+      }).glow(8, ROLE.host),
+      txt('net: none', 259, netY - 36, 26, netHot.value > 0.4 ? ROLE.mark : ROLE.host, 'mono'),
+      glowArrow([178, outY], [344, outY], ROLE.evidence, { width: 4, tip: 13 }),
+      txt('stdout', 259, outY + 30, 26, ROLE.evidence, 'mono'),
+    );
+
+    if (leakPos.value > 0.01 && tokenVis.value > 0.02) {
+      const lx = 178 + (344 - 178) * leakPos.value;
+      nodes.push(
+        glowDot(lx, outY, {
+          radius: 10,
+          color: ROLE.candidate,
+          glow: 14,
+          opacity: tokenVis.value,
+        }),
+      );
+    }
+
+    // Supervisor panel
+    nodes.push(
+      lumBar(605, ty, 505, 108, {
+        color: ROLE.host,
+        fillOpacity: 0.14,
+        strokeWidth: 2.2,
+        glow: 9,
+      }),
+      txt('SUPERVISOR', 376, ty - 26, 26, ROLE.host, 'mono', 'left'),
+    );
+    if (leakedVis.value > 0.02 && tokenVis.value > 0.02) {
+      nodes.push(
+        txt('DEMO_TOKEN leaked via stdout!', 376, ty + 22, 26, ROLE.candidate, 'mono', 'left')
+          .glow(8, ROLE.candidate)
+          .opacity(leakedVis.value * tokenVis.value),
+      );
+    } else if (showBounds.value > 0.02) {
+      nodes.push(
+        txt('caps: output, logs, mem, jobs', 376, ty + 22, 26, ROLE.host, 'sans', 'left').opacity(
+          showBounds.value,
         ),
+      );
+    } else {
+      nodes.push(txt('credential-free isolation', 376, ty + 22, 26, COSMOS.muted, 'sans', 'left'));
+    }
+
+    // === FIVE TELEMETRY ROWS ===
+    const nameX = -860;
+    const trackLeft = -565;
+    const trackW = 790;
+    const statusX = 270;
+
+    // Row 0: Scratch (64 MiB)
+    const y0 = -188;
+    nodes.push(txt('Scratch', nameX, y0, 30, COSMOS.ink, 'sans', 'left'));
+    const g0 = renderGauge(trackLeft, y0, trackW, 38, scratchLvl.value, {
+      cap: CAP,
+      color: ROLE.candidate,
+      limitColor: scratchHot.value > 0.4 ? ROLE.mark : COSMOS.ink,
+    });
+    nodes.push(...g0.nodes);
+    if (show64.value > 0.02) {
+      nodes.push(
+        txt(
+          `${limits.scratchMiB} MiB`,
+          trackLeft + trackW - 6,
+          y0 - 48,
+          26,
+          ROLE.mark,
+          'mono',
+          'right',
+        ).opacity(show64.value),
+      );
+    }
+    if (showEnospc.value > 0.02) {
+      nodes.push(
+        txt(probes[2].outcome, statusX, y0, 26, ROLE.warn, 'mono', 'left').opacity(
+          showEnospc.value,
+        ),
+      );
+    }
+
+    // Row 1: Memory (512 MiB, no swap)
+    const y1 = -74;
+    nodes.push(txt('Memory', nameX, y1, 30, COSMOS.ink, 'sans', 'left'));
+    const g1 = renderGauge(trackLeft, y1, trackW, 38, memLvl.value, {
+      cap: CAP,
+      color: ROLE.evidence,
+    });
+    nodes.push(...g1.nodes);
+    if (show512.value > 0.02) {
+      nodes.push(
+        txt(
+          `${limits.memoryMiB} MiB`,
+          trackLeft + trackW - 6,
+          y1 - 48,
+          26,
+          ROLE.host,
+          'mono',
+          'right',
+        ).opacity(show512.value),
+      );
+    }
+    if (showNoSwap.value > 0.02 || showPressure.value > 0.02) {
+      const mText =
+        showPressure.value > 0.4 ? 'no swap  /  reclaim · fail · kill' : 'swap disabled';
+      nodes.push(
+        txt(mText, statusX, y1, 26, ROLE.host, 'mono', 'left').opacity(
+          Math.max(showNoSwap.value, showPressure.value),
+        ),
+      );
+    }
+
+    // Row 2: Tasks & Threads (64)
+    const y2 = 40;
+    nodes.push(
+      txt(
+        showThreads.value > 0.5 ? 'Tasks + threads' : 'Tasks',
+        nameX,
+        y2,
+        30,
+        showThreads.value > 0.5 ? ROLE.mark : COSMOS.ink,
+        'sans',
+        'left',
       ),
-    ),
-  );
-  c.show('cf-reject', result(probes[3].outcome, 2), { after: true });
-  c.on('cf-distinct', () => s.play(indicate(running, { color: COLOR.mark, duration: 1.2 })));
+    );
+    const g2 = renderGauge(trackLeft, y2, trackW, 38, taskLvl.value, {
+      cap: CAP,
+      color: ROLE.candidate,
+    });
+    nodes.push(...g2.nodes);
+    if (showEagain.value > 0.02) {
+      nodes.push(
+        txt(probes[3].outcome, statusX, y2, 26, ROLE.warn, 'mono', 'left').opacity(
+          showEagain.value,
+        ),
+      );
+    }
 
-  // Beat 2: the CPU quota slows the process, and only the deadline ends it.
-  const throttled = place(note('the rest of each period: no CPU'), cells[3][2], 'left');
-  c.on('cf-cpu', () => s.play(time.to(PERIODS, { duration: 3, ease: linear })));
-  c.show('cf-cpu', throttled, { after: true });
-  c.on('cf-deadline', () => s.play(clock.level.to(CAP, { duration: 2.4, ease: linear })));
-  c.show('cf-stop', result(`${limits.wallSeconds} s · watchdog requests stop`, 4), { after: true });
-  c.swap('cf-stop', running, ended, { after: true });
-  const bounds = ['output', 'logs', 'memory', 'concurrent jobs'].map((name) =>
-    paint(name, COLOR.host),
-  );
-  place(grid(bounds, { columns: 2, gap: 'tight' }), inner(supervisorBox), 'top left');
-  c.show('cf-bounds', bounds, { stagger: true });
+    // Row 3: CPU 6-period throttle strip (100 ms periods, 50 ms quota -> 2x25 ms)
+    const y3 = 205;
+    const stripH = 68;
+    nodes.push(
+      txt('CPU quota', nameX, y3, 30, COSMOS.ink, 'sans', 'left'),
+      lumBar(trackLeft + trackW * 0.5, y3, trackW, stripH, {
+        color: COSMOS.rule,
+        fillOpacity: 0.22,
+        strokeWidth: 2,
+        glow: 0,
+      }),
+    );
+    const px = (p) => trackLeft + (p / PERIODS) * trackW;
+    for (let k = 1; k < PERIODS; k++) {
+      nodes.push(
+        line([px(k), y3 - stripH * 0.5], [px(k), y3 + stripH * 0.5], {
+          stroke: COSMOS.dim,
+          width: 2,
+        }),
+      );
+    }
+    const tVal = cpuTime.value;
+    const sh = cpuShare.value;
+    const laneWidths = [0.5 - 0.25 * sh, 0.25 * sh];
+    for (let p = 0; p < PERIODS; p++) {
+      laneWidths.forEach((lw, lane) => {
+        const endP = Math.min(p + lw, tVal);
+        if (endP - p > 0.02) {
+          const x0 = px(p) + 3;
+          const x1 = px(endP) - 2;
+          const ly = y3 - stripH * 0.24 + lane * stripH * 0.48;
+          nodes.push(
+            lumBar((x0 + x1) * 0.5, ly, Math.max(4, x1 - x0), stripH * 0.36, {
+              color: lane === 0 ? ROLE.candidate : ROLE.mark,
+              fillOpacity: 0.78,
+              strokeWidth: 1.6,
+              glow: 7,
+              radius: 4,
+            }),
+          );
+        }
+      });
+    }
+    if (showPeriod.value > 0.02) {
+      nodes.push(
+        txt(
+          `period: ${limits.cpuPeriod} ms`,
+          trackLeft,
+          y3 - 58,
+          26,
+          COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(showPeriod.value),
+      );
+    }
+    if (showQuota.value > 0.02) {
+      const qStr =
+        showAggregate.value > 0.4
+          ? `quota: ${limits.cpuQuota} ms total  (2 threads x 25 ms)`
+          : `quota: ${limits.cpuQuota} ms CPU / period`;
+      nodes.push(
+        txt(qStr, trackLeft, y3 + 60, 26, ROLE.candidate, 'mono', 'left').opacity(showQuota.value),
+      );
+    }
+    if (showThrottled.value > 0.02) {
+      nodes.push(
+        txt('throttled rest of period', statusX, y3, 26, COSMOS.muted, 'sans', 'left').opacity(
+          showThrottled.value,
+        ),
+      );
+    }
+    if (showEquation.value > 0.02) {
+      nodes.push(
+        txt(
+          `${limits.cpuQuota} ms / ${limits.cpuPeriod} ms = ${limits.cpuEquivalent} CPU`,
+          statusX,
+          y3 - 12,
+          28,
+          ROLE.mark,
+          'mono',
+          'left',
+        )
+          .glow(8, ROLE.mark)
+          .opacity(showEquation.value),
+      );
+    }
+    if (showLoop.value > 0.02) {
+      nodes.push(
+        txt('loop still runs forever', statusX, y3 + 36, 26, COSMOS.muted, 'sans', 'left').opacity(
+          showLoop.value,
+        ),
+      );
+    }
 
-  // Beat 3: the numbers of the recipe, on the same gauges.
-  const period = note(`one period: ${limits.cpuPeriod} ms`);
-  period.moveTo([px(0) + boxOf(period).width / 2, overStrip.cy]);
-  const quota = note(`quota: ${limits.cpuQuota} ms of CPU time`, { color: COLOR.candidate });
-  quota.moveTo([px(0) + boxOf(quota).width / 2, underStrip.cy]);
-  const together = beside(
-    note('for all threads together', { color: COLOR.candidate }),
-    quota,
-    'right',
-    'normal',
-  );
-  const equation = place(
-    mono(`${limits.cpuQuota} ms / ${limits.cpuPeriod} ms = ${limits.cpuEquivalent} CPU`, {
-      size: 30,
-      color: COLOR.mark,
-    }),
-    cells[3][2],
-    'left',
-  );
-  const stillRuns = beside(
-    note('a loop still runs, at this pace'),
-    equation,
-    'under',
-    'tight',
-    'left',
-  );
-  c.show('cf-period', period);
-  c.show('cf-quota', quota);
-  c.on('cf-aggregate', () => s.play(share.to(1, { duration: 1.2 })));
-  c.show('cf-aggregate', together);
-  c.swap('cf-equation', throttled, equation);
-  c.show('cf-loop', stillRuns);
-  c.on('cf-loop', () => s.play(indicate(nameOf[4], { color: COLOR.mark, duration: 1.2 })));
-  // Scratch is memory: the two gauges fill together.
-  const scratchSize = place(note(`${limits.scratchMiB} MiB`), beyond(0));
-  const memorySize = place(note(`${limits.memoryMiB} MiB`), beyond(1));
-  c.show('cf-sixtyfour', scratchSize);
-  c.show('cf-fivetwelve', memorySize);
-  c.on('cf-consumes', () =>
+    // Row 4: Wall-clock Watchdog (30 s)
+    const y4 = 376;
+    nodes.push(
+      txt(
+        'Wall clock',
+        nameX,
+        y4,
+        30,
+        showLoop.value > 0.4 ? ROLE.mark : COSMOS.ink,
+        'sans',
+        'left',
+      ),
+    );
+    const g4 = renderGauge(trackLeft, y4, trackW, 38, wallLvl.value, {
+      cap: CAP,
+      color: ROLE.host,
+    });
+    nodes.push(...g4.nodes);
+    if (showStopMsg.value > 0.02) {
+      nodes.push(
+        txt(
+          `${limits.wallSeconds} s  /  watchdog kills job`,
+          statusX,
+          y4,
+          26,
+          ROLE.host,
+          'mono',
+          'left',
+        )
+          .glow(7, ROLE.host)
+          .opacity(showStopMsg.value),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAtmo, title, live);
+  runAmbientPhase(s, c, phase, 2.4);
+
+  // Beat 0: closed network still leaks stdout token
+  tweenCue(s, c, 'cf-credentials', tokenHot, 1, { duration: 0.45 });
+  tweenCue(s, c, 'cf-network', netHot, 1, { duration: 0.45 });
+  tweenCue(s, c, 'cf-print', leakPos, 1, { duration: 1.0 });
+  tweenCue(s, c, 'cf-returns', leakedVis, 1, { duration: 0.35 });
+
+  // Beat 1: scratch, memory, swap, tasks
+  c.onBeat(1, () => {
+    s.play(tokenVis.to(0, { duration: 0.3 }));
+  });
+  tweenCue(s, c, 'cf-sixtyfour', show64, 1, { duration: 0.35 });
+  tweenCue(s, c, 'cf-fivetwelve', show512, 1, { duration: 0.35 });
+  c.on('cf-consumes', () => {
     s.play(
-      scratch.level.to(CAP, { duration: 1.8 }),
-      memory.level.to(0.3 + (CAP * limits.scratchMiB) / limits.memoryMiB, { duration: 1.8 }),
-    ),
-  );
-  const noSwap = paint('no swap', COLOR.host);
-  const outcomes = ['reclaim', 'fail', 'kill'].map((name) => paint(name, COLOR.host));
-  place(row([noSwap, ...outcomes], { gap: 'tight' }), cells[1][2], 'left');
-  c.show('cf-swap', noSwap);
-  c.show('cf-pressure', outcomes, { stagger: true });
-  const threads = place(label('tasks, threads', { size: 36 }), cells[2][0], 'left');
-  c.swap('cf-threads', nameOf[2], threads);
-  c.on('cf-threads', () => s.play(indicate(tasks.limit, { color: COLOR.mark, duration: 1.2 })));
+      scratchLvl.to(CAP, { duration: 1.4 }),
+      memLvl.to(0.28 + (CAP * limits.scratchMiB) / limits.memoryMiB, { duration: 1.4 }),
+    );
+  });
+  tweenCue(s, c, 'cf-scratch', scratchHot, 1, { duration: 0.35 });
+  tweenCue(s, c, 'cf-write-fails', showEnospc, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'cf-distinct', aliveHot, 1, { duration: 0.4 });
+  tweenCue(s, c, 'cf-swap', showNoSwap, 1, { duration: 0.35 });
+  tweenCue(s, c, 'cf-pressure', showPressure, 1, { duration: 0.35 });
+  tweenCue(s, c, 'cf-threads', showThreads, 1, { duration: 0.35 });
+  tweenCue(s, c, 'cf-tasks', taskLvl, CAP, { duration: 1.1 });
+  tweenCue(s, c, 'cf-reject', showEagain, 1, { duration: 0.35, after: true });
+
+  // Beat 2: CPU strip + aggregate share
+  tweenCue(s, c, 'cf-period', showPeriod, 1, { duration: 0.35 });
+  tweenCue(s, c, 'cf-quota', showQuota, 1, { duration: 0.35 });
+  tweenCue(s, c, 'cf-cpu', cpuTime, PERIODS, { duration: 2.2, ease: linear });
+  tweenCue(s, c, 'cf-cpu', showThrottled, 1, { duration: 0.35, after: true });
+  c.on('cf-aggregate', () => {
+    s.play(cpuShare.to(1, { duration: 0.9 }), showAggregate.to(1, { duration: 0.35 }));
+  });
+  crossSwap(s, c, 'cf-equation', showThrottled, showEquation, { duration: 0.4 });
+  tweenCue(s, c, 'cf-loop', showLoop, 1, { duration: 0.35 });
+
+  // Beat 3: Host bounds + 30s wall watchdog
+  tweenCue(s, c, 'cf-bounds', showBounds, 1, { duration: 0.4 });
+  tweenCue(s, c, 'cf-deadline', wallLvl, CAP, { duration: 1.8, ease: linear });
+  c.after('cf-stop', () => {
+    s.play(showStopMsg.to(1, { duration: 0.35 }), stoppedVis.to(1, { duration: 0.35 }));
+  });
 }

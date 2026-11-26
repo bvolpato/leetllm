@@ -1,52 +1,57 @@
-import { narratedLesson } from '../../lib/narrated-lesson.mjs';
-import s0 from './scenes/intro.mjs';
-import s1 from './scenes/neighbors.mjs';
-import s2 from './scenes/algorithm-contract.mjs';
-import s3 from './scenes/kmeans.mjs';
-import s4 from './scenes/initialization.mjs';
-import s5 from './scenes/seeding-mass.mjs';
-import s6 from './scenes/choose-k.mjs';
-import s7 from './scenes/silhouette-ledger.mjs';
-import s8 from './scenes/objective-ties.mjs';
-import rectangle from './scenes/fresh-seed-repair.mjs';
-import s9 from './scenes/scale.mjs';
-import s10 from './scenes/scale-boundary.mjs';
-import s11 from './scenes/pca.mjs';
-import s12 from './scenes/solver-contract.mjs';
-import s13 from './scenes/compression.mjs';
-import s14 from './scenes/variance-ledger.mjs';
-import s15 from './scenes/metric-choice.mjs';
-import s16 from './scenes/spherical-centers.mjs';
-import s17 from './scenes/centered-cosine.mjs';
-import s18 from './scenes/ivf.mjs';
-import s19 from './scenes/ivf-work.mjs';
-import s21 from './scenes/audit-labels.mjs';
-import signInSearch from './scenes/takeaway.mjs';
-export default narratedLesson({
+// Full-bleed dark-cinema 23-scene Clustering & PCA stage lesson (vizmatic@0.10.0).
+import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
+import { verifyClusteringPcaInvariants } from './parts.mjs';
+import algorithmContract from './scenes/algorithm-contract.mjs';
+import auditLabels from './scenes/audit-labels.mjs';
+import centeredCosine from './scenes/centered-cosine.mjs';
+import chooseK from './scenes/choose-k.mjs';
+import compression from './scenes/compression.mjs';
+import freshSeedRepair from './scenes/fresh-seed-repair.mjs';
+import initialization from './scenes/initialization.mjs';
+import intro from './scenes/intro.mjs';
+import ivfWork from './scenes/ivf-work.mjs';
+import ivf from './scenes/ivf.mjs';
+import kmeans from './scenes/kmeans.mjs';
+import metricChoice from './scenes/metric-choice.mjs';
+import neighbors from './scenes/neighbors.mjs';
+import objectiveTies from './scenes/objective-ties.mjs';
+import pca from './scenes/pca.mjs';
+import scaleBoundary from './scenes/scale-boundary.mjs';
+import scale from './scenes/scale.mjs';
+import seedingMass from './scenes/seeding-mass.mjs';
+import silhouetteLedger from './scenes/silhouette-ledger.mjs';
+import solverContract from './scenes/solver-contract.mjs';
+import sphericalCenters from './scenes/spherical-centers.mjs';
+import takeaway from './scenes/takeaway.mjs';
+import varianceLedger from './scenes/variance-ledger.mjs';
+
+export default cinematicLesson({
   id: 'clustering-pca',
+  accent: COSMOS.cyan,
+  invariants: verifyClusteringPcaInvariants,
   scenes: {
-    'intro': s0,
-    'neighbors': s1,
-    'algorithm-contract': s2,
-    'kmeans': s3,
-    'initialization': s4,
-    'seeding-mass': s5,
-    'choose-k': s6,
-    'silhouette-ledger': s7,
-    'objective-ties': s8,
-    'fresh-seed-repair': rectangle,
-    'scale': s9,
-    'scale-boundary': s10,
-    'pca': s11,
-    'solver-contract': s12,
-    'compression': s13,
-    'variance-ledger': s14,
-    'metric-choice': s15,
-    'spherical-centers': s16,
-    'centered-cosine': s17,
-    'ivf': s18,
-    'ivf-work': s19,
-    'audit-labels': s21,
-    'takeaway': signInSearch,
+    intro,
+    neighbors,
+    'algorithm-contract': algorithmContract,
+    kmeans,
+    initialization,
+    'seeding-mass': seedingMass,
+    'choose-k': chooseK,
+    'silhouette-ledger': silhouetteLedger,
+    'objective-ties': objectiveTies,
+    'fresh-seed-repair': freshSeedRepair,
+    scale,
+    'scale-boundary': scaleBoundary,
+    pca,
+    'solver-contract': solverContract,
+    compression,
+    'variance-ledger': varianceLedger,
+    'metric-choice': metricChoice,
+    'spherical-centers': sphericalCenters,
+    'centered-cosine': centeredCosine,
+    ivf,
+    'ivf-work': ivfWork,
+    'audit-labels': auditLabels,
+    takeaway,
   },
 });

@@ -1,0 +1,1867 @@
+version: 1
+id: design-code-completion-system
+title: One Line, Two Completion Requests
+source: system-design/design-code-completion-system/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: FIM original paper and joint-training SPM encoding
+    url: https://arxiv.org/html/2207.14255v1
+  - title: VS Code exact inspected declarations
+    url: https://github.com/microsoft/vscode/blob/1fe7285a1162756215a684ee702b16d0ce42bdb4/src/vscode-dts/vscode.d.ts
+  - title: Language Server Protocol
+    url: https://microsoft.github.io/language-server-protocol/
+  - title: Tree-sitter error-tolerant incremental parsing
+    url: https://tree-sitter.github.io/tree-sitter/
+  - title: Qwen2.5-Coder technical report
+    url: https://arxiv.org/html/2409.12186v3
+  - title: Speculative decoding Algorithm 1
+    url: https://arxiv.org/html/2211.17192v2
+  - title: vLLM prefix cache and trust-group salts
+    url: https://docs.vllm.ai/en/stable/design/prefix_caching/
+  - title: Historical Copilot productivity cohort
+    url: https://arxiv.org/html/2205.06537v1
+  - title: Current Copilot IDE and public-code boundaries
+    url: https://docs.github.com/en/copilot/concepts/copilot-surfaces/copilot-in-ides
+  - title: TGI current maintenance scope
+    url: https://huggingface.co/docs/text-generation-inference/index
+  - title: GPTQ implementation scope
+    url: https://huggingface.co/docs/transformers/main/en/quantization/gptq
+scenes:
+  - id: intro
+    title: "Would you show this reply?"
+    visual: >-
+      The blue reply travels toward its original insertion point. In the editor above it,
+      graph. already fills the six columns between that point and the yellow caret.
+      Try the full insertion on a separate scratch line.
+    beats:
+      - say: >-
+          Would you show this reply at the caret? Here comes a whole call for the empty assignment.
+          Look where it starts. While the model was working, you pasted graph dot.
+          The yellow caret is now six columns farther along.
+        hold: 2.4
+        caption_starts:
+          - "Here comes a whole call"
+          - "While the model was working"
+        visual_cues:
+          - id: intro-return
+            phrase: "Here comes a whole call"
+            targets: [intro-packet]
+            linger: 0.35
+          - id: intro-paste
+            phrase: "you pasted graph dot"
+            targets: [editor-buffer, intro-packet]
+            linger: 0.35
+      - say: >-
+          Try it on a scratch line. You get graph dot twice. Drop that reply.
+          The editor needs just the part that comes after the dot.
+        hold: 1
+        caption_starts:
+          - "You get graph dot twice"
+        visual_cues:
+          - id: intro-join
+            phrase: "Try it on a scratch line"
+            targets: [intro-packet]
+            linger: 0.35
+          - id: intro-drop
+            phrase: "Drop that reply"
+            targets: [intro-packet, editor-buffer]
+            caption_boundary: true
+            linger: 0.35
+  - id: lanes
+    title: "Who can finish this line?"
+    visual: >-
+      Two consecutive snapshots expose different holes. One fits a member lookup on a known
+      receiver. The other needs an expression that also fits the following return.
+    beats:
+      - say: >-
+          Look again at the dot. The language server knows the type of graph in this example. Ask
+          it for members, and it can offer allows right here on the laptop. Now go back to the
+          empty assignment. A list of method names doesn't tell you which expression belongs
+          between the equals sign and the return below.
+        hold: 0.95
+        visual_cues:
+          - id: lanes-members
+            phrase: "Ask it for members"
+            targets: [lane-member]
+            linger: 0.35
+          - id: lanes-assignment
+            phrase: "go back to the empty assignment"
+            targets: [lane-hole]
+            linger: 0.35
+      - say: >-
+          If the repository permits upload, send those two sides of the hole to the model. If
+          permission is missing, keep the buffer local. You can still look up a name in the local
+          index when receiver types are missing. A request to change several files and run tests
+          belongs on the slower coding agent path. The gateway checks access and upload policy
+          before accepting any remote request.
+        hold: 0.9
+        visual_cues:
+          - id: lanes-send
+            phrase: "send those two sides of the hole"
+            targets: [lane-hole]
+            linger: 0.35
+          - id: lanes-stay
+            phrase: "keep the buffer local"
+            targets: [lane-hole]
+            linger: 0.35
+          - id: lanes-local
+            phrase: "look up a name in the local index"
+            targets: [lane-member]
+            linger: 0.35
+  - id: route-policy
+    title: Apply semantic availability and actual upload permission
+    visual: Use the same graph dot and open assignment; route missing types and string False separately. Keep
+      local lookup before upload permission and remote gateway authority.
+    beats:
+      - say: >-
+          Start typing a name. The local index can finish PolicyGraph from the letters on screen.
+          After graph dot, the language server can offer methods for that type. An empty assignment
+          needs an expression. If upload is permitted, the model can fill it in. Next-edit
+          suggestions also predict where to edit. Planning a change across files and testing it is a
+          job for the coding agent.
+        hold: 0.7
+        visual_cues:
+          - id: cc-route-policy-0
+            phrase: >-
+              the letters on screen
+            targets:
+              - cc-route-policy-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          After a dot or an opening parenthesis, use a local type match when one is available.
+          Otherwise, look at the permission column. Only the boolean True opens the remote route.
+          The quoted word False, a missing value and the integer one all stay local, even after a
+          function signature. Here the inline target is two hundred milliseconds at p ninety-five. A
+          multiline body gets five hundred.
+        hold: 0.7
+        visual_cues:
+          - id: cc-route-policy-1
+            phrase: >-
+              use a local type match
+            targets:
+              - cc-route-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-route-permission
+            phrase: >-
+              Only the boolean True opens the remote route
+            targets:
+              - cc-route-policy-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          The editor picks a route. Before the gateway accepts the code, it checks who is asking,
+          which repository they can read and whether its policy permits upload. If types are missing
+          and upload is unavailable, the editor can still look up names locally.
+        hold: 0.7
+        visual_cues:
+          - id: cc-route-policy-2
+            phrase: >-
+              whether its policy permits upload
+            targets:
+              - cc-route-policy-mechanism
+            color: cyan
+            linger: 0.4
+  - id: scope-recovery
+    title: Keep a preceding header separate from enclosing scope
+    visual: Run actual backward scan on an incomplete assignment, then dedent past the same header; contrast its
+      returned string with a syntax-node range.
+    beats:
+      - say: >-
+          The equals sign has nothing after it yet. The editor extension knows where the caret is.
+          Tree-sitter can update the syntax tree as you type, even with an unfinished line. Its
+          function range helps the context engine choose a permitted snippet. The Language Server
+          Protocol lets the editor ask for types. The inference server runs the model on the context
+          it receives.
+        hold: 0.7
+        visual_cues:
+          - id: cc-scope-recovery-0
+            phrase: >-
+              Its function range helps the context engine
+            targets:
+              - cc-scope-recovery-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Now look at the unindented line. Scan upward and you still find the same function header.
+          Follow the blue function range instead. It ends above the caret. A text scan can also pick
+          up a header inside a string or miss one split across lines. Use the enclosing syntax node
+          for scope, the language server for types and repository permissions for file access.
+        hold: 0.7
+        visual_cues:
+          - id: cc-scope-recovery-1
+            phrase: >-
+              Now look at the unindented line
+            targets:
+              - cc-scope-recovery-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-scope-dedent
+            phrase: >-
+              It ends above the caret
+            targets:
+              - cc-scope-recovery-mechanism
+            color: cyan
+            linger: 0.4
+  - id: position-units
+    title: Convert the caret before constructing the suffix
+    visual: Align a, U+1F600 and b by code points, UTF-16 units and UTF-8 bytes; move the same caret to each
+      numeric coordinate and preserve b.
+    beats:
+      - say: Put the caret after the emoji in a, grinning face, b. Python’s index is two. The prefix occupies three
+          UTF-sixteen code units and five UTF-eight bytes. The correct Python suffix is b; copying the
+          editor’s three into that slice loses b. Cutting UTF-eight at byte three splits the emoji. One
+          visible character can occupy several encoding units.
+        hold: 0.7
+        visual_cues:
+          - id: cc-position-units-0
+            phrase: Put the caret after the emoji in a, grinning face, b. Python’s index is two. The prefix occupies three
+              UTF-sixteen code units and five UTF-eight bytes. The correct Python suffix is b; copying the
+              editor’s three into that slice loses b. Cutting UTF-eight at byte three splits the emoji. One
+              visible character can occupy several encoding units.
+            targets:
+              - cc-position-units-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-position-three-five
+            phrase: three UTF-sixteen code units and five UTF-eight bytes
+            targets:
+              - cc-position-units-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-position-wrong-suffix
+            phrase: copying the editor’s three into that slice loses b
+            targets:
+              - cc-position-units-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          VS Code counts UTF-sixteen units both within a line and in its document offsets. Its
+          positionAt and offsetAt methods convert between those two forms. For a Python slice here,
+          convert three units to two code points. Now the suffix starts with b. Check the range
+          against the current document version. Edits, undo and redo all advance it.
+        hold: 0.7
+        visual_cues:
+          - id: cc-position-units-1
+            phrase: >-
+              the suffix starts with b
+            targets:
+              - cc-position-units-mechanism
+            color: cyan
+            linger: 0.4
+  - id: fim
+    title: Send both sides of the hole before generating
+    visual: Prefix, hole and suffix in file order transform into a model-specific prefix-suffix-middle prompt.
+    beats:
+      - say: Code is often inserted between existing lines. A prefix-only continuation cannot condition on the return
+          statement already below the hole. Fill-in-the-middle training moves the missing span after its
+          surrounding text so a causal decoder can generate it while seeing both boundaries.
+        hold: 0.75
+        visual_cues:
+          - id: fim-beat-1-focus-1
+            phrase: A prefix-only continuation cannot condition on the return statement already below the hole
+            targets:
+              - fim-panel-fim
+            color: cyan
+            linger: 0.65
+      - say: "Watch file order become prompt order: prefix, suffix, then the middle marker and generated insertion.
+          The marker names here show their roles. A native adapter must use the selected checkpoint’s trained
+          tokens and format, then verify that the returned edit fits the preserved code."
+        hold: 0.85
+        visual_cues:
+          - id: fim-beat-2-focus-1
+            phrase: A native adapter must use the selected checkpoint’s trained tokens and format
+            targets:
+              - fim-panel-fim
+            color: cyan
+            linger: 0.65
+  - id: fim-training
+    title: Train the middle after its two preserved boundaries
+    visual: Split actual source into prefix, middle and suffix, then move middle after suffix with model-specific
+      sentinel IDs; build the joint-training SPM variant separately.
+    beats:
+      - say: >-
+          Cut the missing expression out of a training example. Put the prefix and suffix first,
+          separated by marker tokens, then put the missing expression last. As the model predicts
+          each token of that expression, it can see both sides of the hole. Cutting at character
+          boundaries also gives it practice with edits inside tokenizer pieces. In the original
+          study, mixing these examples with ordinary text preserved left-to-right completion on the
+          evaluations.
+        hold: 0.7
+        visual_cues:
+          - id: cc-fim-training-0
+            phrase: >-
+              it can see both sides of the hole
+            targets:
+              - cc-fim-training-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Our displayed PSM order is prefix marker, prefix, suffix marker, suffix, then middle marker. In the
+          original paper’s joint-training SPM variant, prefix marker and suffix marker precede the suffix;
+          middle marker then precedes the contiguous prefix and generated middle. At inference, stop after
+          that prefix and generate the middle. Other SPM encodings exist, so marker placement belongs to the
+          checkpoint contract.
+        hold: 0.7
+        visual_cues:
+          - id: cc-fim-training-1
+            phrase: Our displayed PSM order is prefix marker, prefix, suffix marker, suffix, then middle marker. In the
+              original paper’s joint-training SPM variant, prefix marker and suffix marker precede the suffix;
+              middle marker then precedes the contiguous prefix and generated middle. At inference, stop after
+              that prefix and generate the middle. Other SPM encodings exist, so marker placement belongs to
+              the checkpoint contract.
+            targets:
+              - cc-fim-training-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-fim-psm
+            phrase: prefix marker, prefix, suffix marker, suffix, then middle marker
+            targets:
+              - cc-fim-training-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-fim-spm
+            phrase: middle marker then precedes the contiguous prefix and generated middle
+            targets:
+              - cc-fim-training-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Qwen two point five Coder trained with markers for infill and repository context. A client
+          for that checkpoint uses its trained token IDs. With an instruction-following model,
+          another option is to give it the two pieces as ordinary text and ask for the insertion.
+          Compare the returned spans and the time to display them when choosing among smaller,
+          larger and distilled models.
+        hold: 0.7
+        visual_cues:
+          - id: cc-fim-training-2
+            phrase: >-
+              uses its trained token IDs
+            targets:
+              - cc-fim-training-mechanism
+            color: cyan
+            linger: 0.4
+  - id: infill-boundaries
+    title: Insert only the generated middle into the same hole
+    visual: Return the generated span to the original file while retaining suffix and scope; show literal
+      marker-like source strings encoded as content.
+    beats:
+      - say: >-
+          The line below returns is_allowed, so the expression above it has to supply that value.
+          Our fictional graph offers an allows method. For an actual permission check, look up the
+          method signature and test both an allowed and a denied request. Review the policy before
+          shipping the call. The editor is proposing source text. The application enforces access
+          when it runs.
+        hold: 0.7
+        visual_cues:
+          - id: cc-infill-boundaries-0
+            phrase: >-
+              test both an allowed and a denied request
+            targets:
+              - cc-infill-boundaries-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          The adapter puts the checkpoint's marker IDs around the code. If those same characters
+          appear inside a source string, encode them as ordinary text. Return only the generated
+          middle to the intended range. Check the stop condition, boundaries and document version
+          before insertion. The return statement stays where it was.
+        hold: 0.7
+        visual_cues:
+          - id: cc-infill-boundaries-1
+            phrase: >-
+              encode them as ordinary text
+            targets:
+              - cc-infill-boundaries-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-insert-middle
+            phrase: >-
+              Return only the generated middle to the intended range
+            targets:
+              - cc-infill-boundaries-mechanism
+            color: cyan
+            linger: 0.4
+  - id: context
+    title: Reserve the suffix inside the whole prompt budget
+    visual: A shared eight-thousand-token allocation retains framing, prefix, suffix and definitions before a
+      final snippet uses only the remaining space.
+    beats:
+      - say: The prompt needs useful context without reading the whole repository on every keystroke. Authorize
+          candidate files first. Reserve the edit’s suffix and framing, then spend the remaining prompt budget
+          on nearby code and relevant definitions. Keep output capacity separately within the model’s total
+          context limit.
+        hold: 0.75
+        visual_cues:
+          - id: context-preserve-edit-boundaries
+            phrase: Reserve the edit’s suffix and framing
+            targets:
+              - context-suffix
+              - context-framing
+            color: cyan
+            linger: 0.6
+          - id: context-nearby-code
+            phrase: then spend the remaining prompt budget on nearby code and relevant definitions
+            targets:
+              - context-prefix
+              - context-definitions
+            color: yellow
+            linger: 0.6
+      - say: Our supplied allocation leaves room for only part of another snippet. Use the remaining capacity rather
+          than silently dropping the suffix. Context may change the answer, but it also changes transfer and
+          prefill work. Evaluate the complete context policy under the actual latency and privacy
+          requirements.
+        hold: 0.85
+        visual_cues:
+          - id: context-additional-snippet
+            phrase: Our supplied allocation leaves room for only part of another snippet
+            targets:
+              - context-snippet
+            color: cyan
+            linger: 0.6
+          - id: context-retain-suffix
+            phrase: rather than silently dropping the suffix
+            targets:
+              - context-suffix
+            color: yellow
+            linger: 0.6
+  - id: context-ranking
+    title: Compute symbol overlap after filtering allowed files
+    visual: Construct the exact active/S/P/M symbol membership sets and intersection/union; admit only
+      threshold-passing authorized definitions into the retained budget.
+    beats:
+      - say: >-
+          Give each file a permission check, including unsaved buffers and retrieved files. With
+          eight thousand prompt tokens to spend, set aside space for the suffix and its markers.
+          Fill the rest with the prefix, definitions, recent edits and relevant neighbors. Leave
+          room in the model's total window for output too. Time prefill on these prompts to see what
+          fits the keystroke budget.
+        hold: 0.7
+        visual_cues:
+          - id: cc-context-ranking-0
+            phrase: >-
+              set aside space for the suffix and its markers
+            targets:
+              - cc-context-ranking-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          For Jaccard similarity, count unique symbols. The active file and scope_rules share two
+          names out of four distinct names altogether. That is two divided by four, or point five.
+          Policy_graph shares one of
+          four, or point two five. Metrics shares zero of five. With a threshold of at least point
+          two five, select the first two.
+        hold: 0.7
+        visual_cues:
+          - id: cc-context-ranking-1
+            phrase: >-
+              Count unique symbols
+            targets:
+              - cc-context-ranking-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-jaccard-half
+            phrase: two divided by four, or point five
+            targets:
+              - cc-context-ranking-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-jaccard-quarter
+            phrase: one of four, or point two five
+            targets:
+              - cc-context-ranking-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-jaccard-select
+            phrase: select the first two
+            targets:
+              - cc-context-ranking-mechanism
+            color: cyan
+            linger: 0.4
+      - say: BM twenty-five can search a ready sparse index; prepared dense indexes can also retrieve definitions.
+          Measure retrieval, any reranker and assembly together. An iterative retrieve-generate-retrieve loop
+          adds serial calls, so this design puts it on the slower route. If a known definition is missing,
+          inspect extraction, authorization and index freshness before enlarging the prompt.
+        hold: 0.7
+        visual_cues:
+          - id: cc-context-ranking-2
+            phrase: BM twenty-five can search a ready sparse index; prepared dense indexes can also retrieve definitions.
+              Measure retrieval, any reranker and assembly together. An iterative retrieve-generate-retrieve
+              loop adds serial calls, so this design puts it on the slower route. If a known definition is
+              missing, inspect extraction, authorization and index freshness before enlarging the prompt.
+            targets:
+              - cc-context-ranking-mechanism
+            color: cyan
+            linger: 0.4
+  - id: freshness
+    title: "Two replies for one line"
+    visual: >-
+      R42 arrives first. Compare its captured row with the live row, paint its gray span, then
+      deliver R41 while R42 is still visible.
+    beats:
+      - say: >-
+          We're back at the dot in the editor. The reply for the newer request arrives first.
+          Compare its row with the editor. Both point just past the dot. The file, version,
+          selection, policy and request number all match. Can the editor show this reply at the caret?
+        hold: 1.8
+        visual_cues:
+          - id: fresh-pair
+            phrase: "Compare its row with the editor"
+            targets: [editor-snapshots, editor-buffer]
+            linger: 0.35
+      - say: >-
+          Show the call in gray. That's ghost text. The developer can still walk away with a line
+          that ends at the dot.
+        hold: 0.65
+        visual_cues:
+          - id: fresh-paint
+            phrase: "Show the call in gray"
+            targets: [editor-buffer]
+            linger: 0.35
+      - say: >-
+          Here comes the reply for the empty assignment. Follow its range. It starts six columns
+          earlier, before the word graph. Which suggestion should stay at the caret?
+        hold: 2.2
+        visual_cues:
+          - id: fresh-older
+            phrase: "Here comes the reply for the empty assignment"
+            targets: [editor-snapshots, editor-buffer]
+            linger: 0.35
+          - id: fresh-range
+            phrase: "It starts six columns earlier"
+            targets: [editor-snapshots, editor-buffer]
+            linger: 0.35
+      - say: >-
+          Keep the gray call. Discard only the late reply. The request number, or epoch, advances
+          on a text edit, a caret or selection move, or a policy change, even if the editor sends
+          nothing. Cancellation may save server work. The captured state tells the editor what to
+          do when cancellation arrives too late.
+        hold: 1
+        visual_cues:
+          - id: fresh-keep
+            phrase: "Keep the gray call"
+            targets: [editor-buffer, editor-snapshots]
+            linger: 0.35
+          - id: fresh-drop
+            phrase: "Discard only the late reply"
+            targets: [editor-outcome]
+            linger: 0.35
+  - id: debounce-history
+    title: "Three keystrokes, one send"
+    visual: >-
+      Replay the article's local request manager. Each new letter cancels the previous timer.
+      Inject a late epoch-two response, then move the caret and change policy while the send log
+      stays fixed.
+    beats:
+      - say: >-
+          Type r. The editor sets a timer for a hundred and fifty milliseconds. Before it fires,
+          type o. That cancels the first timer and starts another. Now type a dot. This trigger
+          has zero delay. Only request three reaches the send log.
+        hold: 0.95
+        visual_cues:
+          - id: deb-first
+            phrase: "Type r"
+            targets: [deb-keys]
+            linger: 0.35
+          - id: deb-next
+            phrase: "type o"
+            targets: [deb-keys]
+            linger: 0.35
+          - id: deb-dot
+            phrase: "Now type a dot"
+            targets: [deb-keys]
+            linger: 0.35
+          - id: deb-send
+            phrase: "Only request three reaches the send log"
+            targets: [deb-log]
+            linger: 0.35
+      - say: >-
+          Request three paints a suggestion. Now hand the editor a late reply marked two. In this
+          local test we even give it the current document snapshot. Which reply stays visible?
+        hold: 2
+        visual_cues:
+          - id: deb-paint
+            phrase: "Request three paints a suggestion"
+            targets: [deb-log]
+            linger: 0.35
+          - id: deb-late
+            phrase: "a late reply marked two"
+            targets: [deb-log]
+            linger: 0.35
+      - say: >-
+          Three stays visible. The request number alone rules out two. Move just the caret. That
+          clears the ghost and advances the epoch without sending anything. A matching test reply
+          can paint at the new position. Now change the policy. The ghost clears again. Tab has
+          nothing to insert.
+        hold: 1
+        visual_cues:
+          - id: deb-keep
+            phrase: "Three stays visible"
+            targets: [deb-log]
+            linger: 0.35
+          - id: deb-move
+            phrase: "Move just the caret"
+            targets: [deb-log]
+            linger: 0.35
+          - id: deb-again
+            phrase: "A matching test reply can paint at the new position"
+            targets: [deb-log]
+            linger: 0.35
+          - id: deb-policy
+            phrase: "Now change the policy"
+            targets: [deb-log]
+            linger: 0.35
+      - say: >-
+          The send log still has just one entry. This replay ran locally. On a server, also
+          propagate cancellation and bound the deadline and output length. A request may already
+          have entered the GPU queue or started computing. Count that work even when the editor
+          discards every late token.
+        hold: 0.9
+        visual_cues:
+          - id: deb-summary
+            phrase: "just one entry"
+            targets: [deb-log]
+            linger: 0.35
+  - id: acceptance-race
+    title: "Between paint and Tab"
+    visual: >-
+      Replay the same ghost twice. Tab inserts fifteen characters after an unchanged paint and
+      inserts nothing after a policy update. Then rebase only the remaining letters after a
+      matching typed prefix.
+    beats:
+      - say: >-
+          The gray call has reached the right place. Press Tab while both rows still match. The
+          editor checks the version and range as it applies the edit. The call becomes part of the
+          line. The caret lands after the closing parenthesis.
+        hold: 0.9
+        visual_cues:
+          - id: tab-apply
+            phrase: "The call becomes part of the line"
+            targets: [editor-buffer, editor-snapshots]
+            linger: 0.35
+      - say: >-
+          Rewind to the same gray call. This time the repository policy changes before Tab. The
+          letters in the buffer and the caret stay put. What will Tab insert?
+        hold: 2.1
+        visual_cues:
+          - id: tab-policy
+            phrase: "the repository policy changes before Tab"
+            targets: [editor-snapshots, editor-buffer]
+            linger: 0.35
+      - say: >-
+          Nothing is inserted. Changing the policy cleared the ghost. The editor checks again at
+          acceptance because a selection change or a caret move can also happen after paint. A
+          real editor must apply an edit against the version and range it just checked in one
+          atomic operation.
+        hold: 0.9
+        visual_cues:
+          - id: tab-empty
+            phrase: "Nothing is inserted"
+            targets: [editor-buffer, editor-snapshots]
+            linger: 0.35
+      - say: >-
+          Replay the original proposal once more. Now the developer types the first three letters
+          of allows. To keep the remainder, the client must check that the letters match, move the
+          start to column twenty-six and bind the remaining text to the new version. Only then can
+          it show the rest. Otherwise it clears the suggestion.
+        hold: 1.1
+        visual_cues:
+          - id: tab-type
+            phrase: "types the first three letters of allows"
+            targets: [editor-buffer, editor-snapshots]
+            linger: 0.35
+          - id: tab-rebase
+            phrase: "Only then can it show the rest"
+            targets: [editor-buffer, editor-snapshots]
+            linger: 0.35
+  - id: timing
+    title: Measure from the edit to a usable suggestion
+    visual: Immediate and debounced traces share one time scale while the elapsed phase counters follow the
+      painted intervals.
+    beats:
+      - say: A useful latency measurement begins with the qualifying edit and ends when a fresh span is painted.
+          Include local handling, network, context assembly, queueing, enough generation to display and
+          rendering. Our immediate-trigger worksheet totals less than the scenario’s two-hundred-millisecond
+          objective.
+        hold: 0.75
+        visual_cues:
+          - id: timing-beat-1-focus-1
+            phrase: Our immediate-trigger worksheet totals less than the scenario’s two-hundred-millisecond objective
+            targets:
+              - timing-id-immediate-label-immediate
+            color: cyan
+            linger: 0.65
+          - id: timing-beat-1-focus-2
+            phrase: Include local handling, network, context assembly, queueing, enough generation to display and
+              rendering
+            targets:
+              - timing-id-immediate-label-immediate
+            color: yellow
+            linger: 0.65
+      - say: Add the separate ordinary-typing debounce and the same serial path now exceeds that allocation. Shorten
+          it, route locally or define a different pause-to-suggestion objective. Compute real percentiles over
+          complete request traces, with stale drops and timeouts visible, instead of adding stage percentiles
+          together.
+        hold: 0.85
+        visual_cues:
+          - id: timing-beat-2-focus-1
+            phrase: Add the separate ordinary-typing debounce and the same serial path now exceeds that allocation
+            targets:
+              - timing-debounced-path
+              - timing-elapsed-comparison
+            color: cyan
+            linger: 0.65
+  - id: trace-quantiles
+    title: Compute the percentile from complete request rows
+    visual: >-
+      Keep both stage times in each of the twenty request rows. Highlight the two slow requests
+      and compare rank nineteen across complete requests and individual stages.
+    beats:
+      - say: >-
+          On the immediate path, allow twelve milliseconds for the client, fifty-five for the
+          network and twenty-eight for context. Queueing and generation get seventy-eight, and paint
+          gets ten. That's one hundred eighty-three milliseconds, with seventeen to spare against
+          our two-hundred target. Add the ordinary typing delay of a hundred and fifty milliseconds
+          and you reach three hundred thirty-three. To find the actual tail latency, follow whole requests.
+        hold: 0.7
+        visual_cues:
+          - id: cc-trace-quantiles-0
+            phrase: >-
+              On the immediate path
+            targets:
+              - cc-trace-quantiles-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-total183
+            phrase: one hundred eighty-three milliseconds
+            targets:
+              - cc-trace-quantiles-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-total333
+            phrase: three hundred thirty-three
+            targets:
+              - cc-trace-quantiles-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Look at the two slow rows. The first request spends a hundred milliseconds in stage one
+          and a single millisecond in stage two. The second request has those times reversed. The
+          other eighteen rows take one millisecond in each stage. Nearest-rank p ninety-five selects
+          rank nineteen. Add across each row first, then sort the totals. The nineteenth takes one
+          hundred one milliseconds. Sort the columns separately and both nineteenth values are one.
+          Adding those gives two milliseconds. The two slow stages belonged to different requests.
+        hold: 0.7
+        visual_cues:
+          - id: cc-trace-quantiles-1
+            phrase: >-
+              Look at the two slow rows
+            targets:
+              - cc-trace-quantiles-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-rank19
+            phrase: Nearest-rank p ninety-five selects rank nineteen
+            targets:
+              - cc-trace-quantiles-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-complete101
+            phrase: >-
+              The nineteenth takes one hundred one milliseconds
+            targets:
+              - cc-trace-quantiles-mechanism
+            color: cyan
+            linger: 0.4
+  - id: request-population
+    title: Keep the first token inside the edit-to-paint path
+    visual: Mark qualifying event, submit, first token and fresh usable span on one timeline; attach missing/stale
+      outcomes to the original offered population.
+    beats:
+      - say: Edit-to-usable-suggestion begins at the qualifying event and ends with a fresh displayed span. Client
+          TTFT begins at request submission and ends with the first token received; it already contains
+          transport and server waiting within that interval. Do not add TTFT to its own component stages.
+          Generating one token may also be insufficient for the span the product displays.
+        hold: 0.7
+        visual_cues:
+          - id: cc-request-population-0
+            phrase: Edit-to-usable-suggestion begins at the qualifying event and ends with a fresh displayed span. Client
+              TTFT begins at request submission and ends with the first token received; it already contains
+              transport and server waiting within that interval. Do not add TTFT to its own component stages.
+              Generating one token may also be insufficient for the span the product displays.
+            targets:
+              - cc-request-population-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Report the population behind latency percentiles. Timeouts, errors, cancellations and stale drops must
+          stay visible, even when they produce no displayed completion. A low tail among a small surviving
+          shown subset can coexist with poor service. Separate the ordinary-typing pause objective from
+          immediate triggers instead of silently starting both clocks at HTTP submission.
+        hold: 0.7
+        visual_cues:
+          - id: cc-request-population-1
+            phrase: Report the population behind latency percentiles. Timeouts, errors, cancellations and stale drops must
+              stay visible, even when they produce no displayed completion. A low tail among a small surviving
+              shown subset can coexist with poor service. Separate the ordinary-typing pause objective from
+              immediate triggers instead of silently starting both clocks at HTTP submission.
+            targets:
+              - cc-request-population-mechanism
+            color: cyan
+            linger: 0.4
+  - id: cache
+    title: Reuse earlier computation and still decode the answer
+    visual: A stable cached header and new delta share prompt geometry, with miss and hit service-time traces
+      retaining equal decode work.
+    beats:
+      - say: Consecutive edits often preserve the same file header. Compatible prefix caching can reuse its earlier
+          key and value computation, leaving only the changed input delta to prefill. Exact token prefixes,
+          model configuration and authenticated tenant scope determine whether that reuse is permitted.
+        hold: 0.75
+        visual_cues:
+          - id: cache-beat-1-focus-1
+            phrase: Consecutive edits often preserve the same file header
+            targets:
+              - cache-id-header-label-reusable-stable-header-value-1200-color-c-blue-id-de
+            color: cyan
+            linger: 0.65
+          - id: cache-beat-1-focus-2
+            phrase: leaving only the changed input delta to prefill
+            targets:
+              - cache-s-b-11-24-72-24-prefill-ms-decode-ms
+            color: yellow
+            linger: 0.65
+      - say: The hit still generates the new suggestion. In our supplied service times, decode stays unchanged while
+          prefill falls. Editing near the top invalidates later cached states, and another tenant is a miss by
+          design. Neither prefix reuse nor response caching can bypass the current editor snapshot.
+        hold: 0.85
+        visual_cues:
+          - id: cache-beat-2-focus-1
+            phrase: In our supplied service times, decode stays unchanged while prefill falls
+            targets:
+              - cache-s-b-11-24-72-24-prefill-ms-decode-ms
+            color: cyan
+            linger: 0.65
+          - id: cache-beat-2-focus-2
+            phrase: The hit still generates the new suggestion
+            targets:
+              - cache-id-header-label-reusable-stable-header-value-1200-color-c-blue-id-de
+            color: yellow
+            linger: 0.65
+  - id: cache-key
+    title: "Who can reuse these three tokens?"
+    visual: >-
+      Two rows line up the same three prefix IDs. Switch just the tenant on the incoming row.
+      Next, change the header feeding a block hash. Finally, trace a prefix hit and a response
+      hit to the editor.
+    beats:
+      - say: >-
+          Both prompts start with ten, twenty, thirty. The gateway has checked Acme's repository
+          access. The policy, weights, tokenizer, adapter and KV layout all match.
+          Acme can reuse this prefix. Change just the tenant to Contoso. Can it use Acme's entry?
+        hold: 2
+        caption_starts:
+          - "Acme can reuse this prefix"
+          - "Change just the tenant to Contoso"
+          - "Can it use Acme's entry"
+        visual_cues:
+          - id: cc-cache-key-0
+            phrase: "Acme can reuse this prefix"
+            targets: [cc-cache-key-mechanism]
+          - id: cc-key-tenant
+            phrase: "Change just the tenant to Contoso"
+            targets: [cc-cache-key-mechanism]
+      - say: >-
+          Contoso gets a miss. Its prompt needs prefill. Changing the policy version, adapter
+          or last token can also cause a miss.
+        hold: 0.9
+        visual_cues:
+          - id: cc-key-miss
+            phrase: "Contoso gets a miss"
+            targets: [cc-cache-key-mechanism]
+      - say: >-
+          In vLLM, a full block's key includes its token IDs and the preceding block's hash.
+          Change the header and the key changes. Framing, retrieved code and tokenization all
+          affect the prefix. An adapter identity or a cache salt can also enter the hash.
+          The gateway verifies access before choosing a trust group's cache partition.
+        hold: 0.7
+        visual_cues:
+          - id: cc-cache-key-1
+            phrase: "the preceding block's hash"
+            targets: [cc-cache-key-mechanism]
+          - id: cc-key-parent-change
+            phrase: "Change the header and the key changes"
+            targets: [cc-cache-key-mechanism]
+          - id: cc-salt-authority
+            phrase: "The gateway verifies access"
+            targets: [cc-cache-key-mechanism]
+      - say: >-
+          A prefix hit saves prefill. The model still generates the call.
+          A response hit returns a finished suggestion. Match the full input, model, policy and
+          generation settings before reusing it. Track the two kinds of hits separately.
+          The editor checks either reply at paint and again at Tab.
+        hold: 0.9
+        visual_cues:
+          - id: cc-key-response
+            phrase: "A response hit returns a finished suggestion"
+            targets: [cc-cache-key-mechanism]
+          - id: cc-cache-key-2
+            phrase: "The editor checks either reply"
+            targets: [cc-cache-key-mechanism]
+  - id: cache-order
+    title: Change one early token and follow dependent cached states
+    visual: Keep PSM and the declared SPM encoding on parallel token strips; edit the same prefix and mark later
+      suffix states invalid in PSM.
+    beats:
+      - say: >-
+          Our example has twelve hundred header tokens and eighty new input tokens. On a miss,
+          prefill takes seventy-two milliseconds. On a hit, it takes eleven. Now add the same
+          twenty-four milliseconds of decode to each bar. The model-service totals are ninety-six
+          versus thirty-five milliseconds. Queueing, network travel and paint have their own places
+          on the editor clock.
+        hold: 0.7
+        visual_cues:
+          - id: cc-cache-order-0
+            phrase: >-
+              add the same twenty-four milliseconds of decode
+            targets:
+              - cc-cache-order-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-cache96-35
+            phrase: ninety-six versus thirty-five milliseconds
+            targets:
+              - cc-cache-order-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Change an early prefix token in PSM and later suffix states also depend on that changed context. A
+          supported suffix-first SPM format can retain earlier suffix KV while a prefix grows; changing the
+          suffix instead invalidates later prefix state. Count exact full blocks after real tokenization,
+          under compatible positions and layout. Routing to a cold replica can still remove a logically
+          possible hit.
+        hold: 0.7
+        visual_cues:
+          - id: cc-cache-order-1
+            phrase: Change an early prefix token in PSM and later suffix states also depend on that changed context. A
+              supported suffix-first SPM format can retain earlier suffix KV while a prefix grows; changing
+              the suffix instead invalidates later prefix state. Count exact full blocks after real
+              tokenization, under compatible positions and layout. Routing to a cold replica can still remove
+              a logically possible hit.
+            targets:
+              - cc-cache-order-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-cache-early-edit
+            phrase: Change an early prefix token in PSM and later suffix states also depend on that changed context
+            targets:
+              - cc-cache-order-mechanism
+            color: cyan
+            linger: 0.4
+  - id: speculative-path
+    title: "Verifying a proposed argument"
+    visual: >-
+      Follow five toy token IDs from the draft into the emitted span. On a sampled rejection,
+      align ten draft and target shares for each possible argument. Normalize the two surplus
+      request shares and one surplus scope share.
+    beats:
+      - say: >-
+          The small model drafts five tokens for our call. Each piece shown here stands for one
+          token in this example. The target keeps the first four, right through the opening
+          parenthesis. It replaces user with request. Count the emitted tokens.
+        hold: 2
+        caption_starts:
+          - "The target keeps the first four"
+          - "It replaces user with request"
+          - "Count the emitted tokens"
+        visual_cues:
+          - id: spec-draft
+            phrase: "drafts five tokens for our call"
+            targets: [spec-work]
+            linger: 0.35
+          - id: spec-four
+            phrase: "keeps the first four"
+            targets: [spec-work]
+            linger: 0.35
+          - id: spec-replace
+            phrase: "replaces user with request"
+            targets: [spec-work]
+            linger: 0.35
+      - say: >-
+          Five tokens. Four came from the draft and one from the correction. The new token still
+          needs its keys and values computed before the next decode can use them.
+          Move the rejection earlier. If just one draft token survives, the correction makes two
+          outputs. Reject the first and the correction is the only output. If all five survive,
+          the target can add a sixth token when the stopping rules allow it.
+        hold: 0.9
+        caption_starts:
+          - "Move the rejection earlier"
+          - "Reject the first"
+          - "If all five survive"
+        visual_cues:
+          - id: spec-count
+            phrase: "Five tokens"
+            targets: [spec-work]
+            linger: 0.35
+          - id: spec-two
+            phrase: "the correction makes two outputs"
+            targets: [spec-work]
+            linger: 0.35
+          - id: spec-one
+            phrase: "the correction is the only output"
+            targets: [spec-work]
+            linger: 0.35
+          - id: spec-six
+            phrase: "can add a sixth token"
+            targets: [spec-work]
+            linger: 0.35
+      - say: >-
+          How does a sampling verifier decide? Look at user. The draft gives it four chances in
+          ten. The target gives it one. Keep a proposed user one time in four. That's target
+          probability divided by draft probability, capped at one. Suppose this draw rejects user.
+          Which arguments can replace user, and in what proportions?
+        hold: 2
+        caption_starts:
+          - "Keep a proposed user one time in four"
+          - "Suppose this draw rejects user"
+        visual_cues:
+          - id: spec-chances
+            phrase: "four chances in ten"
+            targets: [spec-work]
+            linger: 0.35
+          - id: spec-rate
+            phrase: "Keep a proposed user one time in four"
+            targets: [spec-work]
+            linger: 0.35
+          - id: spec-ask
+            phrase: "Which arguments can replace user"
+            targets: [spec-work]
+            linger: 0.35
+      - say: >-
+          Look for the shares the draft was missing. Request needs two more. Scope needs one more.
+          User has no shortfall. Divide each positive shortfall by their total of three. On a
+          rejection, draw request two thirds of the time and scope one third. A greedy verifier
+          instead follows the target's own greedy choice.
+        hold: 1
+        caption_starts:
+          - "Request needs two more"
+          - "Scope needs one more"
+          - "draw request two thirds of the time and scope one third"
+        visual_cues:
+          - id: spec-missing
+            phrase: "Look for the shares the draft was missing"
+            targets: [spec-work]
+            linger: 0.35
+          - id: spec-residual
+            phrase: "Scope needs one more"
+            targets: [spec-work]
+            linger: 0.35
+          - id: spec-normalize
+            phrase: "draw request two thirds of the time and scope one third"
+            targets: [spec-work]
+            linger: 0.35
+      - say: >-
+          Return to our five emitted tokens. Suppose the five draft steps together cost one
+          ordinary target step and verification costs one more. That's five outputs for the cost
+          of two steps, or two and a half per cost unit. On a busy worker, verification occupies
+          positions that other requests could use. Measure first-token and full completion latency
+          before enabling it.
+        hold: 1
+        visual_cues:
+          - id: spec-cost
+            phrase: "verification costs one more"
+            targets: [spec-work]
+            linger: 0.35
+          - id: spec-ratio
+            phrase: "two and a half per cost unit"
+            targets: [spec-work]
+            linger: 0.35
+  - id: speculation-gate
+    title: Keep the accepted-length and latency conditions together
+    visual: >-
+      Plot accepted draft length against milliseconds saved. Python imports average 3.8 tokens
+      and save 42 ms. SQL averages 1.1 tokens and takes 7 ms longer.
+    beats:
+      - say: >-
+          Read the two yellow lines as thresholds for this example. We want at least two draft
+          tokens accepted on average and at least ten milliseconds saved. Python imports average
+          three point eight, and latency falls from one hundred seventy-eight to one hundred
+          thirty-six. SQL averages one point one, and latency rises from one hundred sixty-nine to
+          one hundred seventy-six. Only the Python imports clear both lines.
+        hold: 0.7
+        caption_starts:
+          - "Python imports average"
+          - "SQL averages"
+          - "Only the Python imports clear both lines"
+        visual_cues:
+          - id: cc-speculation-gate-0
+            phrase: >-
+              Read the two yellow lines as thresholds
+            targets:
+              - cc-speculation-gate-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-spec-python
+            phrase: from one hundred seventy-eight to one hundred thirty-six
+            targets:
+              - cc-speculation-gate-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-spec-sql
+            phrase: from one hundred sixty-nine to one hundred seventy-six
+            targets:
+              - cc-speculation-gate-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-spec-selection
+            phrase: >-
+              Only the Python imports clear both lines
+            targets:
+              - cc-speculation-gate-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          That puts Python imports on the shortlist. Replay representative traffic and check that
+          verification preserves the target model's greedy choices or sampling distribution. Measure
+          correctness, failures and tail latency under load. Repeated imports may be easy to draft.
+          Use the same checks on the next kind of suggestion before enabling it there.
+        hold: 0.7
+        visual_cues:
+          - id: cc-speculation-gate-1
+            phrase: >-
+              Replay representative traffic
+            targets:
+              - cc-speculation-gate-mechanism
+            color: cyan
+            linger: 0.4
+  - id: quantized-serving
+    title: Separate compressed weight bytes from a measured useful edit
+    visual: >-
+      Compare the raw sizes of three billion weights at sixteen, eight and four bits. Show the
+      separate costs of scales, cached state and working memory.
+    beats:
+      - say: >-
+          Eight-bit weights take half the space of sixteen-bit weights. Four bits take a quarter.
+          For an array of three billion weights, sixteen bits use six decimal gigabytes and four
+          bits use one point five. Add space for scales, metadata, layers kept at higher precision,
+          cached keys and values, and temporary buffers. GPTQ compresses weights after training.
+        hold: 0.7
+        visual_cues:
+          - id: cc-quantized-serving-0
+            phrase: >-
+              Eight-bit weights take half the space
+            targets:
+              - cc-quantized-serving-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-weight-six-onehalf
+            phrase: sixteen bits use six decimal gigabytes and four bits use one point five
+            targets:
+              - cc-quantized-serving-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          When decode is limited by memory bandwidth, smaller weights let a suitable kernel move
+          fewer bytes. Profile prefill and decode separately on the hardware that will run them.
+          Budget KV memory for the whole batch. Then check what reaches the editor across languages
+          and suggestion types. Measure latency and retention, and test syntax and
+          permission-sensitive calls.
+        hold: 0.7
+        visual_cues:
+          - id: cc-quantized-serving-1
+            phrase: >-
+              smaller weights let a suitable kernel move fewer bytes
+            targets:
+              - cc-quantized-serving-mechanism
+            color: cyan
+            linger: 0.4
+  - id: value
+    title: An accepted suggestion can be completely undone
+    visual: Four stable suggestion IDs carry actual code through acceptance and editing. Deleted original
+      characters disappear after the observation window, retained characters stay green, and replacement text
+      is yellow. Distinct accepted suggestions, inserted characters and retained original characters
+      accumulate separately.
+    beats:
+      - say: A developer is shown four suggestions. Follow what happens after each acceptance. The first is accepted,
+          then entirely removed. The second stays as accepted. The third is partly edited, and the fourth is
+          never accepted. Watch the totals accumulate. Count distinct accepted suggestions separately from
+          inserted characters and characters retained after a chosen observation window.
+        hold: 0.75
+        visual_cues:
+          - id: value-beat-1-focus-1
+            phrase: The third is partly edited, and the fourth is never accepted
+            targets:
+              - value-panel-value
+            color: cyan
+            linger: 0.65
+      - say: These editing signals complement correctness checks. A retained permission bug is still a bug, while
+          missing observation windows remain censored. Keep trigger and display policy fixed when comparing
+          candidates, and measure useful edits, shown rate, stale drops and latency by language and suggestion
+          type.
+        hold: 0.85
+        visual_cues:
+          - id: value-beat-2-focus-1
+            phrase: A retained permission bug is still a bug, while missing observation windows remain censored
+            targets:
+              - value-panel-value
+            color: cyan
+            linger: 0.65
+  - id: metric-denominators
+    title: Count distinct suggestions and retained original text separately
+    visual: Rebuild the four supplied IDs, inserted 18/4/42/0 and retained 0/4/35/0; construct ratios from
+      completed windows, keeping an explicit censored case outside the rate.
+    beats:
+      - say: >-
+          Three of the four shown suggestions added text. That makes acceptance seventy-five
+          percent. Follow the characters in the middle column. Eighteen plus four plus forty-two
+          gives sixty-four inserted. At the end of the observation window, thirty-nine of those
+          original characters remain. That's about sixty point nine percent. A character the
+          developer types as a replacement starts a new edit.
+        hold: 0.7
+        visual_cues:
+          - id: cc-metric-denominators-0
+            phrase: >-
+              Follow the characters in the middle column
+            targets:
+              - cc-metric-denominators-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-accept75
+            phrase: seventy-five percent
+            targets:
+              - cc-metric-denominators-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-retain39-64
+            phrase: about sixty point nine percent
+            targets:
+              - cc-metric-denominators-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "Generalize the denominators: count distinct shown suggestion IDs with any insertion divided by distinct
+          shown IDs. Count retained original characters divided by actually inserted characters for a declared
+          observed window. Repeated partial-accept actions on one ID count one accepted suggestion. With no
+          shown suggestions or no inserted characters, the corresponding rate is undefined; unobserved windows
+          are censored rather than automatically deleted."
+        hold: 0.7
+        visual_cues:
+          - id: cc-metric-denominators-1
+            phrase: "Generalize the denominators: count distinct shown suggestion IDs with any insertion divided by
+              distinct shown IDs. Count retained original characters divided by actually inserted characters
+              for a declared observed window. Repeated partial-accept actions on one ID count one accepted
+              suggestion. With no shown suggestions or no inserted characters, the corresponding rate is
+              undefined; unobserved windows are censored rather than automatically deleted."
+            targets:
+              - cc-metric-denominators-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-partial-distinct
+            phrase: count one accepted suggestion
+            targets:
+              - cc-metric-denominators-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          In an early twenty-twenty-two Copilot study, developers accepted twenty-seven percent of
+          suggestions. Acceptance tracked their reported productivity more closely than persistence
+          did. In our four rows, following the characters answers a different question. It shows how
+          much of each edit survived. To study productivity in your own editor, include how often
+          suggestions appear and ask developers about the work they saved.
+        hold: 0.7
+        visual_cues:
+          - id: cc-metric-denominators-2
+            phrase: >-
+              It shows how much of each edit survived
+            targets:
+              - cc-metric-denominators-mechanism
+            color: cyan
+            linger: 0.4
+  - id: evaluation-release
+    title: Freeze an edit point before comparing model and product value
+    visual: Hide the target insertion in an original repository/time snapshot, test isolated reconstructions, then
+      randomize the actual user/workspace surface with fixed triggers.
+    beats:
+      - say: For offline evaluation, freeze a real edit point, hide its target insertion and retrieve only files
+          available at that time. Split by repository and time where possible to reduce duplicate leakage.
+          Check parse behavior, relevant tests in an isolated no-secret environment and explicit permission
+          policy. Exact-string scoring can reject valid alternatives; a standard coding benchmark does not
+          exercise IDE timing or display behavior.
+        hold: 0.7
+        visual_cues:
+          - id: cc-evaluation-release-0
+            phrase: For offline evaluation, freeze a real edit point, hide its target insertion and retrieve only files
+              available at that time. Split by repository and time where possible to reduce duplicate leakage.
+              Check parse behavior, relevant tests in an isolated no-secret environment and explicit
+              permission policy. Exact-string scoring can reject valid alternatives; a standard coding
+              benchmark does not exercise IDE timing or display behavior.
+            targets:
+              - cc-evaluation-release-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For online comparison, randomize at a stable user or workspace boundary and hold trigger and display
+          policy fixed. Compare eligible, requested, shown, accepted and retained populations; retain latency,
+          cancellations, stale drops and errors. Slice by language and suggestion class so aggregate gains
+          cannot hide a broken supported workflow.
+        hold: 0.7
+        visual_cues:
+          - id: cc-evaluation-release-1
+            phrase: For online comparison, randomize at a stable user or workspace boundary and hold trigger and display
+              policy fixed. Compare eligible, requested, shown, accepted and retained populations; retain
+              latency, cancellations, stale drops and errors. Slice by language and suggestion class so
+              aggregate gains cannot hide a broken supported workflow.
+            targets:
+              - cc-evaluation-release-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Use predefined rollback guardrails with adequate observations and preserve a known-good route for each
+          slice. A model that shows only tiny obvious tokens can raise acceptance while reducing useful work.
+          A model that abstains heavily can improve shown-only accuracy while failing users. Report cost per
+          accepted-and-retained suggestion alongside correctness and coverage, not request count alone.
+        hold: 0.7
+        visual_cues:
+          - id: cc-evaluation-release-2
+            phrase: Use predefined rollback guardrails with adequate observations and preserve a known-good route for each
+              slice. A model that shows only tiny obvious tokens can raise acceptance while reducing useful
+              work. A model that abstains heavily can improve shown-only accuracy while failing users. Report
+              cost per accepted-and-retained suggestion alongside correctness and coverage, not request count
+              alone.
+            targets:
+              - cc-evaluation-release-mechanism
+            color: cyan
+            linger: 0.4
+  - id: fleet-work
+    title: Subtract pre-admission cancellation before counting uncached input
+    visual: >-
+      Start with 5,000 active editors making 0.4 requests per second each. Remove the 60 percent
+      cancelled before admission. Count prefill for the 800 remaining requests per second and
+      compare it with GPU capacity.
+    beats:
+      - say: >-
+          Suppose five thousand editors are actively typing. Each sends point four remote requests a
+          second on average. That makes two thousand raw requests per second. Sixty percent cancel
+          before GPU admission, leaving eight hundred. If a request cancels after the GPU starts
+          work, count the work it already used.
+        hold: 0.7
+        visual_cues:
+          - id: cc-fleet-work-0
+            phrase: >-
+              five thousand editors are actively typing
+            targets:
+              - cc-fleet-work-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-raw2000
+            phrase: two thousand raw requests per second
+            targets:
+              - cc-fleet-work-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-admit800
+            phrase: leaving eight hundred
+            targets:
+              - cc-fleet-work-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Every surviving request in this first worksheet has two thousand forty-eight prompt tokens. Half hit and
+          skip three quarters of prefill; misses keep all work. Remaining work fraction is one half times one
+          quarter plus one half, or point six two five. Eight hundred times two thousand forty-eight times
+          that fraction is one million twenty-four thousand prefill tokens per second.
+        hold: 0.7
+        visual_cues:
+          - id: cc-fleet-work-1
+            phrase: Every surviving request in this first worksheet has two thousand forty-eight prompt tokens. Half hit
+              and skip three quarters of prefill; misses keep all work. Remaining work fraction is one half
+              times one quarter plus one half, or point six two five. Eight hundred times two thousand
+              forty-eight times that fraction is one million twenty-four thousand prefill tokens per second.
+            targets:
+              - cc-fleet-work-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-prefill1024k
+            phrase: one million twenty-four thousand prefill tokens per second
+            targets:
+              - cc-fleet-work-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          At our assumed rate of twenty thousand prefill tokens per GPU-second, that takes fifty-one
+          point two GPUs, rounded up to fifty-two GPUs for prefill. To size a serving fleet, also
+          measure decode, work on late cancellations and KV memory at the target latency. Leave
+          capacity for uneven loads, failures and spikes.
+        hold: 0.7
+        visual_cues:
+          - id: cc-fleet-work-2
+            phrase: >-
+              At our assumed rate
+            targets:
+              - cc-fleet-work-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-gpu52
+            phrase: >-
+              rounded up to fifty-two GPUs for prefill
+            targets:
+              - cc-fleet-work-mechanism
+            color: cyan
+            linger: 0.4
+  - id: cohort-work
+    title: "Prefill for two groups of requests"
+    visual: >-
+      Keep 400 hits and 400 misses per second. Swap their lengths on a common token scale, cut
+      away the reusable three quarters on hits, and sum the two bands of remaining work.
+    beats:
+      - say: >-
+          Keep the eight hundred requests per second from the previous example. Half hit the
+          cache. Every hit skips three quarters of its prompt. Now put the long prompts on the
+          hits. Even before we add anything, you can see how much of the long bar the cache takes
+          out.
+        hold: 0.75
+        visual_cues:
+          - id: cohort-long-hits
+            phrase: "put the long prompts on the hits"
+            targets: [cohort-bars]
+            linger: 0.35
+          - id: cohort-trim
+            phrase: "the cache takes out"
+            targets: [cohort-bars]
+            linger: 0.35
+      - say: >-
+          Each hit still needs seven hundred sixty-eight tokens. Multiply by four hundred hits a
+          second. Add the work from four hundred full misses. That's seven hundred sixteen
+          thousand eight hundred prefill tokens a second. At our assumed rate of twenty thousand
+          per GPU-second, round up to thirty-six GPUs for prefill.
+        hold: 1
+        visual_cues:
+          - id: cohort-first-total
+            phrase: "seven hundred sixteen thousand eight hundred prefill tokens a second"
+            targets: [cohort-sum]
+            linger: 0.35
+          - id: cohort-first-count
+            phrase: "round up to thirty-six GPUs"
+            targets: [cohort-sum]
+            linger: 0.35
+      - say: >-
+          Swap the lengths. The request count, average length and hit rate all stay the same. This
+          time the cache removes three quarters of the short bar. Does the fleet still have the
+          same amount of prefill to do?
+        hold: 2.15
+        visual_cues:
+          - id: cohort-swap
+            phrase: "Swap the lengths"
+            targets: [cohort-bars]
+            linger: 0.35
+          - id: cohort-short-cut
+            phrase: "removes three quarters of the short bar"
+            targets: [cohort-bars]
+            linger: 0.35
+      - say: >-
+          The long prompts now miss. All three thousand seventy-two tokens on each of them need
+          prefill. The two groups together need one million three hundred thirty-one thousand two
+          hundred tokens per second. Round up and you get sixty-seven GPUs. The equal-length case
+          needed fifty-two. Group the requests by the work they save before you size the fleet.
+          Decode, late cancellations and operating headroom still need their own budget.
+        hold: 1
+        caption_starts:
+          - "one million three hundred thirty-one thousand two hundred tokens per second"
+          - "sixty-seven GPUs"
+        visual_cues:
+          - id: cohort-second-total
+            phrase: "one million three hundred thirty-one thousand two hundred tokens per second"
+            targets: [cohort-sum]
+            linger: 0.35
+          - id: cohort-second-count
+            phrase: "you get sixty-seven GPUs"
+            targets: [cohort-sum]
+            linger: 0.35
+  - id: affinity-wait
+    title: "The warm worker's queue"
+    visual: >-
+      Pin cold service on a millisecond ruler. Keep warm decode the same width while an extra
+      queue pushes warm prefill and decode past the cold finish.
+    beats:
+      - say: >-
+          These two workers can both serve the request. Ignore the queue time they share and line
+          up their service times. The cold worker needs seventy-two milliseconds of prefill. The
+          warm one needs eleven. Both spend twenty-four on decode. How much extra waiting can the
+          warm worker afford?
+        hold: 2.1
+        visual_cues:
+          - id: aff-services
+            phrase: "line up their service times"
+            targets: [aff-rails]
+            linger: 0.35
+      - say: >-
+          Sixty-one milliseconds brings them level. That's the prefill time the warm worker saved.
+          Now suppose the warm queue adds seventy milliseconds. Keep the two service blocks the
+          same size. Which finishes first?
+        hold: 2.2
+        visual_cues:
+          - id: aff-tie
+            phrase: "Sixty-one milliseconds brings them level"
+            targets: [aff-rails]
+            linger: 0.35
+          - id: aff-extra
+            phrase: "the warm queue adds seventy milliseconds"
+            targets: [aff-rails]
+            linger: 0.35
+      - say: >-
+          Send this request to the cold worker. It finishes in ninety-six milliseconds after the
+          shared wait. Warm finishes in a hundred and five. Cold wins by nine. On a real router,
+          check repository access, model, capacity and permitted region first. Compare the full
+          waits of eligible workers. A response from either worker still has to match the editor.
+        hold: 1
+        visual_cues:
+          - id: aff-win
+            phrase: "Send this request to the cold worker"
+            targets: [aff-rails]
+            linger: 0.35
+          - id: aff-nine
+            phrase: "Cold wins by nine"
+            targets: [aff-rails]
+            linger: 0.35
+  - id: batch-cost
+    title: Measure shared-GPU scheduling under short-lived editor traffic
+    visual: >-
+      When the short request finishes, admit the waiting request beside the long one. Count work
+      already spent on cancelled requests in the serving cost.
+    beats:
+      - say: Continuous batching lets requests join and leave active model work; waiting for a fixed batch can delay
+          the first token. Paged KV storage manages physical blocks while the scheduler still needs suitable
+          input and output budgets. More utilization can accompany worse editor queueing, so compare TTFT,
+          edit-to-paint and throughput on the actual cancellable mix.
+        hold: 0.7
+        visual_cues:
+          - id: cc-batch-cost-0
+            phrase: Continuous batching lets requests join and leave active model work; waiting for a fixed batch can
+              delay the first token. Paged KV storage manages physical blocks while the scheduler still needs
+              suitable input and output budgets. More utilization can accompany worse editor queueing, so
+              compare TTFT, edit-to-paint and throughput on the actual cancellable mix.
+            targets:
+              - cc-batch-cost-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          vLLM and SGLang are two engines you can try on this workload. Hugging Face lists TGI in
+          maintenance mode. Compare the engines you can deploy using the same traffic, quality
+          checks and display policy. Include work spent on cancelled requests and ignored
+          suggestions. Divide total serving cost by the number of accepted suggestions with text
+          still in the file.
+        hold: 0.7
+        visual_cues:
+          - id: cc-batch-cost-1
+            phrase: >-
+              Include work spent on cancelled requests
+            targets:
+              - cc-batch-cost-mechanism
+            color: cyan
+            linger: 0.4
+  - id: upload-boundary
+    title: Remove recognized secrets before crossing the client boundary
+    visual: >-
+      Replace the demo token before upload and keep its mapping on the laptop. Show what happens
+      when the file already contains a placeholder. Follow the separate audit event across the
+      same boundary.
+    beats:
+      - say: >-
+          Watch the sample token in the editor. Before the prompt leaves the laptop, the extension
+          replaces the match with a placeholder and keeps the mapping locally. Now the file already
+          contains a placeholder. Stop before upload to keep the two values distinct. This detector
+          recognizes one demo pattern. A service also needs coverage tests, upload controls and
+          restricted logs.
+        hold: 0.7
+        caption_starts:
+          - "Now the file already contains a placeholder"
+          - "Stop before upload"
+        visual_cues:
+          - id: cc-upload-boundary-0
+            phrase: >-
+              Watch the sample token
+            targets:
+              - cc-upload-boundary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-redacted-before-upload
+            phrase: >-
+              replaces the match with a placeholder and keeps the mapping locally
+            targets:
+              - cc-upload-boundary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-existing-placeholder
+            phrase: "Now the file already contains a placeholder"
+            targets: [cc-upload-boundary-mechanism]
+          - id: cc-placeholder-collision
+            phrase: >-
+              Stop before upload
+            targets:
+              - cc-upload-boundary-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Returned placeholder text remains visible for local review. Never automatically restore a secret into
+          arbitrary model-chosen output. Source comments and retrieved files are untrusted context, not
+          authority to widen upload permissions or read another repository. A shared prompt cache must honor
+          the same authenticated scope as ingestion.
+        hold: 0.7
+        visual_cues:
+          - id: cc-upload-boundary-1
+            phrase: Returned placeholder text remains visible for local review. Never automatically restore a secret into
+              arbitrary model-chosen output. Source comments and retrieved files are untrusted context, not
+              authority to widen upload permissions or read another repository. A shared prompt cache must
+              honor the same authenticated scope as ingestion.
+            targets:
+              - cc-upload-boundary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-return-placeholder
+            phrase: Returned placeholder text remains visible for local review
+            targets:
+              - cc-upload-boundary-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Look at what crosses the boundary in the audit event. It contains only validated tenant,
+          model and bounded latency bucket. The prompt stays out. Trace the same request through
+          proxy logs, exceptions, crash reports and SDKs to check where else a copy could land. If
+          the agreement rules out training on customer code, disable raw prompt collection and
+          downstream training exports.
+        hold: 0.7
+        visual_cues:
+          - id: cc-upload-boundary-2
+            phrase: >-
+              what crosses the boundary in the audit event
+            targets:
+              - cc-upload-boundary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-telemetry-fields
+            phrase: only validated tenant, model and bounded latency bucket
+            targets:
+              - cc-upload-boundary-mechanism
+            color: cyan
+            linger: 0.4
+  - id: private-deployment
+    title: Keep identity and retention controls inside a private route
+    visual: >-
+      Place the editor, context engine and inference server inside the offline boundary. Label
+      the access, network and logging controls that the team operates there.
+    beats:
+      - say: >-
+          Some teams can send code to a private endpoint. Others self-host, or keep the machine
+          offline. In the offline case, the context engine, model and inference server stay local.
+          Inside that boundary the team still manages repository access, network rules, logs, the
+          software supply chain and model licensing.
+        hold: 0.7
+        visual_cues:
+          - id: cc-private-deployment-0
+            phrase: >-
+              Some teams can send code to a private endpoint
+            targets:
+              - cc-private-deployment-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-offline-local
+            phrase: context engine, model and inference server stay local
+            targets:
+              - cc-private-deployment-mechanism
+            color: cyan
+            linger: 0.4
+      - say: State what source may be uploaded, retained or used for training, and apply the policy across telemetry,
+          batches, caches and recovery paths. Shared device batches can be compatible with isolation if actual
+          per-request boundaries and observability are tested; otherwise partition until that evidence exists.
+          An ordinary redacted prompt is still governed proprietary context.
+        hold: 0.7
+        visual_cues:
+          - id: cc-private-deployment-1
+            phrase: State what source may be uploaded, retained or used for training, and apply the policy across
+              telemetry, batches, caches and recovery paths. Shared device batches can be compatible with
+              isolation if actual per-request boundaries and observability are tested; otherwise partition
+              until that evidence exists. An ordinary redacted prompt is still governed proprietary context.
+            targets:
+              - cc-private-deployment-mechanism
+            color: cyan
+            linger: 0.4
+  - id: public-matches
+    title: Review code provenance and understanding before accepting
+    visual: >-
+      Follow a proposed permission check through public-code matching. Review the method
+      signature and the expected results for requests inside and outside the permitted scope.
+    beats:
+      - say: >-
+          Suppose a suggestion matches public code. Depending on the account or organization policy,
+          GitHub can block it or show a reference. The index covers public GitHub repositories and
+          refreshes periodically. Review the accepted code for provenance, licensing and attribution
+          even when that search turns up nothing.
+        hold: 0.7
+        visual_cues:
+          - id: cc-public-matches-0
+            phrase: >-
+              GitHub can block it or show a reference
+            targets:
+              - cc-public-matches-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cc-public-index
+            phrase: >-
+              refreshes periodically
+            targets:
+              - cc-public-matches-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Now read the proposed call as application code. Does this version of the library have an
+          allows method? Does it deny a request outside the permitted scope? An invented or
+          deprecated method can look convincing on the page. Check the signature and run both
+          permission cases before relying on it. Keeping the suggestion in the file records an edit.
+          Those tests check its behavior.
+        hold: 0.7
+        visual_cues:
+          - id: cc-public-matches-1
+            phrase: >-
+              Does it deny a request outside the permitted scope
+            targets:
+              - cc-public-matches-mechanism
+            color: cyan
+            linger: 0.4
+  - id: diagnostic-repair
+    title: Change the state or stage that explains the visible failure
+    visual: >-
+      Pair each symptom with a check. Trace a late suggestion back to its editor snapshot, a
+      missing method back to local type information and a cache miss back to the prefix and
+      worker.
+    beats:
+      - say: >-
+          A suggestion landed in the wrong place. Replay the edit, a late reply and the checks at
+          paint and Tab. For a slow method lookup after a dot, check whether the language server had
+          the receiver's type. If the insertion conflicts with the next line, inspect the suffix and
+          the checkpoint's infill format. If the wrong function was sent as context, compare the
+          caret with the parser's function range.
+        hold: 0.7
+        visual_cues:
+          - id: cc-diagnostic-repair-0
+            phrase: >-
+              Replay the edit
+            targets:
+              - cc-diagnostic-repair-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For poor cache hits, compare actual leading IDs, adapter and policy scope, eviction and replica placement
+          before enforcing affinity. For latency spikes, separate queue, context, prefill, decode and
+          debounce. For apparent acceptance gains, inspect shown population and retained text. Change one
+          causal lever on a fixed replay and preserve the original editor snapshot in the report.
+        hold: 0.7
+        visual_cues:
+          - id: cc-diagnostic-repair-1
+            phrase: For poor cache hits, compare actual leading IDs, adapter and policy scope, eviction and replica
+              placement before enforcing affinity. For latency spikes, separate queue, context, prefill,
+              decode and debounce. For apparent acceptance gains, inspect shown population and retained text.
+              Change one causal lever on a fixed replay and preserve the original editor snapshot in the
+              report.
+            targets:
+              - cc-diagnostic-repair-mechanism
+            color: cyan
+            linger: 0.4
+  - id: synthesis
+    title: "What did Tab add?"
+    visual: >-
+      Count one shown suggestion across paint, Tab, undo and the end of its observation window.
+      The developer's own graph dot stays in the buffer.
+    beats:
+      - say: >-
+          Come back to the suggestion after graph dot. The latency clock that began with the
+          qualifying edit stops when this gray span appears. That's one suggestion shown. The
+          developer presses Tab. Now fifteen characters belong to the buffer. That's one accepted
+          suggestion.
+        hold: 0.8
+        visual_cues:
+          - id: close-show
+            phrase: "when this gray span appears"
+            targets: [editor-buffer, edit-counts]
+            linger: 0.35
+          - id: close-tab
+            phrase: "The developer presses Tab"
+            targets: [editor-buffer, edit-counts]
+            linger: 0.35
+      - say: >-
+          The developer undoes that insertion. Watch where the caret lands. Graph dot was already
+          there. At the end of the observation window, how many of those fifteen inserted
+          characters remain?
+        hold: 2.1
+        visual_cues:
+          - id: close-undo
+            phrase: "undoes that insertion"
+            targets: [editor-buffer, edit-counts]
+            linger: 0.35
+          - id: close-window
+            phrase: "At the end of the observation window"
+            targets: [edit-counts]
+            linger: 0.35
+      - say: >-
+          Zero remain. This suggestion still counts as accepted. Following its characters through
+          the undo tells us something the Tab press alone couldn't tell us. To learn whether the
+          call implements the right policy, we'd still need to check its behavior.
+        hold: 0.9
+        visual_cues:
+          - id: close-zero
+            phrase: "Zero remain"
+            targets: [edit-counts, editor-buffer]
+            linger: 0.35
+  - id: fresh-cursor
+    title: "A round trip with the caret"
+    visual: >-
+      A request waits at column 12. Move the real caret three columns to the comment and back.
+      Compare the late R101 with epoch 103, then run a fresh R104 through paint and Tab.
+    beats:
+      - say: >-
+          One more reply is on its way. It belongs just after the dot, at column twelve. Move the
+          caret to the comment at fifteen. Now move it back to twelve. Neither move changed the
+          text or sent a request. The original reply arrives. Can the editor show it here?
+        hold: 2.5
+        caption_starts:
+          - "Move the caret to the comment at fifteen"
+          - "Now move it back to twelve"
+          - "The original reply arrives"
+          - "Can the editor show it here"
+        visual_cues:
+          - id: cc-fresh-move15
+            phrase: "Move the caret to the comment at fifteen"
+            targets: [editor-buffer, editor-snapshots]
+            linger: 0.35
+          - id: cc-fresh-return12
+            phrase: "Now move it back to twelve"
+            targets: [editor-buffer, editor-snapshots]
+            linger: 0.35
+          - id: cursor-arrival
+            phrase: "The original reply arrives"
+            targets: [editor-snapshots, editor-buffer]
+            linger: 0.35
+      - say: >-
+          Drop the old reply. Its request epoch is still one hundred one. The two moves took the
+          editor to one hundred three. The range matches again, but that request was invalidated
+          on the way out. Send a fresh request from this caret. The new reply matches and paints.
+        hold: 0.9
+        caption_starts:
+          - "Its request epoch is still one hundred one"
+          - "Send a fresh request from this caret"
+          - "The new reply matches and paints"
+        visual_cues:
+          - id: cc-fresh-deny
+            phrase: "Drop the old reply"
+            targets: [editor-snapshots, editor-buffer]
+            linger: 0.35
+          - id: cc-fresh-current-request
+            phrase: "Send a fresh request from this caret"
+            targets: [editor-snapshots]
+            linger: 0.35
+          - id: cc-fresh-current-paint
+            phrase: "The new reply matches and paints"
+            targets: [editor-buffer, editor-snapshots]
+            linger: 0.35
+      - say: >-
+          Press Tab with both rows still matched. The call goes in just before the comment.
+          Try that round trip in a client test. Only the fresh reply should appear.
+          Next, two teams share a GPU. Which work can they reuse while keeping their code private?
+        hold: 1.2
+        visual_cues:
+          - id: cursor-insert
+            phrase: "The call goes in just before the comment"
+            targets: [editor-buffer, editor-snapshots]
+            linger: 0.35

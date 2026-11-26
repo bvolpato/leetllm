@@ -175,7 +175,7 @@ def run_agent(ask, question, *, max_turns=8, max_requests=6, seconds=60):
 
 There are three different outcomes here. A malformed or disallowed request produces a structured error the model can correct. Repeating an already successful request ends the run. A final response returns `answer`.
 
-> **💡 Key insight:** `answer` reports that the model finished its turn. A separate verifier checks factual correctness; the runtime controls when to stop.
+> **Key insight:** `answer` reports that the model finished its turn. A separate verifier checks factual correctness; the runtime controls when to stop.
 
 The repeat rule is deliberately narrow. Re-reading the same immutable snapshot entry can't reveal a change, so this tutorial stops instead of spending another turn. That rule would be wrong for a tool that polls a changing job status. A real polling tool needs its own wait interval, deadline, and progress policy.
 
@@ -393,7 +393,7 @@ The expected finding is that checkout's snapshot configuration resolves to the r
 
 A passing replay validates one scripted sequence. Run the live agent on variations that test investigation: swap the two aliases, remove the retired endpoint, or leave an unresolved alias. Inspect the source chain in each answer and retain the tool trace with the outcome.
 
-> **⚠️ Common mistake:** Counting the scripted conclusion as a successful model investigation. The replay script already contains the route and expected answer. Only live-model runs test whether a model can choose evidence and use it correctly.
+> **Common mistake:** Counting the scripted conclusion as a successful model investigation. The replay script already contains the route and expected answer. Only live-model runs test whether a model can choose evidence and use it correctly.
 
 | Case | What should happen | What a final-answer-only check misses |
 |---|---|---|

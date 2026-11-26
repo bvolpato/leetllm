@@ -184,11 +184,11 @@ The routing gate runs after evidence assembly. In this example, external routing
 
 ```mermaid
 flowchart TD
-  A["Question, history and retrieved evidence"]:::blue --> B{"Assembled request approved for external use?"}:::warm
-  B -->|"Yes"| C["Eligible internal or approved external route"]:::green
-  B -->|"No or unknown"| D["Approved internal route"]:::purple
-  D --> E{"Internal inference available?"}:::warm
-  E -->|"Yes"| F["Internal answer"]:::green
+  A["Question, history and retrieved evidence"]:::secondary --> B{"Assembled request approved for external use?"}:::warning
+  B -->|"Yes"| C["Eligible internal or approved external route"]:::success
+  B -->|"No or unknown"| D["Approved internal route"]:::primary
+  D --> E{"Internal inference available?"}:::warning
+  E -->|"Yes"| F["Internal answer"]:::success
   E -->|"No"| G["Controlled failure or permitted queue"]:::muted
 ```
 

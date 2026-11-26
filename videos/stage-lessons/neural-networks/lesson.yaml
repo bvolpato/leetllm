@@ -1,0 +1,1527 @@
+version: 1
+id: neural-networks
+title: Building a Neural Network
+opening: lesson
+source: preparation/neural-networks-from-scratch/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "Goodfellow, Bengio and Courville: Deep Feedforward Networks"
+    url: https://www.deeplearningbook.org/contents/mlp.html
+  - title: "Rumelhart, Hinton and Williams: Learning representations by back-propagating errors"
+    url: https://www.nature.com/articles/323533a0
+  - title: Gaussian Error Linear Units and SiLU
+    url: https://arxiv.org/html/1606.08415v5
+  - title: Searching for Activation Functions
+    url: https://arxiv.org/html/1710.05941v2
+  - title: GLU Variants Improve Transformer
+    url: https://arxiv.org/html/2002.05202v1
+  - title: BCE mean and positive-target weights
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.nn.BCEWithLogitsLoss.html
+  - title: Gradient checks at nondifferentiable points
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.autograd.gradcheck.gradcheck.html
+  - title: Activation checkpointing
+    url: https://docs.pytorch.org/docs/2.14/checkpoint.html
+  - title: Non-polynomial universal approximation theorem
+    url: https://archive.nyu.edu/bitstream/2451/14329/1/IS-92-13.pdf
+  - title: Benefits of depth
+    url: https://proceedings.mlr.press/v49/telgarsky16.html
+  - title: On Calibration of Modern Neural Networks
+    url: https://arxiv.org/html/1706.04599v2
+scenes:
+  - id: puzzle
+    title: When does this bulb light up?
+    visual: Start with a glowing bulb and switch A on. Plot each switch setting as it is tested.
+      Shade the on side of a candidate line, then join the pairs of corners to find their common midpoint.
+    beats:
+      - say: Switch A is on. The bulb is lit. Turn A off. Now turn B on. The bulb lights again.
+          What will happen if we turn A back on too?
+        caption_starts:
+          - Turn A off
+          - Now turn B on
+          - The bulb lights again
+          - What will happen
+        hold: 1.9
+        visual_cues:
+          - id: first-switch
+            phrase: Turn A off
+            targets:
+              - lamp-bench
+              - lamp-cases
+            color: cyan
+            linger: 0.35
+          - id: other-switch
+            phrase: Now turn B on
+            targets:
+              - lamp-bench
+              - lamp-cases
+            color: cyan
+            linger: 0.35
+      - say: Flip A. The bulb goes dark. Either switch alone lights it. Each dot records one setting.
+          Can one straight line separate the lit dots from the dark ones? Make the shaded side the on side.
+          Both yellow dots are in it. What does the line predict when both switches are on?
+        caption_starts:
+          - The bulb goes dark
+          - Each dot records one setting
+          - Make the shaded side the on side
+          - What does the line predict
+        hold: 2.3
+        visual_cues:
+          - id: both-switches
+            phrase: Flip A
+            targets:
+              - lamp-bench
+              - lamp-cases
+            color: cyan
+            linger: 0.35
+          - id: boundary-attempt
+            phrase: Make the shaded side the on side
+            targets:
+              - lamp-cases
+              - lamp-bench
+            color: yellow
+            linger: 0.35
+      - say: The cut predicts light. The bulb is dark. Could turning the line solve that?
+        hold: 1.4
+        visual_cues:
+          - id: cut-verdict
+            phrase: The cut predicts light
+            targets:
+              - lamp-cases
+              - lamp-bench
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: Join the two lit settings. Any straight cut that puts both on one side leaves the whole segment
+          there. Now join the dark settings. Their segment has to stay on the other side. The segments
+          share a midpoint. A straight cut would have to put that point on both sides. Let's build a
+          circuit that can bend.
+        hold: 0.9
+        visual_cues:
+          - id: join-lit
+            phrase: Join the two lit settings
+            targets:
+              - lamp-cases
+            color: yellow
+            linger: 0.35
+          - id: join-dark
+            phrase: Now join the dark settings
+            targets:
+              - lamp-cases
+            color: blue
+            linger: 0.35
+          - id: midpoint
+            phrase: The segments share a midpoint
+            targets:
+              - lamp-cases
+              - lamp-bench
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+  - id: collapse
+    title: More affine layers still make one affine map
+    visual: Two scalar affine operations carry one value forward, then move together as their
+      composed expression is merged algebraically.
+    beats:
+      - say: A neuron starts with a weighted sum and a bias. Suppose one layer doubles an input
+          and adds one. A second triples that result and subtracts two. Follow our input
+          through both operations.
+        hold: 0.6
+        visual_cues:
+          - id: affine-first
+            phrase: one layer doubles an input and adds one
+            targets:
+              - affine-chain
+            color: cyan
+            linger: 0.6
+          - id: affine-second
+            phrase: A second triples that result and subtracts two
+            targets:
+              - affine-chain
+            color: blue
+            linger: 0.6
+          - id: affine-example
+            phrase: Follow our input
+            targets:
+              - affine-chain
+            color: cyan
+            linger: 0.8
+          - id: affine-value-input
+            phrase: Follow our input through both operations.
+            targets:
+              - affine-chain
+            color: cyan
+            linger: 0.55
+      - say: Substitute the first expression into the second. The whole chain becomes six times
+          the input plus one. Matrix layers collapse in the same way. To make a richer
+          function, we need an activation that changes this affine structure.
+        hold: 0.8
+        visual_cues:
+          - id: merge-layers
+            phrase: Substitute the first expression into the second
+            targets:
+              - affine-chain
+              - merged-rule
+            color: yellow
+            linger: 0.9
+  - id: hinges
+    title: Where should the lamp response bend?
+    visual: Keep a graph of brightness against the total switch input. Draw the first two hinges
+      separately. Sweep the output coefficient from zero to minus two so the right arm drops while the
+      left arm stays fixed. Probe the response to two half inputs.
+    beats:
+      - say: Let a hidden unit add the two switch settings. It keeps a positive sum and returns
+          zero for anything below zero. That bend gives the unit its name, a rectified linear
+          unit, or ReLU. With both switches off, start at zero. Turn one on to reach one.
+          Turn on both to reach two.
+        hold: 0.65
+        visual_cues:
+          - id: lamp-sweep
+            phrase: Turn one on to reach one. Turn on both to reach two
+            targets:
+              - count-hinge
+            color: cyan
+            linger: 0.35
+      - say: Give a second unit the same count. Subtract one before applying ReLU. Look where this second hinge
+          starts to rise. If we subtract twice its height from the first hinge, what happens to the right
+          end of the line?
+        hold: 2.1
+        visual_cues:
+          - id: second-hinge
+            phrase: where this second hinge starts to rise
+            targets:
+              - threshold-hinge
+            color: blue
+            linger: 0.35
+      - say: Turn up the subtraction until the second hinge counts twice. The left arm stays put. The right arm
+          tips down. At two, the second hinge takes away exactly what the first one added. Either switch
+          alone still lights the lamp.
+        caption_starts:
+          - The left arm stays put
+          - The right arm tips down
+        hold: 1.1
+        visual_cues:
+          - id: lamp-subtract
+            phrase: Turn up the subtraction until the second hinge counts twice
+            targets:
+              - lamp-combination
+            color: yellow
+            linger: 0.35
+      - say: Suppose we replace both switches with dimmers. Each one is set halfway. What brightness does this
+          circuit predict?
+        hold: 2.1
+      - say: Together they reach one. The second hinge is still at zero, so the lamp reaches full brightness.
+          That's a prediction for a setting we never measured on the bench.
+        hold: 0.9
+        visual_cues:
+          - id: halfway-answer
+            phrase: so the lamp reaches full brightness
+            targets:
+              - halfway-result
+              - lamp-combination
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+  - id: scorer
+    title: The same building block scores a request
+    visual: Familiar weighted-sum operations now combine prompt and queue scores. The bias
+      shifts the sum, then sigmoid maps the logit to a bounded score.
+    beats:
+      - say: Will a completion request time out? On a scale from zero to ten, its prompt size is six
+          and its queue wait is eight. Give prompt size a weight of point seven and queue wait a
+          weight of point three. Multiply each feature by its weight and add the contributions.
+        hold: 0.6
+        visual_cues:
+          - id: weighted-features
+            phrase: add the contributions
+            targets:
+              - weighted-sum
+            color: cyan
+            linger: 0.7
+      - say: Add the bias of minus four. Watch the total move back along the same scale.
+          Even when both features are zero, the neuron starts at minus four. The two
+          weights set the contributions, and the bias sets the baseline.
+        hold: 0.6
+        visual_cues:
+          - id: shift-baseline
+            phrase: Add the bias of minus four
+            targets:
+              - bias-shift
+            color: pink
+            linger: 0.7
+      - say: Apply sigmoid to this logit. Take the exponential of the negative logit, add one,
+          then divide one by that sum. Put in two point six and the score comes out about point nine three.
+          To check that as a probability, take requests with that score and count how often they time out.
+        caption_starts:
+          - Put in two point six
+          - the score comes out about point nine three
+          - To check that as a probability
+        hold: 0.7
+        visual_cues:
+          - id: sigmoid-score
+            phrase: Apply sigmoid to this logit
+            targets:
+              - bounded-score
+            color: green
+            linger: 0.8
+          - id: timeout-score
+            phrase: the score comes out about point nine three
+            targets: [bounded-score]
+            color: green
+  - id: forward
+    title: Follow one request through two layers
+    visual: A nonsymmetric weight matrix exposes one neuron per row. The two row dot products
+      are revealed separately, then ReLU activations feed the output logit and sigmoid.
+    beats:
+      - say: Build a two-input, two-hidden-unit, one-output network. Here the weights are stored
+          with one neuron per row, as in PyTorch. Take this request and pair both features
+          with the first row. Its dot product is slightly positive.
+        hold: 0.7
+        visual_cues:
+          - id: first-dot
+            phrase: pair both features with the first row
+            targets:
+              - request-vector
+              - weight-rows
+              - hidden-values
+            color: cyan
+            linger: 0.8
+          - id: first-dot-result
+            phrase: Its dot product is slightly positive.
+            targets:
+              - hidden-values
+            color: cyan
+            linger: 0.55
+      - say: Apply the second row to that same request. This neuron gives queue wait a much
+          stronger coefficient. Both hidden values are positive, so ReLU keeps them. Each
+          row measures a different aspect of the same input.
+        hold: 0.6
+        visual_cues:
+          - id: second-dot
+            phrase: Apply the second row
+            targets:
+              - weight-rows
+              - hidden-values
+            color: blue
+            linger: 0.8
+          - id: second-dot-result
+            phrase: Both hidden values are positive, so ReLU keeps them.
+            targets:
+              - hidden-values
+            color: cyan
+            linger: 0.55
+      - say: Combine those hidden values with the output weights and bias. Then apply sigmoid. We
+          can trace every step from the original features to the final score. This trace
+          will also give the backward pass the values it needs.
+        hold: 0.8
+        visual_cues:
+          - id: output-dot
+            phrase: Combine those hidden values
+            targets:
+              - output-score
+            color: yellow
+            linger: 0.8
+  - id: affine-identity
+    title: Could one affine layer replace this network?
+    visual: Check the request network before sigmoid at three inputs. Pair the two opposite inputs and
+      compare their combined outputs with twice the zero-input output.
+    beats:
+      - say: Imagine removing both ReLU gates from our scorer. The first weight matrix would feed straight into
+          the second. The second matrix would also multiply the first bias. We could store the result as
+          one matrix and one bias. A narrow hidden layer can limit the rank of that matrix. What changes
+          when the gates go back in?
+        hold: 1
+        visual_cues:
+          - id: affine-identity-beat-0
+            phrase: The second matrix would also multiply the first bias
+            targets:
+              - affine-identity-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Use the output just before sigmoid. An affine function has a symmetry. Give it opposite inputs and
+          their weighted parts cancel when you add the two outputs. The sum has to equal twice the output
+          at zero. Test our scorer on one and four. Now reverse both signs. Finally, set both features to
+          zero. Does the sum match?
+        hold: 1.9
+        visual_cues:
+          - id: affine-identity-beat-1
+            phrase: Use the output just before sigmoid
+            targets:
+              - affine-identity-mechanism
+            color: cyan
+            linger: 0.35
+          - id: affine-witness-values
+            phrase: Test our scorer on one and four
+            targets:
+              - affine-identity-mechanism
+            color: cyan
+            linger: 0.35
+          - id: nn-affine-negative
+            phrase: Now reverse both signs
+            targets:
+              - affine-identity-mechanism
+            color: cyan
+            linger: 0.35
+          - id: nn-affine-zero
+            phrase: set both features to zero
+            targets:
+              - affine-identity-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The two outputs sum to minus point seven one. Twice the output at zero is minus one. That gap
+          rules out every affine replacement for this particular network. Different ReLU weights could
+          still give an affine function. Here we have three measurements that settle the question.
+        hold: 1
+        visual_cues:
+          - id: affine-identity-beat-2
+            phrase: The two outputs sum to minus point seven one. Twice the output at zero is minus one
+            targets:
+              - affine-identity-mechanism
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+  - id: bounded
+    title: A curve also controls a learning signal
+    visual: One pre-activation sweeps across sigmoid and tanh. Local tangent segments and
+      derivative readouts show saturation at the same input.
+    beats:
+      - say: Compare sigmoid with tanh at the same input. Sigmoid stays between zero and one. Tanh
+          also produces negative values. Move the input through the middle and into the
+          tails, and watch each curve's local slope.
+        hold: 0.7
+        visual_cues:
+          - id: bounded-sweep
+            phrase: Move the input through the middle and into the tails
+            targets:
+              - sigmoid-curve
+              - tanh-curve
+            color: cyan
+            linger: 0.7
+      - say: In the tails, both slopes become small. Backpropagation multiplies the arriving
+          learning signal by this local slope. Repeating small factors through many hidden
+          layers can weaken that signal. Sigmoid's largest slope is only one quarter, even
+          at its center.
+        hold: 0.7
+        visual_cues:
+          - id: tail-slope
+            phrase: both slopes become small
+            targets:
+              - tail-gradients
+            color: yellow
+            linger: 0.8
+  - id: smooth
+    title: Hard and smooth gates
+    visual: A probe crosses ReLU's corner, then GELU and SiLU are drawn over the same axes.
+      Their negative values and local slopes are compared at minus one.
+    beats:
+      - say: ReLU has a different gate. Cross its corner from the negative side. The local
+          derivative changes from zero to one. A negative unit blocks this path's learning
+          signal; a positive unit passes it through. We use a zero backward value at the
+          corner itself.
+        hold: 0.7
+        visual_cues:
+          - id: relu-crossing
+            phrase: Cross its corner from the negative side
+            targets:
+              - relu-curve
+              - activation-slopes
+            color: yellow
+            linger: 0.8
+      - say: Now compare the negative branch with GELU and SiLU. These smooth gates dip below zero
+          instead of clipping the entire branch. Their slopes can be small, zero, or
+          negative. Smoothness changes the local calculation; evaluate the resulting
+          network on its task.
+        hold: 0.7
+        visual_cues:
+          - id: smooth-negative
+            phrase: compare the negative branch with GELU and SiLU
+            targets:
+              - gelu-curve
+              - silu-curve
+              - activation-slopes
+            color: cyan
+            linger: 0.8
+  - id: activation-products
+    title: What passes through a gate?
+    visual: Compare the local slopes at the same input. Then follow two distinct projections into a SwiGLU
+      block, pairing each activated coordinate with its own multiplier before the readout.
+    beats:
+      - say: A curve's height tells us what a unit passes forward. Its slope tells us how a change travels
+          backward. Sigmoid's slope is its output times one minus that output. Even at its steepest,
+          that's one quarter. Tanh peaks at a slope of one. Pass a unit signal through six of each of
+          those peak slopes. Repeated quarters shrink it fast. The weights along a real path also affect
+          the result.
+        hold: 0.8
+        visual_cues:
+          - id: activation-products-beat-0
+            phrase: Pass a unit signal through six of each of those peak slopes
+            targets:
+              - activation-products-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Keep the input at minus one and send a sensitivity of minus two back through each gate. Multiply
+          by each local slope. ReLU blocks it. The GELU slope here is negative, so the signal changes
+          sign. The SiLU slope here is positive, so it keeps its sign. A smooth gate can also have zero
+          slope at its minimum. A ReLU unit can become active again if its inputs move. To reach an
+          individual weight, multiply by that weight's input feature. A negative feature can flip the
+          sign again.
+        hold: 1
+        visual_cues:
+          - id: activation-products-beat-1
+            phrase: Multiply by each local slope
+            targets:
+              - activation-products-mechanism
+            color: yellow
+            linger: 0.35
+          - id: activation-signed-products
+            phrase: multiply by that weight's input feature
+            targets:
+              - activation-products-mechanism
+            color: cyan
+            linger: 0.35
+      - say: GELU multiplies its input by the standard Gaussian cumulative probability there. SiLU multiplies
+          its input by its sigmoid. Swish allows an extra scale factor inside that sigmoid. A SwiGLU
+          block uses SiLU on one projection of the input. A second projection of the same input supplies
+          the multiplier for each coordinate. An output projection mixes the products.
+        hold: 0.8
+        visual_cues:
+          - id: activation-products-beat-2
+            phrase: A SwiGLU block uses SiLU on one projection of the input
+            targets:
+              - activation-products-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Try these two coordinates. The first projection gives one and minus two. Pass them through SiLU.
+          The first stays positive and the second stays negative. Pair each with its multiplier from the
+          other projection. Notice the two minus signs in the second pair. Both products come out
+          positive. Now give the first product half weight and subtract the second product. The readout
+          is about point eight six.
+        hold: 1
+        visual_cues:
+          - id: activation-products-beat-3
+            phrase: The first projection gives one and minus two
+            targets:
+              - activation-products-mechanism
+            color: cyan
+            linger: 0.35
+          - id: nn-swiglu-activation
+            phrase: The first stays positive and the second stays negative
+            targets:
+              - activation-products-mechanism
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: match-coordinates
+            phrase: Pair each with its multiplier from the other projection
+            targets:
+              - activation-products-mechanism
+            color: blue
+            linger: 0.35
+          - id: swiglu-product-values
+            phrase: Both products come out positive
+            targets:
+              - activation-products-mechanism
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: nn-swiglu-output
+            phrase: The readout is about point eight six
+            targets:
+              - activation-products-mechanism
+            color: green
+            linger: 0.35
+            caption_boundary: true
+  - id: parameters
+    title: Nine adjustable values
+    visual: Six connection weights are counted on the graph. Three separate bias markers
+      appear at the non-input units and complete the parameter count.
+    beats:
+      - say: How many values can training adjust? Count one weight for each connection. The first
+          layer has four, and the output layer has two. Input features supply data; the
+          connection weights belong to the model.
+        caption_starts:
+          - The first layer has four
+          - and the output layer has two
+        hold: 0.7
+        visual_cues:
+          - id: count-connections
+            phrase: one weight for each connection
+            targets:
+              - connection-weights
+              - parameter-total
+            color: cyan
+            linger: 0.8
+          - id: six-weights
+            phrase: and the output layer has two
+            targets: [parameter-total]
+            color: yellow
+      - say: Add one bias for each computed unit. Two hidden biases and one output bias bring the
+          total to nine. For any dense layer, multiply inputs by outputs, then add the
+          number of outputs for its biases.
+        caption_starts:
+          - Two hidden biases
+          - bring the total to nine
+        hold: 0.7
+        visual_cues:
+          - id: count-biases
+            phrase: Add one bias for each computed unit
+            targets:
+              - neuron-biases
+              - parameter-total
+            color: pink
+            linger: 0.8
+          - id: nine-parameters
+            phrase: bring the total to nine
+            targets: [parameter-total]
+            color: yellow
+  - id: parameter-scale
+    title: Where are the parameters in an image classifier?
+    visual: Count connections and biases for the small scorer. Spread the three layers of the image
+      classifier across one scale, keeping every layer count attached to its dimensions. Compare a dense
+      connection pattern with a sliding filter.
+    beats:
+      - say: Keep those six weights and three biases in view. A second request uses those same
+          nine values. It adds work and hidden activations, while the parameter count stays fixed.
+        hold: 0.75
+        visual_cues:
+          - id: parameter-scale-beat-0
+            phrase: six weights and three biases
+            targets:
+              - parameter-scale-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Flatten a square image with twenty-eight pixels on a side. Each first-layer unit gets all seven
+          hundred eighty-four pixels and a bias. Now make two hundred fifty-six such units. Draw that
+          layer's share. The next layer connects those units to a hundred twenty-eight new ones. The last
+          layer feeds just ten outputs. Together the layers use about two hundred thirty-five thousand
+          parameters. See how much of that first bar comes from connecting every pixel to every unit.
+        hold: 1
+        visual_cues:
+          - id: parameter-scale-beat-1
+            phrase: Flatten a square image with twenty-eight pixels on a side
+            targets:
+              - parameter-scale-mechanism
+            color: cyan
+            linger: 0.35
+          - id: nn-dense-first
+            phrase: Draw that layer's share
+            targets:
+              - parameter-scale-mechanism
+            color: cyan
+            linger: 0.35
+          - id: nn-dense-second
+            phrase: The next layer connects those units to a hundred twenty-eight new ones
+            targets:
+              - parameter-scale-mechanism
+            color: blue
+            linger: 0.35
+          - id: nn-dense-third
+            phrase: The last layer feeds just ten outputs
+            targets:
+              - parameter-scale-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dense-count-values
+            phrase: Together the layers use about two hundred thirty-five thousand parameters
+            targets:
+              - parameter-scale-mechanism
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: Look at one dense unit. Move an edge across the image and a different set of weights sees it. A
+          convolution slides the same local weights over the pixels. The choice matters when a useful
+          pattern can move. The count tells us how many parameters we can fit. Accuracy and runtime need
+          their own measurements.
+        hold: 0.8
+        visual_cues:
+          - id: parameter-scale-beat-2
+            phrase: A convolution slides the same local weights over the pixels
+            targets:
+              - parameter-scale-mechanism
+            color: yellow
+            linger: 0.35
+  - id: batch
+    title: One parameter set serves a batch
+    visual: Four named input rows produce hidden rows using shared weights. A one-column score
+      matrix is added with the same row order and explicit tensor dimensions.
+    beats:
+      - say: Stack four requests as rows. Multiplying by the transposed weight matrix evaluates
+          each neuron on each row. Broadcasting reuses the bias vector. ReLU changes the
+          values while preserving the hidden tensor's shape.
+        hold: 0.7
+        visual_cues:
+          - id: batch-hidden
+            phrase: evaluates each neuron on each row
+            targets:
+              - batch-input
+              - batch-contract
+            color: yellow
+            linger: 0.8
+      - say: Apply the output layer to every hidden row. The result has four rows and one score
+          column. Each request keeps its place, and every request uses the same nine
+          parameters. Shapes connect the layers, but they can hide a subtle mistake.
+        hold: 0.7
+        visual_cues:
+          - id: batch-output
+            phrase: Apply the output layer
+            targets:
+              - batch-score-column
+            color: green
+            linger: 0.8
+  - id: transpose
+    title: A valid shape can hide the wrong multiply
+    visual: Correct and incorrect products use the same nonsymmetric weight matrix. Both have
+      the same output shape; their different feature pairings are visible before answers
+      are revealed.
+    beats:
+      - say: Our weight matrix is square. Both of these products have a legal shape. Study which
+          weights each product pairs with the request. Will they produce the same hidden
+          values?
+        hold: 1.4
+        visual_cues:
+          - id: transpose-question
+            phrase: which weights each product pairs with the request
+            targets:
+              - transpose-right
+              - transpose-wrong
+            color: blue
+            linger: 0.8
+      - say: Reveal the two results. Only the transposed product agrees with our
+          one-neuron-per-row convention and the hand trace. A square matrix lets the wrong
+          multiply run successfully. A checked sample catches the changed meaning.
+        caption_starts:
+          - Only the transposed product
+        hold: 0.8
+        visual_cues:
+          - id: transpose-answer
+            phrase: Reveal the two results
+            targets:
+              - transpose-right
+              - transpose-wrong
+            color: yellow
+            linger: 0.8
+  - id: residual
+    title: Which way should the score move?
+    visual: Plot binary cross-entropy for an observed timeout. Move the same logit along the loss curve,
+      then return to the starting point and connect its tangent to the two factors in the chain rule.
+    beats:
+      - say: Take a different request. Its prompt score is one, its queue score is four, and it actually timed
+          out. The first hidden value is clipped to zero. The second passes through. The scorer
+          puts this request below the halfway mark. Binary cross-entropy uses the score for the
+          outcome we observed. For a completed request we'd use one minus the timeout score.
+          For this timeout the loss is minus the log of its score.
+          We're on the yellow dot. Which way should the logit move to bring the loss down?
+        hold: 2.2
+        visual_cues:
+          - id: training-case
+            phrase: The first hidden value is clipped to zero
+            targets:
+              - bce-chain
+            color: cyan
+            linger: 0.35
+          - id: score-target
+            phrase: The scorer puts this request below the halfway mark
+            targets:
+              - training-prediction
+              - bce-chain
+            color: yellow
+            linger: 0.35
+          - id: bce-loss
+            phrase: the loss is minus the log of its score
+            targets:
+              - training-prediction
+              - bce-chain
+            color: yellow
+            linger: 0.35
+      - say: Try sliding the logit to the right, up to zero. At zero, sigmoid gives the timeout half a chance.
+          That puts more probability on the outcome we observed. You can see the loss fall. This little
+          probe changed the logit directly. How would we get that direction from the original
+          calculation?
+        hold: 1
+        visual_cues:
+          - id: try-logit
+            phrase: sliding the logit to the right, up to zero
+            targets:
+              - training-prediction
+              - bce-chain
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: Go back to the starting dot. Differentiate the loss through sigmoid. Here p is the score.
+          A change in the logit changes p, which changes the loss. Multiply the two slopes.
+          The sigmoid slope appears once on the bottom and once on top. Cancel the pair,
+          leaving prediction minus target. The slope here is negative. That tells us why a small move to
+          the right helped. Now follow that slope back to the weights.
+        hold: 1
+        visual_cues:
+          - id: differentiate-output
+            phrase: Differentiate the loss through sigmoid
+            targets:
+              - bce-chain
+            color: blue
+            linger: 0.35
+          - id: bce-cancel
+            phrase: leaving prediction minus target
+            targets:
+              - bce-chain
+            color: green
+            linger: 0.35
+            caption_boundary: true
+          - id: direction
+            phrase: The slope here is negative
+            targets:
+              - training-prediction
+              - bce-chain
+            color: yellow
+            linger: 0.35
+  - id: backward
+    title: Which path carries the correction?
+    visual: Send a single logit sensitivity into two tracks. Tilt the open ReLU gate and stop the other
+      track at its saved negative input. Multiply each gated signal by the two original features.
+    beats:
+      - say: Stay with that timeout. Multiply the output residual by each output weight. Each hidden unit
+          gets a scaled copy of the loss slope. To change an output weight itself, multiply the residual by
+          the hidden value that went through it. The output bias gets the residual directly. Now look at
+          the inputs saved at the two gates. Which path will carry a correction back?
+        hold: 2
+        visual_cues:
+          - id: gradient-spread
+            phrase: Multiply the output residual by each output weight
+            targets:
+              - backward-output
+              - hidden-gradient
+            color: yellow
+            linger: 0.35
+          - id: output-weights
+            phrase: multiply the residual by the hidden value that went through it
+            targets:
+              - backward-parameters
+            color: cyan
+            linger: 0.35
+      - say: Pass those signals through the ReLU gates. A small change to the negative input leaves its hidden
+          value at zero. Its correction stops here. The positive input sits on a line of slope one, so
+          its correction passes through intact.
+        caption_starts:
+          - Its correction stops here
+          - The positive input
+          - so its correction passes through intact
+        hold: 1.1
+        visual_cues:
+          - id: relu-gate
+            phrase: Its correction stops here
+            targets:
+              - hidden-gradient
+            color: yellow
+            linger: 0.35
+          - id: positive-gate
+            phrase: so its correction passes through intact
+            targets:
+              - hidden-gradient
+            color: yellow
+            linger: 0.35
+      - say: Multiply each surviving signal by the original input features. The prompt contributes once and the
+          queue contributes four times. Those two products belong to different weights of the second
+          unit. The first unit gets zero for both. Each hidden bias takes its gated signal directly, as
+          if its input were one.
+        hold: 1
+        visual_cues:
+          - id: input-gradients
+            phrase: Multiply each surviving signal by the original input features
+            targets:
+              - hidden-gradient
+              - first-layer-gradient
+            color: yellow
+            linger: 0.35
+  - id: output-denominator
+    title: What do we divide by?
+    visual: Give each request three independent yes-or-no labels. Count the cells as the voice names
+      the loss terms, then compare dividing the residuals by six with dividing them by two.
+    beats:
+      - say: So far each request has one label. Did it time out? Add two more questions.
+          Did it hit the cache? Did it need a retry? A request can have several yes answers.
+          Each box gets its own sigmoid score and contributes one binary cross-entropy loss.
+        caption_starts:
+          - Add two more questions
+          - A request can have several yes answers
+        hold: 0.75
+        visual_cues:
+          - id: output-denominator-beat-0
+            phrase: Did it hit the cache
+            targets:
+              - output-denominator-mechanism
+            color: cyan
+            linger: 0.7
+          - id: retry-label
+            phrase: Did it need a retry
+            targets: [output-denominator-mechanism]
+            color: cyan
+            linger: 0.35
+      - say: Both requests get the same starting predictions. Every logit is zero, so every prediction
+          is one half. Subtract the observed label. The first box gives minus one half. The next gives
+          plus one half. To take the mean, how many boxes do we divide by?
+        caption_starts:
+          - Subtract the observed label
+          - The first box gives minus one half
+          - The next gives plus one half
+          - To take the mean
+        hold: 2
+        visual_cues:
+          - id: first-residual
+            phrase: The first box gives minus one half
+            targets: [output-denominator-mechanism]
+          - id: next-residual
+            phrase: The next gives plus one half
+            targets: [output-denominator-mechanism]
+      - say: Six. Two requests times three labels. Divide each residual by six and the logit gradients
+          are minus or plus one twelfth. Dividing by two would give one quarter in magnitude, three
+          times too large for this mean. With B requests and C binary labels, the divisor is B times C.
+          With one label per request, that reduces to the batch size.
+        caption_starts:
+          - Divide each residual by six
+          - Dividing by two would give
+          - With B requests
+        hold: 0.75
+        visual_cues:
+          - id: output-denominator-beat-1
+            phrase: Two requests times three labels
+            targets:
+              - output-denominator-mechanism
+            color: yellow
+            linger: 0.7
+          - id: bce-six-products
+            phrase: the logit gradients are minus or plus one twelfth
+            targets:
+              - output-denominator-mechanism
+            color: cyan
+            linger: 0.55
+          - id: nn-bce-wrong-denominator
+            phrase: Dividing by two would give one quarter in magnitude, three times too large for this mean
+            targets:
+              - output-denominator-mechanism
+            color: cyan
+            linger: 0
+      - say: Dividing by two averages the row totals. We can also give a missed positive more weight.
+          Look at the timeout in the first box. Its residual is minus one half. Give positive labels
+          weight three and that becomes minus one point five before averaging. For a target of one,
+          multiply prediction minus one by the positive weight. For a target of zero, the derivative
+          is still the prediction. Any weight on the whole box scales either result.
+        caption_starts:
+          - Give positive labels weight three
+          - that becomes minus one point five
+          - For a target of one
+        hold: 0.75
+        visual_cues:
+          - id: output-denominator-beat-2
+            phrase: Dividing by two averages the row totals
+            targets:
+              - output-denominator-mechanism
+            color: cyan
+            linger: 0.7
+          - id: timeout-box
+            phrase: Look at the timeout in the first box
+            targets: [output-denominator-mechanism]
+            color: yellow
+          - id: bce-positive-weight
+            phrase: that becomes minus one point five before averaging
+            targets:
+              - output-denominator-mechanism
+            color: cyan
+            linger: 0.55
+  - id: saved-values
+    title: Backward needs values whose identities still match
+    visual: Carry the same X,H and ReLU signs from forward into their parameter-gradient
+      owners. Remove H storage, recompute it with unchanged parameters and reconnect the
+      same backward products.
+    beats:
+      - say: Return to the four labeled requests, with one binary output per request.
+          The output-weight gradient sums each request’s output sensitivity times its saved
+          hidden activations. The hidden gradient multiplies by output weights. The
+          first-layer weight gradient sums each gated hidden sensitivity times its
+          original input features, and each bias gradient sums those sensitivities.
+        hold: 0.75
+        visual_cues:
+          - id: saved-values-beat-0
+            phrase: The output-weight gradient sums each request’s output sensitivity times its saved
+              hidden activations
+            targets:
+              - saved-values-mechanism
+            color: cyan
+            linger: 0.7
+      - say: The backward calculation needs access to hidden values, original features and the
+          ReLU active mask. Save them, or recompute the omitted values from matching
+          inputs and parameter state. Activation checkpointing retains selected boundaries
+          and reruns omitted forward work during backward. Recomputing with changed
+          weights or different stochastic behavior can change the gradients.
+        hold: 0.75
+        visual_cues:
+          - id: saved-values-beat-1
+            phrase: The backward calculation needs access to hidden values, original features and the
+              ReLU active mask
+            targets:
+              - saved-values-mechanism
+            color: yellow
+            linger: 0.7
+          - id: checkpoint-discard
+            phrase: Activation checkpointing retains selected boundaries
+            targets:
+              - saved-values-mechanism
+            color: cyan
+            linger: 0.55
+          - id: checkpoint-recompute
+            phrase: reruns omitted forward work during backward.
+            targets:
+              - saved-values-mechanism
+            color: cyan
+            linger: 0.55
+      - say: This trades extra computation for less saved activation storage. A larger batch gives
+          us more hidden values to store or recompute. The weights, gradient buffers and optimizer
+          state still take up memory.
+        hold: 0.75
+        visual_cues:
+          - id: saved-values-beat-2
+            phrase: This trades extra computation for less saved activation storage
+            targets:
+              - saved-values-mechanism
+            color: cyan
+            linger: 0.7
+  - id: update
+    title: Use all the gradients for one step
+    visual: Both weight arrays and both bias arrays show the article's initial fixture. A
+      single shared batch gradient step changes all nine parameters, and its recomputed
+      mean BCE falls.
+    beats:
+      - say: Return to the article's batch of four requests and their observed labels. Average
+          their loss gradients, dividing by the batch size. We can check these derivatives
+          with small parameter perturbations or compare them with automatic
+          differentiation.
+        hold: 0.7
+        visual_cues:
+          - id: batch-gradient
+            phrase: Average their loss gradients
+            targets:
+              - update-weights
+              - update-biases
+              - batch-loss
+            color: blue
+            linger: 0.8
+      - say: "Subtract a tenth of each gradient from its parameter. Both layers and both bias
+          arrays change. Recompute the same batch's loss: it falls. This checks one local
+          training step. Held-out requests are the next test of the learned function."
+        hold: 0.9
+        visual_cues:
+          - id: all-parameter-step
+            phrase: Subtract a tenth of each gradient
+            targets:
+              - update-weights
+              - update-biases
+              - batch-loss
+            color: green
+            linger: 0.9
+  - id: corner-check
+    title: A finite difference can cross the gate it is checking
+    visual: Perturb the same ReLU input on both sides of a branch; compare the central secant
+      with the chosen backward value, then reduce epsilon at a positive point to remain in
+      one branch.
+    beats:
+      - say: The article’s four-request fixture checks both weight arrays with two-sided finite
+          differences and all four parameter-array gradients against PyTorch autograd.
+          Both weight and both bias arrays agree in double precision. Its hidden
+          pre-activations remain positive under those small perturbations, so the local
+          branches do not change.
+        hold: 0.75
+        visual_cues:
+          - id: corner-check-beat-0
+            phrase: The article’s four-request fixture checks both weight arrays with two-sided finite
+              differences and all four parameter-array gradients against PyTorch autograd
+            targets:
+              - corner-check-mechanism
+            color: cyan
+            linger: 0.7
+      - say: At the ReLU corner zero, a symmetric finite difference samples one negative and one
+          positive side. It gives one half, while PyTorch’s chosen backward value at zero
+          is zero. The two sides have different slopes, so there is no single derivative at the corner.
+        hold: 0.75
+        visual_cues:
+          - id: corner-check-beat-1
+            phrase: At the ReLU corner zero, a symmetric finite difference samples one negative and
+              one positive side
+            targets:
+              - corner-check-mechanism
+            color: yellow
+            linger: 0.7
+          - id: corner-secant-result
+            phrase: It gives one half, while PyTorch’s chosen backward value at zero is zero.
+            targets:
+              - corner-check-mechanism
+            color: cyan
+            linger: 0.55
+      - say: Check away from corners, keep perturbations within the same active branches and
+          compare several step sizes. Here the left sample crosses zero. Bring it back
+          onto the positive branch and the secant follows the same straight line as the
+          tangent. A still smaller step can lose numerical precision. Agreement checks
+          the derivatives at the inputs and weights you tested.
+        hold: 0.75
+        visual_cues:
+          - id: corner-check-beat-2
+            phrase: Check away from corners, keep perturbations within the same active branches and
+              compare several step sizes
+            targets:
+              - corner-check-mechanism
+            color: cyan
+            linger: 0.7
+  - id: earned-gradient-transfer
+    title: Which way should these weights move?
+    visual: Hold the original parameter bank on a signed request. Align the two weights at the centers of
+      identical change scales. Reveal each gradient separately, move both weights by the same SGD rule,
+      then score the same request after updating all parameters.
+    beats:
+      - say: Reset the nine parameters. This time the prompt feature is minus one and the queue feature is two.
+          Treat these as signed features in a toy example. The request timed out. The hidden inputs are
+          minus one half and one point one. Only the second gate is open. The logit is minus point three
+          nine. Its score is below the target of one. The open path has output weight one tenth. To
+          reduce this loss, which of its two input weights should go up, and which should go down?
+        hold: 3
+        visual_cues:
+          - id: earned-gradient-transfer-beat-0
+            phrase: Reset the nine parameters
+            targets:
+              - fresh-request
+            color: cyan
+            linger: 0.35
+          - id: fresh-forward-values
+            phrase: The hidden inputs are minus one half and one point one
+            targets:
+              - fresh-request
+            color: cyan
+            linger: 0.35
+          - id: nn-fresh-logit
+            phrase: The logit is minus point three nine
+            targets:
+              - fresh-request
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: Start with prediction minus target. Multiply by the open path's output weight. The hidden
+          sensitivity is negative. Now multiply it by the prompt feature, minus one. The prompt gradient
+          comes out positive. The queue feature is plus two, so its gradient is negative, with twice the
+          magnitude. The closed gate gives both weights of the first unit zero gradient.
+        hold: 1
+        visual_cues:
+          - id: earned-gradient-transfer-beat-1
+            phrase: Start with prediction minus target
+            targets:
+              - fresh-request
+            color: yellow
+            linger: 0.35
+          - id: nn-fresh-hidden-sensitivity
+            phrase: The hidden sensitivity is negative
+            targets:
+              - fresh-request
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-gradient-products
+            phrase: The prompt gradient comes out positive
+            targets:
+              - fresh-weights
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: nn-fresh-negative
+            phrase: its gradient is negative, with twice the magnitude
+            targets:
+              - fresh-weights
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: nn-fresh-inactive
+            phrase: both weights of the first unit zero gradient
+            targets:
+              - fresh-result
+            color: cyan
+            linger: 0.35
+      - say: Use a learning rate of one tenth. Subtract a tenth of every gradient from its weight or bias.
+          Watch the two marks leave their starting positions. The prompt weight drops, which makes its
+          negative contribution smaller in magnitude. The queue weight rises. Score that same request
+          again with all the updates in place. Its score rises to about point four three seven.
+          To test whether training helped elsewhere, use held-out requests.
+        hold: 1.25
+        visual_cues:
+          - id: earned-gradient-transfer-beat-2
+            phrase: Use a learning rate of one tenth
+            targets:
+              - fresh-weights
+            color: cyan
+            linger: 0.35
+          - id: fresh-gradient-step
+            phrase: Subtract a tenth of every gradient from its weight or bias
+            targets:
+              - fresh-weights
+            color: cyan
+            linger: 0.35
+          - id: fresh-gradient-result
+            phrase: Its score rises to about point four three seven
+            targets:
+              - fresh-result
+            color: green
+            linger: 0.35
+            caption_boundary: true
+  - id: units
+    title: Changing the units changes the optimization
+    visual: Raw queue-score and token-count contributions share one horizontal scale.
+      Standardization deliberately changes the axis and computes comparable feature
+      contributions, then names the training-only statistics reused at inference.
+    beats:
+      - say: Even correct gradients can struggle with the units. Queue wait uses a small score,
+          but prompt length now uses raw tokens. Equal coefficients give the token count a
+          much larger contribution. The bar lengths share one scale, so the imbalance is
+          visible.
+        hold: 0.7
+        visual_cues:
+          - id: raw-scale
+            phrase: much larger contribution
+            targets:
+              - feature-contributions
+            color: blue
+            linger: 0.8
+      - say: Standardize each feature using its training mean and standard deviation. We change
+          the horizontal axis to standardized contributions. Both features now have
+          comparable typical scales. These reused coefficients illustrate the scale
+          change; a real model must be trained or transformed for the chosen units.
+          Subtract the training mean, then divide that difference by the training standard
+          deviation.
+        hold: 0.8
+        visual_cues:
+          - id: standardize-features
+            phrase: change the horizontal axis to standardized contributions
+            targets:
+              - feature-contributions
+              - scaler-parameters
+            color: yellow
+            linger: 0.9
+      - say: Keep those training statistics for validation and inference. Fitting a new scaler on
+          the test split would leak information into the evaluation. Constant features
+          also need a defined scale policy. Our example assumes positive, fixed training
+          standard deviations.
+        hold: 0.7
+        visual_cues:
+          - id: reuse-training-stats
+            phrase: Keep those training statistics
+            targets:
+              - scaler-parameters
+            color: green
+            linger: 0.8
+  - id: stable
+    title: Keep the computation finite
+    visual: An extreme negative logit exposes exp(1000) overflow. An equivalent sigmoid branch
+      avoids it, then direct logit BCE restores a finite loss after a rounded zero score.
+    beats:
+      - say: Try a logit of minus one thousand. The naive sigmoid asks for an exponential far
+          beyond floating-point range. Python raises an overflow error before it can
+          return a score. The mathematical sigmoid is defined; this evaluation path fails.
+        hold: 0.7
+        visual_cues:
+          - id: overflow-example
+            phrase: far beyond floating-point range
+            targets:
+              - unstable-exponential
+            color: pink
+            linger: 0.8
+      - say: For a negative logit, use the equivalent expression with the negative exponent. The
+          exponential safely becomes tiny. The score can still round to zero, so taking
+          its logarithm would lose the finite training loss.
+        hold: 0.8
+        visual_cues:
+          - id: stable-sigmoid
+            phrase: use the equivalent expression
+            targets:
+              - unstable-exponential
+              - logit-loss
+            color: green
+            linger: 0.8
+      - say: Compute cross-entropy directly from the logit instead. This stable expression keeps a
+          finite loss of one thousand for our wrong prediction. The large penalty comes
+          from the target times the logit. The exponential only sees a nonpositive number.
+          Pass logits directly to a binary cross-entropy-with-logits function so the loss
+          still has that information.
+        hold: 0.8
+        visual_cues:
+          - id: stable-logit-loss
+            phrase: This stable expression keeps a finite loss of one thousand for our wrong prediction.
+            targets:
+              - logit-loss
+            color: green
+            linger: 0.9
+  - id: checked-risk-report
+    title: Which requests take the slow path?
+    visual: Four fixed score marks share an axis. Move the routing threshold past one mark and keep all
+      four scores fixed. Count actual outcomes in a separate score bucket to check calibration.
+    beats:
+      - say: Bring back the four requests and their original scores. Each dot belongs to one request. Set the
+          routing threshold at point six. Read the two dots just past the line. The second and fourth go
+          to the slow path. Now raise the threshold to point six two. The second request crosses back to
+          the fast path. All four scores stayed put.
+        hold: 1
+        visual_cues:
+          - id: checked-risk-report-beat-0
+            phrase: Set the routing threshold at point six
+            targets:
+              - checked-risk-report-mechanism
+            color: yellow
+            linger: 0.35
+          - id: route-policy-result
+            phrase: The second and fourth go to the slow path
+            targets:
+              - checked-risk-report-mechanism
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: checked-risk-report-beat-1
+            phrase: raise the threshold to point six two
+            targets:
+              - checked-risk-report-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A routing decision gives us a policy label. To check a probability, we need to know what actually
+          happened. Take a separate group of one hundred requests, each scored point nine three. Check
+          their outcomes. Ninety-three of them timed out. In this group the observed frequency matches
+          the score.
+        hold: 1
+        visual_cues:
+          - id: calibration-sample
+            phrase: Take a separate group of one hundred requests
+            targets:
+              - checked-risk-report-mechanism
+            color: cyan
+            linger: 0.35
+          - id: count-timeouts
+            phrase: Check their outcomes
+            targets:
+              - checked-risk-report-mechanism
+            color: cyan
+            linger: 0.35
+          - id: calibration-bucket-result
+            phrase: Ninety-three of them timed out
+            targets:
+              - checked-risk-report-mechanism
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: A hundred observations still leave sampling uncertainty. Compare other score ranges on
+          representative held-out requests, keeping the feature order, training scaler, model and policy
+          versions fixed. Use separate data if you fit a calibrator. That's how you decide whether these
+          scores work as probabilities.
+        hold: 0.9
+        visual_cues:
+          - id: checked-risk-report-beat-2
+            phrase: Compare other score ranges on representative held-out requests
+            targets:
+              - checked-risk-report-mechanism
+            color: cyan
+            linger: 0.35
+  - id: approximation
+    title: More hinges can build a curve
+    visual: A third shifted ReLU closes the lamp's two-hinge response into a compact triangle.
+      Shifted triangles then form a coarse approximation; finer spacing lowers the
+      measured error on a bounded interval.
+    beats:
+      - say: Our lamp's two hinges make a peak over the switch range. Add a third shifted ReLU to
+          bring the response back to zero beyond that range. Three simple units now make
+          one triangle that we can shift and scale.
+        hold: 0.8
+        visual_cues:
+          - id: complete-triangle
+            phrase: Add a third shifted ReLU
+            targets:
+              - triangle-hinges
+            color: yellow
+            linger: 0.8
+      - say: Place shifted triangles along this bounded interval and add their weighted responses.
+          Their sum follows the gray target curve with straight segments. These visible
+          pieces give a constructive way to understand approximation.
+        hold: 0.8
+        visual_cues:
+          - id: assemble-triangles
+            phrase: add their weighted responses
+            targets:
+              - approximation-pieces
+            color: yellow
+            linger: 0.8
+      - say: Make the spacing finer. Each straight segment now covers a shorter stretch of
+          the bend. The largest error on our sample grid shrinks. Could a single hidden
+          layer get as close as we like everywhere on this interval?
+        hold: 0.9
+        visual_cues:
+          - id: refine-approximation
+            phrase: Make the spacing finer
+            targets:
+              - approximation-pieces
+            color: yellow
+            linger: 0.9
+  - id: approximation-conditions
+    title: What can a wider layer guarantee?
+    visual: Test the activation assumption by adding squared affine units. Then keep two observed endpoints
+      fixed and trace two functions through them. Measure the two interior predictions at the same input.
+    beats:
+      - say: We've fitted a curve on a closed, bounded interval. The general result says we can make the error
+          uniformly small for a continuous target on a compact domain. We need biases, a continuous
+          non-polynomial hidden activation, a linear output, and enough hidden units. How many depends on
+          the target, its input dimension, the activation and the error we can tolerate.
+        hold: 0.8
+        visual_cues:
+          - id: approximation-conditions-beat-0
+            phrase: We've fitted a curve
+            targets:
+              - approximation-conditions-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Try squaring each hidden unit's weighted sum plus bias. That's a nonlinear activation. Add another
+          squared unit, then another. Collect their terms. We still have a constant, a term in x, and a
+          term in x squared. Width changes their coefficients. The highest power stays at two. The same
+          degree limit holds for any fixed polynomial activation in a single hidden layer with a linear
+          output.
+        hold: 1
+        visual_cues:
+          - id: approximation-conditions-beat-1
+            phrase: Try squaring each hidden unit
+            targets:
+              - approximation-conditions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: polynomial-width
+            phrase: Add another squared unit, then another
+            targets:
+              - approximation-conditions-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Suppose those two yellow dots are our only observations. Draw a straight line through them. Now
+          bow the line up in the middle while keeping its ends pinned. Both curves fit. Read them a
+          quarter of the way across. One predicts a quarter. The other predicts one. Even perfect
+          training on the endpoints leaves that choice open. Extra depth can represent some targets more
+          efficiently, and the optimizer can still get stuck in a poor minimum or a flat region. Let's
+          see what our lamp measurements actually tell us.
+        hold: 1.1
+        visual_cues:
+          - id: approximation-conditions-beat-2
+            phrase: two yellow dots are our only observations
+            targets:
+              - approximation-conditions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: straight-fit
+            phrase: Draw a straight line through them
+            targets:
+              - approximation-conditions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: bow-fit
+            phrase: bow the line up in the middle while keeping its ends pinned
+            targets:
+              - approximation-conditions-mechanism
+            color: blue
+            linger: 0.35
+          - id: probe-fit
+            phrase: Read them a quarter of the way across
+            targets:
+              - approximation-conditions-mechanism
+            color: yellow
+            linger: 0.35
+          - id: fit-values
+            phrase: One predicts a quarter. The other predicts one
+            targets:
+              - approximation-conditions-mechanism
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+  - id: payoff
+    title: Which lamp reading would settle it?
+    visual: Use the original pair of hinges on two dimmers. Compare a second circuit that adds the two
+      rectified switch differences. Test all four binary corners, then bring both circuits to the same
+      unmeasured setting and compare their predictions.
+    beats:
+      - say: Return to the lamp. Set the first dimmer to point eight and the second to point five. Our first
+          hinge counts their sum. The second counts how much that sum exceeds one. What brightness would
+          those two hidden values give?
+        hold: 2.5
+        visual_cues:
+          - id: final-lamp-probe
+            phrase: Set the first dimmer to point eight
+            targets:
+              - dimmer-controls
+            color: cyan
+            linger: 0.35
+          - id: second-dimmer
+            phrase: and the second to point five
+            targets:
+              - dimmer-controls
+            color: cyan
+            linger: 0.35
+      - say: The hinges give one point three and point three. Subtract twice the second from the first. That
+          puts the lamp at point seven. We can now make a prediction between the four corners.
+        hold: 1.1
+        visual_cues:
+          - id: dimmer-hinges
+            phrase: The hinges give one point three and point three
+            targets:
+              - final-hidden-values
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: final-lamp-reveal
+            phrase: That puts the lamp at point seven
+            targets:
+              - final-hidden-values
+              - final-lamp-function
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: Someone else wired a second circuit. One hidden unit keeps any excess of the first dimmer over the
+          second. The other keeps any excess in the opposite direction. Add them and you get the gap
+          between the settings. Try the four corners on both circuits. Every reading agrees with the lamp
+          we measured. Now put the dimmers back at point eight and point five. How bright does the second
+          circuit say the lamp will be?
+        hold: 2.75
+        visual_cues:
+          - id: difference-circuit
+            phrase: Try the four corners on both circuits
+            targets:
+              - lamp-cases
+              - candidate-readings
+            color: yellow
+            linger: 0.35
+          - id: interior-setting
+            phrase: put the dimmers back at point eight and point five
+            targets:
+              - lamp-cases
+              - candidate-readings
+            color: cyan
+            linger: 0.35
+      - say: Their gap is point three. The first circuit predicted point seven at exactly the same setting.
+          Which reading would you take on the real lamp to tell these explanations apart?
+        caption_starts:
+          - Which reading would you take
+        hold: 2
+        visual_cues:
+          - id: difference-result
+            phrase: Their gap is point three
+            targets:
+              - candidate-readings
+            color: blue
+            linger: 0.35
+            caption_boundary: true
+      - say: Measure the brightness here, between the corners. Both networks fit all four switch readings.
+          Here one network uses the sum of the settings and the other uses the gap. Their hidden units
+          give different predictions for the same bulb. One new reading tests them both.
+        caption_starts:
+          - Both networks fit all four switch readings
+          - Here one network uses the sum
+          - One new reading tests them both
+        hold: 1.8
+        visual_cues:
+          - id: final-meaning
+            phrase: Measure the brightness here, between the corners
+            targets:
+              - lamp-cases
+              - candidate-readings
+            color: cyan
+            linger: 0.35

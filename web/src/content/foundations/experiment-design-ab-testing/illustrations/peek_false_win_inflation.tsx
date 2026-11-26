@@ -4,18 +4,18 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 860
 export const height = 390
 export const alt =
-    'Side-by-side A/A peeking simulation across 5,000 zero-effect trials. Left: Trial 11 z-score trajectory crosses the +1.96 rejection boundary at look 4 (z = 2.58) yet returns inside the null band by look 20 (z = 1.61). Right: false-win rate climbs from 4.6% (231/5,000) at 1 planned final look to 14.2% at 5 looks, 19.2% at 10 looks, and 24.9% (1,244/5,000) at 20 peeks.'
+    'Side-by-side A/A peeking simulation across 5,000 zero-effect trials. Left: Trial 328 z-score trajectory crosses the +1.96 rejection boundary at look 5 (z = 2.39) yet returns inside the null band by look 20 (z = 0.90). Right: false-win rate climbs from 5.3% (264/5,000) at 1 planned final look to 14.2% at 5 looks, 19.2% at 10 looks, and 24.7% (1,236/5,000) at 20 peeks.'
 
 const Z_TRAJ = [
-    0.28, 1.11, 1.57, 2.58, 2.05, 2.35, 2.45, 2.4, 2.21, 2.27, 1.78, 2.12, 2.15, 2.19, 2.08, 1.83,
-    2.27, 2.07, 1.91, 1.61,
+    1.18, 1.35, 1.59, 1.81, 2.39, 2.3, 2.18, 2.44, 2.16, 2.41, 1.99, 1.45, 1.31, 1.46, 1.56, 1.37,
+    0.94, 1.09, 0.89, 0.9,
 ]
 
 const BARS = [
-    { label: '1', pct: 4.6, count: '231', tone: 'green' as const },
-    { label: '5', pct: 14.2, count: '708', tone: 'warm' as const },
-    { label: '10', pct: 19.2, count: '961', tone: 'warm' as const },
-    { label: '20', pct: 24.9, count: '1,244', tone: 'critical' as const },
+    { label: '1', pct: 5.3, count: '264', tone: 'green' as const },
+    { label: '5', pct: 14.2, count: '710', tone: 'warm' as const },
+    { label: '10', pct: 19.2, count: '962', tone: 'warm' as const },
+    { label: '20', pct: 24.7, count: '1,236', tone: 'critical' as const },
 ]
 
 export function create(theme: ThemeMode = 'dark') {
@@ -26,8 +26,8 @@ export function create(theme: ThemeMode = 'dark') {
     const green = fig.tone('green')
     const isLight = theme === 'light'
 
-    // Left: Trial #11 null z-trajectory across 20 peeks
-    fig.text(56, 24, 'Null A/A trajectory (Trial #11)', {
+    // Left: Trial #328 null z-trajectory across 20 peeks
+    fig.text(56, 24, 'Null A/A trajectory (Trial #328)', {
         size: 15,
         weight: 700,
     })
@@ -99,12 +99,12 @@ export function create(theme: ThemeMode = 'dark') {
         leftPlot.point(x, y, { color: over ? red : blue, r: over ? 3.5 : 2.8 })
     }
 
-    // Highlight first false crossing at look 4 (z = 2.58) and final look 20 (z = 1.61)
-    leftPlot.point(4, 2.58, { color: red, r: 6 })
+    // Highlight first false crossing at look 5 (z = 2.39) and final look 20 (z = 0.90)
+    leftPlot.point(5, 2.39, { color: red, r: 6 })
     fig.callout(
-        [leftPlot.px(4) + 6, leftPlot.py(2.58)],
-        [leftPlot.px(8.5), leftPlot.py(2.85)],
-        'Look 4: z = 2.58 (false stop)',
+        [leftPlot.px(5) + 6, leftPlot.py(2.39)],
+        [leftPlot.px(9.5), leftPlot.py(2.82)],
+        'Look 5: z = 2.39 (false stop)',
         {
             color: red,
             labelColor: red,
@@ -115,11 +115,11 @@ export function create(theme: ThemeMode = 'dark') {
         },
     )
 
-    leftPlot.point(20, 1.61, { color: green, r: 6 })
+    leftPlot.point(20, 0.9, { color: green, r: 6 })
     fig.callout(
-        [leftPlot.px(20) - 4, leftPlot.py(1.61) + 6],
-        [leftPlot.px(14.5), leftPlot.py(0.55)],
-        'Look 20: z = 1.61 (null holds)',
+        [leftPlot.px(20) - 4, leftPlot.py(0.9) + 6],
+        [leftPlot.px(14.5), leftPlot.py(-0.2)],
+        'Look 20: z = 0.90 (null holds)',
         {
             color: green,
             labelColor: green,

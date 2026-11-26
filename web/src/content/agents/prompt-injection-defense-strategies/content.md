@@ -533,15 +533,15 @@ An aggressive standalone classifier cuts ASR from `23.0%` to `3.5%` while drivin
     "explanation": "Failing open turns any classifier outage into a guardrail bypass, and flushed bytes cannot be retracted. Block on timeout and return a generic fallback."
   },
   {
-    "question": "An evaluation runs 400 attack traces (0 unauthorized side effects, 95% Wilson upper bound = 0.95%) and 300 benign tasks (279 completed, 9 falsely refused). What are ASR and FRR, and why does 0.95% not bound live adaptive attacks?",
+    "question": "An evaluation runs 250 attack traces (0 unauthorized side effects, 95% Wilson upper bound = 1.51%) and 200 benign tasks (186 completed, 8 falsely refused). What are ASR and FRR, and why does 1.51% not bound live adaptive attacks?",
     "options": [
-      "ASR = 3.0%, FRR = 0.0%; the Wilson bound rules out adaptive payloads in production.",
-      "ASR = 0.95%, FRR = 7.0%; 93% utility bounds cross-distribution drift below 1%.",
-      "ASR = 0.0%, FRR = 3.0%; Wilson bounds assume fixed suites and cannot bound unseen adaptive payloads.",
-      "ASR = 0.0%, FRR = 9.0%; 400 traces measure latency rather than isolation."
+      "ASR = 4.0%, FRR = 0.0%; the Wilson bound rules out adaptive payloads in production.",
+      "ASR = 1.51%, FRR = 7.0%; 93% utility bounds cross-distribution drift below 2%.",
+      "ASR = 0.0%, FRR = 4.0%; Wilson bounds assume fixed suites and cannot bound unseen adaptive payloads.",
+      "ASR = 0.0%, FRR = 8.0%; 250 traces measure latency rather than isolation."
     ],
-    "answer": "ASR = 0.0%, FRR = 3.0%; Wilson bounds assume fixed suites and cannot bound unseen adaptive payloads.",
-    "explanation": "0 / 400 = 0.0% ASR and 9 / 300 = 3.0% FRR. Confidence bounds summarize fixed independent sampling, whereas live attackers adapt around deployed filters."
+    "answer": "ASR = 0.0%, FRR = 4.0%; Wilson bounds assume fixed suites and cannot bound unseen adaptive payloads.",
+    "explanation": "0 / 250 = 0.0% ASR and 8 / 200 = 4.0% FRR (with 186 / 200 = 93.0% benign utility). Confidence bounds summarize fixed independent sampling, whereas live attackers adapt around deployed filters."
   }
 ]
 ```

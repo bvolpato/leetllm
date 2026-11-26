@@ -5,7 +5,7 @@ export { createFilm } from './_parts/adam-film'
 export const width = 780
 export const height = 415
 export const alt =
-    'Adam replays four gradients from zero moments with learning rate 0.01, beta1 0.9, and beta2 0.999. Left: magnitude plot shows coordinate a updates 0.01, 0.00058, 0.00346, 0.00041 while b stays near 0.01. Right: at step 4, corrected direction 3.228 divided by scale 78.902 times 0.01 gives a step near 0.00041, while direction 0.967 divided by scale 0.970 gives b a step near 0.00997, about 24.4 times a.'
+    'Adam replays four gradients from zero moments with learning rate 0.01, beta1 0.9, and beta2 0.999. Left: magnitude plot shows coordinate a updates 0.01, 0.00058, 0.00346, 0.00041 while b stays near 0.01. Right: at step 4, corrected direction 3.228 divided by scale 78.882 times 0.01 gives a step near 0.00041, while direction 0.967 divided by scale 0.970 gives b a step near 0.00997, about 24.4 times a.'
 
 const GRADIENTS = [
     [100, 1],

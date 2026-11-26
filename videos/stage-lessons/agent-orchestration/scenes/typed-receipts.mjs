@@ -1,377 +1,612 @@
-// Scene `typed-receipts`: what one worker may write.
-//
-// The picture: the board, and the receipt of eval enlarged in the band. Its upper row is the
-// identity of the request, the same on every card. Its lower row is what eval owns. A write from
-// this receipt to the approval and to the traffic of the request is drawn in red and cut. Then a
-// wrong value keeps its type and fails its check. The last beat puts the channels of the shared
-// state in the band: a list, a scalar, and the three owned slots of the packet.
+// Scene 04 (typed-receipts): "Give each worker a narrow update contract"
+// Three pure-cinema stages (cleanly cross-swapped):
+//   Stage 0: Narrow worker output wrapper (graph state -> read-only view -> eval receipt only)
+//   Stage 1: Type != trust (tenant7 -> tenant9, "passed" digest clash, registry gap vs authenticated source)
+//   Stage 2: Concurrent reducers (list-add duplicates & order vs scalar write clash -> sorted unique owners)
 import {
-  arrow,
-  beside,
-  boxOf,
-  column,
-  draw,
-  indicate,
-  lagged,
-  par,
-  pictogram,
-  place,
-  rect,
-  recolor,
-  row,
-  seq,
-} from 'vizmatic/stage';
-import { RECEIPTS } from '../packet.mjs';
-import { REQUEST, values } from '../../../films/agent-orchestration/fixtures.mjs';
-import { chip, heading, label, mono, note } from '../../kit-narrated.mjs';
-import {
-  AGE,
-  BAND,
-  BRANCH_COLOR,
-  MARK,
-  OTHER_TENANT,
-  QUIET,
-  SMALL,
-  TENANT,
-  WRONG,
-  board,
-  channels,
-  replaceReceipt,
+  COSMOS,
+  RECEIPTS,
+  REQUEST,
+  ROLE,
+  cinemaAtmosphere,
+  conduitPts,
+  crossSwap,
+  glowArrow,
+  glowDot,
+  glowRing,
+  glowingTrail,
+  guardedDynamic,
+  heroTitle,
+  line,
+  lumBar,
+  rule,
+  runAmbientPhase,
+  samplePolyline,
+  shortHash,
+  tweenCue,
+  txt,
 } from '../parts.mjs';
 
-const EVAL = 0;
-/** The fields of one receipt, as the model holds them. The age is the time of the join less the time of the read. */
-const IDENTITY = [
-  { name: 'request', type: 'str', value: REQUEST.request },
-  { name: 'tenant', type: 'str', value: REQUEST.tenant },
-  { name: 'release', type: 'str', value: REQUEST.release },
-  { name: 'revision', type: 'int', value: `${REQUEST.version}` },
-];
-const OWNED = [
-  { name: 'age', type: 'int', value: `${AGE.fresh} s` },
-  { name: 'value', type: 'dict', value: `${values.eval.failures} / ${values.eval.cases}` },
-  { name: 'digest', type: 'str', value: `#${RECEIPTS[EVAL].digest.slice(0, 4)}` },
-];
-
 export default function typedReceipts(s, c) {
-  const b = board(s);
-  const { ask, fan, slotNames, approval } = b.nodes;
-  const color = BRANCH_COLOR[EVAL];
+  const phase = s.value(0);
+  const stage0 = s.value(1);
+  const stage1 = s.value(0);
+  const stage2 = s.value(0);
 
-  // The receipt of eval, enlarged: a name and a value for each field. A type comes after each name.
-  const cell = (field, tint) => ({
-    name: note(field.name, { color: tint }),
-    type: mono(field.type, { size: SMALL, color: QUIET }),
-    value: mono(field.value, { size: 36 }),
-  });
-  const identity = IDENTITY.map((field) => cell(field, QUIET)),
-    owned = OWNED.map((field) => cell(field, color));
-  const fieldBlock = (field) =>
-    column([row([field.name, field.type], { gap: 'tight' }), field.value], { gap: 'tight' });
-  const title = row([label('one receipt'), chip('eval', { color, stroke: color })]);
-  // The sheet leaves room at both sides: a write that the contract does not have is drawn there.
-  const sheet = BAND.inset(60, 'none').rows([5, 1], 'none')[0];
-  const sheetFrame = rect(sheet.width, sheet.height, {
-    radius: 14,
-    stroke: color,
-    width: 3,
-    fill: 'surface',
-  }).at(sheet.cx, sheet.cy);
-  place(
-    column(
-      [
-        title,
-        row(identity.map(fieldBlock), { gap: 'normal' }),
-        row(owned.map(fieldBlock), { gap: 'wide' }),
-      ],
-      {
-        gap: 'normal',
-      },
-    ),
-    sheet.inset('normal', 'tight'),
-    'left',
-  );
-  const names = [...identity, ...owned].map((field) => field.name);
-  s.add(heading(c.title));
-  b.enter(c);
+  // Beat 0: Narrow update wrapper
+  const stateLit = s.value(0);
+  const viewLit = s.value(0);
+  const idLit = s.value(0);
+  const ownedLit = s.value(0);
+  const evalEvLit = s.value(0);
+  const blockApp = s.value(0);
+  const blockTraf = s.value(0);
 
-  const [nodeRoom, fieldRoom] = BAND.rows([3, 2], 'normal');
-  const [inputRoom, branchRoom] = nodeRoom.columns([1, 3], 'wide');
-  const branchFrame = rect(branchRoom.width, branchRoom.height, {
-    radius: 16,
-    stroke: color,
-    width: 3,
-    fill: 'surface',
-  }).at(branchRoom.cx, branchRoom.cy);
-  const [branchHeader, internals] = branchRoom.inset('normal').rows([1, 2], 'tight');
-  const [viewRoom, helperRoom] = internals.columns(2, 'wide');
-  const stateInput = place(label('graph state', { size: 38 }), inputRoom);
-  const branchTitle = place(note('Python branch node  /  eval', { color }), branchHeader, 'left');
-  const view = place(chip('read-only copy', { stroke: color }), viewRoom);
-  const helper = place(chip('receipt helper'), helperRoom);
-  const inputPath = arrow(boxOf(stateInput).point('right'), [branchRoom.left, nodeRoom.cy], {
-    stroke: MARK,
-    width: 3,
-    pad: 16,
-  });
-  const copyPath = arrow(boxOf(view).point('right'), boxOf(helper).point('left'), {
-    stroke: color,
-    width: 3,
-    pad: 5,
-  });
-  const projected = place(
-    mono('promote-104  tenant-7  reranker-v17  v3  25%', { size: 34 }),
-    fieldRoom,
-  );
-  const internalsOnScreen = [
-    stateInput,
-    branchFrame,
-    branchTitle,
-    inputPath,
-    view,
-    helper,
-    copyPath,
-    projected,
-  ];
-  s.add(stateInput);
-  c.show('node-state', [branchFrame, branchTitle, draw(inputPath, { duration: 0.5 })]);
-  c.show('copied-view', [view, helper, draw(copyPath, { duration: 0.6 })]);
-  c.show('trusted-identity', projected);
-  c.swap('owned-branch-results', internalsOnScreen, [
-    sheetFrame,
-    title,
-    ...names,
-    ...identity.map((f) => f.value),
-  ]);
-  c.on('trusted-identity', () =>
-    s.play(
-      ask.pulse({ color: MARK }),
-      ...fan.map((edge) => edge.pulse({ color: MARK })),
-      b.hot.tenant.to(1, { duration: 0.4 }),
-      b.hot.rev.to(1, { duration: 0.4 }),
-    ),
-  );
-  c.show(
-    'owned-branch-results',
-    owned.map((field) => field.value),
-  );
-  c.on('owned-branch-results', () =>
-    s.play(
-      b.hot.tenant.to(0, { duration: 0.3 }),
-      b.hot.rev.to(0, { duration: 0.3 }),
-      ...b.card.map((card) => card.shown.to(1, { duration: 0.3 })),
-      ...b.gate.map((gate) => gate.open.to(1, { duration: 0.3 })),
-      ...b.card.map((card) => card.pos.to(2, { duration: 1.4 })),
-      lagged(
-        slotNames.map((slot, i) => indicate(slot, { color: BRANCH_COLOR[i], scale: 1.15 })),
-        { lag: 0.5 },
-      ),
-    ),
-  );
-  c.on('eval-evidence', () => s.play(indicate([owned[1].name, owned[1].value], { color: MARK })));
-  // The two writes that the contract of eval does not have: to the approval, and to the traffic of the request.
-  const forbidden = (from, to) => ({
-    path: arrow(from, to, { stroke: WRONG, width: 4, dash: [12, 9], pad: 6 }),
-    stop: pictogram('cross', { size: 56, accent: WRONG }).at((from[0] + to[0]) / 2, from[1]),
-  });
-  const approvalBox = boxOf(approval.frame);
-  const toApproval = forbidden([sheet.right, approvalBox.cy], [approvalBox.left, approvalBox.cy]);
-  const [trafficX, trafficY] = b.ticketPoint(4);
-  const toTraffic = forbidden([sheet.left, trafficY], [trafficX, trafficY]);
-  c.show('cannot-approval', draw(toApproval.path, { duration: 0.8 }));
-  c.show('cannot-approval', toApproval.stop, { after: true });
-  c.show('cannot-traffic', draw(toTraffic.path, { duration: 0.8 }));
-  c.on('cannot-traffic', () => s.play(b.hot.traffic.to(1, { duration: 0.3 })));
-  c.show('cannot-traffic', toTraffic.stop, { after: true });
+  // Beat 1: Schema vs provenance
+  const typeLit = s.value(0);
+  const tenantWrong = s.value(0);
+  const sourceCheck = s.value(0);
+  const textClaim = s.value(0);
+  const digestBreak = s.value(0);
+  const filmScopeLit = s.value(0);
+  const regLit = s.value(0);
+  const missingTenant = s.value(0);
+  const authSource = s.value(0);
 
-  // Beat 1. A type says the shape. A check says the value: a wrong tenant is still a string.
-  const types = [...identity, ...owned].map((field) => field.type);
-  c.hide('types', [toApproval.path, toApproval.stop, toTraffic.path, toTraffic.stop]);
-  c.on('types', () => s.play(b.hot.traffic.to(0, { duration: 0.3 })));
-  c.show('types', types, { stagger: 0.15 });
-  const tenant = identity[1];
-  const otherTenant = place(mono('tenant9', { size: 36 }), boxOf(tenant.value), 'left');
-  c.swap('field-ownership', tenant.value, otherTenant);
-  c.on('field-ownership', () =>
-    s.play(
-      indicate(tenant.type, { color: MARK }),
-      replaceReceipt(b.card[EVAL], { tenant: OTHER_TENANT }),
-    ),
-  );
-  c.after('field-ownership', () => {
-    b.card[EVAL].read.set(1);
-    b.card[EVAL].verdict.set(-1);
-    s.play(indicate(otherTenant, { color: WRONG, scale: 1 }));
-  });
-  const sourceCheck = place(
-    note('Article merge  /  source scope matches request', { color: MARK }),
-    BAND,
-    'bottom left',
-  );
-  c.show('source-identity', sourceCheck);
-  c.hide('text-claim', sourceCheck);
-  c.swap('source-identity', otherTenant, tenant.value);
-  c.on('source-identity', () =>
-    s.play(
-      replaceReceipt(b.card[EVAL], { tenant: TENANT }),
-      b.hot.age.to(1, { duration: 0.3 }),
-      indicate([owned[2].name, owned[2].value, owned[0].name, owned[0].value], { color: MARK }),
-    ),
-  );
-  // A text claim in the place of the result: the digest of the source does not fit it.
-  const resultBox = boxOf(owned[1].value);
-  const claim = mono('"passed"', { size: 36, anchor: 'left' }).at(resultBox.left, resultBox.cy);
-  c.swap('text-claim', owned[1].value, claim);
-  c.on('text-claim', () => s.play(b.hot.age.to(0, { duration: 0.3 })));
-  const mismatch = beside(
-    pictogram('cross', { size: 48, accent: WRONG }),
-    owned[2].value,
-    'right',
-    'tight',
-  );
-  c.show('stand-in', mismatch, { after: true });
-  c.after('stand-in', () =>
-    s.play(indicate(owned[2].value, { color: WRONG }), recolor(claim, WRONG)),
-  );
-  // Supplied scope is checked separately from the registry's branch values.
-  const sheetParts = [
-    sheetFrame,
-    title,
-    names,
-    types,
-    identity.map((field) => field.value),
-    owned[0].value,
-    owned[2].value,
-    claim,
-    mismatch,
-  ];
-  const [scopeRoom, registryRoom] = BAND.columns([2, 3], 'wide');
-  const scope = place(
-    column(
-      [
-        label('Supplied scope', { size: 36 }),
-        mono(REQUEST.tenant, { size: 36 }),
-        mono(REQUEST.release + '  v' + REQUEST.version, { size: 36 }),
-        note(AGE.fresh + ' s / host clock'),
-        note('request + clock', { color: MARK }),
-      ],
-      { gap: 'normal' },
-    ),
-    scopeRoom,
-    'left',
-  );
-  const [registryTop, registryBottom] = registryRoom.rows([3, 2], 'normal');
-  const registryTitle = label('Local registry', { size: 36 });
-  const registryValue = mono('eval: ' + values.eval.failures + ' / ' + values.eval.cases, {
-    size: 36,
-    color,
-  });
-  const registryDigest = mono('#' + RECEIPTS[EVAL].digest.slice(0, 4), { size: 36, color });
-  const registryFields = place(
-    column(
-      [
-        registryTitle,
-        row([registryValue, registryDigest], { gap: 'loose' }),
-        note('branch values → digest'),
-      ],
-      { gap: 'normal' },
-    ),
-    registryTop,
-    'left',
-  );
-  const hashRoute = arrow(
-    boxOf(registryValue).point('right'),
-    boxOf(registryDigest).point('left'),
-    { stroke: color, width: 3, pad: 10 },
-  );
-  const noScope = place(
-    column(
-      [
-        mono('tenant: absent', { size: 30, color: WRONG }),
-        mono('revision: absent', { size: 30, color: WRONG }),
-      ],
-      { gap: 'normal' },
-    ),
-    registryBottom,
-    'left',
-  );
-  const trustScope = place(
-    note('Production: authenticate scoped sources', { color: MARK }),
-    BAND,
-    'bottom left',
-  );
-  c.swap('film-scope', sheetParts, scope);
-  c.show('registry-values', registryFields);
-  c.on('registry-values', () =>
-    s.play(
-      seq(
-        indicate(registryValue, { color: MARK, scale: 1 }),
-        draw(hashRoute, { duration: 0.7 }),
-        indicate(registryDigest, { color: MARK, scale: 1 }),
-      ),
-    ),
-  );
-  c.show('fixture-trust', noScope, { after: true });
-  c.show('authenticate-source', trustScope);
+  // Beat 2: Concurrent reducers
+  const concLit = s.value(0);
+  const dupLit = s.value(0);
+  const orderLit = s.value(0);
+  const scalarClash = s.value(0);
+  const chooseLit = s.value(0);
+  const uniqueLit = s.value(0);
 
-  // Beat 2. How updates combine: a list keeps what arrives, a scalar takes one write, a slot has one owner.
-  const state = channels(s, BAND, { entries: [2, 0, 1, 1] });
-  const ownedSlots = place(
-    column(
-      [
-        label('One receipt per required branch'),
-        row(
-          RECEIPTS.map(({ branch }, i) =>
-            chip(branch, { color: BRANCH_COLOR[i], stroke: BRANCH_COLOR[i] }),
+  const evalDigest = shortHash(RECEIPTS[0].digest, 10);
+  const bgAtmo = cinemaAtmosphere(ROLE.eval, ROLE.reject);
+  const title = heroTitle(['Narrow Update', 'Contracts'], {
+    x: -860,
+    y: -440,
+    size: 54,
+    lineHeight: 62,
+    accent: ROLE.eval,
+    eyebrow: 'TYPED RECEIPTS  /  PROVENANCE & REDUCERS',
+  });
+
+  const live = guardedDynamic(s.value(1), () => {
+    const ph = phase.value;
+    const m0 = stage0.value;
+    const m1 = stage1.value;
+    const m2 = stage2.value;
+    const nodes = [];
+
+    // =========================================================================
+    // STAGE 0: Graph State -> Copied Read-Only View -> Eval Node -> Narrow Output
+    // =========================================================================
+    if (m0 > 0.02) {
+      // Left: Graph state column
+      const sx = -860;
+      const sy = -195;
+      nodes.push(
+        txt(
+          'GRAPH STATE (INPUT)',
+          sx,
+          sy,
+          26,
+          stateLit.value > 0.3 ? ROLE.triage : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m0),
+        rule(sx, sy + 24, -460, sy + 24, ROLE.triage, 2).opacity(m0),
+        txt(
+          `request:  ${REQUEST.request}`,
+          sx,
+          sy + 68,
+          26,
+          idLit.value > 0.3 ? ROLE.mark : COSMOS.ink,
+          'mono',
+          'left',
+        ).opacity(m0),
+        txt(
+          `tenant:   ${REQUEST.tenant}`,
+          sx,
+          sy + 114,
+          26,
+          idLit.value > 0.3 ? ROLE.mark : COSMOS.ink,
+          'mono',
+          'left',
+        ).opacity(m0),
+        txt(
+          `release:  ${REQUEST.release}  v${REQUEST.version}`,
+          sx,
+          sy + 160,
+          26,
+          idLit.value > 0.3 ? ROLE.mark : COSMOS.ink,
+          'mono',
+          'left',
+        ).opacity(m0),
+        txt(
+          `traffic:  ${REQUEST.traffic}%`,
+          sx,
+          sy + 206,
+          26,
+          COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m0),
+        txt('approved: false', sx, sy + 252, 26, COSMOS.muted, 'mono', 'left').opacity(m0),
+      );
+
+      // Middle: Read-only view & Eval worker ring
+      const midX = -120;
+      const midY = -30;
+      const pIn = conduitPts([-440, -60], [midX - 130, midY]);
+      nodes.push(
+        glowingTrail(pIn, {
+          color: viewLit.value > 0.3 ? ROLE.eval : COSMOS.dim,
+          width: 3.4,
+          opacity: m0,
+          core: false,
+        }),
+        glowDot(...samplePolyline(pIn, (ph * 0.35) % 1), {
+          radius: 6,
+          color: ROLE.eval,
+          opacity: m0,
+        }),
+        lumBar(midX, midY, 240, 120, {
+          color: evalEvLit.value > 0.3 ? ROLE.eval : ROLE.triage,
+          fillOpacity: 0.18,
+          strokeWidth: 2.8,
+          glow: 11,
+          opacity: m0,
+        }),
+        txt('EVAL NODE', midX, midY - 18, 28, COSMOS.ink, 'mono').opacity(m0),
+        txt(
+          viewLit.value > 0.3 ? 'read-only view' : 'branch worker',
+          midX,
+          midY + 22,
+          26,
+          ROLE.eval,
+          'sans',
+        ).opacity(m0),
+      );
+
+      // Right: Three output channels (1 allowed: eval receipt; 2 blocked: approval & traffic)
+      const rx = 310;
+      const chans = [
+        {
+          y: -170,
+          label: 'receipts: [eval]',
+          sub: '2/100 failures',
+          col: ROLE.pass,
+          allowed: true,
+          hot: Math.max(ownedLit.value, evalEvLit.value),
+        },
+        {
+          y: -15,
+          label: 'approved = true',
+          sub: 'BLOCKED BY WRAPPER',
+          col: ROLE.reject,
+          allowed: false,
+          hot: blockApp.value,
+        },
+        {
+          y: 140,
+          label: 'traffic = 50%',
+          sub: 'BLOCKED BY WRAPPER',
+          col: ROLE.reject,
+          allowed: false,
+          hot: blockTraf.value,
+        },
+      ];
+      chans.forEach((ch, idx) => {
+        const pts = conduitPts([midX + 125, midY], [rx - 20, ch.y]);
+        const cCol = ch.allowed
+          ? ch.hot > 0.3
+            ? ROLE.pass
+            : ROLE.eval
+          : ch.hot > 0.3
+            ? ROLE.reject
+            : COSMOS.rule;
+        nodes.push(
+          glowingTrail(pts, {
+            color: cCol,
+            width: ch.hot > 0.3 ? 3.8 : 2.2,
+            opacity: m0 * (ch.allowed || ch.hot > 0.2 ? 0.92 : 0.45),
+            core: false,
+          }),
+        );
+        if (ch.allowed) {
+          nodes.push(
+            glowDot(...samplePolyline(pts, (ph * 0.35 + 0.3) % 1), {
+              radius: 6.5,
+              color: ROLE.pass,
+              opacity: m0,
+            }),
+          );
+        } else if (ch.hot > 0.3) {
+          const [bx, by] = samplePolyline(pts, 0.55);
+          nodes.push(
+            line([bx - 14, by - 14], [bx + 14, by + 14], { stroke: ROLE.reject, width: 4.5 })
+              .glow(8, ROLE.reject)
+              .opacity(m0 * ch.hot),
+            line([bx + 14, by - 14], [bx - 14, by + 14], { stroke: ROLE.reject, width: 4.5 })
+              .glow(8, ROLE.reject)
+              .opacity(m0 * ch.hot),
+          );
+        }
+        nodes.push(
+          txt(
+            ch.label,
+            rx,
+            ch.y - 12,
+            28,
+            ch.allowed ? ROLE.pass : ch.hot > 0.3 ? ROLE.reject : COSMOS.muted,
+            'mono',
+            'left',
+          ).opacity(m0),
+          txt(ch.sub, rx, ch.y + 24, 26, COSMOS.muted, 'mono', 'left').opacity(
+            m0 * Math.max(0.4, ch.hot),
           ),
-          { gap: 'normal' },
+        );
+      });
+
+      nodes.push(
+        rule(-860, 315, 860, 315, ROLE.rule, 2).opacity(m0),
+        txt(
+          'Checked output wrapper restricts each worker to its own branch receipt',
+          -860,
+          365,
+          28,
+          ROLE.eval,
+          'sans',
+          'left',
+        ).opacity(m0),
+      );
+    }
+
+    // =========================================================================
+    // STAGE 1: Types Fit != Provenance Trust (tenant9, "passed", registry limit)
+    // =========================================================================
+    if (m1 > 0.02) {
+      const lx = -860;
+      const tWrong = tenantWrong.value;
+      const claim = textClaim.value;
+      const brk = digestBreak.value;
+
+      // Left column: Incoming receipt fields mutating live
+      nodes.push(
+        txt('RECEIPT PAYLOAD  (SCHEMA VS TRUST)', lx, -210, 26, ROLE.mark, 'mono', 'left').opacity(
+          m1,
         ),
-      ],
-      { gap: 'normal' },
-    ),
-    BAND,
-    'left',
-  );
-  c.swap(2, [scope, registryFields, hashRoute, noScope, trustScope], state.frame);
-  s.add(...state.live);
-  const arrive = (entry) =>
-    par(entry.shown.to(1, { duration: 0.2 }), entry.drop.to(1, { duration: 0.5 }));
-  c.on('branch-ownership', () => s.play(lagged(state.list.slice(0, 3).map(arrive), { lag: 0.6 })));
-  c.on('list-duplicates', () => s.play(indicate(state.frame[2], { color: MARK, scale: 1 })));
-  c.after('list-duplicates', () =>
-    s.play(seq(arrive(state.list[3]), state.list[3].wrong.to(1, { duration: 0.2 }))),
-  );
-  // Permute reducer inputs. Their order need not match network completion.
-  c.on('reducer-order', () =>
-    s.play(
-      seq(
-        par(...state.list.slice(0, 2).map((entry) => entry.shown.to(0, { duration: 0.25 }))),
-        par(
-          state.list[0].slot.to(1, { duration: 0.05 }),
-          state.list[1].slot.to(0, { duration: 0.05 }),
-          ...state.list.slice(0, 2).map((entry) => entry.drop.to(0, { duration: 0.05 })),
+        rule(lx, -186, -40, -186, ROLE.rule, 2).opacity(m1),
+      );
+
+      // Tenant row
+      const tenY = -120;
+      const tenStr = tWrong > 0.5 ? 'tenant:  "tenant9"  (str OK)' : 'tenant:  "tenant7"  (str OK)';
+      nodes.push(
+        lumBar(-450, tenY, 820, 56, {
+          color: tWrong > 0.5 ? ROLE.reject : typeLit.value > 0.3 ? ROLE.eval : COSMOS.rule,
+          fillOpacity: tWrong > 0.5 ? 0.22 : 0.1,
+          strokeWidth: tWrong > 0.5 ? 2.8 : 1.8,
+          glow: tWrong > 0.5 ? 11 : 4,
+          opacity: m1,
+        }),
+        txt(
+          tenStr,
+          lx + 20,
+          tenY,
+          28,
+          tWrong > 0.5 ? ROLE.reject : COSMOS.ink,
+          'mono',
+          'left',
+        ).opacity(m1),
+      );
+
+      // Eval value row
+      const valY = -30;
+      const valStr =
+        claim > 0.5 ? 'value:   "passed"  (free text)' : 'value:   { failures: 2, cases: 100 }';
+      nodes.push(
+        lumBar(-450, valY, 820, 56, {
+          color: claim > 0.5 ? ROLE.reject : ROLE.eval,
+          fillOpacity: claim > 0.5 ? 0.22 : 0.1,
+          strokeWidth: claim > 0.5 ? 2.8 : 1.8,
+          glow: claim > 0.5 ? 11 : 4,
+          opacity: m1,
+        }),
+        txt(
+          valStr,
+          lx + 20,
+          valY,
+          28,
+          claim > 0.5 ? ROLE.reject : COSMOS.ink,
+          'mono',
+          'left',
+        ).opacity(m1),
+      );
+
+      // Digest row
+      const digY = 60;
+      nodes.push(
+        txt(
+          brk > 0.5
+            ? `digest:  MISMATCH  !=  ${evalDigest}...`
+            : `digest:  sha256(${evalDigest}...)`,
+          lx + 20,
+          digY,
+          26,
+          brk > 0.5 ? ROLE.reject : ROLE.pass,
+          'mono',
+          'left',
+        )
+          .glow(brk > 0.5 ? 8 : 4, brk > 0.5 ? ROLE.reject : ROLE.pass)
+          .opacity(m1),
+      );
+
+      // Right column: Join comparator + Registry trust gap
+      const rx = 120;
+      nodes.push(
+        txt(
+          'JOIN VERIFICATION GATE',
+          rx,
+          -210,
+          26,
+          sourceCheck.value > 0.3 ? ROLE.pass : ROLE.eval,
+          'mono',
+          'left',
+        ).opacity(m1),
+        rule(rx, -186, 860, -186, ROLE.rule, 2).opacity(m1),
+        txt(
+          '1. Match tenant, release, v3 vs ticket',
+          rx,
+          -135,
+          26,
+          tWrong > 0.5 ? ROLE.reject : COSMOS.ink,
+          'sans',
+          'left',
+        ).opacity(m1),
+        txt(
+          '2. Recompute SHA-256 from source counts',
+          rx,
+          -80,
+          26,
+          brk > 0.5 ? ROLE.reject : COSMOS.ink,
+          'sans',
+          'left',
+        ).opacity(m1),
+        txt(
+          '3. Check observation age <= 60 s',
+          rx,
+          -25,
+          26,
+          filmScopeLit.value > 0.3 ? ROLE.eval : COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(m1),
+      );
+
+      // Bottom trust boundary: Local fixture registry vs Authenticated release service
+      const by = 185;
+      nodes.push(
+        rule(-860, by - 36, 860, by - 36, ROLE.rule, 2).opacity(m1),
+        txt(
+          'LOCAL FIXTURE REGISTRY',
+          lx,
+          by,
+          26,
+          regLit.value > 0.3 ? ROLE.policy : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m1),
+        txt(
+          missingTenant.value > 0.3
+            ? 'Supplies counts only  |  tenant field MISSING'
+            : 'Supplies counts for hashing',
+          lx,
+          by + 44,
+          26,
+          missingTenant.value > 0.3 ? ROLE.reject : COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(m1),
+        glowArrow(
+          [-110, by + 22],
+          [75, by + 22],
+          authSource.value > 0.3 ? ROLE.pass : COSMOS.rule,
+          {
+            width: 3.4,
+            opacity: m1,
+          },
         ),
-        arrive(state.list[1]),
-        arrive(state.list[0]),
-      ),
-    ),
-  );
-  c.on('scalar-conflict', () => s.play(par(...state.scalar.writes.map(arrive))));
-  c.after('scalar-conflict', () => s.play(state.scalar.clash.to(1, { duration: 0.3 })));
-  c.swap('choose-rule', [...state.frame, ...state.live], ownedSlots, { after: true });
-  c.on('choose-rule', () =>
-    s.play(
-      lagged(
-        slotNames.map((slot, i) => indicate(slot, { color: BRANCH_COLOR[i], scale: 1.15 })),
-        { lag: 0.3 },
-      ),
-    ),
-  );
-  c.on('unique-owners', () => s.play(...b.card.map((card) => card.read.to(3, { duration: 0.9 }))));
-  c.after('unique-owners', () => {
-    b.card.forEach((card) => card.verdict.set(1));
-    b.packet.seal.set(1);
+        txt(
+          'PRODUCTION RELEASE SERVICE',
+          rx,
+          by,
+          26,
+          authSource.value > 0.3 ? ROLE.pass : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m1),
+        txt(
+          'Authenticated source record: tenant + revision + time',
+          rx,
+          by + 44,
+          26,
+          authSource.value > 0.3 ? COSMOS.ink : COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(m1),
+      );
+    }
+
+    // =========================================================================
+    // STAGE 2: Concurrent Reducers (List-Append Duplicates vs Scalar Collision)
+    // =========================================================================
+    if (m2 > 0.02) {
+      const lx = -860;
+      const topY = -175;
+
+      // Top lane: List-add reducer
+      nodes.push(
+        txt('LIST-ADD REDUCER  (receipts: list)', lx, topY, 26, ROLE.eval, 'mono', 'left').opacity(
+          m2,
+        ),
+        rule(lx, topY + 24, 860, topY + 24, ROLE.rule, 2).opacity(m2),
+      );
+      const rawItems =
+        dupLit.value > 0.4
+          ? ['policy', 'eval', 'eval']
+          : orderLit.value > 0.4
+            ? ['policy', 'health', 'eval']
+            : ['eval', 'health', 'policy'];
+      rawItems.forEach((item, i) => {
+        const cx = -730 + i * 215;
+        const isDup = dupLit.value > 0.4 && i === 2;
+        const col = isDup
+          ? ROLE.reject
+          : item === 'eval'
+            ? ROLE.eval
+            : item === 'health'
+              ? ROLE.health
+              : ROLE.policy;
+        nodes.push(
+          lumBar(cx, topY + 86, 185, 56, {
+            color: col,
+            fillOpacity: 0.24,
+            strokeWidth: 2.6,
+            glow: isDup ? 12 : 7,
+            opacity: m2,
+          }),
+          txt(isDup ? 'eval (DUP)' : item, cx, topY + 86, 26, COSMOS.ink, 'mono').opacity(m2),
+        );
+      });
+
+      // Arrow to canonical sorted batch
+      nodes.push(
+        glowArrow(
+          [-185, topY + 86],
+          [25, topY + 86],
+          uniqueLit.value > 0.3 ? ROLE.pass : ROLE.mark,
+          {
+            width: 3.6,
+            opacity: m2,
+          },
+        ),
+        txt(
+          uniqueLit.value > 0.3 ? 'validate + sort' : 'sort by branch',
+          -80,
+          topY + 46,
+          26,
+          ROLE.mark,
+          'mono',
+        ).opacity(m2),
+      );
+
+      ['eval', 'health', 'policy'].forEach((item, i) => {
+        const cx = 165 + i * 215;
+        const col = item === 'eval' ? ROLE.eval : item === 'health' ? ROLE.health : ROLE.policy;
+        nodes.push(
+          lumBar(cx, topY + 86, 185, 56, {
+            color: uniqueLit.value > 0.3 ? ROLE.pass : col,
+            fillOpacity: 0.2,
+            strokeWidth: 2.6,
+            glow: uniqueLit.value > 0.3 ? 10 : 5,
+            opacity: m2,
+          }),
+          txt(item, cx, topY + 86, 26, COSMOS.ink, 'mono').opacity(m2),
+        );
+      });
+
+      // Bottom lane: Unreduced scalar collision
+      const botY = 75;
+      const cl = scalarClash.value;
+      nodes.push(
+        txt(
+          'SCALAR CHANNEL  (no reducer)',
+          lx,
+          botY,
+          26,
+          cl > 0.3 ? ROLE.reject : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m2),
+        rule(lx, botY + 24, 860, botY + 24, ROLE.rule, 2).opacity(m2),
+        lumBar(-680, botY + 88, 360, 56, { color: ROLE.eval, fillOpacity: 0.22, opacity: m2 }),
+        txt('eval -> status="ok"', -680, botY + 88, 26, COSMOS.ink, 'mono').opacity(m2),
+        lumBar(-680, botY + 174, 360, 56, { color: ROLE.health, fillOpacity: 0.22, opacity: m2 }),
+        txt('health -> status="ok"', -680, botY + 174, 26, COSMOS.ink, 'mono').opacity(m2),
+        glowArrow([-485, botY + 96], [-210, botY + 131], cl > 0.3 ? ROLE.reject : COSMOS.muted, {
+          width: 3.2,
+          opacity: m2,
+        }),
+        glowArrow([-485, botY + 166], [-210, botY + 131], cl > 0.3 ? ROLE.reject : COSMOS.muted, {
+          width: 3.2,
+          opacity: m2,
+        }),
+        glowRing(-145, botY + 131, 46, cl > 0.3 ? ROLE.reject : ROLE.merge, {
+          width: 3.4,
+          fillOpacity: cl > 0.3 ? 0.25 : 0.1,
+          glow: cl > 0.3 ? 13 : 5,
+          opacity: m2,
+        }),
+        txt(
+          cl > 0.3 ? 'CLASH' : 'KEY',
+          -145,
+          botY + 131,
+          26,
+          cl > 0.3 ? ROLE.reject : COSMOS.ink,
+          'mono',
+        ).opacity(m2),
+        txt(
+          uniqueLit.value > 0.3
+            ? 'Choose update rule deliberately, then validate merged meaning'
+            : chooseLit.value > 0.3
+              ? 'Two parallel writes to one scalar conflict'
+              : 'Reduction syntax != semantic agreement',
+          -55,
+          botY + 131,
+          28,
+          uniqueLit.value > 0.3 ? ROLE.mark : cl > 0.3 ? ROLE.reject : COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(m2),
+      );
+    }
+
+    return nodes;
   });
 
-  b.leave(c);
+  s.add(bgAtmo, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  // Beat 0: Narrow output wrapper
+  tweenCue(s, c, 'node-state', stateLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'copied-view', viewLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'trusted-identity', idLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'owned-branch-results', ownedLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'eval-evidence', evalEvLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'cannot-approval', blockApp, 1, { duration: 0.35 });
+  tweenCue(s, c, 'cannot-traffic', blockTraf, 1, { duration: 0.35 });
+
+  // Beat 1: Cross-swap to schema vs trust
+  crossSwap(s, c, 'types', stage0, stage1, { duration: 0.42 });
+  tweenCue(s, c, 'types', typeLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'field-ownership', tenantWrong, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'source-identity', sourceCheck, 1, { duration: 0.35 });
+  tweenCue(s, c, 'text-claim', textClaim, 1, { duration: 0.35 });
+  tweenCue(s, c, 'stand-in', digestBreak, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'film-scope', filmScopeLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'registry-values', regLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'fixture-trust', missingTenant, 1, { duration: 0.35 });
+  tweenCue(s, c, 'authenticate-source', authSource, 1, { duration: 0.35 });
+
+  // Beat 2: Cross-swap to concurrent reducers
+  crossSwap(s, c, 'branch-ownership', stage1, stage2, { duration: 0.42 });
+  tweenCue(s, c, 'branch-ownership', concLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'list-duplicates', dupLit, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'reducer-order', orderLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'scalar-conflict', scalarClash, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'choose-rule', chooseLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'unique-owners', uniqueLit, 1, { duration: 0.35 });
 }

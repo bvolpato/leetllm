@@ -151,7 +151,7 @@ Causal output:
 With the causal mask, *"Birds"* puts weight `1.0` on itself and returns `[2.0, 1.0]`, while *"sing"* sees both tokens and keeps `[1.421, 1.579]`.
 
 <figure>
-  <img src="illustrations/_generated/attention_heatmap_dark.png" alt="Scaled QK compatibility heatmap [[0.636, 0.530], [0.424, 0.742]] paired with row-softmax attention weights [[0.527, 0.473], [0.421, 0.579]], showing how the sing query mixes values into [1.421, 1.579]." />
+  <img src="illustrations/_generated/attention_heatmap_dark.png" alt="Scaled QK compatibility heatmap [[0.636, 0.530], [0.424, 0.742]] paired with row-softmax attention weights [[0.526, 0.474], [0.421, 0.579]], showing how the sing query mixes values into [1.421, 1.579]." />
   <figcaption>Read attention row by row from scaled scores to normalized weights to mixed values. Every query row sums to 1, while columns do not need to because many queries can read the same key.</figcaption>
 </figure>
 
@@ -388,8 +388,8 @@ Attention hits two completely different walls depending on whether you are train
 For batch 8, 32 heads, and $n = 8{,}192$ in <span data-glossary="fp16">FP16</span> (2 bytes), a single layer's naive score matrix takes $8 \times 32 \times 8{,}192^2 \times 2 = 34.4\text{ GB}$ ($32\text{ GiB}$) before weights or <span data-glossary="optimizer-state">optimizer state</span>.
 
 <figure>
-  <img src="illustrations/_generated/attention_complexity_dark.png" alt="Standard attention writes an N-by-N score matrix to HBM, growing quadratically from 2 MB at sequence length 1024 to 512 MB at length 16384 per head in FP16, while tiled FlashAttention keeps one active block in on-chip SRAM with O(N) HBM traffic." />
-  <figcaption>Naive attention writes an $N \times N$ FP16 score matrix per head to HBM (2 MB at $N=1{,}024$ up to 512 MB at $N=16{,}384$). Tiled FlashAttention keeps only one active block in on-chip SRAM so temporary HBM memory stays $O(N)$.</figcaption>
+  <img src="illustrations/_generated/attention_complexity_dark.png" alt="Standard attention writes an N-by-N score matrix to HBM, growing quadratically from 2 MiB at sequence length 1024 to 512 MiB at length 16384 per head in FP16, while tiled FlashAttention keeps one active block in on-chip SRAM with O(N) HBM traffic." />
+  <figcaption>Naive attention writes an $N \times N$ FP16 score matrix per head to HBM (2 MiB at $N=1{,}024$ up to 512 MiB at $N=16{,}384$). Tiled FlashAttention keeps only one active block in on-chip SRAM so temporary HBM memory stays $O(N)$.</figcaption>
 </figure>
 
 ### Training vs. decoding: two different hardware walls
@@ -403,7 +403,7 @@ $$
 \text{Memory}_{\text{KV}} = 2 \cdot L \cdot h_{\text{KV}} \cdot d_k \cdot N \cdot B \cdot P_{\text{bytes}}
 $$
 
-Sharing KV heads across query heads shrinks that read and boosts decode arithmetic intensity by $h_Q / h_{\text{KV}}$: **MHA** uses $h_{\text{KV}} = h_Q$; **Multi-Query Attention (MQA)** shares one KV head ($h_{\text{KV}} = 1$);[^shazeer2019] and **Grouped-Query Attention (GQA)** shares $G$ KV heads across query groups (Llama 3.1 70B uses $L=80, h_Q=64, h_{\text{KV}}=8, d_k=128$, cutting a 320 GiB batch-16 cache 8x to 40 GiB).[^ainslie2023][^dubey2024]
+Sharing KV heads across query heads shrinks that read and boosts decode arithmetic intensity by $h_Q / h_{\text{KV}}$: **MHA** uses $h_{\text{KV}} = h_Q$; **Multi-Query Attention (MQA)** shares one KV head ($h_{\text{KV}} = 1$);[^shazeer2019] and **Grouped-Query Attention (GQA)** shares $G$ KV heads across query groups (Llama 3.1 70B uses $L=80, h_Q=64, h_{\text{KV}}=8, d_k=128$, cutting a 320 GiB batch-16 FP16 cache at $N=8{,}192$ by 8x to 40 GiB).[^ainslie2023][^dubey2024]
 
 <!-- leetllm: test, output=show -->
 ```python title="kv-head-bandwidth.py"

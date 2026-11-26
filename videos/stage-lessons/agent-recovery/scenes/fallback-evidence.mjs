@@ -1,335 +1,362 @@
-// Scene `fallback-evidence`: what a switch of provider does not change.
-//
-// The picture: the route at the top. A switch arm goes from the primary model to the backup, and
-// all the rest stays: the agent, the tool lane, the controller with job-1. Under the route, one
-// band changes with the voice: what the backup must pass, then an observation on a line of time
-// that is 40 minutes from now, then the card of a handoff that fills field by field.
+// Scene 13: fallback-evidence - "Can the backup answer the status question?"
+// Three stages: (1) Model failover checklist (data policy, role/tool translation, shared budget & tool),
+// (2) Evidence freshness gauge (40m cached snapshot vs live read; model "live" label cannot override clock),
+// (3) Redacted human handoff packet & caller cancellation stopping the fallback chain.
+import { line } from 'vizmatic/stage';
 import {
-  arrow,
-  appear,
-  moveTo,
-  seq,
-  vanish,
-  assertEqual,
-  beside,
-  boxOf,
-  column,
-  dynamic,
-  grid,
-  indicate,
-  lerp,
-  line,
-  place,
-  rect,
-  row,
-} from 'vizmatic/stage';
-import { dispatchOperation, recoveryObservation } from '../../../films/agent-recovery/model.mjs';
-import { area, chip, heading, label, mono, namedBox, note } from '../../kit-narrated.mjs';
-import { COLOR, OP, ageLine, cross, record, tint, token, travel, wall } from '../parts.mjs';
-
-/** The age of the cached observation, and the share of that time that a claim about now accepts. */
-const AGE = '40 minutes ago';
-const FRESH = 30 / (40 * 60);
+  COSMOS,
+  OP,
+  ROLE,
+  actorOrb,
+  ambientClock,
+  cinemaAtmosphere,
+  glowArrow,
+  glowCross,
+  glowDot,
+  glowPill,
+  guardedDynamic,
+  heroTitle,
+  hexAlpha,
+  lowerFooter,
+  playCue,
+  txt,
+} from '../parts.mjs';
 
 export default function fallbackEvidence(s, c) {
-  const seen = recoveryObservation();
-  assertEqual([seen.jobId, seen.state], [OP.job, OP.state], 'the cached observation');
-  const database = { operations: new Map(), jobs: new Map() };
-  dispatchOperation(database, OP.key, { run: 'RUN-842', revision: OP.revision }, 'after-commit');
-  const operationRecord = database.operations.get(OP.key);
-  assertEqual(operationRecord.job, seen.jobId, 'the handoff identifies the observed job');
-  const payload = Object.entries(operationRecord.payload)
-    .map(([name, value]) => `${name}: ${value}`)
-    .join('\n');
-
-  const [top, bottom] = area.rows(2, 'normal');
-
-  // The route: two providers, the agent, the tool lane, and the controller with its job.
-  const providers = [
-    namedBox('primary model', { width: 280, height: 96, color: COLOR.fail, sub: 'not available' }),
-    namedBox('backup model', { width: 280, height: 96, color: COLOR.attempt }),
-  ];
-  place(column(providers, { gap: 'wide' }), top, 'left');
-  const agent = place(
-    namedBox('agent', { width: 240, height: 110, color: COLOR.attempt }),
-    top.columns([5, 3, 10], 'none')[1],
-    'right',
-  );
-  const panel = place(
-    rect(460, top.height, { radius: 18, stroke: COLOR.controller, fill: 'surface', width: 3 }),
-    top,
-    'right',
-  );
-  const inside = boxOf(panel).inset('normal');
-  const panelName = place(label('controller', { color: COLOR.controller }), inside, 'top left');
-  const job = place(
-    record(
-      [
-        [seen.jobId, COLOR.sure],
-        [seen.state, 'ink'],
-      ],
-      inside.width,
-    ),
-    inside,
-  );
-  const unknownJob = record(
-    [
-      [seen.jobId, COLOR.sure],
-      ['?', 'dim'],
-    ],
-    inside.width,
-    { color: 'dim', dash: [10, 8] },
-  ).moveTo(job.center);
-  const currentUnknown = beside(note('current state: unobserved'), unknownJob, 'under', 'normal');
-  const operation = beside(token(OP.key, COLOR.op), panelName, 'under', 'tight', 'left');
-  const laneY = agent.center[1];
-  const from = [boxOf(agent).right + 14, laneY];
-  const to = [boxOf(panel).left - 14, laneY];
-  const lane = arrow(from, to, { stroke: 'dim', width: 4, pad: 0 });
-  // The switch arm: from the agent to the provider that it uses. 0 is the primary, 1 is the backup.
-  const route = s.value(0);
-  const hinge = [boxOf(agent).left - 12, laneY];
-  const arm = dynamic(() =>
-    line(
-      hinge,
-      [
-        boxOf(providers[0]).right + 12,
-        lerp(providers[0].center[1], providers[1].center[1], route.value),
-      ],
-      {
-        stroke: route.value > 0.5 ? COLOR.attempt : COLOR.fail,
-        width: 7,
-      },
-    ),
-  );
-  const at = [lerp(from[0], to[0], 0.36), laneY];
-  const gate = wall(s, { at, top: laneY - 70, bottom: laneY + 70 });
-  gate.open.set(1);
-  const narrow = beside(
-    chip('write tools off: classify a log excerpt', { color: COLOR.mark, stroke: COLOR.mark }),
-    [at[0], laneY - 70],
-    'above',
-    'tight',
-  );
-  const failing = cross().moveTo([lerp(from[0], to[0], 0.7), laneY]);
-  const failingName = beside(
-    note('the same failing tool', { color: COLOR.fail }),
-    failing,
-    'under',
-    'normal',
-  );
-  const shared = beside(
-    chip('one deadline, one spend, one cancel', { color: COLOR.mark, stroke: COLOR.mark }),
-    agent,
-    'under',
-    'wide',
-    'left',
-  );
-
-  // The message keeps its operation key through translation and compatibility checks.
-  const [pipelineNames, pipelinePath, pipelineFoot] = bottom.rows([2, 2, 1], 'normal');
-  const columns = pipelineNames.columns(3, 'wide');
-  const adapters = [
-    place(namedBox('message', { width: columns[0].width, height: 100, color: 'dim' }), columns[0]),
-    place(
-      namedBox('translation adapter', { width: columns[1].width, height: 100, color: 'dim' }),
-      columns[1],
-    ),
-    place(
-      namedBox('compatibility checks', { width: columns[2].width, height: 100, color: 'dim' }),
-      columns[2],
-    ),
-  ];
-  const stops = pipelinePath.columns(3, 'wide').map((cell) => cell.point());
-  const links = [0, 1].map((i) => arrow(stops[i], stops[i + 1], { stroke: 'faint', width: 3 }));
-  const message = token([
-    [OP.key, COLOR.op],
-    ['text: excerpt', COLOR.attempt],
-  ]).moveTo(stops[0]);
-  const translatedMessage = token([
-    [OP.key, COLOR.op],
-    ['content: excerpt', COLOR.attempt],
-  ]).moveTo(stops[1]);
-  const dataAllowed = beside(
-    note('data allowed', { color: COLOR.sure }),
-    adapters[0],
-    'above',
-    'tight',
-  );
-  const translated = beside(
-    note('roles · tools · schema · context', { color: COLOR.attempt }),
-    adapters[1],
-    'under',
-    'tight',
-  );
-  const refusal = beside(note('refusal · incomplete response'), adapters[2], 'under', 'tight');
-  const compatible = place(
-    chip('route tested', { color: COLOR.sure, stroke: COLOR.sure }),
-    pipelineFoot,
-    'right',
-  );
-  const log = place(
-    chip('log excerpt: read only', { color: COLOR.sure, stroke: COLOR.sure }),
-    pipelineFoot,
-    'left',
-  );
-  const sizeNote = place(
-    note('Measure cost and accuracy on the log task'),
-    pipelineFoot,
-    'right',
-  );
-  const pipeline = [...adapters, ...links, message];
-
-  // Band 2. The cached observation on a line of time, and the claim about now.
-  const [seenRow, lineRow, rulesRow] = bottom.rows(3, 'none');
-  const age = ageLine(lineRow.inset('wide', 'none'), { past: AGE, fresh: FRESH });
-  const cached = (state) =>
-    beside(
-      token(
-        [
-          [seen.jobId, COLOR.sure],
-          [state, 'ink'],
-        ],
-        COLOR.sure,
-      ),
-      age.start,
-      'above',
-      'wide',
-      'left',
-    );
-  const observed = cached(seen.state);
-  const completed = cached('completed');
-  const lastSeen = beside(
-    note('what was last seen', { color: COLOR.sure }),
-    observed,
-    'right',
-    'normal',
-  );
-  const claim = beside(
-    chip('finished now?', { color: 'dim', stroke: 'dim', dash: [10, 8] }),
-    age.now,
-    'above',
-    'wide',
-    'right',
-  );
-  const noClaim = beside(
-    chip('finished now: cannot say', { color: COLOR.fail, stroke: COLOR.fail }),
-    age.now,
-    'above',
-    'wide',
-    'right',
-  );
-  const flag = place(
-    column(
-      [
-        token('has_live_evidence: true', 'dim', { dash: [10, 8] }),
-        note('model label on the cached record', { color: COLOR.fail }),
-      ],
-      {
-        gap: 'tight',
-        align: 'center',
-      },
-    ),
-    seenRow,
-  );
-  const rules = [
-    'through a trusted adapter',
-    'the right run and operation',
-    'new enough for the claim',
-  ].map((words) => chip(words, { color: COLOR.mark, stroke: COLOR.mark }));
-  place(row(rules), rulesRow, 'left');
-  const dated = place(
-    label('Last seen completed 40 minutes ago', { size: 34, color: 'dim' }),
-    seenRow,
-  );
-
-  // Band 3. The card of a handoff, and three rules for it.
-  const fields = [
-    ['task', 'rollback, approved', 'ink'],
-    ['key', OP.key, COLOR.op],
-    ['payload', payload, COLOR.op],
-    ['last seen', `${seen.jobId} completed, ${AGE}`, COLOR.sure],
-    ['state', 'unresolved', COLOR.mark],
-    ['attempts', 'a1, a2', COLOR.attempt],
-    ['stop', 'no route meets the claim', COLOR.fail],
-  ].map(([name, value, color]) => [note(name), mono(value, { size: 34, color })]);
-  const [cardSide, ruleSide] = bottom.columns(2, 'wide');
-  place(grid(fields.flat(), { columns: 2, gap: ['wide', 'tight'] }), cardSide, 'left');
-  const answer = chip('answer: unavailable, or a handoff', {
-    color: COLOR.mark,
-    stroke: COLOR.mark,
+  const title = heroTitle(['Can the backup answer', 'the status question?'], {
+    x: -855,
+    y: -440,
+    size: 50,
+    lineHeight: 58,
+    accent: ROLE.violet,
   });
-  const cardRules = [
-    'allowlisted, redacted fields: no raw transcript',
-    'cached access: this caller, permission checked now',
-    'a user cancel starts no fallback',
-  ].map((words) => chip(words, { color: 'ink', stroke: 'dim' }));
-  place(column([answer, ...cardRules], { gap: 'normal' }), ruleSide, 'left');
 
-  s.add(
-    heading(c.title),
-    providers,
-    agent,
-    panel,
-    panelName,
-    operation,
-    job,
-    lane,
-    arm,
-    gate.nodes,
-    shared,
-    adapters,
-    links,
-  );
-  c.clear([...links, lane], 0.46, 0.2);
-  c.show('fallback-processor', dataAllowed);
-  c.on('fallback-processor', () => s.play(appear(message)));
-  c.on('fallback-format', () => s.play(travel(message, stops[1], { duration: 0.9 })));
-  c.on('fallback-format', () => s.play(vanish(message), appear(translatedMessage)), 1.1);
-  c.show('fallback-format', translated, { after: true });
-  c.show('fallback-refusal', refusal);
-  c.on('fallback-refusal', () => s.play(travel(translatedMessage, stops[2], { duration: 0.9 })));
-  c.on('fallback-switch', () => s.play(indicate(adapters[2], { color: COLOR.mark, scale: 1 })));
-  c.show('fallback-switch', compatible, { after: true });
-  c.after('fallback-switch', () => s.play(route.to(1, { duration: 0.6 })));
-  c.show('narrower', [narrow, log]);
-  c.on('narrower', () => s.play(gate.open.to(0, { duration: 0.6 })));
-  c.swap('model-size', compatible, sizeNote);
-  c.on('shared-state', () => s.play(indicate(shared, { color: COLOR.mark, scale: 1 })));
-  c.show('shared-dependency', [failing, failingName]);
+  const amb = ambientClock(s, c);
+  const stage = s.value(0); // 0 = backup route, 1 = freshness gauge, 2 = redacted handoff
+  const showPolicy = s.value(0);
+  const showTranslate = s.value(0);
+  const showNarrow = s.value(0);
+  const showSharedTool = s.value(0);
 
-  // A cache from 40 minutes ago: it says what was seen, and nothing about now.
-  c.hide(1, links, { lead: 0.5, fade: 0.2 });
-  c.swap(
-    1,
-    [...adapters, translatedMessage, dataAllowed, translated, refusal, log, sizeNote, job],
-    [age.nodes, unknownJob, currentUnknown],
-  );
-  c.show('cache-says', observed);
-  c.show('last-observed', lastSeen);
-  c.show('stale-evidence', claim);
-  c.swap('stale-evidence', claim, noClaim, { after: true });
-  c.show('evidence-rules', rules[0]);
-  c.show('right-run', rules[1]);
-  c.show('freshness', [rules[2], age.band, age.bandName]);
-  c.show('generated-flag', flag);
-  c.hide('completed-old', lastSeen);
-  c.swap('completed-old', observed, completed);
-  c.on('completed-old', () => s.play(indicate(age.bandName, { color: COLOR.mark, scale: 1 })), 1.2);
-  c.swap('dated-report', flag, dated);
+  const showCache40 = s.value(0);
+  const showAdapter = s.value(0);
+  const showModelLie = s.value(0);
+  const showCompletedOld = s.value(0);
 
-  // No route can make the claim: the answer is "unavailable", or a handoff with these fields.
-  c.swap(
-    2,
-    [...age.nodes, completed, noClaim, ...rules, age.band, age.bandName, dated],
-    fields.map((field) => field[0]),
+  const showFields = s.value(0);
+  const showRedact = s.value(0);
+  const showCancelStop = s.value(0);
+
+  const layer = guardedDynamic(
+    () => 1,
+    (alpha) => {
+      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
+      const st = Math.round(stage.value);
+      const nodes = [];
+
+      if (st === 0) {
+        // Stage 1: Primary -> Backup model route + shared failed dependency
+        nodes.push(
+          txt(
+            'PROVIDER FALLBACK SHARES BUDGET, DEADLINE & TOOLS',
+            0,
+            -275,
+            27,
+            ROLE.violet,
+            'mono',
+            'center',
+          ).opacity(alpha),
+          actorOrb(-665, -125, 62, ROLE.fail, 'Primary', 'unavailable', { alpha }),
+          actorOrb(-665, 135, 62, ROLE.violet, 'Backup', 'read-only route', {
+            alpha,
+            active: true,
+          }),
+          actorOrb(665, 10, 68, ROLE.fail, 'Failed Tool', 'shared dependency', {
+            alpha,
+            active: showSharedTool.value > 0.4,
+          }),
+          glowArrow(-550, -125, -395, -125, hexAlpha(ROLE.fail, 0.45 * alpha), {
+            width: 3,
+            alpha,
+            dash: [8, 6],
+          }),
+          glowArrow(-550, 135, -395, 135, ROLE.violet, { width: 3.5, alpha }),
+          glowArrow(410, 10, 535, 10, ROLE.fail, { width: 3.5, alpha }),
+        );
+
+        // Failover checks floating cleanly in center column
+        const checks = [
+          {
+            y: -150,
+            text: '1. Data processor allowed',
+            col: ROLE.sure,
+            op: Math.max(0.5, showPolicy.value),
+          },
+          {
+            y: -62,
+            text: '2. Translate roles, tools & limits',
+            col: ROLE.agent,
+            op: Math.max(0.4, showTranslate.value),
+          },
+          {
+            y: 26,
+            text: '3. Test refusal & incomplete output',
+            col: ROLE.mark,
+            op: Math.max(0.4, showTranslate.value),
+          },
+          {
+            y: 114,
+            text: '4. Read-only mode + measure cost',
+            col: ROLE.violet,
+            op: Math.max(0.35, showNarrow.value),
+          },
+        ];
+        for (const ch of checks) {
+          nodes.push(glowPill(ch.text, 10, ch.y, ch.col, { size: 26, alpha: ch.op * alpha }));
+        }
+
+        if (showSharedTool.value > 0.4) {
+          nodes.push(
+            glowCross(515, 10, 34, ROLE.fail, showSharedTool.value * alpha),
+            txt(
+              'Switching models cannot fix a shared failed tool or expand the remaining budget.',
+              0,
+              315,
+              27,
+              ROLE.fail,
+              'sans',
+              'center',
+            ).opacity(showSharedTool.value * alpha),
+          );
+        } else {
+          nodes.push(
+            txt(
+              'Test every backup route on the real task before trusting failover.',
+              0,
+              315,
+              27,
+              COSMOS.muted,
+              'sans',
+              'center',
+            ).opacity(alpha),
+          );
+        }
+      } else if (st === 1) {
+        // Stage 2: Evidence freshness timeline (40 min ago vs NOW)
+        const tlY = -10;
+        const x0 = -680;
+        const x1 = 680;
+        nodes.push(
+          txt(
+            'HOST TIMESTAMP OVERRIDES MODEL CLAIMS',
+            0,
+            -275,
+            28,
+            ROLE.mark,
+            'mono',
+            'center',
+          ).opacity(alpha),
+          line([x0, tlY], [x1, tlY], { stroke: '#4a5c88', width: 4.5 }).opacity(alpha),
+          glowDot(x0, tlY, { radius: 13, color: ROLE.fail, glow: 14, opacity: alpha }),
+          glowDot(x1, tlY, { radius: 13, color: ROLE.sure, glow: 14, opacity: alpha }),
+          txt('40 MIN AGO (CACHED)', x0, tlY + 46, 26, ROLE.fail, 'mono', 'left').opacity(alpha),
+          txt('NOW (FRESH READ REQUIRED)', x1, tlY + 46, 26, ROLE.sure, 'mono', 'right').opacity(
+            alpha,
+          ),
+        );
+
+        // Cached observation card
+        const cacheState =
+          showCompletedOld.value > 0.5 ? 'completed (40m ago)' : 'queued (40m ago)';
+        nodes.push(
+          glowPill(`${OP.job}: ${cacheState}`, x0 + 230, tlY - 82, ROLE.mark, {
+            size: 27,
+            alpha: Math.max(0.55, showCache40.value) * alpha,
+          }),
+        );
+
+        // Trusted adapter requirements on right
+        if (showAdapter.value > 0.3) {
+          nodes.push(
+            glowPill('Trusted adapter + run/op match + timestamp', 340, tlY - 82, ROLE.sure, {
+              size: 26,
+              alpha: showAdapter.value * alpha,
+            }),
+          );
+        }
+
+        // Model tries to label cached record "live" -> crossed out cleanly to the left!
+        if (showModelLie.value > 0.3) {
+          nodes.push(
+            glowCross(-540, 155, 34, ROLE.fail, showModelLie.value * alpha),
+            glowPill('Model text: "LIVE NOW"', -240, 155, ROLE.fail, {
+              size: 27,
+              alpha: showModelLie.value * alpha,
+            }),
+            glowPill('Host timestamp: still 40m old!', 320, 155, ROLE.mark, {
+              size: 27,
+              alpha: showModelLie.value * alpha * (0.85 + 0.15 * pulse),
+            }),
+          );
+        }
+
+        nodes.push(
+          txt(
+            showCompletedOld.value > 0.5
+              ? 'Even a cached "completed" state stays dated to when it was observed.'
+              : 'Report when the queue last saw it; never present stale cache as live status.',
+            0,
+            315,
+            27,
+            COSMOS.ink,
+            'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      } else {
+        // Stage 3: Redacted Human Handoff Packet + Caller Cancel
+        nodes.push(
+          txt(
+            'SAFE UNAVAILABLE RESPONSE OR REDACTED HANDOFF PACKET',
+            0,
+            -275,
+            27,
+            ROLE.sure,
+            'mono',
+            'center',
+          ).opacity(alpha),
+        );
+
+        const fields = [
+          { x: -430, y: -135, text: '1. Authorized task', col: ROLE.agent },
+          { x: 430, y: -135, text: `2. Operation key (${OP.key})`, col: ROLE.op },
+          { x: -430, y: -25, text: `3. Exact payload (${OP.revision})`, col: ROLE.op },
+          { x: 430, y: -25, text: '4. Last confirmed observation', col: ROLE.sure },
+          { x: -430, y: 85, text: '5. Unresolved state', col: ROLE.mark },
+          { x: 430, y: 85, text: '6. Attempts + stop reason', col: ROLE.violet },
+        ];
+
+        for (const f of fields) {
+          nodes.push(
+            glowPill(f.text, f.x, f.y, f.col, {
+              size: 26,
+              alpha: Math.max(0.5, showFields.value) * alpha,
+            }),
+          );
+        }
+
+        nodes.push(
+          glowPill(
+            'Allowlist approved fields · Redact secrets · Recheck permission',
+            0,
+            205,
+            ROLE.sure,
+            {
+              size: 26,
+              alpha: Math.max(0.4, showRedact.value) * alpha,
+            },
+          ),
+          txt(
+            showCancelStop.value > 0.5
+              ? 'Caller cancel stops the fallback chain.'
+              : 'Scope cached access strictly to the authenticated caller.',
+            0,
+            315,
+            28,
+            showCancelStop.value > 0.5 ? ROLE.fail : COSMOS.ink,
+            'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      }
+
+      nodes.push(
+        lowerFooter(
+          'HONEST FALLBACKS · DATED OBSERVATIONS · REDACTED HANDOFF',
+          st === 0
+            ? 'SHARED BUDGET & FAILED TOOLS'
+            : st === 1
+              ? 'STALE CACHE != LIVE STATUS'
+              : 'CANCEL STOPS FALLBACK CHAIN',
+          { accent: ROLE.violet, alpha },
+        ),
+      );
+
+      return nodes;
+    },
   );
-  c.show('unavailable', answer);
-  ['h-task', 'h-key', 'h-payload', 'h-observation', 'h-state'].forEach((cue, index) =>
-    c.show(cue, fields[index][1]),
+
+  s.add(cinemaAtmosphere(ROLE.violet, ROLE.mark), title, layer);
+
+  playCue(s, c, 'fallback-processor', (d) => s.play(showPolicy.to(1, { duration: d })), {
+    dur: 0.4,
+  });
+  playCue(s, c, 'fallback-format', (d) => s.play(showTranslate.to(0.6, { duration: d })), {
+    dur: 0.4,
+  });
+  playCue(s, c, 'fallback-refusal', (d) => s.play(showTranslate.to(1, { duration: d })), {
+    dur: 0.4,
+  });
+  playCue(s, c, 'fallback-switch', (d) => s.play(showTranslate.to(1, { duration: d })), {
+    dur: 0.35,
+  });
+  playCue(s, c, 'narrower', (d) => s.play(showNarrow.to(0.7, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'model-size', (d) => s.play(showNarrow.to(1, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'shared-state', (d) => s.play(showSharedTool.to(0.6, { duration: d })), {
+    dur: 0.4,
+  });
+  playCue(s, c, 'shared-dependency', (d) => s.play(showSharedTool.to(1, { duration: d })), {
+    dur: 0.45,
+  });
+
+  playCue(
+    s,
+    c,
+    'cache-says',
+    (d) => s.play(stage.to(1, { duration: 0.15 }), showCache40.to(1, { duration: d })),
+    {
+      dur: 0.45,
+    },
   );
-  c.show('h-attempts', [fields[5][1], fields[6][1]], { stagger: true });
-  c.show('allowlist', cardRules[0]);
-  c.show('recheck-permission', cardRules[1]);
-  c.show('no-cancel-fallback', cardRules[2]);
+  playCue(s, c, 'last-observed', (d) => s.play(showCache40.to(1, { duration: d })), { dur: 0.35 });
+  playCue(s, c, 'stale-evidence', (d) => s.play(showAdapter.to(0.4, { duration: d })), {
+    dur: 0.35,
+  });
+  playCue(s, c, 'evidence-rules', (d) => s.play(showAdapter.to(0.7, { duration: d })), {
+    dur: 0.35,
+  });
+  playCue(s, c, 'right-run', (d) => s.play(showAdapter.to(0.9, { duration: d })), { dur: 0.35 });
+  playCue(s, c, 'freshness', (d) => s.play(showAdapter.to(1, { duration: d })), { dur: 0.35 });
+  playCue(s, c, 'generated-flag', (d) => s.play(showModelLie.to(1, { duration: d })), {
+    dur: 0.45,
+  });
+  playCue(s, c, 'completed-old', (d) => s.play(showCompletedOld.to(0.7, { duration: d })), {
+    dur: 0.4,
+  });
+  playCue(s, c, 'dated-report', (d) => s.play(showCompletedOld.to(1, { duration: d })), {
+    dur: 0.4,
+  });
+
+  playCue(
+    s,
+    c,
+    'unavailable',
+    (d) => s.play(stage.to(2, { duration: 0.15 }), showFields.to(0.5, { duration: d })),
+    {
+      dur: 0.4,
+    },
+  );
+  playCue(s, c, 'h-task', (d) => s.play(showFields.to(0.65, { duration: d })), { dur: 0.3 });
+  playCue(s, c, 'h-key', (d) => s.play(showFields.to(0.75, { duration: d })), { dur: 0.3 });
+  playCue(s, c, 'h-payload', (d) => s.play(showFields.to(0.85, { duration: d })), { dur: 0.3 });
+  playCue(s, c, 'h-observation', (d) => s.play(showFields.to(0.9, { duration: d })), { dur: 0.3 });
+  playCue(s, c, 'h-state', (d) => s.play(showFields.to(0.95, { duration: d })), { dur: 0.3 });
+  playCue(s, c, 'h-attempts', (d) => s.play(showFields.to(1, { duration: d })), { dur: 0.3 });
+  playCue(s, c, 'allowlist', (d) => s.play(showRedact.to(0.7, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'recheck-permission', (d) => s.play(showRedact.to(1, { duration: d })), {
+    dur: 0.4,
+  });
+  playCue(s, c, 'no-cancel-fallback', (d) => s.play(showCancelStop.to(1, { duration: d })), {
+    dur: 0.45,
+  });
 }

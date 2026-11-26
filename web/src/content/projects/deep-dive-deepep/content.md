@@ -41,7 +41,7 @@ A routed <span data-glossary="mixture-of-experts">mixture-of-experts</span> (MoE
 
 ## Why expert parallelism needs a communication layer
 
-In expert parallelism, each GPU stores only its local slice of experts, trading lower weight memory for per-layer activation exchanges. Standard `all_to_all_single` expects uniform counts and leaves the caller to compute peer counts, deduplicate tokens hitting multiple experts on the same rank, pack GEMM-aligned expert buffers, overlap async receives, and invert the scatter back to source order. DeepEP fuses those four responsibilities cleanly while leaving the router, expert <span data-glossary="gemm">GEMMs</span>, and gate multiplication in the caller:[^deepep2026repo]
+In expert parallelism, each GPU stores only its local slice of experts, trading lower weight memory for per-layer activation exchanges. By default, `all_to_all_single` assumes uniform splits (requiring separate metadata exchanges for uneven counts) and leaves the caller to compute peer counts, deduplicate tokens hitting multiple experts on the same rank, pack GEMM-aligned expert buffers, overlap async receives, and invert the scatter back to source order. DeepEP fuses those five responsibilities cleanly while leaving the router, expert <span data-glossary="gemm">GEMMs</span>, and gate multiplication in the caller:[^deepep2026repo]
 
 ```mermaid
 flowchart TB
@@ -64,7 +64,7 @@ Trace two ranks and four experts: rank 0 owns experts `{0, 1}` with tokens `a, b
 Dispatch sends each token **at most once per distinct destination rank** (even if two chosen experts live on that same rank), returns an `EPHandle` recording the inverse slot map, and delivers gate weights alongside received rows. Suppose expert $k$ scales inputs by $k + 1$ and token `a` starts at `(1.0, 0.0)`: E0 returns `(1.0, 0.0)` and E3 returns `(4.0, 0.0)`. The caller multiplies by gates (`0.70` and `0.30`), and `combine` sums `(0.70, 0.0) + (1.20, 0.0) = (1.90, 0.0)` back into source row `a`.
 
 <figure>
-  <img src="illustrations/_generated/deepep_token_journey_dark.png" alt="Token routing and combine lifecycle in DeepEP: four tokens route across four experts partitioned between Rank 0 (E0, E1) and Rank 1 (E2, E3). Token a selects E0 with weight 0.70 (local NVLink) and E3 with weight 0.30 (remote RDMA). Combine sums weighted expert outputs back into source position a as 1.90." />
+  <img src="illustrations/_generated/deepep_token_journey_dark.png" alt="Token routing and combine lifecycle in DeepEP: four tokens route across four experts partitioned between Rank 0 (E0, E1) and Rank 1 (E2, E3). Token a selects E0 with weight 0.70 (local on Rank 0) and E3 with weight 0.30 (remote RDMA). Combine sums weighted expert outputs back into source position a as 1.90." />
   <figcaption>Token `a` stays local for E0 and crosses RDMA for E3; the caller weights expert outputs once, and `combine` restores `(1.90, 0.0)` into source row `a` via `EPHandle`.</figcaption>
 </figure>
 

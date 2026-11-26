@@ -1,98 +1,206 @@
-import { assertEqual, column, dot, line, place } from 'vizmatic/stage';
-import { area, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { dot as inner, scalarEncode } from '../../../films/embedding-geometry/arithmetic.mjs';
+// Scene 10: scalar-scales: "What does one code step buy?"
+// Dual glowing 127-step calibration rulers showing why unscaled code counts flip A and B,
+// and visibly restoring physical units (10/127 vs 1/127) to recover A = 8.031 vs B = 1.000.
+import { dynamic, group, line } from 'vizmatic/stage';
+import {
+  COSMOS,
+  ROLE,
+  cinemaAtmosphere,
+  dotProd,
+  glowDot,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  playCue,
+  rule,
+  runPhase,
+  scalarEncode,
+  swapVis,
+  txt,
+} from '../parts.mjs';
 
 export default function scalarScales(s, c) {
-  const q = [1, 1],
-    bounds = [10, 1],
-    originals = [
-      [8, 0],
-      [0, 1],
-    ];
-  const [premise, inputs, readout, foot] = area.rows([1, 4, 1.7, 1], 'normal');
-  const rows = inputs.rows(2, 'wide'),
-    ids = ['A', 'B'],
-    colors = ['green', 'pink'];
+  const q = [1, 1];
+  const bounds = [10, 1];
+  const originals = [
+    [8, 0],
+    [0, 1],
+  ];
   const scales = bounds.map((b) => b / 127);
   const codes = originals.map((r) => r.map((v, j) => scalarEncode(v, bounds[j])));
-  const raw = codes.map((r) => inner(q, r));
+  const raw = codes.map((r) => dotProd(q, r)); // [102, 127]
   const fixed = codes.map((r) =>
-    inner(
+    dotProd(
       q,
       r.map((n, j) => n * scales[j]),
     ),
-  );
-  assertEqual(raw.join(','), '102,127', 'code-only score');
-  assertEqual(fixed.map((n) => n.toFixed(3)).join(','), '8.031,1.000', 'scale-aware score');
-  const origin = place(label('q = [1, 1]       A = [8, 0]       B = [0, 1]'), premise);
-  const rulers = rows.flatMap((r, i) => {
-    const [legend, graph] = r.columns([1, 3.3], 'loose');
-    const board = graph.inset('wide', 'none');
-    const y = board.cy;
-    const pos = (n) => board.left + (board.width * n) / 127;
-    return [
-      place(
-        column(
-          [
-            label('Coordinate ' + (i + 1), { size: 38 }),
-            mono('step ' + bounds[i] + '/127', { size: 32 }),
-          ],
-          { gap: 'tight' },
+  ); // [8.031, 1.000]
+
+  const phase = s.value(0);
+  const showCodes = s.value(0);
+  const vWrong = s.value(0);
+  const vAsk = s.value(0);
+  const vRestored = s.value(0);
+
+  const title = heroTitle(['What does one', 'code step buy?'], {
+    x: -855,
+    y: -445,
+    size: 50,
+    lineHeight: 58,
+    accent: ROLE.A,
+    eyebrow: 'PER-DIMENSION SCALES',
+  });
+
+  // Top premise + dual 127-step rulers
+  const rulerLayer = dynamic(() => {
+    const p = phase.value;
+    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
+    const cOp = showCodes.value;
+    const rL = -360;
+    const rR = 760;
+    const pos = (codeVal) => rL + (codeVal / 127) * (rR - rL);
+    const ys = [-165, 10];
+    const ids = ['A', 'B'];
+    const cols = [ROLE.A, ROLE.B];
+
+    const nodes = [
+      txt(
+        'q = [1, 1]     ·     A = [8, 0]     ·     B = [0, 1]',
+        855,
+        -395,
+        30,
+        ROLE.query,
+        'mono',
+        'right',
+      ),
+    ];
+
+    ys.forEach((ry, i) => {
+      nodes.push(
+        txt(`Coordinate ${i + 1}`, -845, ry - 18, 34, cols[i], 'serif', 'left').glow(5, cols[i]),
+        txt(`step = ${bounds[i]} / 127`, -845, ry + 24, 28, COSMOS.muted, 'mono', 'left'),
+        line([rL, ry], [rR, ry], { stroke: '#4c608e', width: 4.5 }),
+        ...[0, 32, 64, 96, 127].map((tick) =>
+          line([pos(tick), ry - 12], [pos(tick), ry + 12], { stroke: '#5d73a3', width: 2.5 }),
         ),
-        legend,
+        txt('0', rL, ry + 42, 26, COSMOS.dim, 'mono'),
+        txt(String(bounds[i]), rR, ry + 42, 28, cols[i], 'mono'),
+      );
+
+      if (cOp > 0.02) {
+        const codeVal = codes[i][i];
+        const px = pos(codeVal);
+        nodes.push(
+          lumBar((rL + px) / 2, ry, Math.max(10, px - rL), 14, {
+            color: cols[i],
+            fillAlpha: 0.42,
+            strokeWidth: 2,
+            glow: 8 * pulse,
+            opacity: cOp,
+          }),
+          glowDot(px, ry, { radius: 10, color: cols[i], glow: 13 * pulse, opacity: cOp }),
+          txt(`${ids[i]}  code ${codeVal}`, i === 1 ? px - 95 : px, ry - 42, 32, cols[i], 'mono')
+            .glow(6, cols[i])
+            .opacity(cOp),
+        );
+      }
+    });
+
+    nodes.push(rule(-850, 108, 850, 108, COSMOS.rule, 1.8).opacity(0.6));
+    return group(...nodes);
+  });
+
+  // Lower comparison View 1: Unscaled code-only counts (B wrongly wins 127 > 102)
+  const wrongLayer = guardedDynamic(vWrong, (a) => {
+    const barL = -520;
+    const wA = (raw[0] / 127) * 560;
+    const wB = (raw[1] / 127) * 560;
+    return group(
+      txt('UNSCALED CODE COUNTS (WRONG UNITS)', -845, 165, 26, ROLE.warn, 'mono', 'left').opacity(
+        a,
+      ),
+      txt('A', -845, 235, 34, ROLE.A, 'mono', 'left').opacity(a),
+      lumBar(barL + wA / 2, 235, wA, 38, { color: ROLE.A, fillAlpha: 0.3, glow: 6, opacity: a }),
+      txt(`${raw[0]} counts`, barL + wA + 26, 235, 32, ROLE.A, 'mono', 'left').opacity(a),
+      txt('B', -845, 305, 34, ROLE.B, 'mono', 'left').opacity(a),
+      lumBar(barL + wB / 2, 305, wB, 38, { color: ROLE.B, fillAlpha: 0.4, glow: 9, opacity: a }),
+      txt(`${raw[1]} counts  (wins on counts!)`, barL + wB + 26, 305, 32, ROLE.warn, 'mono', 'left')
+        .glow(6, ROLE.warn)
+        .opacity(a),
+    );
+  });
+
+  // Withheld prediction prompt
+  const askLayer = guardedDynamic(vAsk, (a) =>
+    txt(
+      'Which row has the larger dot product once you restore the units?',
+      0,
+      412,
+      36,
+      ROLE.gold,
+      'serif',
+    )
+      .glow(8, ROLE.gold)
+      .opacity(a),
+  );
+
+  // Lower comparison View 2: Restored units (A = 8.031 vs B = 1.000)
+  const restoredLayer = guardedDynamic(vRestored, (a) => {
+    const barL = -520;
+    const wA = (fixed[0] / 8.5) * 760;
+    const wB = (fixed[1] / 8.5) * 760;
+    return group(
+      txt('RESTORED UNITS  (CODE × SCALE)', -845, 165, 26, ROLE.A, 'mono', 'left').opacity(a),
+      txt('A', -845, 235, 34, ROLE.A, 'mono', 'left').opacity(a),
+      lumBar(barL + wA / 2, 235, wA, 40, { color: ROLE.A, fillAlpha: 0.42, glow: 10, opacity: a }),
+      txt(
+        `102 × 10/127 ≈ ${fixed[0].toFixed(3)}   (A wins!)`,
+        barL + wA + 24,
+        235,
+        32,
+        ROLE.A,
+        'mono',
         'left',
-      ),
-      line([pos(0), y], [pos(127), y], { stroke: 'dim', width: 5 }),
-      ...[0, 32, 64, 96, 127].map((n) =>
-        line([pos(n), y - 10], [pos(n), y + 10], { stroke: 'dim', width: 3 }),
-      ),
-      mono('0', { size: 34 }).moveTo([pos(0), y + 35]),
-      mono(String(bounds[i]), { size: 34 }).moveTo([pos(127), y + 35]),
-    ];
+      )
+        .glow(7, ROLE.A)
+        .opacity(a),
+      txt('B', -845, 305, 34, ROLE.B, 'mono', 'left').opacity(a),
+      lumBar(barL + wB / 2, 305, wB, 40, { color: ROLE.B, fillAlpha: 0.34, glow: 7, opacity: a }),
+      txt(
+        `127 × 1/127 = ${fixed[1].toFixed(3)}`,
+        barL + wB + 24,
+        305,
+        32,
+        ROLE.B,
+        'mono',
+        'left',
+      ).opacity(a),
+      txt(
+        'Full precision: A = 8, B = 1   ·   recheck reconstructed lengths for cosine',
+        0,
+        412,
+        28,
+        COSMOS.muted,
+        'sans',
+      ).opacity(a),
+    );
   });
-  const data = rows.flatMap((r, i) => {
-    const graph = r.columns([1, 3.3], 'loose')[1].inset('wide', 'none');
-    const code = codes[i][i],
-      x = graph.left + (graph.width * code) / 127;
-    return [
-      dot(12, colors[i]).moveTo([x, graph.cy]),
-      mono(ids[i] + '   code ' + code, { color: colors[i], size: 38 }).moveTo([
-        x - (i ? 80 : 0),
-        graph.cy - 44,
-      ]),
-    ];
+
+  s.add(cinemaAtmosphere(ROLE.A, ROLE.B), title, rulerLayer, wrongLayer, askLayer, restoredLayer);
+
+  runPhase(s, c, phase, 8);
+
+  playCue(s, c, 'codes', (d) => s.play(showCodes.to(1, { duration: d })), {
+    after: true,
+    dur: 0.5,
   });
-  const slots = readout.columns(2, 'loose');
-  const wrong = ids.map((name, i) =>
-    place(
-      mono(name + '   ' + raw[i] + ' counts', {
-        size: 45,
-        color: colors[i],
-      }),
-      slots[i],
-    ),
+  playCue(s, c, 'wrong', (d) => s.play(vWrong.to(1, { duration: d })), { after: true, dur: 0.45 });
+  playCue(s, c, 'ask', (d) => s.play(vAsk.to(1, { duration: d })), { dur: 0.4 });
+  playCue(
+    s,
+    c,
+    'restore',
+    (d) => s.play(vAsk.to(0, { duration: Math.min(0.25, d) }), swapVis(vWrong, vRestored, d)),
+    { after: true, dur: 0.6 },
   );
-  const corrected = ids.map((name, i) =>
-    place(
-      mono(name + '   ' + raw[i] + ' × ' + bounds[i] + '/127 ≈ ' + fixed[i].toFixed(3), {
-        size: 42,
-        color: colors[i],
-      }),
-      slots[i],
-    ),
-  );
-  const ask = place(
-    label('Which row has the larger reconstructed dot product?', { color: 'yellow' }),
-    foot,
-  );
-  const trueScores = originals.map((v) => inner(q, v));
-  const baseline = place(
-    note('Full precision     A = ' + trueScores[0] + '     B = ' + trueScores[1]),
-    foot,
-  );
-  s.add(heading(c.title), origin, rulers);
-  c.show('codes', data, { after: true });
-  c.show('wrong', wrong, { after: true });
-  c.show('ask', ask);
-  c.swap('restore', [...wrong, ask], [...corrected, baseline], { after: true });
 }

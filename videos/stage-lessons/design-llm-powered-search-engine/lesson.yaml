@@ -1,0 +1,1883 @@
+version: 1
+id: design-llm-powered-search-engine
+title: Designing Search for a Changing Policy
+source: system-design/design-llm-powered-search-engine/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Retrieval augmented generation
+    url: https://arxiv.org/abs/2005.11401
+  - title: Qdrant filtered search
+    url: https://qdrant.tech/documentation/concepts/filtering/
+  - title: Server-sent events standard
+    url: https://html.spec.whatwg.org/multipage/server-sent-events.html
+  - title: PagedAttention
+    url: https://arxiv.org/abs/2309.06180
+scenes:
+  - id: intro
+    title: Two hits for one search
+    visual: Two policy passages slide out beneath Alice’s search for a migration date. Their deadlines
+      stay beside the question as her approval record changes and the permitted window fills.
+    beats:
+      - say: Can we start the migration on day forty-five? Alice's search turns up two deadlines. The policy
+          gives her thirty days from the deprecation notice. For a service account like hers, the exception
+          allows sixty days with security approval. Alice's approval is pending. Which deadline applies today?
+        hold: 2.6
+        visual_cues:
+          - id: intro-start
+            phrase: Can we start the migration on day forty-five
+            targets:
+              - intro-query
+            color: yellow
+            linger: 0.3
+          - id: intro-general
+            phrase: The policy gives her thirty days from the deprecation notice
+            targets:
+              - intro-policy
+              - migration-base
+            color: blue
+            linger: 0.3
+          - id: intro-exception
+            phrase: allows sixty days with security approval
+            targets:
+              - intro-exception-page
+              - migration-extension
+            color: green
+            linger: 0.3
+          - id: intro-pending
+            phrase: Alice's approval is pending
+            targets:
+              - migration-record
+            color: cyan
+            linger: 0.3
+          - id: intro-question
+            phrase: Which deadline applies today
+            targets:
+              - migration-decision
+            color: yellow
+            linger: 0.3
+        caption_starts:
+          - Alice's search
+          - The policy gives her
+          - For a service account
+          - Alice's approval is pending
+          - Which deadline applies today
+      - say: Thirty days. Day forty-five falls outside the window. Now security approves the migration.
+          The window extends to sixty days. Alice can keep her date. A search answer needs those four
+          words from the exception, only with security approval.
+        hold: 1.2
+        visual_cues:
+          - id: intro-outside
+            phrase: Thirty days
+            targets:
+              - migration-decision
+            color: yellow
+            linger: 0.3
+          - id: intro-approved
+            phrase: Now security approves the migration
+            targets:
+              - migration-record
+            color: cyan
+            linger: 0.3
+          - id: intro-extend
+            phrase: The window extends to sixty days
+            targets:
+              - migration-extension
+            color: green
+            linger: 0.3
+        caption_starts:
+          - Day forty-five falls
+          - Now security approves
+          - The window extends
+          - Alice can keep her date
+          - A search answer needs
+  - id: answer-contract
+    title: What does Alice’s answer need to say?
+    visual: A draft cites the general policy and the exception. Its last few words disappear while both
+      original passages remain readable.
+    beats:
+      - say: Suppose Alice asks the search engine which window applies, without telling it about her approval.
+          It can still give her a useful answer. Start within thirty days of the notice, or within sixty
+          for a service account with security approval. Look what happens if the draft drops the last four
+          words of the exception. Someone with a pending request could read that draft and choose day
+          forty-five.
+        hold: 1.2
+        visual_cues:
+          - id: se-answer-contract-0
+            phrase: Start within thirty days of the notice
+            targets:
+              - se-answer-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: se-answer-contract-condition
+            phrase: drops the last four words of the exception
+            targets:
+              - se-answer-contract-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Each source passage is a chunk the engine can retrieve. An embedding represents its content as
+          numbers for similarity search. A reranker compares a smaller set of passages more closely with
+          Alice's question. When the generator uses those passages to write its reply, that's
+          retrieval-augmented generation. The application still has to check who may read each passage and
+          whether each citation supports the answer.
+        hold: 0.7
+        visual_cues:
+          - id: se-answer-contract-1
+            phrase: Each source passage is a chunk
+            targets:
+              - se-answer-contract-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Here the two documents fit together because one explicitly grants an exception. If two current
+          sources disagree and neither explains which governs, report the conflict. If a required source
+          is missing, say what's missing or show links Alice is allowed to open. We'll use a fictional
+          workload to price and time that search.
+        hold: 0.7
+        visual_cues:
+          - id: se-answer-contract-2
+            phrase: one explicitly grants an exception
+            targets:
+              - se-answer-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: se-answer-contract-conflict
+            phrase: report the conflict
+            targets:
+              - se-answer-contract-mechanism
+            color: yellow
+            linger: 0.3
+  - id: ingest-identity
+    title: Publish a source representation with defined offsets
+    visual: An immutable revision retains normalized text, hash, character spans and access metadata while index
+      publication waits for its required entries.
+    beats:
+      - say: Before a passage becomes searchable, bind document and revision identity, tenant, original text or a
+          retained snapshot, source offsets, content hash, publication and effective times, and access
+          metadata. Define the offset representation. Normalized-text character positions are not byte
+          positions in original HTML; retain the normalization version.
+        hold: 0.7
+        visual_cues:
+          - id: se-ingest-identity-0
+            phrase: Before a passage becomes searchable, bind document and revision identity, tenant, original text or a
+              retained snapshot, source offsets, content hash, publication and effective times, and access
+              metadata
+            targets:
+              - se-ingest-identity-mechanism
+            color: cyan
+            linger: 0.4
+          - id: se-ingest-identity-offset
+            phrase: Normalized-text character positions are not byte positions in original HTML
+            targets:
+              - se-ingest-identity-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Updates must remove or supersede old chunks, and deletions or permission revocation need a deny path that
+          can act before embeddings rebuild. Publish an index view only when its necessary metadata and
+          entries are ready. A current-revision registry can reject stale candidates while indexes converge.
+        hold: 0.7
+        visual_cues:
+          - id: se-ingest-identity-1
+            phrase: Updates must remove or supersede old chunks, and deletions or permission revocation need a deny path
+              that can act before embeddings rebuild
+            targets:
+              - se-ingest-identity-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-ingest-identity-registry
+            phrase: A current-revision registry can reject stale candidates while indexes converge
+            targets:
+              - se-ingest-identity-mechanism
+            color: yellow
+            linger: 0.4
+      - say: That registry knows only updates it has received. It cannot detect a source change that ingestion has not
+          learned. Keep publication, effective time, ingestion time and index publication as distinct clocks.
+          A newly crawled old revision is still old policy; a timestamp boost cannot establish which rule
+          governs.
+        hold: 0.7
+        visual_cues:
+          - id: se-ingest-identity-2
+            phrase: That registry knows only updates it has received
+            targets:
+              - se-ingest-identity-mechanism
+            color: green
+            linger: 0.4
+          - id: se-ingest-identity-clocks
+            phrase: Keep publication, effective time, ingestion time and index publication as distinct clocks
+            targets:
+              - se-ingest-identity-mechanism
+            color: yellow
+            linger: 0.4
+  - id: authority-scope
+    title: Carry authenticated scope through every branch
+    visual: A request principal retains one authorized corpus while planner rewrites, parent fetches,
+      rerankers, previews, logs and cache paths inherit the same boundary.
+    beats:
+      - say: Derive tenant and group membership in trusted service code. Apply scope to raw and rewritten
+          searches, speculative branches, parent-document fetches, external rerankers, citation previews,
+          logs and cache lookup. Missing access metadata denies a document. A query or a source
+          instruction cannot widen that scope.
+        hold: 0.7
+        visual_cues:
+          - id: se-authority-scope-0
+            phrase: Derive tenant and group membership in trusted service code
+            targets:
+              - se-authority-scope-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Prefer candidate filtering during retrieval before top K truncation when supported. If the backend
+          requires filtering afterward, continue scanning or over-fetch within a bounded budget and
+          measure authorized recall. Recheck current permissions before text crosses into a less-trusted
+          component and again before publication.
+        hold: 0.7
+        visual_cues:
+          - id: se-authority-scope-1
+            phrase: Prefer candidate filtering during retrieval before top K truncation when supported
+            targets:
+              - se-authority-scope-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-authority-scope-recheck
+            phrase: Recheck current permissions before text crosses into a less-trusted component and again before
+              publication
+            targets:
+              - se-authority-scope-mechanism
+            color: yellow
+            linger: 0.4
+      - say: "Alice can see the same two passages even when their scores change. Only one document contains the
+          word approval. Count it among two eligible documents, then among all four. The word looks rarer
+          in the larger index. Elastic describes this distinction for document-level security: filtering
+          the results leaves the global scoring statistics intact. To isolate scores and timing as well as
+          returned text, you may need separate indexes and tests of the whole path."
+        hold: 0.75
+        visual_cues:
+          - id: se-authority-scope-2
+            phrase: Only one document contains the word approval
+            targets:
+              - se-authority-scope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: se-authority-scope-statistics
+            phrase: filtering the results leaves the global scoring statistics intact
+            targets:
+              - se-authority-scope-mechanism
+            color: yellow
+            linger: 0.35
+  - id: eligible
+    title: Two retrieval slots for Alice’s question
+    visual: Four source identities feed two fixed slots in the trusted service. Taking two before checking
+      eligibility empties them. Checking the same population first fills them with both required
+      identities.
+    beats:
+      - say: In this example the search backend has room for two hits. Inside the trusted service, the highest
+          match is another workspace's roadmap. Next comes the obsolete ninety-day rule. The current
+          policy and its exception are farther down. Take the first two. After Alice's access and the
+          current revisions are checked, how many usable passages are left in those slots?
+        hold: 2.3
+        visual_cues:
+          - id: eligible-order
+            phrase: the highest match is another workspace's roadmap
+            targets:
+              - eligible-population
+            color: cyan
+            linger: 0.3
+          - id: eligible-take
+            phrase: Take the first two
+            targets:
+              - eligible-slots
+            color: blue
+            linger: 0.3
+          - id: eligible-predict
+            phrase: how many usable passages are left in those slots
+            targets:
+              - eligible-count
+            color: yellow
+            linger: 0.3
+        caption_starts:
+          - Take the first two
+          - After Alice
+      - say: Both slots empty out. A generator that sees this result has neither source. Run the same list
+          again. Check eligibility before taking two. Now the current policy and the exception fill the
+          slots. If the backend can only filter a result page, keep scanning within a budget and measure
+          how often the needed passages survive. When a newer policy hasn't reached the index, fetch the
+          authorized current source or tell Alice what's missing.
+        hold: 1
+        visual_cues:
+          - id: eligible-discard
+            phrase: Both slots empty out
+            targets:
+              - eligible-slots
+            color: yellow
+            linger: 0.3
+          - id: eligible-before
+            phrase: Check eligibility before taking two
+            targets:
+              - eligible-population
+            color: cyan
+            linger: 0.3
+          - id: eligible-refill
+            phrase: the current policy and the exception fill the slots
+            targets:
+              - eligible-slots
+            color: green
+            linger: 0.3
+        caption_starts:
+          - Run the same list again
+          - Now the current policy
+  - id: source-router
+    title: Keep freshness independent of route selection
+    visual: The actual Plan function builds live and document routes independently and retains its separate
+      current-revision flag.
+    beats:
+      - say: Is build ten forty-two still running, and which migration policy applies? The build service
+          knows the job's live status. The current policy lives in the document index. A hot index
+          can pick up release notes quickly. A warm index can serve stable manuals. A build report
+          in either index describes the job when someone wrote it.
+        hold: 0.7
+        visual_cues:
+          - id: se-source-router-0
+            phrase: The build service knows the job's live status
+            targets:
+              - se-source-router-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Our router lowercases the question and looks for keywords. The build identifier opens the live
+          API route. The word migration also opens document search. If the question has no live terms,
+          document search is the default. Asking for policy, or using words like current or latest,
+          requires the current revision. Both routes use Alice's permissions.
+        hold: 0.7
+        visual_cues:
+          - id: se-source-router-1
+            phrase: Our router lowercases the question and looks for keywords
+            targets:
+              - se-source-router-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-source-router-both
+            phrase: The build identifier opens the live API route
+            targets:
+              - se-source-router-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-source-router-policy
+            phrase: The word migration also opens document search
+            targets:
+              - se-source-router-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-source-router-freshness
+            phrase: requires the current revision
+            targets:
+              - se-source-router-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Keep the build identifier, dates and negations when rewriting the question. HyDE generates a
+          hypothetical document and uses its vector to search. Here that vector points straight at the
+          exception. The generator can now cite the original passage. If a route fails, search within the
+          same permissions or ask which source the reader needs.
+        hold: 0.7
+        visual_cues:
+          - id: se-source-router-2
+            phrase: Keep the build identifier, dates and negations
+            targets:
+              - se-source-router-mechanism
+            color: green
+            linger: 0.4
+          - id: se-source-router-hyde
+            phrase: that vector points straight at the exception
+            targets:
+              - se-source-router-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-source-router-hyde-construct
+            phrase: HyDE generates a hypothetical document and uses its vector to search
+            targets:
+              - se-source-router-mechanism
+            color: cyan
+            linger: 0.4
+  - id: retrieval-arithmetic
+    title: Compute lexical and vector signals inside the permitted set
+    visual: The local term counts and hand-assigned two-dimensional vectors produce separate candidate
+      rankings with retained document identities.
+    beats:
+      - say: Look for parser version two in these two passages. Only the policy contains that exact
+          identifier. BM25 counts term occurrences, gives rarer terms more weight and adjusts for
+          document length. Add the terms for each passage to get its keyword score. A vector search
+          can also find passages that use different wording.
+        hold: 0.7
+        visual_cues:
+          - id: se-retrieval-arithmetic-0
+            phrase: Look for parser version two in these two passages
+            targets:
+              - se-retrieval-arithmetic-mechanism
+            color: cyan
+            linger: 0.4
+          - id: se-retrieval-arithmetic-lexical
+            phrase: Add the terms for each passage to get its keyword score
+            targets:
+              - se-retrieval-arithmetic-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Give the two passages the hand-drawn vectors on these axes. The query points halfway between them.
+          For the policy, multiply the matching coordinates and add. The dot product is one and a half.
+          Divide by the product of the two lengths. Each length is the square root of the sum of its
+          squared coordinates. The exception makes the same angle, so the cosine scores tie. Sorting tied
+          scores by document identity puts the exception first. The local code returns zero if a vector
+          has zero length.
+        hold: 0.75
+        visual_cues:
+          - id: se-retrieval-arithmetic-1
+            phrase: hand-drawn vectors on these axes
+            targets:
+              - se-retrieval-arithmetic-mechanism
+            color: cyan
+            linger: 0.35
+          - id: se-retrieval-arithmetic-cosine
+            phrase: the cosine scores tie
+            targets:
+              - se-retrieval-arithmetic-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A cross-encoder reads the query and a candidate passage together to score the pair. ColBERT
+          keeps a vector for each passage token so it can compare query tokens with passage tokens at
+          search time. Try different candidate counts and measure how often the exception survives,
+          how well the answer reads and how long the search takes.
+        hold: 0.7
+        visual_cues:
+          - id: se-retrieval-arithmetic-2
+            phrase: A cross-encoder reads the query and a candidate passage together
+            targets:
+              - se-retrieval-arithmetic-mechanism
+            color: green
+            linger: 0.4
+          - id: se-retrieval-arithmetic-interaction
+            phrase: ColBERT keeps a vector for each passage token
+            targets:
+              - se-retrieval-arithmetic-mechanism
+            color: yellow
+            linger: 0.4
+  - id: rrf-rule
+    title: Add one reciprocal contribution per branch identity
+    visual: Rank-owned fractions accumulate into exact document totals after duplicate occurrences are
+      removed within each list.
+    beats:
+      - say: A single keyword search returned the policy twice. Remove the extra copy before you assign ranks.
+          Now the policy is first and the exception is second. A result can earn a contribution in each
+          separate list where it appears. For that contribution, add a constant to its rank and take the
+          reciprocal. That's reciprocal rank fusion.
+        hold: 0.75
+        visual_cues:
+          - id: se-rrf-rule-0
+            phrase: A single keyword search returned the policy twice
+            targets:
+              - se-rrf-rule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: se-rrf-rule-dedup
+            phrase: Remove the extra copy before you assign ranks
+            targets:
+              - se-rrf-rule-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Use sixty for the constant. First place earns one over sixty-one. Second earns one over sixty-two.
+          Look across the two lists. Each passage has one first and one second, so the sums are equal. The
+          tie goes to the exception because the code sorts equal totals by document identity.
+        hold: 0.75
+        visual_cues:
+          - id: se-rrf-rule-1
+            phrase: First place earns one over sixty-one. Second earns one over sixty-two
+            targets:
+              - se-rrf-rule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: se-rrf-rule-sum
+            phrase: Each passage has one first and one second, so the sums are equal
+            targets:
+              - se-rrf-rule-mechanism
+            color: yellow
+            linger: 0.35
+          - id: se-rrf-rule-tie
+            phrase: the code sorts equal totals by document identity
+            targets:
+              - se-rrf-rule-mechanism
+            color: green
+            linger: 0.35
+      - say: Sixty was a choice in the original study. Test the constant on the questions your readers ask.
+          Using ranks lets a keyword match and a similar vector contribute on the same scale. Let's keep
+          the tied scores in view and see what happens when a third search adds a vote.
+        hold: 0.75
+        visual_cues:
+          - id: se-rrf-rule-2
+            phrase: Using ranks lets a keyword match and a similar vector contribute on the same scale
+            targets:
+              - se-rrf-rule-mechanism
+            color: cyan
+            linger: 0.35
+  - id: fusion
+    title: Fuse ranks without pretending their raw scores share a scale
+    visual: Preserve the original computed fusion construction and its persistent evidence owners. Fuse ranks
+      without pretending their raw scores share a scale.
+    beats:
+      - say: Lexical retrieval can find an exact identifier, while vector retrieval can find related wording. Their
+          raw scores use different scales. Reciprocal rank fusion instead adds a contribution determined by
+          each passage rank in each list. Keep ranks one-based and remove duplicates inside a branch so
+          repetition cannot manufacture extra support.
+        hold: 0.65
+        visual_cues:
+          - id: fusion-beat-1-focus-1
+            phrase: Reciprocal rank fusion instead adds a contribution determined by each passage rank in each list
+            targets:
+              - fusion-lexical-list
+              - fusion-dense-list
+              - fusion-policy-total
+              - fusion-exception-total
+            color: cyan
+            linger: 0.65
+          - id: fusion-beat-1-focus-2
+            phrase: Their raw scores use different scales
+            targets:
+              - fusion-list-map-doc-rank-doc-rank-1-1-61-rank
+            color: yellow
+            linger: 0.65
+      - say: These supplied lists initially give the two required passages equal fused scores. An additional
+          authorized rewrite branch changes their order. That can improve a retrieval candidate set, yet the
+          generated rewrite remains query expansion rather than evidence. A reranker and held-out labels still
+          need to test which passages are useful for the actual question.
+        hold: 0.65
+        visual_cues:
+          - id: fusion-beat-2-focus-1
+            phrase: These supplied lists initially give the two required passages equal fused scores
+            targets:
+              - fusion-policy-total
+              - fusion-exception-total
+            color: cyan
+            linger: 0.65
+          - id: fusion-beat-2-focus-2
+            phrase: An additional authorized rewrite branch changes their order
+            targets:
+              - fusion-rewrite-list
+              - fusion-policy-total
+              - fusion-exception-total
+            color: yellow
+            linger: 0.65
+  - id: miniature-run
+    title: Execute the actual four-document path
+    visual: The actual local corpus filters to two eligible revisions, ranks them, builds two whole quotations and
+      runs its real publication predicate.
+    beats:
+      - say: The actual corpus has policy revisions one and two, exception revision one and another workspace’s
+          roadmap. Eligibility requires a published access rule, matching tenant, the current document
+          revision and overlap between reader groups and permitted groups. Only policy two and exception one
+          remain.
+        hold: 0.7
+        visual_cues:
+          - id: se-miniature-run-0
+            phrase: The actual corpus has policy revisions one and two, exception revision one and another workspace’s
+              roadmap
+            targets:
+              - se-miniature-run-mechanism
+            color: cyan
+            linger: 0.4
+          - id: se-miniature-run-eligible
+            phrase: Only policy two and exception one remain
+            targets:
+              - se-miniature-run-mechanism
+            color: yellow
+            linger: 0.4
+      - say: "The actual ranking returns exception first. The pack counts regex words: fifteen for the exception and
+          twelve for the policy. Its forty-word budget fits both, using twenty-seven words. Each Quote retains
+          document key, start zero, end at the full character length, exact text and the document hash."
+        hold: 0.7
+        visual_cues:
+          - id: se-miniature-run-1
+            phrase: The actual ranking returns exception first
+            targets:
+              - se-miniature-run-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-miniature-run-wordsum
+            phrase: using twenty-seven words
+            targets:
+              - se-miniature-run-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-miniature-run-quote
+            phrase: Each Quote retains document key, start zero, end at the full character length, exact text and the
+              document hash
+            targets:
+              - se-miniature-run-mechanism
+            color: yellow
+            linger: 0.4
+      - say: The publisher for this fixed question requires exactly two quotations, one policy and one exception. It
+          checks current eligibility, full-document hash, start zero, full-document end and exact original
+          text for each. It then publishes the two quotations in identity order. Alice gets both rules
+          in their original wording.
+        hold: 0.7
+        visual_cues:
+          - id: se-miniature-run-2
+            phrase: The publisher for this fixed question requires exactly two quotations, one policy and one exception
+            targets:
+              - se-miniature-run-mechanism
+            color: green
+            linger: 0.4
+          - id: se-miniature-run-checks
+            phrase: full-document hash, start zero, full-document end and exact original text for each
+            targets:
+              - se-miniature-run-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-miniature-run-publish
+            phrase: It then publishes the two quotations in identity order
+            targets:
+              - se-miniature-run-mechanism
+            color: yellow
+            linger: 0.4
+  - id: packing
+    title: A word budget for Alice’s two sources
+    visual: Two unbroken passage widths share a word ruler. The budget marker moves from eighteen to the
+      minimum that admits both. Their words and rank stay fixed.
+    beats:
+      - say: Try a tighter pack. Give it eighteen words. We're counting words with the same rule as the local
+          example. The first passage is the exception. All fifteen words go in together, including the
+          approval condition. Next comes the twelve-word policy. How many more words would let us
+          pack both passages?
+        hold: 2.4
+        visual_cues:
+          - id: packing-budget
+            phrase: Give it eighteen words
+            targets:
+              - pack-budget
+            color: yellow
+            linger: 0.3
+          - id: packing-exception
+            phrase: All fifteen words go in together
+            targets:
+              - pack-tape
+            color: green
+            linger: 0.3
+          - id: packing-policy
+            phrase: Next comes the twelve-word policy
+            targets:
+              - pack-tape
+            color: blue
+            linger: 0.3
+          - id: packing-ask
+            phrase: How many more words would let us pack both passages
+            targets:
+              - pack-slots
+            color: yellow
+            linger: 0.3
+        caption_starts:
+          - Next comes the twelve-word policy
+          - How many more words
+      - say: Nine more words. There were three spaces left, and the policy needs twelve. Extend the budget to
+          twenty-seven. Both passages now fit with their source identities intact. In a real prompt, count
+          tokens with the model's tokenizer. Reserve room for the question, instructions, wrappers and
+          output before deciding what evidence fits.
+        hold: 1
+        visual_cues:
+          - id: packing-answer
+            phrase: Nine more words
+            targets:
+              - pack-slots
+            color: yellow
+            linger: 0.3
+          - id: packing-expand
+            phrase: Extend the budget to twenty-seven
+            targets:
+              - pack-budget
+            color: green
+            linger: 0.3
+        caption_starts:
+          - Extend the budget
+          - Both passages now fit
+  - id: exact-span
+    title: Where does the quotation stop?
+    visual: A selection moves across the original exception while the document digest stays fixed. The same
+      two-document publisher checks a shortened slice, both complete quotes, and a changed registry.
+    beats:
+      - say: Keep the full policy beside the exception. These are characters in the saved, normalized text.
+          Count from zero and stop before the end offset. The exception is one hundred and one characters
+          long. Move the end back to seventy-two, just after the word notice. Every selected character
+          matches. The document hash matches too. Can this pack publish as it stands?
+        hold: 2.6
+        visual_cues:
+          - id: span-origin
+            phrase: characters in the saved, normalized text
+            targets:
+              - original-exception
+            color: cyan
+            linger: 0.3
+          - id: span-shorten
+            phrase: Move the end back to seventy-two
+            targets:
+              - original-exception
+            color: yellow
+            linger: 0.3
+          - id: span-predict
+            phrase: Can this pack publish as it stands
+            targets:
+              - span-publication
+            color: yellow
+            linger: 0.3
+        caption_starts:
+          - Move the end back
+          - Can this pack publish
+      - say: Withhold it. Read the words outside the selection. Only with security approval. That's the part
+          Alice needs to decide about day forty-five. Extend the quote through the period. The policy
+          still covers all eighty of its characters. Now the exception covers all one hundred and one.
+          Release both quotations. This publisher requires whole passages for this particular question. A
+          system that accepts narrower spans has to check what they support.
+        hold: 1
+        visual_cues:
+          - id: span-withhold
+            phrase: Withhold it
+            targets:
+              - span-publication
+            color: pink
+            linger: 0.3
+          - id: span-restore
+            phrase: Extend the quote through the period
+            targets:
+              - original-exception
+            color: cyan
+            linger: 0.3
+          - id: span-release
+            phrase: Release both quotations
+            targets:
+              - span-publication
+            color: green
+            linger: 0.3
+        caption_starts:
+          - Extend the quote
+          - Release both quotations
+      - say: Keep those exact same quotes and change the registry to policy revision three. The full policy
+          quote is now stale. Only the exception is eligible until revision three is available. Fetch the
+          current policy with Alice's permissions, or report the gap. The local checks also withhold an
+          answer for altered text, a duplicate quote, revoked access or an unpublished source.
+        hold: 0.9
+        visual_cues:
+          - id: span-revision
+            phrase: change the registry to policy revision three
+            targets:
+              - span-policy
+            color: pink
+            linger: 0.3
+        caption_starts:
+          - The full policy quote is now stale
+  - id: context-compression
+    title: Preserve the original evidence through compression
+    visual: Required source units survive selection and ordering while compressed text retains a mapping to
+      original spans.
+    beats:
+      - say: A real prompt uses the target tokenizer and reserves instructions, the question, wrappers and output
+          capacity together. The fixture’s regex-word budget teaches selection only. Duplicate high-ranking
+          rules can crowd out a necessary exception, so evaluate evidence coverage and document diversity as
+          well as relevance.
+        hold: 0.7
+        visual_cues:
+          - id: se-context-compression-0
+            phrase: A real prompt uses the target tokenizer and reserves instructions, the question, wrappers and output
+              capacity together
+            targets:
+              - se-context-compression-mechanism
+            color: cyan
+            linger: 0.4
+      - say: If both rules do not fit, fetch narrower supporting spans or disclose an incomplete answer. The Lost in
+          the Middle experiments show position sensitivity in their tested long-context tasks. Test ordering
+          and distractors on the chosen model before moving passages to the edges or repeating evidence.
+        hold: 0.7
+        visual_cues:
+          - id: se-context-compression-1
+            phrase: If both rules do not fit, fetch narrower supporting spans or disclose an incomplete answer
+            targets:
+              - se-context-compression-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-context-compression-position
+            phrase: Test ordering and distractors on the chosen model
+            targets:
+              - se-context-compression-mechanism
+            color: yellow
+            linger: 0.4
+      - say: LLMLingua uses a smaller model to compress prompts. Apply compression after authorization and selection.
+          Check quantities, negation and source mappings on the actual content, and verify claims against
+          retained originals. A compressed-summary index alone cannot audit a disputed quotation.
+        hold: 0.7
+        visual_cues:
+          - id: se-context-compression-2
+            phrase: LLMLingua uses a smaller model to compress prompts
+            targets:
+              - se-context-compression-mechanism
+            color: green
+            linger: 0.4
+          - id: se-context-compression-compress
+            phrase: Check quantities, negation and source mappings on the actual content
+            targets:
+              - se-context-compression-mechanism
+            color: yellow
+            linger: 0.4
+  - id: citation-support
+    title: Separate resolution, support and coverage
+    visual: Three independent questions expose a resolvable citation whose span or answer still drops a required
+      condition.
+    beats:
+      - say: Resolution asks whether a citation locates a permitted revision and span. Support asks whether that span
+          supports the actual claim, including its quantities and conditions. Coverage asks whether all
+          material claims and required parts of the question have evidence. A link to the general policy
+          can open perfectly while the answer still leaves out the exception.
+        hold: 0.7
+        visual_cues:
+          - id: se-citation-support-0
+            phrase: Resolution asks whether a citation locates a permitted revision and span
+            targets:
+              - se-citation-support-mechanism
+            color: cyan
+            linger: 0.4
+          - id: se-citation-support-coverage
+            phrase: Coverage asks whether all material claims and required parts of the question have evidence
+            targets:
+              - se-citation-support-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Our draft says security approval is required. Add one word to the source so it reads
+          security approval is not required. All the words from the claim are still there. The word
+          checker accepts a contradiction. Now read the second source. Authorization from the security
+          team is mandatory. The checker rejects a passage that says exactly what the draft means.
+        hold: 0.7
+        visual_cues:
+          - id: se-citation-support-1
+            phrase: Our draft says security approval is required
+            targets:
+              - se-citation-support-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-citation-support-negation
+            phrase: security approval is not required
+            targets:
+              - se-citation-support-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-citation-support-acceptance
+            phrase: The word checker accepts a contradiction
+            targets:
+              - se-citation-support-mechanism
+            color: pink
+            linger: 0.4
+          - id: se-citation-support-paraphrase
+            phrase: The checker rejects a passage
+            targets:
+              - se-citation-support-mechanism
+            color: yellow
+            linger: 0.4
+        caption_starts:
+          - The word checker accepts a contradiction
+          - Now read the second source
+          - The checker rejects a passage
+      - say: For paraphrases, NLI models and language-model judges estimate semantic support. TRUE evaluates
+          factual-consistency approaches, and FActScore breaks text into individual facts. Calibrate
+          false acceptance, false rejection and abstention against human labels. Include valid
+          paraphrases alongside claims that reverse a rule or leave out a date.
+        hold: 0.7
+        visual_cues:
+          - id: se-citation-support-2
+            phrase: For paraphrases, NLI models and language-model judges estimate semantic support
+            targets:
+              - se-citation-support-mechanism
+            color: green
+            linger: 0.4
+          - id: se-citation-support-assessment
+            phrase: Calibrate false acceptance, false rejection and abstention
+            targets:
+              - se-citation-support-mechanism
+            color: yellow
+            linger: 0.4
+  - id: untrusted-source
+    title: Can Alice preview the roadmap?
+    visual: A permitted policy page links to an out-of-scope roadmap. The preview stops at the same reader
+      boundary as the search.
+    beats:
+      - say: This policy page includes a link to the planning roadmap. The page is in workspace A.
+          The link points to workspace B. Alice can read only workspace A. What happens when she asks
+          for the preview?
+        hold: 2
+        visual_cues:
+          - id: se-untrusted-source-0
+            phrase: The link points to workspace B
+            targets:
+              - se-untrusted-source-mechanism
+            color: cyan
+            linger: 0.3
+          - id: se-untrusted-source-isolate
+            phrase: Alice can read only workspace A
+            targets:
+              - se-untrusted-source-mechanism
+            color: yellow
+            linger: 0.3
+          - id: se-untrusted-source-request
+            phrase: What happens when she asks for the preview
+            targets:
+              - se-untrusted-source-mechanism
+            color: cyan
+            linger: 0.3
+        caption_starts:
+          - Alice can read only
+          - What happens when she asks for the preview
+      - say: The preview stays closed. The service checks the destination against Alice's permissions
+          before it fetches the roadmap. Treat instructions on a retrieved page as quoted text.
+          Give the generator only the tools and data it needs, and apply Alice's permissions to every
+          preview it requests.
+        hold: 0.8
+        visual_cues:
+          - id: se-untrusted-source-1
+            phrase: The preview stays closed
+            targets:
+              - se-untrusted-source-mechanism
+            color: yellow
+            linger: 0.3
+        caption_starts:
+          - The service checks the destination
+      - say: The same boundary matters when the answer streams back. Hold the draft until its citations
+          and Alice's access have been checked. While she waits, show search progress and links to
+          sources she can read.
+        hold: 0.7
+        visual_cues:
+          - id: se-untrusted-source-2
+            phrase: Hold the draft
+            targets:
+              - se-untrusted-source-mechanism
+            color: cyan
+            linger: 0.3
+          - id: se-untrusted-source-hold
+            phrase: show search progress
+            targets:
+              - se-untrusted-source-mechanism
+            color: yellow
+            linger: 0.3
+  - id: publish
+    title: A verdict applies to one draft and evidence revision
+    visual: The request, active draft and evidence revision stay in place while a stale decision, a matching
+      acceptance and a replay arrive. Only the matching acceptance increments the delivery count.
+    beats:
+      - say: Alice can see search progress and links to sources she can read while the service checks a policy
+          claim. Here revision two identifies the evidence snapshot for the active draft. Bind each
+          decision to request, draft hash, and evidence revision, then recheck current permissions before
+          sending text. A check can be correct about yesterday's draft and say nothing about today's.
+        hold: 0.65
+        visual_cues:
+          - id: publish-beat-1-focus-1
+            phrase: Bind each decision to request, draft hash, and evidence revision, then recheck current
+              permissions before sending text
+            targets:
+              - publish-s-events-some-e-e-draft-2-matching-check-decision-stale-acceptance-d
+            color: cyan
+            linger: 0.65
+      - say: Watch the stale acceptance leave the new claim pending. A matching accepted decision releases it,
+          and replay of that same event adds no second publication. Here we supply the decisions.
+          To evaluate the checker that makes them, have readers label claims against their sources.
+          The service handles permissions and remembers which event released this draft.
+        hold: 0.65
+        visual_cues:
+          - id: publish-current-accept
+            phrase: A matching accepted decision releases it
+            targets:
+              - publish-check-decision
+              - publish-event-2
+              - publish-delivery
+              - publish-emitted-count
+            color: green
+            linger: 0.65
+          - id: publish-replayed-event
+            phrase: replay of that same event adds no second publication
+            targets:
+              - publish-event-2
+              - publish-emitted-count
+            color: yellow
+            linger: 0.65
+          - id: publish-beat-2-focus-2
+            phrase: which event released this draft
+            targets:
+              - publish-active-draft-2-source-revision-2
+            color: yellow
+            linger: 0.65
+  - id: sse-identity
+    title: Give each replayable application event its own identity
+    visual: The event-stream parser retains its last ID across a missing id field, and an explicit empty id resets
+      it.
+    beats:
+      - say: Server-sent events use an HTTP event stream. An explicit ID updates the browser’s last event ID; an event
+          that omits that field inherits the preceding value. The article progress event and following checked
+          claim both expose twelve when only the first sets its ID.
+        hold: 0.7
+        visual_cues:
+          - id: se-sse-identity-0
+            phrase: Server-sent events use an HTTP event stream
+            targets:
+              - se-sse-identity-mechanism
+            color: cyan
+            linger: 0.4
+          - id: se-sse-identity-inherited
+            phrase: both expose twelve when only the first sets its ID
+            targets:
+              - se-sse-identity-mechanism
+            color: yellow
+            linger: 0.4
+      - say: The browser does not invent a new identifier for that second payload. Blind deduplication by the
+          inherited callback ID can discard distinct content. Emit distinct replay IDs or validate a separate
+          application identity. An explicitly empty ID clears the saved value, so a later reconnect has no
+          nonempty Last-Event-ID to send.
+        hold: 0.7
+        visual_cues:
+          - id: se-sse-identity-1
+            phrase: The browser does not invent a new identifier for that second payload
+            targets:
+              - se-sse-identity-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-sse-identity-clear
+            phrase: An explicitly empty ID clears the saved value
+            targets:
+              - se-sse-identity-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-sse-identity-repair
+            phrase: Emit distinct replay IDs or validate a separate application identity
+            targets:
+              - se-sse-identity-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Authenticate replay again and bind its cursor to request and principal. Native EventSource opens a URL,
+          rather than taking an arbitrary POST body; create a request separately and subscribe, or use fetch
+          streaming when a POST or custom headers are required. Keep secrets out of URLs, cap buffers,
+          propagate cancellation and configure proxy buffering.
+        hold: 0.7
+        visual_cues:
+          - id: se-sse-identity-2
+            phrase: Authenticate replay again and bind its cursor to request and principal
+            targets:
+              - se-sse-identity-mechanism
+            color: green
+            linger: 0.4
+          - id: se-sse-identity-request
+            phrase: create a request separately and subscribe, or use fetch streaming
+            targets:
+              - se-sse-identity-mechanism
+            color: yellow
+            linger: 0.4
+  - id: typed-reducer
+    title: A verdict must match the current typed identity
+    visual: The actual Event reducer rejects malformed or stale records and makes one current accepted or rejected
+      decision terminal in its supplied trace.
+    beats:
+      - say: The actual reducer accepts only nonnegative integer event and revision fields and a literal Boolean
+          verdict. In Python, annotations alone do not validate decoded fields. Boolean event IDs, floating
+          revisions, integer one and the string false cannot stand in for the required types.
+        hold: 0.7
+        visual_cues:
+          - id: se-typed-reducer-0
+            phrase: The actual reducer accepts only nonnegative integer event and revision fields and a literal Boolean
+              verdict
+            targets:
+              - se-typed-reducer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: se-typed-reducer-invalid
+            phrase: Boolean event IDs, floating revisions, integer one and the string false cannot stand in for the
+              required types
+            targets:
+              - se-typed-reducer-mechanism
+            color: yellow
+            linger: 0.4
+      - say: It then checks the request, deduplicates event IDs and matches draft hash and source revision. A stale
+          decision leaves the new claim pending. Only a matching check while pending can change state.
+          Acceptance emits once; rejection blocks. Once that first matching decision is terminal, later
+          decisions in this fixture do not change it.
+        hold: 0.7
+        visual_cues:
+          - id: se-typed-reducer-1
+            phrase: It then checks the request, deduplicates event IDs and matches draft hash and source revision
+            targets:
+              - se-typed-reducer-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-typed-reducer-stale
+            phrase: A stale decision leaves the new claim pending
+            targets:
+              - se-typed-reducer-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-typed-reducer-terminal
+            phrase: Acceptance emits once; rejection blocks
+            targets:
+              - se-typed-reducer-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-typed-reducer-inert
+            phrase: later decisions in this fixture do not change it
+            targets:
+              - se-typed-reducer-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Event seven released the claim. In a live service, first authenticate its sender and check
+          that the request is still active. Set an order for events, expire requests, limit retries and
+          handle cancellations. If Alice loses access while a claim is buffered, recheck her permissions
+          before the next bytes leave.
+        hold: 0.7
+        visual_cues:
+          - id: se-typed-reducer-2
+            phrase: Event seven released the claim
+            targets:
+              - se-typed-reducer-mechanism
+            color: green
+            linger: 0.4
+  - id: latency
+    title: Measure the first checked claim separately from the first token
+    visual: Preserve the original computed latency construction and its persistent evidence owners. Measure the
+      first checked claim separately from the first token.
+    beats:
+      - say: Latency starts with dependencies. Raw-query retrieval can overlap planning when that branch already
+          supplies the required evidence. Retrieval that needs a finished rewrite must wait. These supplied
+          stage durations show the first draft token arriving before the first complete claim has been
+          checked. A progress signal describes another observation again.
+        hold: 0.65
+        visual_cues:
+          - id: latency-beat-1-focus-1
+            phrase: These supplied stage durations show the first draft token arriving before the first complete claim has
+              been checked
+            targets:
+              - latency-timeline-latency
+            color: cyan
+            linger: 0.65
+          - id: latency-beat-1-focus-2
+            phrase: Latency starts with dependencies
+            targets:
+              - latency-timeline-latency
+            color: yellow
+            linger: 0.65
+      - say: Follow the same clock through claim completion and verification. The checked claim arrives later than
+          draft time to first token. Measure these endpoints per request, including queues, cancellations, and
+          failures, then calculate end-to-end distributions. Adding stage percentiles does not generally
+          produce an end-to-end percentile.
+        hold: 0.65
+        visual_cues:
+          - id: latency-beat-2-focus-1
+            phrase: The checked claim arrives later than draft time to first token
+            targets:
+              - latency-timeline-latency
+            color: cyan
+            linger: 0.65
+          - id: latency-beat-2-focus-2
+            phrase: Measure these endpoints per request, including queues, cancellations, and failures, then calculate
+              end-to-end distributions
+            targets:
+              - latency-timeline-latency
+            color: yellow
+            linger: 0.65
+  - id: clock-arithmetic
+    title: Calculate the complete checked-answer path
+    visual: A proportional timeline overlaps only independent branches, then builds the first draft,
+      complete claim and checked claim in order.
+    beats:
+      - say: The actual timing worksheet supplies planning forty milliseconds and raw retrieval two hundred
+          sixty, then rerank ninety, pack twenty and model admission through first token four hundred
+          thirty. Independent planning and raw retrieval overlap, so take their maximum before adding the
+          dependent stages.
+        hold: 0.7
+        visual_cues:
+          - id: se-clock-arithmetic-0
+            phrase: The actual timing worksheet supplies planning forty milliseconds and raw retrieval two hundred
+              sixty, then rerank ninety, pack twenty and model admission through first token four hundred
+              thirty
+            targets:
+              - se-clock-arithmetic-mechanism
+            color: cyan
+            linger: 0.4
+          - id: se-clock-arithmetic-overlap
+            phrase: take their maximum before adding the dependent stages
+            targets:
+              - se-clock-arithmetic-mechanism
+            color: yellow
+            linger: 0.4
+      - say: "Two hundred sixty plus ninety plus twenty plus four hundred thirty equals eight hundred
+          milliseconds to the draft token. Another hundred completes the claim, then eighty checks it:
+          nine hundred eighty to the checked claim. If retrieval needs the completed rewrite, planning
+          precedes it and the draft takes eight hundred forty. The check ends forty milliseconds later
+          too, at one thousand twenty."
+        hold: 0.7
+        visual_cues:
+          - id: se-clock-arithmetic-1
+            phrase: Two hundred sixty plus ninety plus twenty plus four hundred thirty equals eight hundred
+              milliseconds to the draft token
+            targets:
+              - se-clock-arithmetic-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-clock-arithmetic-draft
+            phrase: equals eight hundred milliseconds to the draft token
+            targets:
+              - se-clock-arithmetic-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-clock-arithmetic-checked
+            phrase: nine hundred eighty to the checked claim
+            targets:
+              - se-clock-arithmetic-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-clock-arithmetic-dependent
+            phrase: the draft takes eight hundred forty
+            targets:
+              - se-clock-arithmetic-mechanism
+            color: yellow
+            linger: 0.4
+      - say: The extra forty milliseconds came from waiting for the rewrite. To find that delay in a
+          running service, trace each request from arrival to its first checked claim. Record queues,
+          retries and slow branches, and count timeouts and cancellations. Use those traces to measure
+          end-to-end latency. If the delay is in the model, PagedAttention can help with cache
+          allocation, and speculative decoding can shorten generation. A slow source fetch needs work
+          on the retrieval path.
+        hold: 0.7
+        visual_cues:
+          - id: se-clock-arithmetic-2
+            phrase: waiting for the rewrite
+            targets:
+              - se-clock-arithmetic-mechanism
+            color: green
+            linger: 0.4
+  - id: capacity
+    title: Count residence inside the memory boundary
+    visual: Preserve the original computed capacity construction and its persistent evidence owners. Count
+      residence inside the memory boundary.
+    beats:
+      - say: A request can wait for retrieval before the synthesis model allocates its history. Final checking can
+          continue after that history is released. Apply arrival rate times mean residence time to the chosen
+          boundary. Under these supplied steady-state assumptions, total search requests in flight exceed
+          requests with synthesis key-value state resident.
+        hold: 0.65
+        visual_cues:
+          - id: capacity-beat-1-focus-1
+            phrase: A request can wait for retrieval before the synthesis model allocates its history
+            targets:
+              - capacity-v-time-3-r1-waits-for-retrieval-kv-absent-v-kvlive-r1-model-history
+            color: cyan
+            linger: 0.65
+          - id: capacity-beat-1-focus-2
+            phrase: total search requests in flight exceed requests with synthesis key-value state resident
+            targets:
+              - capacity-id-request-label-r1-request-id-kv-label-r1-kv-state
+            color: yellow
+            linger: 0.65
+      - say: Now size that resident state from layers, stored heads, head width, precision, and time-weighted cached
+          positions. Compare the memory lower bound with a separate output-throughput lower bound. The same
+          worker fleet may need to satisfy both. Their maximum still omits prefill, batching, bursts,
+          failures, and headroom, so benchmark the joint workload before choosing capacity.
+        hold: 0.65
+        visual_cues:
+          - id: capacity-beat-2-focus-1
+            phrase: Compare the memory lower bound with a separate output-throughput lower bound
+            targets:
+              - capacity-memory-bound
+              - capacity-output-bound
+            color: cyan
+            linger: 0.65
+          - id: capacity-beat-2-focus-2
+            phrase: Now size that resident state from layers, stored heads, head width, precision, and time-weighted
+              cached positions
+            targets:
+              - capacity-v-factors-i-string-values-i
+            color: yellow
+            linger: 0.65
+  - id: resident-tensor
+    title: Convert the resident interval into actual cache bytes
+    visual: A request owns KV only during its model interval; layer/head/position slabs grow into the computed
+      mean footprint.
+    beats:
+      - say: Apply arrival rate times mean residence time to the boundary being counted, under the stated steady-state
+          assumptions. The worksheet has six hundred synthesis requests each second, point three seven seconds
+          before admission, one point nine three resident, and point two after release. Total residence is two
+          point five seconds.
+        hold: 0.7
+        visual_cues:
+          - id: se-resident-tensor-0
+            phrase: Apply arrival rate times mean residence time to the boundary being counted, under the stated
+              steady-state assumptions
+            targets:
+              - se-resident-tensor-mechanism
+            color: cyan
+            linger: 0.4
+          - id: se-resident-tensor-interval
+            phrase: Total residence is two point five seconds
+            targets:
+              - se-resident-tensor-mechanism
+            color: yellow
+            linger: 0.4
+      - say: That gives fifteen hundred synthesis requests in flight, but eleven hundred fifty-eight with model state
+          resident. Waiting for retrieval generally precedes that model allocation; final CPU citation checks
+          can follow release. Retaining state for retries or sessions would lengthen the interval and must be
+          counted.
+        hold: 0.7
+        visual_cues:
+          - id: se-resident-tensor-1
+            phrase: That gives fifteen hundred synthesis requests in flight, but eleven hundred fifty-eight with model
+              state resident
+            targets:
+              - se-resident-tensor-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-resident-tensor-counts
+            phrase: eleven hundred fifty-eight with model state resident
+            targets:
+              - se-resident-tensor-mechanism
+            color: yellow
+            linger: 0.4
+      - say: "The cache model stores K and V, thirty-two attention layers, eight KV heads, head width one hundred
+          twenty-eight and two bytes per element. Multiply those factors: one hundred thirty-one thousand
+          seventy-two bytes per position. With a time-weighted mean of fifteen hundred sixty positions per
+          resident, the mean total is about two hundred twenty point five two gibibytes."
+        hold: 0.7
+        visual_cues:
+          - id: se-resident-tensor-2
+            phrase: The cache model stores K and V, thirty-two attention layers, eight KV heads, head width one hundred
+              twenty-eight and two bytes per element
+            targets:
+              - se-resident-tensor-mechanism
+            color: green
+            linger: 0.4
+          - id: se-resident-tensor-bytes
+            phrase: one hundred thirty-one thousand seventy-two bytes per position
+            targets:
+              - se-resident-tensor-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-resident-tensor-gib
+            phrase: about two hundred twenty point five two gibibytes
+            targets:
+              - se-resident-tensor-mechanism
+            color: yellow
+            linger: 0.4
+  - id: capacity-bounds
+    title: Compute separate resource lower bounds
+    visual: The resident cache pool and output work produce independent device bounds without being added into a
+      finished fleet.
+    beats:
+      - say: "The twelve-gibibyte cache budget per device is already net of weights and other allocations. Divide the
+          cache demand by that budget and round up: nineteen memory-bound devices. This is a resource lower
+          bound for the supplied mean workload."
+        hold: 0.7
+        visual_cues:
+          - id: se-capacity-bounds-0
+            phrase: The twelve-gibibyte cache budget per device is already net of weights and other allocations
+            targets:
+              - se-capacity-bounds-mechanism
+            color: cyan
+            linger: 0.4
+          - id: se-capacity-bounds-memory
+            phrase: nineteen memory-bound devices
+            targets:
+              - se-capacity-bounds-mechanism
+            color: yellow
+            linger: 0.4
+      - say: "Six hundred requests each second times one hundred twenty output tokens requires seventy-two thousand
+          output tokens each second. Divide by the placeholder six thousand per device and round up: twelve
+          output-throughput devices. That throughput is an assumption to replace with an actual benchmark."
+        hold: 0.7
+        visual_cues:
+          - id: se-capacity-bounds-1
+            phrase: Six hundred requests each second times one hundred twenty output tokens requires seventy-two thousand
+              output tokens each second
+            targets:
+              - se-capacity-bounds-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-capacity-bounds-decode
+            phrase: twelve output-throughput devices
+            targets:
+              - se-capacity-bounds-mechanism
+            color: yellow
+            linger: 0.4
+      - say: The same workers can satisfy both constraints, so adding nineteen and twelve double-counts shared
+          capacity. Taking their maximum still omits prefill compute, batching, utilization headroom, bursts,
+          failures and a separate reranker pool. Benchmark the joint workload before choosing a fleet.
+        hold: 0.7
+        visual_cues:
+          - id: se-capacity-bounds-2
+            phrase: The same workers can satisfy both constraints, so adding nineteen and twelve double-counts shared
+              capacity
+            targets:
+              - se-capacity-bounds-mechanism
+            color: green
+            linger: 0.4
+          - id: se-capacity-bounds-joint
+            phrase: adding nineteen and twelve double-counts shared capacity
+            targets:
+              - se-capacity-bounds-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Try one hypothetical request. It has two hundred fifty input tokens and produces a hundred and twenty
+          output tokens. Add fifty tokens of supporting evidence and keep the answer the same length. The model has
+          fifty more positions to process before it writes. Remeasure prefill time, the average number of cached
+          positions, how long each request holds that cache, and throughput with both kinds of work running.
+        hold: 1.1
+        visual_cues:
+          - id: se-capacity-bounds-length
+            phrase: Add fifty tokens of supporting evidence
+            targets:
+              - se-capacity-bounds-mechanism
+            color: blue
+            linger: 0.3
+  - id: economics
+    title: What does a cache miss cost?
+    visual: Ten requests in a fixed hundred-request sample switch from valid cache hits to full synthesis.
+      Each route's request count and unit price determine the mean.
+    beats:
+      - say: Follow one hundred searches from one sample of traffic. Sixty use full synthesis, thirty reuse
+          valid cached answers, and ten need a live lookup. The prices on the right include the work of
+          each whole route. Multiply each price by its request count, add the charges and divide by one
+          hundred. The mean is just over six tenths of a cent per search.
+        hold: 0.8
+        visual_cues:
+          - id: cost-requests
+            phrase: one hundred searches
+            targets:
+              - cost-cohort
+            color: cyan
+            linger: 0.3
+          - id: cost-base
+            phrase: just over six tenths of a cent per search
+            targets:
+              - cost-prices
+            color: yellow
+            linger: 0.3
+        caption_starts:
+          - The mean is just
+      - say: Suppose a policy revision invalidates ten of those cached answers. Those ten requests still need a
+          current answer. Keep the same prices, with the cache check included in the full route. With the
+          same hundred searches, what happens to the mean cost?
+        hold: 2.3
+        visual_cues:
+          - id: cost-stale
+            phrase: invalidates ten of those cached answers
+            targets:
+              - cost-cohort
+            color: yellow
+            linger: 0.3
+          - id: cost-question
+            phrase: what happens to the mean cost
+            targets:
+              - cost-question
+            color: yellow
+            linger: 0.3
+        caption_starts:
+          - With the same hundred searches
+      - say: Move those ten requests onto full synthesis. Each one now costs ninety-four hundredths of a cent
+          more. Across all one hundred, the mean rises to just under seven tenths of a cent. When policy
+          changes more often, measure how many cache lookups actually serve a valid answer. That fraction
+          changes both the bill and the load on the model.
+        hold: 1.1
+        visual_cues:
+          - id: cost-reroute
+            phrase: Move those ten requests onto full synthesis
+            targets:
+              - cost-cohort
+            color: blue
+            linger: 0.3
+          - id: cost-new-mean
+            phrase: the mean rises to just under seven tenths of a cent
+            targets:
+              - cost-prices
+            color: green
+            linger: 0.3
+        caption_starts:
+          - Across all one hundred
+  - id: route-costs
+    title: Weight every paid route in one consistent cohort
+    visual: A conserved route cohort multiplies full, cache and structured work by separate supplied prices
+      and sums the contributions.
+    beats:
+      - say: Go back to the sample with thirty valid cache hits. Where did the full-route price come from? Each
+          blue block is a hundred prompt tokens. Each green block is a hundred answer tokens. This cost
+          example uses four hundred answer tokens. The capacity example used a hundred and twenty. At
+          three dollars per million tokens in either direction, the model work costs just over half a
+          cent.
+        hold: 0.75
+        visual_cues:
+          - id: se-route-costs-0
+            phrase: Each blue block is a hundred prompt tokens. Each green block is a hundred answer tokens
+            targets:
+              - se-route-costs-mechanism
+            color: cyan
+            linger: 0.35
+          - id: se-route-costs-tokens
+            phrase: the model work costs just over half a cent
+            targets:
+              - se-route-costs-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Add retrieval, reranking and verification. Together with the model, those charges come to just
+          under a cent per full answer. The other two prices are smaller. A valid cache hit costs three
+          hundredths of a cent, and a structured lookup costs a tenth of a cent. Even these routes have to
+          authenticate the reader and pay for storage and networking.
+        hold: 0.75
+        visual_cues:
+          - id: se-route-costs-1
+            phrase: Add retrieval, reranking and verification
+            targets:
+              - se-route-costs-mechanism
+            color: cyan
+            linger: 0.35
+          - id: se-route-costs-full
+            phrase: just under a cent per full answer
+            targets:
+              - se-route-costs-mechanism
+            color: yellow
+            linger: 0.35
+          - id: se-route-costs-cheap
+            phrase: a structured lookup costs a tenth of a cent
+            targets:
+              - se-route-costs-mechanism
+            color: green
+            linger: 0.35
+      - say: Multiply each dollar price by the fraction of requests on its route. Sixty percent take the full
+          route, thirty percent hit the cache, and ten percent use the live lookup. Add the three
+          contributions for the mean per request. At a thousand requests a second, that's sixty thousand
+          requests a minute, at a cost of three hundred sixty dollars and sixty cents. For deployment,
+          measure prices, token lengths and route shares on the same traffic you use to size the fleet.
+        hold: 0.75
+        visual_cues:
+          - id: se-route-costs-2
+            phrase: Multiply each dollar price by the fraction of requests on its route
+            targets:
+              - se-route-costs-mechanism
+            color: cyan
+            linger: 0.35
+          - id: se-route-costs-mean
+            phrase: Sixty percent take the full route, thirty percent hit the cache, and ten percent use the live
+              lookup. Add the three contributions for the mean per request
+            targets:
+              - se-route-costs-mechanism
+            color: yellow
+            linger: 0.35
+          - id: se-route-costs-minute
+            phrase: three hundred sixty dollars and sixty cents
+            targets:
+              - se-route-costs-mechanism
+            color: green
+            linger: 0.35
+  - id: cache-authority
+    title: Revalidate the evidence dependencies on reuse
+    visual: A cached quote pack retains its evidence revisions but current access and registry changes can
+      invalidate reuse before any text leaves.
+    beats:
+      - say: Semantic similarity retrieves a candidate cache entry. Reuse still requires authenticated scope, policy
+          version, model and prompt compatibility, evidence revisions and freshness. Similar questions can
+          refer to different tenants, dates or permissions. Check citation previews too.
+        hold: 0.7
+        visual_cues:
+          - id: se-cache-authority-0
+            phrase: Semantic similarity retrieves a candidate cache entry
+            targets:
+              - se-cache-authority-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A broad warm-tier key cannot represent current policy by itself. Track evidence dependencies for
+          invalidation and recheck access on hits. The actual publisher rejects a previously complete quote
+          pack after access is revoked or the registry advances.
+        hold: 0.7
+        visual_cues:
+          - id: se-cache-authority-1
+            phrase: A broad warm-tier key cannot represent current policy by itself
+            targets:
+              - se-cache-authority-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-cache-authority-invalidate
+            phrase: after access is revoked or the registry advances
+            targets:
+              - se-cache-authority-mechanism
+            color: pink
+            linger: 0.4
+      - say: When current authority or freshness cannot be established, reject the hit and follow an authorized miss
+          route. Serving a stale private answer while refreshing asynchronously has already disclosed its
+          content. Hold the response until the new lookup finishes.
+        hold: 0.7
+        visual_cues:
+          - id: se-cache-authority-2
+            phrase: When current authority or freshness cannot be established, reject the hit and follow an authorized
+              miss route
+            targets:
+              - se-cache-authority-mechanism
+            color: green
+            linger: 0.4
+          - id: se-cache-authority-miss
+            phrase: reject the hit and follow an authorized miss route
+            targets:
+              - se-cache-authority-mechanism
+            color: yellow
+            linger: 0.4
+  - id: labeled-metrics
+    title: Measure retrieval identity coverage against actual labels
+    visual: Deduplicated ranked identities accumulate binary gain and rank discount against the known authorized
+      gold set.
+    beats:
+      - say: The actual metric function first removes duplicate document identities, then takes K results. Recall is
+          the number of distinct relevant retrieved documents divided by the full relevant-set size. If that
+          gold set is empty, it returns not applicable rather than treating an unanswerable question as a
+          failed retrieval.
+        hold: 0.7
+        visual_cues:
+          - id: se-labeled-metrics-0
+            phrase: The actual metric function first removes duplicate document identities, then takes K results
+            targets:
+              - se-labeled-metrics-mechanism
+            color: cyan
+            linger: 0.4
+          - id: se-labeled-metrics-dedup
+            phrase: first removes duplicate document identities, then takes K results
+            targets:
+              - se-labeled-metrics-mechanism
+            color: yellow
+            linger: 0.4
+      - say: For this binary relevance fixture, each relevant rank contributes one divided by the base-two logarithm
+          of the quantity rank plus one. Sum those discounted gains, then divide by the ideal ordering’s
+          discounted gain. This is normalized discounted cumulative gain. Nonpositive K is rejected.
+        hold: 0.7
+        visual_cues:
+          - id: se-labeled-metrics-1
+            phrase: For this binary relevance fixture, each relevant rank contributes one divided by the base-two
+              logarithm of the quantity rank plus one
+            targets:
+              - se-labeled-metrics-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-labeled-metrics-formula
+            phrase: divide by the ideal ordering’s discounted gain
+            targets:
+              - se-labeled-metrics-mechanism
+            color: yellow
+            linger: 0.4
+      - say: The gold set requires policy and exception. Retrieving policy then an irrelevant FAQ gives recall one
+          half and normalized gain about point six one three one. Retrieving both gives one for each.
+          A second copy of the policy still earns just one hit. Read the generated answer next.
+          Did it keep the approval condition that retrieval found?
+        hold: 0.7
+        visual_cues:
+          - id: se-labeled-metrics-2
+            phrase: The gold set requires policy and exception
+            targets:
+              - se-labeled-metrics-mechanism
+            color: green
+            linger: 0.4
+          - id: se-labeled-metrics-half
+            phrase: normalized gain about point six one three one
+            targets:
+              - se-labeled-metrics-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-labeled-metrics-both
+            phrase: Retrieving both gives one for each
+            targets:
+              - se-labeled-metrics-mechanism
+            color: yellow
+            linger: 0.4
+  - id: failure-attribution
+    title: Repair the layer that lost the evidence
+    visual: The same required exception is traced through retrieval, packing and synthesis so distinct failures
+      point to distinct interventions.
+    beats:
+      - say: Use held-out questions with authorized relevant passages, expected conditions and human-labeled claims.
+          Include deleted sources, conflicts, injected instructions, missing exceptions, permission changes
+          during streams and repeated IDs. For each question, trace the passage the reader needed from
+          retrieval through to the answer.
+        hold: 0.7
+        visual_cues:
+          - id: se-failure-attribution-0
+            phrase: Use held-out questions with authorized relevant passages, expected conditions and human-labeled claims
+            targets:
+              - se-failure-attribution-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Missing current policy points to ingestion or retrieval. A retrieved exception missing from context
+          points to packing. If both passages reached the generator, check the sentence it wrote.
+          Did it drop the approval condition? Inspect generation and claim checking. An unauthorized
+          citation points to the access path regardless of relevance.
+        hold: 0.7
+        visual_cues:
+          - id: se-failure-attribution-1
+            phrase: Missing current policy points to ingestion or retrieval
+            targets:
+              - se-failure-attribution-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-failure-attribution-pack
+            phrase: A retrieved exception missing from context points to packing
+            targets:
+              - se-failure-attribution-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-failure-attribution-support
+            phrase: check the sentence it wrote
+            targets:
+              - se-failure-attribution-mechanism
+            color: yellow
+            linger: 0.4
+          - id: se-failure-attribution-security
+            phrase: An unauthorized citation points to the access path regardless of relevance
+            targets:
+              - se-failure-attribution-mechanism
+            color: yellow
+            linger: 0.4
+      - say: With few labeled answers, a RAGAS judge can help flag claims to inspect. People also leave
+          clues when they click a citation or rephrase a question. To find out whether the answer was
+          right, compare it with the permitted sources and human labels. Track access failures separately
+          from relevance, along with checked-claim latency, completion, errors, cost and memory.
+          Count searches that failed or withheld an answer, too.
+        hold: 0.7
+        visual_cues:
+          - id: se-failure-attribution-2
+            phrase: a RAGAS judge can help flag claims to inspect
+            targets:
+              - se-failure-attribution-mechanism
+            color: green
+            linger: 0.4
+  - id: fresh-search
+    title: A new exception for Alice
+    visual: Two candidate quote packs share a policy. A source selection exposes the revised Friday cutoff.
+      After the verified quotes reach the reader, the opening ruler tests two approval records against the
+      new window.
+    beats:
+      - say: "Alice asks again after a policy update. The cache still holds the old sixty-day exception. Her
+          general policy stays at revision two. The registry now names exception two. Read its last line.
+          This revision allows forty-five days, with security approval recorded before Friday. Pack A has
+          the complete old exception. Pack B quotes the new one but stops after the word approval. Which
+          pack can the publisher release: A, B, or neither?"
+        hold: 3
+        visual_cues:
+          - id: se-fresh-search-new-input
+            phrase: The registry now names exception two
+            targets:
+              - original-exception
+            color: cyan
+            linger: 0.3
+          - id: se-fresh-search-0
+            phrase: Which pack can the publisher release
+            targets:
+              - fresh-publisher
+            color: yellow
+            linger: 0.3
+        caption_starts:
+          - The registry now names
+          - Pack A has
+          - Which pack can the publisher release
+      - say: Withhold both. A cites an older revision. B is current and every selected character matches its
+          source, but B leaves out the Friday cutoff. A reader who got approval on Friday would have good
+          reason to care about those missing words.
+        hold: 1
+        visual_cues:
+          - id: se-fresh-search-1
+            phrase: Withhold both
+            targets:
+              - fresh-publisher
+            color: pink
+            linger: 0.3
+          - id: se-fresh-search-rejection
+            phrase: A cites an older revision
+            targets:
+              - fresh-packs
+            color: pink
+            linger: 0.3
+          - id: se-fresh-search-short
+            phrase: B leaves out the Friday cutoff
+            targets:
+              - original-exception
+            color: yellow
+            linger: 0.3
+        caption_starts:
+          - A cites an older revision
+          - B is current
+      - say: Fetch the authorized current exception. The new document has its own hash. Our short quote already
+          had that hash. Extend its end through Friday and the final period. Keep the complete general
+          policy. Recheck access and the current revisions for both. Now release the two quotations. Alice
+          can read exactly when the longer window applies.
+        hold: 1.4
+        visual_cues:
+          - id: se-fresh-search-fetch
+            phrase: Fetch the authorized current exception
+            targets:
+              - original-exception
+            color: cyan
+            linger: 0.3
+          - id: se-fresh-search-2
+            phrase: Extend its end through Friday and the final period
+            targets:
+              - original-exception
+            color: cyan
+            linger: 0.3
+          - id: se-fresh-search-recheck
+            phrase: Recheck access and the current revisions for both
+            targets:
+              - fresh-packs
+            color: yellow
+            linger: 0.3
+          - id: se-fresh-search-result
+            phrase: Now release the two quotations
+            targets:
+              - fresh-publisher
+            color: green
+            linger: 0.3
+        caption_starts:
+          - Extend its end
+          - Recheck access
+          - Now release the two quotations
+      - say: Try the revised rule on a new date. Alice proposes day forty. Her security approval was recorded on
+          Friday morning. Both Thursday and Friday came before her planned start. Does that Friday
+          approval cover a start on day forty?
+        hold: 2.7
+        visual_cues:
+          - id: fresh-day
+            phrase: Alice proposes day forty
+            targets:
+              - migration-date
+            color: yellow
+            linger: 0.3
+          - id: fresh-friday
+            phrase: recorded on Friday morning
+            targets:
+              - migration-record
+            color: cyan
+            linger: 0.3
+          - id: fresh-ask
+            phrase: Does that Friday approval cover a start on day forty
+            targets:
+              - migration-decision
+            color: yellow
+            linger: 0.3
+        caption_starts:
+          - Her security approval
+          - Does that Friday approval
+      - say: Friday misses the cutoff. The ordinary thirty-day deadline applies. Move just the approval record
+          back to Thursday morning. Now day forty fits inside the forty-five-day window. Without the three
+          words recorded before Friday, both approval records would have looked equally good. If the next
+          source is a screenshot, how do we find those words there? That's where visual retrieval comes
+          in.
+        hold: 1.6
+        visual_cues:
+          - id: fresh-outside
+            phrase: Friday misses the cutoff
+            targets:
+              - migration-decision
+            color: pink
+            linger: 0.3
+          - id: fresh-thursday
+            phrase: Move just the approval record back to Thursday morning
+            targets:
+              - migration-record
+            color: cyan
+            linger: 0.3
+          - id: fresh-inside
+            phrase: day forty fits inside the forty-five-day window
+            targets:
+              - migration-extension
+            color: green
+            linger: 0.3
+        caption_starts:
+          - Move just the approval record
+          - Now day forty fits

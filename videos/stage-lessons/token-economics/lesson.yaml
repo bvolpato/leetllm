@@ -1,0 +1,1136 @@
+version: 1
+id: token-economics
+title: Where a Language Model Spends Its Budget
+source: llmops/llm-cost-engineering-token-economics/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: GPT-5.4 Model and Pricing
+    url: https://developers.openai.com/api/docs/models/gpt-5.4
+  - title: OpenAI Prompt Caching
+    url: https://developers.openai.com/api/docs/guides/prompt-caching
+  - title: OpenAI Batch API
+    url: https://developers.openai.com/api/docs/guides/batch
+  - title: OpenAI API Pricing
+    url: https://developers.openai.com/api/docs/pricing
+  - title: Claude prompt caching
+    url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+  - title: OpenAI reasoning output accounting
+    url: https://developers.openai.com/api/docs/guides/reasoning
+  - title: GPT-5.6 Terra model
+    url: https://developers.openai.com/api/docs/models/gpt-5.6-terra
+  - title: vLLM 0.33 chunked prefill
+    url: https://docs.vllm.ai/en/v0.33.0/configuration/optimization/
+  - title: Exact zero-count confidence boundary, Geyer
+    url: https://www.stat.umn.edu/geyer/s13/5102/examp/coverage.html
+scenes:
+  - id: intro
+    title: The bill for overnight testing
+    visual: A second receipt feeds out beside last night's bill for the same checks. Its input charge
+      rises while its output charge stays fixed.
+    beats:
+      - say: Last night's checks on the support assistant cost two dollars and eighty-two cents. Tonight we
+          send the same prompts and get answers of the same length. The saved instructions have expired.
+          Which line on the bill changes?
+        hold: 2
+        caption_starts:
+          - Tonight we send the same prompts
+          - The saved instructions have expired
+      - say: The input line. The provider has to process those instructions again. Writing the answers still
+          costs a dollar twenty.
+        hold: 0.75
+        caption_starts:
+          - Writing the answers
+        visual_cues:
+          - id: reprice-night-input
+            phrase: The input line
+            targets:
+              - tonight-receipt
+            color: yellow
+            linger: 0.3
+  - id: receipt-anatomy
+    title: Price the usage categories in the receipt
+    visual: The receipt identifies a policy request, its model, tier, region, outcome and rate date.
+      Three labeled bars count ordinary input, cache reads and output.
+    beats:
+      - say: A token is a piece of text used by the model. The provider returns usage counts, and a rate
+          card assigns a price to each billable category.
+        hold: 0.55
+        visual_cues:
+          - id: provider-receipt
+            phrase: provider returns usage counts
+            targets:
+              - request-receipt
+              - usage-categories
+            color: blue
+            linger: 0.5
+      - say: Keep ordinary input, cached input, and generated output in separate fields. Reasoning tokens
+          already belong in the reported output total for this rate card, so adding that detail
+          again would double count them.
+        hold: 0.65
+        visual_cues:
+          - id: separate-categories
+            phrase: ordinary input, cached input, and generated output
+            targets:
+              - usage-categories
+            color: cyan
+            linger: 0.5
+      - say: A useful receipt also identifies the model, service tier, region, request, outcome, and price
+          effective date. Character counts only estimate token volume. Price the usage on the
+          provider's receipt with the applicable rate table.
+        hold: 0.65
+        visual_cues:
+          - id: dated-identity
+            phrase: model, service tier, region, request, outcome, and price effective date
+            targets:
+              - request-receipt
+              - rate-identity
+            color: green
+            linger: 0.5
+  - id: one-answer
+    title: Which part of this call costs more?
+    visual: Two token counts face their dated rates. The input and output charges stay concealed through the
+      question. Their bars grow on the same dollar scale and the receipt closes at $0.00720.
+    beats:
+      - say: Take a policy answer on the GPT-five-point-four Standard rate card checked in September twenty
+          twenty-six. A million input tokens cost two dollars and fifty cents. A million output tokens cost
+          fifteen dollars.
+        hold: 0.65
+        visual_cues:
+          - id: dated-rate-card
+            phrase: Standard rate card
+            targets:
+              - dated-rates
+            color: cyan
+            linger: 0.3
+      - say: This call uses eighteen hundred ordinary input tokens and generates one hundred eighty output
+          tokens. Output costs six times as much per token. Look at the quantities beside those rates.
+          Which part of this call costs more?
+        hold: 1.9
+        visual_cues:
+          - id: input-output-counts
+            phrase: eighteen hundred ordinary input tokens
+            targets:
+              - usage-receipts
+            color: cyan
+            linger: 0.3
+      - say: Multiply each count by its own rate and divide by a million. The input bar is longer. The prompt had
+          ten times as many tokens as the answer. Both charges together come to just under three quarters
+          of a cent. Keep the full precision for the next calculation.
+        hold: 0.8
+        caption_starts:
+          - The input bar is longer
+          - Both charges together
+        visual_cues:
+          - id: multiply-rates
+            phrase: Multiply each count by its own rate and divide by a million
+            targets:
+              - category-products
+              - category-charges
+            color: cyan
+            linger: 0.3
+          - id: one-answer-total
+            phrase: Both charges together
+            targets:
+              - total-charge
+              - category-charges
+            color: yellow
+            linger: 0.3
+  - id: prefix-reuse
+    title: The same prompt at two input prices
+    visual: A reported read reclassifies the first 1,280 input tokens. On the dollar scale below it, the two
+      output segments share the same endpoints. The cold and warm charges differ only on the input side.
+    beats:
+      - say: A second request begins with the same policy instructions. Its receipt reports a read for that
+          prefix. Follow those twelve hundred eighty input tokens as they move to the cheaper rate. The
+          order details still need fresh processing.
+        hold: 0.7
+        visual_cues:
+          - id: read-prefix
+            phrase: Follow those twelve hundred eighty input tokens
+            targets:
+              - input-strip
+            color: yellow
+            linger: 0.3
+      - say: Subtract the read tokens from eighteen hundred. The five hundred twenty left on the right use the
+          ordinary rate. Price the prefix at twenty-five cents per million and that remainder at two
+          dollars fifty per million. The two input charges are written directly beneath the prompt.
+        hold: 0.75
+        visual_cues:
+          - id: price-suffix
+            phrase: five hundred twenty left on the right
+            targets:
+              - input-strip
+            color: cyan
+            linger: 0.3
+      - say: Look at the output on both receipts. The model still generates a hundred eighty tokens, so
+          PolicyOps pays the same output charge. The total falls from just over seven tenths of a cent to just over four
+          tenths. The whole saving comes from processing the same input at a different price.
+        hold: 0.75
+        visual_cues:
+          - id: keep-output
+            phrase: Look at the output on both receipts
+            targets:
+              - generation-receipt
+            color: pink
+            linger: 0.3
+  - id: two-reuse-paths
+    title: A return question, then an order question
+    visual: A valid stored answer stays in the library as a copy reaches the customer. Beside it, orders 42
+      and 77 match only on the policy prefix. The second response assembles in place and receives its own
+      generation receipt.
+    beats:
+      - say: A customer asks for the standard return window. This stored reply is approved for their region and
+          the current policy. Copy the approved text into the response. The customer sees the same thirty-day
+          return window. The model generates zero tokens. The application still pays for its lookup and storage.
+        hold: 0.65
+        visual_cues:
+          - id: stored-answer-copy
+            phrase: Copy the approved text into the response
+            targets:
+              - answer-copy
+            color: green
+            linger: 0.3
+      - say: The next customer asks about order seventy-seven. An earlier call used the same instructions for
+          order forty-two. Match the policy prefix. The provider can reuse the keys and values it saved for
+          those instructions. This receipt counts twelve hundred eighty tokens as cache reads and the other
+          five hundred twenty as ordinary input. Which work does the model still owe this customer?
+        hold: 2
+        visual_cues:
+          - id: prefix-kv-match
+            phrase: Match the policy prefix
+            targets:
+              - prefix-match
+            color: yellow
+            linger: 0.3
+      - say: Generate the answer for order seventy-seven. The answer comes from the new order details and the
+          reused policy context. All one hundred eighty output tokens go on this receipt. On the left we
+          copied an answer. On the right we reused part of the input computation and paid for a new answer.
+        hold: 0.85
+        visual_cues:
+          - id: prefix-new-output
+            phrase: Generate the answer for order seventy-seven
+            targets:
+              - new-output
+            color: pink
+            linger: 0.3
+  - id: accounting-physics
+    title: Separate the machine work from the bill
+    visual: Known input positions can be processed together within a layer. Output positions depend on
+      earlier tokens. The invoice separates ordinary input, reads, writes and output. A timed-out attempt
+      keeps an unresolved usage field until the receipt arrives with the same request ID.
+    beats:
+      - say: Look at the input positions. The model already has them all. It can process those positions in
+          parallel within each layer. That's prefill. On the output side, each new token supplies context
+          for the next. That's ordinary autoregressive decoding. A large prefill often keeps the arithmetic
+          units busy. Small-batch decoding often waits for memory. Batching, context length, sparse
+          experts, speculative verification and the kernels in use can change that balance.
+        hold: 0.7
+        visual_cues:
+          - id: te-accounting-physics-0
+            phrase: each new token supplies context for the next
+            targets:
+              - te-accounting-physics-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Follow an answer through the invoice. Ordinary input, cache reads, separately priced cache writes
+          and output each have their own rate. Those rates describe the bill. A hardware measurement tells
+          you where the time went. A stored reply skips answer generation, while reusing part of a prompt
+          still leaves an answer to generate. Keep lookup, embeddings, tools, storage and serving in their
+          own cost columns.
+        hold: 0.7
+        visual_cues:
+          - id: te-accounting-physics-1
+            phrase: Ordinary input, cache reads, separately priced cache writes and output
+            targets:
+              - te-accounting-physics-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Here a request leaves the application and the timer expires before any receipt arrives. The
+          provider may still be generating an answer. Keep the charge open under this request ID.
+          When the receipt arrives, match it to the request and record what it cost.
+        hold: 0.8
+        visual_cues:
+          - id: te-accounting-physics-2
+            phrase: the timer expires before any receipt arrives
+            targets:
+              - te-accounting-physics-mechanism
+            color: green
+            linger: 0.4
+          - id: match-timeout
+            phrase: match it to the request
+            targets:
+              - te-accounting-physics-mechanism
+            color: green
+            linger: 0.3
+  - id: usage-contract
+    title: Normalize mutually exclusive token categories
+    visual: A 1,800-token input strip splits into 520 ordinary tokens and 1,280 reads. A second receipt
+      starts with the separate ordinary and read counts used by Anthropic.
+    beats:
+      - say: This receipt includes cached input in its total. Start with the full strip. Subtract the reported
+          reads and any separately priced writes. What remains is ordinary input. Price each of those three
+          parts once. Multiply each count by its rate per million, divide by a million, and add the output
+          charge. Reasoning tokens already sit inside that output total on this contract.
+        hold: 0.7
+        visual_cues:
+          - id: te-usage-contract-0
+            phrase: Subtract the reported reads and any separately priced writes
+            targets:
+              - te-usage-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Check the counts before pricing. Reads plus writes must fit inside input, and reasoning must fit
+          inside output. The lab takes nonnegative whole numbers and rejects a Boolean dressed up as a
+          count. It also checks that each rate is a finite, nonnegative decimal. Keep the unrounded decimal
+          charges while adding calls. Reconcile rounding and adjustments against the invoice.
+        hold: 0.7
+        visual_cues:
+          - id: te-usage-contract-1
+            phrase: Check the counts before pricing
+            targets:
+              - te-usage-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Now read the field names on an Anthropic receipt. Its input tokens field counts ordinary input. Add
+          the separate read and write fields to reconstruct the total. Treating the ordinary count as the
+          whole prompt would lose the cached part. Match the model, tier, region, currency and rate date.
+          If the write price or Batch price is unknown, stop and find it before quoting a total.
+        hold: 0.8
+        visual_cues:
+          - id: te-usage-contract-2
+            phrase: Add the separate read and write fields
+            targets:
+              - te-usage-contract-mechanism
+            color: green
+            linger: 0.4
+  - id: hidden-output
+    title: An incomplete answer can consume its output budget
+    visual: The 1,186-token output contains 1,024 reasoning tokens and 162 other tokens. A separate
+      reasoning-only call ends with no visible answer and retains both input and output charges.
+    beats:
+      - say: This example from the inspected OpenAI reasoning guide reports eleven hundred eighty-six output
+          tokens. Look inside that total. A thousand twenty-four are reasoning tokens. The remaining
+          hundred sixty-two can include formatting as well as visible text.
+        hold: 0.7
+        visual_cues:
+          - id: te-hidden-output-0
+            phrase: Look inside that total
+            targets:
+              - te-hidden-output-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Price the full output once at fifteen dollars per million. If we add the reasoning detail again, the
+          second calculation charges twice for every yellow token. The correct output charge is just under
+          one point eight cents.
+        hold: 0.7
+        visual_cues:
+          - id: te-hidden-output-1
+            phrase: add the reasoning detail again
+            targets:
+              - te-hidden-output-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Now suppose a call reads eighteen hundred ordinary input tokens and spends all a thousand
+          twenty-four output tokens on reasoning. The customer sees no answer, yet the provider did both
+          pieces of work. Add their charges and this incomplete call costs almost two cents. Check the stop
+          reason along with usage. The output cap includes reasoning and non-visible formatting.
+        hold: 0.8
+        visual_cues:
+          - id: te-hidden-output-2
+            phrase: spends all a thousand twenty-four output tokens on reasoning
+            targets:
+              - te-hidden-output-mechanism
+            color: green
+            linger: 0.4
+  - id: context-tier
+    title: One extra input token can change the entire price row
+    visual: One token takes the prompt from 272,000 to 272,001. The whole input bar changes price. A
+      second receipt adds 1,000 output tokens at the long-context rate.
+    beats:
+      - say: This dated GPT-five-point-four card changes rates when input exceeds two hundred seventy-two
+          thousand tokens. The two input rates double. The output rate rises by half. The provider applies
+          the new row to the full session. Other models can use different thresholds and multipliers.
+        hold: 0.7
+        visual_cues:
+          - id: te-context-tier-0
+            phrase: The two input rates double
+            targets:
+              - te-context-tier-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Start at exactly two hundred seventy-two thousand ordinary input tokens, with zero output. That
+          costs sixty-eight cents. Add one input token. Watch the whole bar change price. It now costs just
+          over a dollar thirty-six, even though only one more token arrived.
+        hold: 0.7
+        visual_cues:
+          - id: te-context-tier-1
+            phrase: Add one input token
+            targets:
+              - te-context-tier-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Choose the row first. Here a three-hundred-thousand-token prompt also generates a thousand tokens.
+          Price the whole input at five dollars per million, then add output at twenty-two dollars and
+          fifty cents per million. The total is just over a dollar fifty-two. Check the provider's
+          effective limits and rate row at each turn as the history grows. The lab checks only the bounds
+          declared on its card.
+        hold: 0.8
+        visual_cues:
+          - id: te-context-tier-2
+            phrase: then add output at twenty-two dollars and fifty cents per million
+            targets:
+              - te-context-tier-mechanism
+            color: green
+            linger: 0.4
+  - id: cache-write
+    title: Pay once for a write and later for a read
+    visual: Both calls have 1,800 input tokens and 180 output tokens. The 1,280-token prefix changes from
+      a write to a read. The ordinary input and output charges stay fixed.
+    beats:
+      - say: Switch cards for these two calls. The September twenty twenty-six GPT-five-point-six Terra Standard
+          row charges for writing a prefix. A thirty-minute write costs a quarter more per token than
+          ordinary input. That price already pays for the written tokens' input processing. This card stays
+          separate from the GPT-five-point-four monthly plan.
+        hold: 0.7
+        visual_cues:
+          - id: te-cache-write-0
+            phrase: writing a prefix
+            targets:
+              - te-cache-write-mechanism
+            color: cyan
+            linger: 0.4
+      - say: On the first call, move twelve hundred eighty policy tokens into the write column. That leaves five
+          hundred twenty ordinary input tokens. Generate a hundred eighty output tokens. Add the three line
+          items and the call costs sixty-four hundredths of a cent. Counting those policy tokens again as
+          ordinary input would charge their base price twice.
+        hold: 0.7
+        visual_cues:
+          - id: te-cache-write-1
+            phrase: Add the three line items
+            targets:
+              - te-cache-write-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The next call reads the prefix we just wrote. Only that middle charge changes. The same prefix now
+          costs twenty cents per million to read, and this call costs about thirty-five hundredths of a
+          cent. Compare the pair with two ordinary calls. Reuse repays the write premium here. If no second
+          call reuses the prefix, that premium is all extra cost. A single call can also read an existing
+          prefix and pay to write a new suffix.
+        hold: 0.8
+        visual_cues:
+          - id: te-cache-write-2
+            phrase: The next call reads the prefix we just wrote
+            targets:
+              - te-cache-write-mechanism
+            color: green
+            linger: 0.4
+  - id: cache-policy
+    title: Match the rendered prefix and its actual billing policy
+    visual: Two rendered prompts share instructions and a tool schema. Changing the policy version
+      shortens the matching prefix. Separate duration bars pair each provider’s cache lifetime with its
+      write price.
+    beats:
+      - say: The current order changes at the end of the prompt. Look earlier, at the policy version. A change
+          there can break the match before the order details begin. Check the entire rendered prefix,
+          including roles, tools, schemas and relevant settings. Keep stable material first where that
+          preserves instruction priority and access boundaries. Verify that time-sensitive evidence is
+          still fresh. Count a read when the provider reports one.
+        hold: 0.7
+        visual_cues:
+          - id: te-cache-policy-0
+            phrase: Look earlier, at the policy version
+            targets:
+              - te-cache-policy-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The OpenAI guide checked in November twenty twenty-six sets a minimum of a thousand twenty-four
+          visible input tokens for GPT-five-point-six and later. On this card the default thirty-minute
+          write costs one and a quarter times ordinary input. Keeping it twelve hours costs two and a half
+          times ordinary input. Read discounts depend on the model. Earlier models use different minima and
+          retention rules, with no separate write price. The read we supplied for the older card is an
+          assumption.
+        hold: 0.7
+        visual_cues:
+          - id: te-cache-policy-1
+            phrase: Keeping it twelve hours costs two and a half times ordinary input
+            targets:
+              - te-cache-policy-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The Anthropic guide checked the same month lists its own lifetimes. A five-minute write costs one
+          and a quarter times base input and a one-hour write costs twice base input. Match the minimum and
+          read price to the model and platform. If you also care about speed, measure time to first token,
+          time between tokens and end-to-end latency. The price alone can't tell you how long the customer
+          waited.
+        hold: 0.8
+        visual_cues:
+          - id: te-cache-policy-2
+            phrase: five-minute write costs one and a quarter times base input
+            targets:
+              - te-cache-policy-mechanism
+            color: green
+            linger: 0.4
+  - id: daily-replay
+    title: Where does a day’s spend go?
+    visual: Each support cohort pairs its repeat count with its unit receipt. The spend bars appear on one
+      dollar scale. Changing exception output reprices only that row. Avoided stored-answer charges sit
+      outside the sum.
+    beats:
+      - say: Here are all eighty-five hundred customer questions in one supplied day. Each row repeats the usage
+          printed under its name. Read tokens are part of the input total. Look at calls per day beside the
+          price per call. Which group spends the most on generation?
+        hold: 1.85
+      - say: Multiply across each row. Live orders cost eleven dollars and a few cents a day. They use fresh
+          order data, and there are three thousand of them. The larger group of stored replies generates
+          nothing. Before changing a prompt, inspect the live orders' tool payloads and repeated
+          instructions.
+        hold: 0.85
+        caption_starts:
+          - Live orders cost eleven dollars
+        visual_cues:
+          - id: price-cohorts
+            phrase: Multiply across each row
+            targets:
+              - cohorts
+            color: cyan
+            linger: 0.3
+      - say: Now shorten only the exception replies. Keep their policy citations and change the output from two
+          hundred twenty tokens to one hundred thirty. That saves sixty-seven and a half cents per day. Add
+          the overnight checks to get the full day's generation cost. Live orders alone account for
+          about forty-six percent.
+        hold: 0.75
+        visual_cues:
+          - id: change-exception
+            phrase: change the output from two hundred twenty tokens to one hundred thirty
+            targets:
+              - cohorts
+              - daily-total
+            color: pink
+            linger: 0.3
+      - say: What did the stored answers avoid? Price the generation that would have run. At the policy prefix
+          rate, those thirty-two hundred answers would have cost nearly fourteen dollars. Keep that
+          estimate outside the daily bill. For a real forecast, check the distribution of actual receipts
+          before multiplying any one receipt by a whole day's traffic.
+        hold: 0.7
+        caption_starts:
+          - Price the generation that would have run
+          - At the policy prefix rate
+          - would have cost nearly fourteen dollars
+          - Keep that estimate outside the daily bill
+        visual_cues:
+          - id: avoided-cost
+            phrase: Price the generation that would have run
+            targets:
+              - avoided
+            color: green
+            linger: 0.3
+          - id: avoided-total
+            phrase: nearly fourteen dollars
+            targets: [avoided]
+            color: green
+            linger: 0.3
+  - id: history-loop
+    title: What did all five turns cost?
+    visual: Each row shows the input sent and the 200 tokens generated on that turn. Five receipt
+      charges add up beside the rows. Repricing the repeated input leaves every output count in place.
+    beats:
+      - say: Our agent starts with two thousand input tokens. On each turn it generates two hundred tokens. After
+          each of the first four turns a tool contributes another eight hundred. Watch the input grow by a
+          thousand positions each turn. Add all five rows and the model has processed twenty thousand input
+          positions and generated a thousand output tokens.
+        hold: 0.7
+        visual_cues:
+          - id: te-history-loop-0
+            phrase: Watch the input grow by a thousand positions each turn
+            targets:
+              - te-history-loop-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The last receipt says one point eight cents. Look at the four receipts above it. How much
+          did we spend on the whole task?
+        hold: 2
+      - say: Add the five receipts. Together they cost six and a half cents. Five cents paid for input
+          and one and a half for output. The tool's own fee goes on a separate line.
+        hold: 0.75
+        caption_starts:
+          - Together they cost six and a half cents
+          - Five cents paid for input
+        visual_cues:
+          - id: te-history-loop-1
+            phrase: Add the five receipts
+            targets:
+              - te-history-loop-mechanism
+            color: cyan
+            linger: 0.4
+          - id: five-turn-total
+            phrase: Together they cost six and a half cents
+            targets:
+              - te-history-loop-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Run those same turns with compatible prefix reads. Each later receipt reports that the entire
+          preceding input was reused. That moves fourteen thousand tokens to the read rate and leaves six
+          thousand ordinary. The output stays the same, and the five calls now cost three point three five
+          cents. Early edits, expiry or different routing can remove those assumed reads.
+        hold: 0.8
+        visual_cues:
+          - id: te-history-loop-2
+            phrase: the entire preceding input was reused
+            targets:
+              - te-history-loop-mechanism
+            color: green
+            linger: 0.4
+  - id: output-and-retries
+    title: How short can a useful reply be?
+    visual: A single reply keeps separate spaces for the decision, its citation and the next step. Shortening
+      the full answer preserves or empties those spaces. The token gauge and per-attempt savings use the
+      supplied complete receipts.
+    beats:
+      - say: A customer needs to know whether a refund is eligible, where the policy says so, and what to do
+          next. Here are those three pieces in the long reply. Shorten the wording. All three still fit,
+          and the full answer falls from two hundred twenty output tokens to one hundred thirty.
+        hold: 0.65
+        visual_cues:
+          - id: short-reply
+            phrase: Shorten the wording
+            targets:
+              - reply
+              - output-length
+            color: green
+            linger: 0.3
+      - say: Now cut the reply to fifty-five tokens. Read what the customer gets. Could they verify the decision
+          and act on it?
+        hold: 1.9
+        visual_cues:
+          - id: cut-reply
+            phrase: cut the reply to fifty-five tokens
+            targets:
+              - reply
+              - output-length
+            color: pink
+            linger: 0.3
+      - say: Bring back the citation and the next step. Cutting ninety output tokens at fifteen dollars per million saves
+          sixty-seven and a half cents across five hundred attempts.
+          Check whether the shorter answer gets the policy right, then count how many attempts it takes to resolve each case.
+          Take two customers, A and B.
+        hold: 0.7
+        visual_cues:
+          - id: keep-citation
+            phrase: Bring back the citation and the next step
+            targets:
+              - reply
+            color: green
+            linger: 0.3
+  - id: wrap
+    title: Which reply costs less per accepted task?
+    visual: Three concise receipts group by task. Two accepted receipts fit below the verbose total until
+      the failed attempt joins them. Both totals have the same two accepted tasks as their divisor.
+    beats:
+      - say: "Return to the same two support tasks. Bring back the three concise receipts: task A succeeds,
+          task B fails, then task B succeeds on retry. Each attempt costs point zero zero four five
+          seven dollars. All three receipts belong in spend."
+        hold: 0.55
+        visual_cues:
+          - id: payoff-receipts
+            phrase: Bring back the three concise receipts
+            targets:
+              - payoff-receipt-0
+              - payoff-receipt-1
+              - payoff-receipt-2
+              - payoff-spend
+            color: cyan
+            linger: 0.5
+      - say: Group the receipts by task. Task B contributes one accepted result, even though it needed two
+          attempts. Keep its failed receipt in the numerator. We spent point zero one three seven
+          one dollars to complete two distinct tasks.
+        hold: 0.65
+        visual_cues:
+          - id: payoff-group-tasks
+            phrase: Group the receipts by task
+            targets:
+              - payoff-task-groups
+              - payoff-spend
+            color: green
+            linger: 0.5
+      - say: Each verbose call cost more, but two calls resolved both cases. Here is their total beside the three concise receipts. Which format cost less per accepted task?
+        hold: 2.1
+      - say: Add the failed attempt to the two accepted ones. That pink segment takes the concise total
+          past the verbose total. Both routes delivered two accepted tasks. Divide both totals by two
+          and the long reply still costs less per resolution on these cases. For a service-wide comparison,
+          include each attempt's tool and infrastructure charges. Check a representative set before
+          changing the default.
+        hold: 0.85
+        caption_starts:
+          - That pink segment takes the concise total past the verbose total
+          - Divide both totals by two
+        visual_cues:
+          - id: payoff-compare
+            phrase: Add the failed attempt to the two accepted ones
+            targets:
+              - payoff-comparison
+              - payoff-accepted-cost
+            color: pink
+            linger: 0.3
+  - id: batch-deadline
+    title: Match lower-cost processing to the deadline
+    visual: Live support exits through the immediate lane. Nightly evaluation enters an asynchronous
+      queue with a 24-hour completion window and a 48-hour work deadline.
+    beats:
+      - say: Some work needs a reply while the customer is waiting. Other work, such as a nightly
+          evaluation, can finish later. The provider’s batch route trades that response time for a
+          lower token price.
+        hold: 0.55
+        visual_cues:
+          - id: interactive-work
+            phrase: customer is waiting
+            targets:
+              - live-request
+            color: cyan
+            linger: 0.5
+      - say: OpenAI’s Batch API, inspected on November sixth, twenty twenty-six, documents a fifty-percent
+          cost discount and a twenty-four-hour completion window. The fixture gives evaluation a
+          forty-eight-hour deadline, leaving time to inspect failures and recover.
+        hold: 0.65
+        visual_cues:
+          - id: batch-window
+            phrase: twenty-four-hour completion window
+            targets:
+              - evaluation-task
+              - batch-window
+            color: yellow
+            linger: 0.5
+      - say: Keep live support interactive. Use a batch route only when its model, endpoint, completion
+          window, and recovery time fit the task. Estimate a cold-cache case and account for expired
+          or failed calls.
+        hold: 0.7
+        visual_cues:
+          - id: deadline-fit
+            phrase: completion window, and recovery time fit the task
+            targets:
+              - evaluation-task
+              - batch-window
+              - batch-price
+            color: green
+            linger: 0.5
+  - id: nightly-receipt
+    title: Price the same evaluation twice
+    visual: The 1,280-token prefix, 520-token suffix and 80 output tokens stay in place. A cache miss moves
+      just the prefix to the ordinary Batch rate. Both receipts scale to 2,000 calls. The calendar compares
+      the extra cost of a cold night with the amount available per night.
+    beats:
+      - say: Here is one nightly check. This worksheet estimates Batch at half the dated Standard rates. It
+          assumes a read for twelve hundred eighty tokens of policy. Beside them are five hundred twenty
+          new input tokens and eighty output tokens. The receipt gives each group its own charge. If the read misses, which part of the bill changes?
+        hold: 2
+      - say: Reprice the policy tokens as ordinary input. Each million of those tokens now costs a dollar
+          twenty-five instead of twelve and a half cents. The new input and the output stay put. You can
+          see the two receipts for the same check.
+        hold: 0.7
+        visual_cues:
+          - id: reprice-prefix
+            phrase: Reprice the policy tokens as ordinary input
+            targets:
+              - prefix-price
+            color: cyan
+            linger: 0.3
+      - say: Scale both receipts to two thousand checks. One night costs two dollars and eighty-two cents with
+          the assumed reads, or five dollars and seventy cents without them. Keep the difference, two
+          dollars and eighty-eight cents. That's the amount one cold night takes from the monthly cushion.
+        hold: 0.8
+        visual_cues:
+          - id: price-night
+            phrase: Scale both receipts to two thousand checks
+            targets:
+              - night-cost
+            color: yellow
+            linger: 0.3
+      - say: Our monthly plan has thirty-two dollars and eighty-two cents to spare. Suppose we lose the saved
+          instructions on twelve nights. How much extra can we afford per night?
+        hold: 2.2
+        caption_starts:
+          - How much extra can we afford per night
+        visual_cues:
+          - id: mark-nights
+            phrase: lose the saved instructions on twelve nights
+            targets:
+              - calendar
+            color: yellow
+            linger: 0.3
+      - say: Divide the cushion among the twelve nights. That gives us a little under two dollars and
+          seventy-four cents extra per night. Each cold night adds two dollars and eighty-eight cents.
+        hold: 0.65
+        caption_starts:
+          - That gives us a little under
+        visual_cues:
+          - id: divide-cushion
+            phrase: Divide the cushion among the twelve nights
+            targets:
+              - forecast
+            color: yellow
+            linger: 0.3
+  - id: batch-recovery
+    title: Keep expiry and recovery inside one deadline
+    visual: A 48-hour deadline leaves space for a 24-hour provider window and four hours of recovery. Six
+      completed jobs retain their charges. Only the four missing job IDs enter recovery.
+    beats:
+      - say: The support customer needs an answer now. The nightly evaluation is offline and its model and
+          endpoint support Batch. Allow twenty-four hours for the provider and another four to recover
+          unfinished work. Our forty-eight-hour deadline covers both. Four recovery hours are a PolicyOps
+          choice. Verify the actual service rates and cache reads when the receipts arrive.
+        hold: 0.7
+        visual_cues:
+          - id: te-batch-recovery-0
+            phrase: twenty-four hours for the provider and another four to recover unfinished work
+            targets:
+              - te-batch-recovery-mechanism
+            color: cyan
+            linger: 0.4
+      - say: What if a batch expires? Here six of ten jobs finish in time. Keep those six receipts and their
+          original job identities. The provider bills the completed work and cancels unfinished requests.
+          Inspect the four missing outcomes and their errors before resubmitting only those jobs. Any
+          recovery call needs its own budget.
+        hold: 0.7
+        caption_starts:
+          - Here six of ten jobs finish in time
+          - Inspect the four missing outcomes
+        visual_cues:
+          - id: te-batch-recovery-1
+            phrase: Inspect the four missing outcomes and their errors
+            targets:
+              - te-batch-recovery-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Check the clock again before retrying. Here only three hours remain and we reserved four for
+          recovery. A discounted lane that misses the operational deadline cannot deliver the evidence we
+          need. Price any eligible recovery route with cold input.
+        hold: 0.8
+        visual_cues:
+          - id: te-batch-recovery-2
+            phrase: only three hours remain
+            targets:
+              - te-batch-recovery-mechanism
+            color: green
+            linger: 0.4
+  - id: trace-integrity
+    title: Bind historical spend to exact rate content
+    visual: A historical receipt identifies the task, attempt and rate table. Changing the output rate
+      under the same table ID changes its digest. Restoring the original rate restores the fingerprint.
+    beats:
+      - say: Attach each real attempt to a task, a feature and a release. Keep its usage, outcome, model, tier
+          and region with the price record. Include tool and infrastructure charges for that task. Our lab
+          multiplies a unit receipt by a group size. A production trace needs the individual attempts,
+          including any whose usage is still unresolved.
+        hold: 0.7
+        visual_cues:
+          - id: te-trace-integrity-0
+            phrase: a task, a feature and a release
+            targets:
+              - te-trace-integrity-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Here the price table keeps its name while someone changes the output rate from fifteen to sixteen
+          dollars. Compare the two fingerprints. The stored digest catches the edit, just as a different
+          rate ID would fail the identity check. Restore the approved table to reproduce the original
+          charge, or record an explicit repricing decision.
+        hold: 0.7
+        visual_cues:
+          - id: te-trace-integrity-1
+            phrase: someone changes the output rate from fifteen to sixteen dollars
+            targets:
+              - te-trace-integrity-mechanism
+            color: cyan
+            linger: 0.4
+          - id: restore-rates
+            phrase: Restore the approved table
+            targets:
+              - te-trace-integrity-mechanism
+            color: green
+            linger: 0.3
+      - say: A matching fingerprint can tell you that these bytes match the trusted record. You still need the
+          archived table, the provider evidence and a record of who approved the rates. Restrict who can
+          change them. If a trace names a quality report, open that report and check its review status too.
+        hold: 0.8
+        visual_cues:
+          - id: te-trace-integrity-2
+            phrase: the archived table, the provider evidence and a record of who approved the rates
+            targets:
+              - te-trace-integrity-mechanism
+            color: green
+            linger: 0.4
+  - id: budget-quality-gate
+    title: When support traffic grows
+    visual: Increasing support traffic moves only its share of the monthly forecast. With base traffic
+      restored, losing the nightly reads moves only the evaluation share. The reviewed quality counts
+      have a separate verdict.
+    beats:
+      - say: Back at our monthly budget, the plan has thirty-two dollars and eighty-two cents left. Suppose ten
+          percent more support requests arrive with the same mix of calls. The nightly evaluation still
+          runs two thousand checks. Which daily term changes?
+        hold: 1.8
+      - say: Grow only the support term. Add the same nightly charge, then multiply by thirty days. The forecast
+          reaches seven hundred eighty dollars and forty-four cents. That's over budget even with the
+          expected prefix reads. A change in retries or cache misses would need its own forecast.
+        hold: 0.75
+        caption_starts:
+          - The forecast reaches
+        visual_cues:
+          - id: grow-support
+            phrase: Grow only the support term
+            targets:
+              - daily-terms
+            color: cyan
+            linger: 0.3
+      - say: Check the quality report separately. Reviewers passed nineteen hundred ninety-four of two thousand
+          cited answers and found zero unsafe stored replies in twelve hundred reviewed hits. The sample
+          meets this lab's quality rules. The higher-volume plan still costs too much.
+        hold: 0.75
+        visual_cues:
+          - id: review-sample
+            phrase: Check the quality report separately
+            targets:
+              - quality-report
+            color: green
+            linger: 0.3
+      - say: Reset support traffic to the base plan. Now lose the nightly reads for all thirty nights.
+          Only the evaluation charge grows. The extra eighty-six dollars and forty cents takes the
+          same month to eight hundred three dollars and fifty-eight cents.
+        hold: 0.8
+        visual_cues:
+          - id: cold-month
+            phrase: lose the nightly reads for all thirty nights
+            targets:
+              - daily-terms
+            color: yellow
+            linger: 0.3
+  - id: quality-evidence
+    title: What can 1,200 reviews tell us?
+    visual: The current report records 1,994 passes in 2,000 cited answers and zero unsafe hits in 1,200
+      reviewed hits. One unsafe hit changes the quality verdict. A graph shows how the upper rate falls
+      as independent reviews accumulate.
+    beats:
+      - say: Start with the report itself. It must cover this release and answer schema, with complete evidence.
+          On the lab clock it can be at most an hour old, and a future timestamp fails. PolicyOps chose at
+          least two thousand reviewed answers, at least a thousand reviewed cache hits, a cited-answer pass
+          rate of at least ninety-nine point five percent, and zero observed unsafe hits.
+        hold: 0.7
+        visual_cues:
+          - id: te-quality-evidence-0
+            phrase: at least two thousand reviewed answers
+            targets:
+              - te-quality-evidence-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Reviewers accepted nineteen hundred ninety-four of two thousand cited answers. That's
+          ninety-nine point seven percent. They found zero unsafe replies in twelve hundred reviewed hits.
+          Now change one reviewed hit to unsafe. The release fails that requirement even with the same high
+          cited-answer score. A stale report, the wrong release or too few reviewed cases can also fail it.
+        hold: 0.7
+        visual_cues:
+          - id: te-quality-evidence-1
+            phrase: change one reviewed hit to unsafe
+            targets:
+              - te-quality-evidence-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Return to zero unsafe replies. As the number of independent, representative reviews grows, the
+          upper limit on the failure rate falls. For zero failures the approximate ninety-five-percent upper rate
+          is three divided by the number reviewed. Three over twelve hundred is about a quarter of one
+          percent. At that rate we'd expect about eight unsafe replies among thirty-two hundred hits. A
+          single day's count can be higher. The exact one-sided upper rate is one minus point zero five
+          raised to one over the sample size. Keep reviewing representative cases and difficult cases.
+          Related or selectively sampled hits need a different uncertainty analysis.
+        hold: 0.8
+        visual_cues:
+          - id: te-quality-evidence-2
+            phrase: the number of independent, representative reviews grows
+            targets:
+              - te-quality-evidence-mechanism
+            color: green
+            linger: 0.4
+  - id: cold-reservation
+    title: Can this generation start?
+    visual: Warm and cold charges cross the lab ceiling on the same scale. A cold input estimate and the sent
+      output cap then form one reservation. An extra hundred input tokens takes it beyond the reader's
+      one-cent limit.
+    beats:
+      - say: The lab sets its ceiling at half a cent using calls with warm prefixes. Let the policy prefix go
+          cold. The same policy answer now costs more than half a cent. So does a cold concise exception.
+          The reader's gateway example allows one cent for a single generation.
+        hold: 0.7
+        visual_cues:
+          - id: cold-receipts
+            phrase: Let the policy prefix go cold
+            targets:
+              - observed
+            color: cyan
+            linger: 0.3
+      - say: Before the call starts, price all twenty-two hundred input tokens at the cold rate. Send a cap of
+          three hundred output tokens and reserve the cost of all three hundred. Add the two charges. The
+          reservation lands exactly on one cent. The rule allows equality, so this call can start if the
+          account has the money.
+        hold: 0.65
+        visual_cues:
+          - id: reserve-limit
+            phrase: Add the two charges
+            targets:
+              - reservation
+            color: yellow
+            linger: 0.3
+      - say: Give the same request one hundred more input tokens. Leave the output cap alone. May this call start
+          under the same rule?
+        hold: 1.9
+        visual_cues:
+          - id: longer-input
+            phrase: one hundred more input tokens
+            targets:
+              - reservation
+            color: cyan
+            linger: 0.3
+      - say: Refuse this call. Those extra tokens push its reservation to just over a cent. A longer conversation
+          can cross the same line on a later turn. When the provider charges separately for a cache write,
+          include that charge in the worst case too.
+        hold: 0.65
+        visual_cues:
+          - id: refuse-call
+            phrase: Refuse this call
+            targets:
+              - reservation
+            color: pink
+            linger: 0.3
+      - say: A cap limits billed output, including reasoning. Let the model spend all three hundred tokens on
+          reasoning. The call can finish incomplete before the customer sees any text. The inspected
+          reasoning guide recommends starting experiments with at least twenty-five thousand output tokens.
+          Test this small lane with low or no reasoning, or raise the cap and its reservation together.
+        hold: 0.75
+        visual_cues:
+          - id: reasoning-cap
+            phrase: spend all three hundred tokens on reasoning
+            targets:
+              - output-cap
+            color: yellow
+            linger: 0.3
+  - id: atomic-settlement
+    title: What can the second call spend?
+    visual: Two calls claim a single account. A complete warm receipt releases enough of the first
+      reservation for the second call. An unresolved timeout holds the same cent and leaves the second call
+      waiting.
+    beats:
+      - say: A and B arrive together. Each needs a one-cent reservation and the whole account has one point six
+          cents. If both check the same balance before either writes to it, both see enough. Reserve A's
+          cent in one atomic operation. Now B sees what's really available, six tenths of a cent.
+        hold: 0.7
+        visual_cues:
+          - id: claim-balance
+            phrase: Reserve A's cent in one atomic operation
+            targets:
+              - ledger
+            color: yellow
+            linger: 0.3
+      - say: A returns a complete receipt for the concise answer with a warm prefix. Settle the actual charge. We
+          reserved a cent and used less than half of it. Add the unused portion back to the free balance. B
+          now has enough for its own reservation.
+        hold: 0.75
+        visual_cues:
+          - id: settle-usage
+            phrase: Settle the actual charge
+            targets:
+              - ledger
+            color: green
+            linger: 0.3
+      - say: Replay A with a local timeout and no usage receipt. Keep its cent held. The provider may still bill
+          for this attempt. Reconcile the receipt before releasing any money. Retries and fallbacks must
+          claim that same account balance. The lab emits the rule. A production gateway must enforce it,
+          along with deadlines, attempt limits, privacy and the required answer schema.
+        hold: 0.7
+        visual_cues:
+          - id: unresolved-charge
+            phrase: a local timeout and no usage receipt
+            targets:
+              - ledger
+            color: yellow
+            linger: 0.3
+  - id: fresh-economics
+    title: Four receipts and two arrivals
+    visual: Four priced attempts include an abandoned task. Their charges fill one strip that is divided by
+      the two accepted tasks. Two subsequent calls then compete for the same $0.017 balance. The first
+      holds its reservation through a timeout.
+    beats:
+      - say: Here's a fresh workload. X needs a retry. The customer on Y gives up after the failure. Z succeeds
+          the first time. The four receipts show every charge for these tasks. What did one accepted task
+          cost?
+        hold: 2.1
+      - say: Include all four charges. We spent one point four cents. Only X and Z reached an
+          accepted outcome. Divide by two and you get seven tenths of a cent per accepted task. If nothing
+          succeeds, report the spend and failures separately.
+        hold: 0.7
+        caption_starts:
+          - We spent one point four cents
+          - Divide by two
+        visual_cues:
+          - id: total-receipts
+            phrase: Include all four charges
+            targets:
+              - receipt-sum
+            color: green
+            linger: 0.3
+      - say: Now two new calls arrive together. The account has one point seven cents free. At our dated rates,
+          sixteen hundred cold input tokens and a four-hundred-token output cap reserve one cent per call.
+          How many can start?
+        hold: 2
+      - say: Reserve one cent for the first call. The second sees only seven tenths of a cent free, so it waits.
+        hold: 0.7
+        visual_cues:
+          - id: reserve-first
+            phrase: Reserve one cent for the first call
+            targets:
+              - account
+            color: yellow
+            linger: 0.3
+      - say: The first call times out before its receipt arrives. The provider may still be working. Keep the
+          cent held until you can settle the charge. The second call still has the same seven tenths of a
+          cent available.
+        hold: 0.8
+        visual_cues:
+          - id: timeout
+            phrase: times out before its receipt arrives
+            targets:
+              - account
+            color: yellow
+            linger: 0.3
+  - id: twelfth-night
+    title: Back to the evaluation calendar
+    visual: Each cold night adds $2.88 to the same monthly plan. Eleven nights leave $1.14. The twelfth tile
+      stays outlined during the decision, then posts the final charge and crosses the budget.
+    beats:
+      - say: Return to our thirty-night calendar. Keep support traffic fixed and let eleven nights lose their
+          prefix reads. Each costs two dollars and eighty-eight cents extra. The month now costs seven
+          hundred forty-eight dollars and eighty-six cents.
+        hold: 0.65
+        visual_cues:
+          - id: eleven-nights
+            phrase: let eleven nights lose their prefix reads
+            targets:
+              - calendar
+              - forecast
+            color: yellow
+            linger: 0.3
+      - say: There’s a dollar fourteen left. Look at night twelve. Its two thousand checks will also run cold.
+          Can the remaining budget cover the extra charge?
+        hold: 2.1
+      - say: Post the twelfth cold night. The month reaches seven hundred fifty-one dollars and seventy-four
+          cents. Hold this plan. Eleven cold nights fit, and twelve leave us a dollar seventy-four short.
+          Check the reported prefix reads before promising the next run.
+        hold: 1.05
+        caption_starts:
+          - The month reaches
+          - Hold this plan
+          - Check the reported prefix reads
+        visual_cues:
+          - id: post-twelfth
+            phrase: Post the twelfth cold night
+            targets:
+              - calendar
+              - forecast
+            color: yellow
+            linger: 0.3

@@ -43,7 +43,13 @@ function smallText(compiled, times) {
     const seen = new Set();
     for (const op of compiled.frame(time).ops) {
       const block = op.node?.parent;
-      if (op.kind !== 'path' || op.node.data?.key === undefined || !block || seen.has(block))
+      if (
+        op.kind !== 'path' ||
+        !op.node ||
+        op.node.data?.key === undefined ||
+        !block ||
+        seen.has(block)
+      )
         continue;
       if (typeof block.source !== 'string' || typeof block.data?.size !== 'number') continue;
       if ((op.fillAlpha ?? 0) < 0.5) continue;

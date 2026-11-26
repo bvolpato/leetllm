@@ -1,144 +1,291 @@
+// Scene 00: opening: "Two guides for one query"
+// Luminous 2D vector field + orbiting 3D unit-sphere constellation + withheld angle reveal.
+import { circle, dynamic, group, line, linear, polygon, polyline } from 'vizmatic/stage';
 import {
-  arc,
-  arrow,
-  assertEqual,
-  circle,
-  dot,
-  dynamic,
-  fadeIn,
-  group,
-  line,
-  linear,
-  polygon,
-  polyline,
-  rect,
-} from 'vizmatic/stage';
-import { area, label, mono } from '../../kit-narrated.mjs';
-import { guides, QUERY } from '../guide-plot.mjs';
-
-function guidePage(guide, tip) {
-  const { color } = guide;
-  const paper = group(
-    polygon(
-      [
-        [-34, -45],
-        [10, -45],
-        [34, -21],
-        [34, 45],
-        [-34, 45],
-      ],
-      {
-        fill: 'surface',
-        stroke: color,
-        width: 4,
-      },
-    ),
-    polyline(
-      [
-        [10, -43],
-        [10, -21],
-        [32, -21],
-      ],
-      { stroke: color, width: 4 },
-    ),
-    ...[-5, 10, 25].map((y, i) =>
-      line([-20, y], [i === 2 ? 5 : 20, y], { stroke: color, width: 3 }),
-    ),
-  ).moveTo([tip[0] + 70, tip[1]]);
-  const left = tip[0] + 132;
-  const name = label(guide.name + ' guide', { color, size: 56 });
-  name.moveTo([left + name.bounds().width / 2, tip[1]]);
-  const aboveName = (node) => node.moveTo([left + node.bounds().width / 2, tip[1] - 65]);
-  const coordinates = aboveName(mono('[' + guide.vector.join(', ') + ']', { size: 39 }));
-  const angle = Math.atan2(guide.vector[1], guide.vector[0]) - Math.atan2(QUERY[1], QUERY[0]);
-  const degrees = Math.round((angle * 180) / Math.PI);
-  const angleLabel = aboveName(mono('≈ ' + degrees + '°', { size: 42, color }));
-  return { page: group(paper, name), coordinates, angle, degrees, angleLabel };
-}
+  COSMOS,
+  GUIDES,
+  QUERY,
+  ROLE,
+  buildUnitSphere3d,
+  cinemaAtmosphere,
+  glowDot,
+  glowVector,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  orbitScene,
+  playCue,
+  runPhase,
+  txt,
+} from '../parts.mjs';
+import { glowArc } from '../parts.mjs';
 
 export default function opening(s, c) {
-  const origin = [area.left + 90, area.bottom - 214];
-  const unit = area.width * 0.167;
+  const origin = [-740, 260];
+  const unit = 240;
   const tip = ([x, y]) => [origin[0] + x * unit, origin[1] - y * unit];
-  const queryTip = tip(QUERY);
-  const pages = guides.map((guide) => guidePage(guide, tip(guide.vector)));
-  assertEqual(pages.map((p) => p.degrees).join(','), '11,27', 'guide angles with the query');
-  const queryText = label('How do I rotate an API key?', { size: 64 });
-  const searchWidth = queryText.bounds().width + 182;
-  const search = group(
-    rect(searchWidth, 116, { radius: 58, fill: 'surface', stroke: 'cyan', width: 4 }),
-    circle(18, { fill: null, stroke: 'cyan', width: 6 }).at(61 - searchWidth / 2, -5),
-    line([74 - searchWidth / 2, 8], [89 - searchWidth / 2, 24], { stroke: 'cyan', width: 7 }),
-    queryText.moveTo([40, 0]),
-  ).moveTo([area.left + searchWidth / 2, area.top - 9]);
+  const qTip = tip(QUERY);
+  const aTip = tip(GUIDES[0].vector);
+  const bTip = tip(GUIDES[1].vector);
 
-  const ink = s.value(0.35);
-  const trace = (v, color) =>
-    dynamic(() =>
-      arrow(origin, tip(v.map((x) => x * ink.value)), {
-        stroke: color,
-        width: 11,
-        tip: 29,
-        pad: 0,
-      }),
-    );
-  const base = group(
-    search,
-    ...guides.map((g) => line(origin, tip(g.vector), { stroke: 'faint', width: 2 })),
-    ...guides.map((g) => trace(g.vector, g.color)),
-    ...pages.map((p) => p.page),
-    trace(QUERY, 'cyan'),
-    dot(12, 'ink').moveTo(origin),
-    label('Query', { size: 43, color: 'cyan' }).moveTo([queryTip[0] - 58, queryTip[1] + 48]),
-  );
-  s.add(base);
-  s.play(fadeIn(base, { duration: 0 }), ink.to(1, { duration: 1.1, ease: linear }));
+  const angleA = Math.atan2(GUIDES[0].vector[1], GUIDES[0].vector[0]);
+  const angleB = Math.atan2(GUIDES[1].vector[1], GUIDES[1].vector[0]);
+  const degA = Math.round((angleA * 180) / Math.PI);
+  const degB = Math.round((angleB * 180) / Math.PI);
 
-  const question = label('Which guide makes the smaller angle?', {
-    size: 49,
-    color: 'yellow',
+  const ink = s.value(0.28);
+  const phase = s.value(0);
+  const askVis = s.value(0);
+  const sweepA = s.value(0);
+  const showDegA = s.value(0);
+  const sweepB = s.value(0);
+  const showDegB = s.value(0);
+  const showCoords = s.value(0);
+  const showReach = s.value(0);
+
+  // Orbiting 3D unit-sphere preview in bottom-right corner
+  const { view: sphere3d } = buildUnitSphere3d({
+    x: 610,
+    y: 195,
+    radius: 1.55,
+    unit: 90,
+    distance: 13.6,
+    theta: -0.75,
+    phi: 1.05,
+    vectors: [
+      { dir: [1, 0, 0.12], color: ROLE.query, width: 4 },
+      { dir: [1, 0.2, 0.12], color: ROLE.A, width: 4 },
+      { dir: [4, 2, 0.12], color: ROLE.B, width: 4 },
+    ],
+    geodesics: [
+      { a: [1, 0, 0.12], b: [1, 0.2, 0.12], color: ROLE.A, width: 3 },
+      { a: [1, 0, 0.12], b: [4, 2, 0.12], color: ROLE.B, width: 2.8 },
+    ],
   });
-  question.moveTo([area.left + question.bounds().width / 2, area.top + 150]);
-  c.show('ask', question);
-  c.hide('winner', question);
-  const rotation = guides[0],
-    audit = guides[1];
-  const sweep = s.value(0);
-  const wedge = dynamic(() =>
-    arc(200, -pages[0].angle * sweep.value, 0, {
-      stroke: rotation.color,
-      width: 9,
-    }).at(...origin),
-  );
-  c.show('winner', wedge, { after: true });
-  c.after('winner', () => s.play(sweep.to(1, { duration: 0.6 })));
-  c.show('small-angle', pages[0].angleLabel, { after: true });
-  c.show(
-    'wider',
-    arc(155, -pages[1].angle, 0, {
-      stroke: audit.color,
-      width: 7,
-    }).at(...origin),
-  );
-  c.show('large-angle', pages[1].angleLabel, { after: true });
-  const coordinates = mono('[' + QUERY.join(', ') + ']', { size: 39 }).moveTo([
-    queryTip[0] + 110,
-    queryTip[1] + 48,
-  ]);
-  c.swap(
-    'coordinates',
-    pages.map((p) => p.angleLabel),
-    [coordinates, ...pages.map((p) => p.coordinates)],
-  );
-  const reaches = guides.map((g) =>
-    line(tip(g.vector), tip([g.vector[0], 0]), {
-      stroke: g.color,
-      width: 4,
-      dash: [9, 8],
+
+  // Floating glowing search query pill (top-left, no slide banner)
+  const searchHeader = group(
+    lumBar(-430, -395, 840, 92, {
+      color: ROLE.query,
+      fillAlpha: 0.14,
+      strokeWidth: 2.6,
+      glow: 9,
+      radius: 46,
     }),
+    circle(16, { fill: null, stroke: ROLE.query, width: 4.5 }).at(-800, -400).glow(6, ROLE.query),
+    line([-788, -388], [-775, -375], { stroke: ROLE.query, width: 5 }).glow(6, ROLE.query),
+    txt('How do I rotate an API key?', -748, -395, 42, COSMOS.ink, 'serif', 'left'),
   );
-  c.show('reach', [
-    line(origin, tip([4.3, 0]), { stroke: 'faint', width: 2 }).zIndex(-1),
-    ...reaches,
-  ]);
+
+  const sphereCaption = group(
+    txt('EMBEDDING DIRECTIONS', 610, -10, 26, ROLE.code, 'mono'),
+    txt('Unit hypersphere view', 610, 398, 26, COSMOS.muted, 'sans'),
+  );
+
+  // Sleek vector document glyph
+  const docGlyph = (cx, cy, color) =>
+    group(
+      polygon(
+        [
+          [-20, -26],
+          [6, -26],
+          [20, -12],
+          [20, 26],
+          [-20, 26],
+        ],
+        { fill: '#0e172c', stroke: color, width: 2.8 },
+      ).glow(5, color),
+      polyline(
+        [
+          [6, -25],
+          [6, -12],
+          [19, -12],
+        ],
+        { stroke: color, width: 2.4 },
+      ),
+      line([-11, -3], [11, -3], { stroke: color, width: 2 }),
+      line([-11, 8], [11, 8], { stroke: color, width: 2 }),
+      line([-11, 18], [3, 18], { stroke: color, width: 2 }),
+    ).at(cx, cy);
+
+  // Main live 2D vector field
+  const vectorStage = dynamic(() => {
+    const k = ink.value;
+    const p = phase.value;
+    const pulse = 0.8 + 0.2 * Math.sin(p * 3.2);
+    const nodes = [
+      // Faint guide trajectories & subtle horizontal baseline
+      line(origin, aTip, { stroke: '#233458', width: 2 }).opacity(0.55),
+      line(origin, bTip, { stroke: '#233458', width: 2 }).opacity(0.55),
+      line(origin, tip([4.25, 0]), { stroke: '#26395e', width: 2, dash: [6, 8] }).opacity(
+        0.35 + 0.45 * showReach.value,
+      ),
+    ];
+
+    // Reach projection drops (beat 2)
+    if (showReach.value > 0.02) {
+      const rOp = showReach.value;
+      GUIDES.forEach((g) => {
+        const gt = tip(g.vector);
+        const foot = tip([g.vector[0], 0]);
+        nodes.push(
+          line(gt, foot, { stroke: g.color, width: 3.5, dash: [9, 7] })
+            .glow(6, g.color)
+            .opacity(rOp),
+          glowDot(foot[0], foot[1], { radius: 8, color: g.color, glow: 10, opacity: rOp }),
+        );
+      });
+    }
+
+    // Angle wedges (strictly withheld until winner / wider)
+    if (sweepA.value > 0.02) {
+      nodes.push(
+        glowArc(origin[0], origin[1], 195, -angleA * sweepA.value, 0, {
+          color: ROLE.A,
+          width: 7,
+          glow: 11,
+        }),
+      );
+    }
+    if (sweepB.value > 0.02) {
+      nodes.push(
+        glowArc(origin[0], origin[1], 145, -angleB * sweepB.value, 0, {
+          color: ROLE.B,
+          width: 6,
+          glow: 10,
+        }),
+      );
+    }
+
+    // Drawn luminous vectors
+    nodes.push(
+      glowVector(origin, tip(GUIDES[1].vector.map((x) => x * k)), {
+        color: ROLE.B,
+        width: 7.5,
+        tipSize: 22,
+        glow: 11 * pulse,
+        dotRadius: 6,
+      }),
+      glowVector(origin, tip(GUIDES[0].vector.map((x) => x * k)), {
+        color: ROLE.A,
+        width: 7.5,
+        tipSize: 22,
+        glow: 11 * pulse,
+        dotRadius: 6,
+      }),
+      glowVector(origin, tip(QUERY.map((x) => x * k)), {
+        color: ROLE.query,
+        width: 8,
+        tipSize: 22,
+        glow: 12 * pulse,
+        dotRadius: 6,
+      }),
+      glowDot(origin[0], origin[1], { radius: 7, color: COSMOS.ink, glow: 8 }),
+    );
+
+    // Floating document badges & titles (well clear of arrows)
+    nodes.push(
+      docGlyph(aTip[0] + 64, aTip[1] - 4, ROLE.A),
+      txt('Rotation guide', aTip[0] + 104, aTip[1] - 4, 38, ROLE.A, 'serif', 'left').glow(
+        5,
+        ROLE.A,
+      ),
+      docGlyph(bTip[0] + 58, bTip[1] - 4, ROLE.B),
+      txt('Audit guide', bTip[0] + 98, bTip[1] - 4, 38, ROLE.B, 'serif', 'left').glow(5, ROLE.B),
+      txt('Query', qTip[0] - 85, qTip[1] + 56, 36, ROLE.query, 'serif', 'center').glow(
+        5,
+        ROLE.query,
+      ),
+    );
+
+    // Angle labels (strict zero-overlap crossfade before coordinates appear)
+    const angleFade = Math.max(0, 1 - showCoords.value * 2.5);
+    const coordFade = Math.max(0, (showCoords.value - 0.55) / 0.45);
+    if (showDegA.value > 0.02 && angleFade > 0.02) {
+      nodes.push(
+        txt(`≈ ${degA}°`, aTip[0] + 104, aTip[1] - 58, 36, ROLE.A, 'mono', 'left')
+          .glow(7, ROLE.A)
+          .opacity(showDegA.value * angleFade),
+      );
+    }
+    if (showDegB.value > 0.02 && angleFade > 0.02) {
+      nodes.push(
+        txt(`≈ ${degB}°`, bTip[0] + 98, bTip[1] - 58, 36, ROLE.B, 'mono', 'left')
+          .glow(7, ROLE.B)
+          .opacity(showDegB.value * angleFade),
+      );
+    }
+
+    // Coordinate readouts (on `coordinates` cue)
+    if (coordFade > 0.02) {
+      nodes.push(
+        txt(
+          `[${QUERY.join(', ')}]`,
+          qTip[0] + 38,
+          qTip[1] + 56,
+          34,
+          ROLE.query,
+          'mono',
+          'left',
+        ).opacity(coordFade),
+        txt(
+          `[${GUIDES[0].vector.join(', ')}]`,
+          aTip[0] + 104,
+          aTip[1] - 58,
+          34,
+          COSMOS.ink,
+          'mono',
+          'left',
+        ).opacity(coordFade),
+        txt(
+          `[${GUIDES[1].vector.join(', ')}]`,
+          bTip[0] + 98,
+          bTip[1] - 58,
+          34,
+          COSMOS.ink,
+          'mono',
+          'left',
+        ).opacity(coordFade),
+      );
+    }
+
+    return group(...nodes);
+  });
+
+  // Floating prediction question (gold, no card chrome)
+  const askLayer = guardedDynamic(askVis, (a) =>
+    txt('Which guide makes the smaller angle?', -845, -275, 42, ROLE.gold, 'serif', 'left')
+      .glow(8, ROLE.gold)
+      .opacity(a),
+  );
+
+  s.add(
+    cinemaAtmosphere(ROLE.query, ROLE.A),
+    searchHeader,
+    sphere3d,
+    sphereCaption,
+    vectorStage,
+    askLayer,
+  );
+
+  // Continuous ambient motion + 3D orbit
+  c.at(0.05, () => s.play(ink.to(1, { duration: 1.15, ease: linear })));
+  runPhase(s, c, phase, 8);
+  orbitScene(s, c, sphere3d, { theta: 0.45, phi: 0.94 });
+
+  // Cues (strict prediction withholding)
+  playCue(s, c, 'ask', (d) => s.play(askVis.to(1, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'winner', (d) => s.play(askVis.to(0, { duration: d })), { dur: 0.3 });
+  playCue(s, c, 'winner', (d) => s.play(sweepA.to(1, { duration: d })), { after: true, dur: 0.65 });
+  playCue(s, c, 'small-angle', (d) => s.play(showDegA.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(s, c, 'wider', (d) => s.play(sweepB.to(1, { duration: d })), { dur: 0.65 });
+  playCue(s, c, 'large-angle', (d) => s.play(showDegB.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(s, c, 'coordinates', (d) => s.play(showCoords.to(1, { duration: d })), { dur: 0.55 });
+  playCue(s, c, 'reach', (d) => s.play(showReach.to(1, { duration: d })), { dur: 0.65 });
 }

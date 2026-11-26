@@ -36,7 +36,7 @@
 
 Your training run logs steadily falling loss, yet the sequence classifier behaves erratically during validation. A <span data-glossary="pytorch">PyTorch</span> training loop can finish without a single exception while a silent state bug corrupts the model: gradients accumulate across mini-batches, Dropout stays active during evaluation, or a saved checkpoint still aliases live parameter tensors that later epochs overwrite.
 
-Unlike frameworks that hide learning inside `.fit()`, PyTorch makes you write the loop explicitly so every <span data-glossary="tensor">tensor</span>, <span data-glossary="logits">logit</span>, <span data-glossary="gradient">gradient</span>, and <span data-glossary="optimizer">optimizer</span> buffer is inspectable.[^pytorch2019][^pytorch2026optimization] Building on [backpropagation](/learn/calculus-gradients-backpropagation-optimization) and [softmax classification](/learn/softmax-cross-entropy-optimization), we will trace each state transition on CPU with fixed seeds, then watch overfitting unfold on a tiny character language model.
+Unlike frameworks that hide learning inside `.fit()`, PyTorch makes you write the loop explicitly so every <span data-glossary="tensor">tensor</span>, <span data-glossary="logits">logit</span>, <span data-glossary="gradient">gradient</span>, and <span data-glossary="optimizer">optimizer</span> buffer is inspectable.[^pytorch2019][^pytorch2026optimization] Building on [backpropagation](/learn/calculus-gradients-backpropagation-optimization) and [softmax and cross-entropy](/learn/probability-for-machine-learning), we will trace each state transition on CPU with fixed seeds, then watch overfitting unfold on a tiny character language model.
 
 ## Raw logits and `CrossEntropyLoss`
 
@@ -274,7 +274,7 @@ After step 111, training loss keeps falling toward its 1.015 entropy floor while
   <figcaption>Classic overfitting: training loss falls monotonically, while validation loss bottoms out at step 111 and rises afterward. Keep the best-validation checkpoint and grade final performance on an untouched test split.</figcaption>
 </figure>
 
-Rewriting the same bigram loop in PyTorch with **AdamW**[^kingma2015][^loshchilov2019][^hfTrainer2026] collapses the entire training step to five lines (`zero_grad`, forward, `F.cross_entropy`, `backward`, `step`), hitting `1.019` near the training floor by step 200:
+Rewriting the same bigram loop in PyTorch with **AdamW**[^kingma2015][^loshchilov2019] collapses the entire training step to five lines (`zero_grad`, forward, `F.cross_entropy`, `backward`, `step`), hitting `1.019` near the training floor by step 200:
 
 <!-- leetllm: test, output=show, id=training-pytorch, deps=torch,numpy -->
 ```python title="the-same-model-in-pytorch.py"
@@ -472,7 +472,7 @@ When loss turns `NaN` or `Inf`, inspect in order: (1) **inputs** (`torch.isfinit
 
 To cap gradient spikes without distorting update direction, use global norm clipping `nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0, error_if_nonfinite=True)`, which rescales the concatenated gradient vector whenever $\|\mathbf{g}\|_2 > \text{max\_norm}$.[^pytorchClipGrad2026]
 
-For GPU throughput, **Automatic Mixed Precision (AMP)** keeps parameters in `float32`, runs eligible matrix ops in `float16` or `BF16` inside `torch.amp.autocast('cuda')`, and keeps reductions like `CrossEntropyLoss` in `float32`.[^micikevicius2018][^pytorchAmpDocs2026] Because `float16` underflows tiny gradients below $2^{-14} \approx 6.1 \times 10^{-5}$ (subnormals to $5.96 \times 10^{-8}$),[^pytorchTypeInfo2026] `torch.amp.GradScaler` multiplies loss by a dynamic scale $S$ (initially `65,536`), runs `scaler.scale(loss).backward()`, calls **`scaler.unscale_(optimizer)` before clipping** (clipping before unscaling imposes an effective bound of `max_norm / S`!), skips `optimizer.step()` on any non-finite gradient (halving $S$), and doubles $S$ after 2,000 consecutive finite steps.[^pytorchGradScalerSource2026] BF16 shares float32's exponent range and usually runs without a scaler.
+For GPU throughput, **Automatic Mixed Precision (AMP)** keeps parameters in `float32`, runs eligible matrix ops in `float16` or `BF16` inside `torch.amp.autocast('cuda')`, and keeps reductions like `CrossEntropyLoss` in `float32`.[^micikevicius2018][^pytorchAmpDocs2026] Because `float16` loses precision in subnormals below $2^{-14} \approx 6.1 \times 10^{-5}$ and underflows to zero below $2^{-24} \approx 5.96 \times 10^{-8}$,[^pytorchTypeInfo2026] `torch.amp.GradScaler` multiplies loss by a dynamic scale $S$ (initially `65,536`), runs `scaler.scale(loss).backward()`, calls **`scaler.unscale_(optimizer)` before clipping** (clipping before unscaling imposes an effective bound of `max_norm / S`!), skips `optimizer.step()` on any non-finite gradient (halving $S$), and doubles $S$ after 2,000 consecutive finite steps.[^pytorchGradScalerSource2026] BF16 shares float32's exponent range and usually runs without a scaler.
 
 <figure>
   <img src="illustrations/_generated/amp_mixed_precision_dataflow_dark.png" alt="CUDA float16 autocast pattern with float32 stored parameters, operation-specific forward dtypes, scaled backward, unscaling before optional clipping, and finite versus non-finite update branches. Defaults keep the scale fixed on ordinary finite steps, double it after 2000 successful iterations, and halve it after a non-finite event." />
@@ -624,15 +624,15 @@ Once your eager loop passes every check, `torch.compile(model)` captures graph r
     "explanation": "The scaled norm is 128. Clipping it to 2 then dividing by 32 gives 0.0625. Unscale first to recover norm 4, then clip to the intended bound 2. Keep the scale fixed across accumulation."
   },
   {
-    "question": "For one bigram input character, a three-pair batch has successors a,a,b. What optimum row distribution and zero-loss conclusion follow?",
+    "question": "For one bigram input character, a four-pair batch has successors x, x, x, y. What optimum row distribution and zero-loss conclusion follow?",
     "options": [
-      "a:1,b:0; this row can attain zero loss.",
-      "a:2/3,b:1/3; positive conditional loss remains.",
-      "a:1/2,b:1/2; positive conditional loss remains.",
-      "a:2/3,b:1/3; this row can attain zero loss."
+      "x: 1, y: 0; this row can attain zero loss.",
+      "x: 3/4, y: 1/4; positive conditional loss remains.",
+      "x: 1/2, y: 1/2; positive conditional loss remains.",
+      "x: 3/4, y: 1/4; this row can attain zero loss."
     ],
-    "answer": "a:2/3,b:1/3; positive conditional loss remains.",
-    "explanation": "One row conditions on the current character only. The likelihood optimum matches empirical successor frequencies, so conflicting successors imply a positive entropy floor. A wiring check must respect that model capacity."
+    "answer": "x: 3/4, y: 1/4; positive conditional loss remains.",
+    "explanation": "One row conditions on the current character only. The likelihood optimum matches empirical successor frequencies (3/4 and 1/4), so conflicting successors imply a positive entropy floor. A wiring check must respect that model capacity."
   },
   {
     "question": "Validation loss is lowest at update 20, but training loss continues falling to update 100. Validation chose the checkpoint; a third test set remains untouched. Which checkpoint/evaluation pair follows?",

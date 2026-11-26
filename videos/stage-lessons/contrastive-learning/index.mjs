@@ -1,66 +1,71 @@
-import { narratedLesson } from '../../lib/narrated-lesson.mjs';
-import scene0 from './scenes/intro.mjs';
-import scene1 from './scenes/order-collision.mjs';
-import scene2 from './scenes/encode.mjs';
-import scene3 from './scenes/pooling-tensor.mjs';
-import scene4 from './scenes/scores.mjs';
-import scene5 from './scenes/objective.mjs';
-import scene6 from './scenes/loss-numerics.mjs';
-import scene7 from './scenes/triplet-margin.mjs';
-import scene8 from './scenes/temperature-gradient.mjs';
-import scene9 from './scenes/geometry.mjs';
-import scene10 from './scenes/alignment-uniformity.mjs';
-import scene11 from './scenes/pair-supervision.mjs';
-import scene12 from './scenes/dropout-views.mjs';
-import scene13 from './scenes/negatives.mjs';
-import scene14 from './scenes/batch-identity.mjs';
-import scene15 from './scenes/false-negatives.mjs';
-import scene16 from './scenes/multiple-positives.mjs';
-import scene17 from './scenes/mining-loop.mjs';
-import scene18 from './scenes/teacher-margin.mjs';
-import scene19 from './scenes/architectures.mjs';
-import scene20 from './scenes/maxsim-readout.mjs';
-import scene21 from './scenes/task-format.mjs';
-import scene22 from './scenes/prefix-failure.mjs';
-import scene23 from './scenes/nested-loss.mjs';
-import scene24 from './scenes/retrieval.mjs';
-import scene25 from './scenes/shortlist-budget.mjs';
-import scene26 from './scenes/evaluation-scope.mjs';
-import scene27 from './scenes/release-metrics.mjs';
-import scene28 from './scenes/transfer.mjs';
-import scene29 from './scenes/fresh-embedding.mjs';
-export default narratedLesson({
+// Pure Cinema Vizmatic 0.10.0 stage film for Sentence Embeddings & Contrastive Learning (30 scenes).
+import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
+import { verifyContrastiveInvariants } from './parts.mjs';
+import alignmentUniformity from './scenes/alignment-uniformity.mjs';
+import architectures from './scenes/architectures.mjs';
+import batchIdentity from './scenes/batch-identity.mjs';
+import dropoutViews from './scenes/dropout-views.mjs';
+import encode from './scenes/encode.mjs';
+import evaluationScope from './scenes/evaluation-scope.mjs';
+import falseNegatives from './scenes/false-negatives.mjs';
+import freshEmbedding from './scenes/fresh-embedding.mjs';
+import geometry from './scenes/geometry.mjs';
+import intro from './scenes/intro.mjs';
+import lossNumerics from './scenes/loss-numerics.mjs';
+import maxsimReadout from './scenes/maxsim-readout.mjs';
+import miningLoop from './scenes/mining-loop.mjs';
+import multiplePositives from './scenes/multiple-positives.mjs';
+import negatives from './scenes/negatives.mjs';
+import nestedLoss from './scenes/nested-loss.mjs';
+import objective from './scenes/objective.mjs';
+import orderCollision from './scenes/order-collision.mjs';
+import pairSupervision from './scenes/pair-supervision.mjs';
+import poolingTensor from './scenes/pooling-tensor.mjs';
+import prefixFailure from './scenes/prefix-failure.mjs';
+import releaseMetrics from './scenes/release-metrics.mjs';
+import retrieval from './scenes/retrieval.mjs';
+import scores from './scenes/scores.mjs';
+import shortlistBudget from './scenes/shortlist-budget.mjs';
+import taskFormat from './scenes/task-format.mjs';
+import teacherMargin from './scenes/teacher-margin.mjs';
+import temperatureGradient from './scenes/temperature-gradient.mjs';
+import transfer from './scenes/transfer.mjs';
+import tripletMargin from './scenes/triplet-margin.mjs';
+
+export default cinematicLesson({
   id: 'contrastive-learning',
+  accent: COSMOS.cyan,
+  invariants: verifyContrastiveInvariants,
   scenes: {
-    'intro': scene0,
-    'order-collision': scene1,
-    'encode': scene2,
-    'pooling-tensor': scene3,
-    'scores': scene4,
-    'objective': scene5,
-    'loss-numerics': scene6,
-    'triplet-margin': scene7,
-    'temperature-gradient': scene8,
-    'geometry': scene9,
-    'alignment-uniformity': scene10,
-    'pair-supervision': scene11,
-    'dropout-views': scene12,
-    'negatives': scene13,
-    'batch-identity': scene14,
-    'false-negatives': scene15,
-    'multiple-positives': scene16,
-    'mining-loop': scene17,
-    'teacher-margin': scene18,
-    'architectures': scene19,
-    'maxsim-readout': scene20,
-    'task-format': scene21,
-    'prefix-failure': scene22,
-    'nested-loss': scene23,
-    'retrieval': scene24,
-    'shortlist-budget': scene25,
-    'evaluation-scope': scene26,
-    'release-metrics': scene27,
-    'transfer': scene28,
-    'fresh-embedding': scene29,
+    intro,
+    'order-collision': orderCollision,
+    encode,
+    'pooling-tensor': poolingTensor,
+    scores,
+    objective,
+    'loss-numerics': lossNumerics,
+    'triplet-margin': tripletMargin,
+    'temperature-gradient': temperatureGradient,
+    geometry,
+    'alignment-uniformity': alignmentUniformity,
+    'pair-supervision': pairSupervision,
+    'dropout-views': dropoutViews,
+    negatives,
+    'batch-identity': batchIdentity,
+    'false-negatives': falseNegatives,
+    'multiple-positives': multiplePositives,
+    'mining-loop': miningLoop,
+    'teacher-margin': teacherMargin,
+    architectures,
+    'maxsim-readout': maxsimReadout,
+    'task-format': taskFormat,
+    'prefix-failure': prefixFailure,
+    'nested-loss': nestedLoss,
+    retrieval,
+    'shortlist-budget': shortlistBudget,
+    'evaluation-scope': evaluationScope,
+    'release-metrics': releaseMetrics,
+    transfer,
+    'fresh-embedding': freshEmbedding,
   },
 });

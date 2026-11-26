@@ -17,7 +17,7 @@ const COORDS: ReadonlyArray<readonly [number, number]> = [
 ]
 const MEAN_X = COORDS.reduce((s, p) => s + p[0], 0) / COORDS.length
 const MEAN_Y = COORDS.reduce((s, p) => s + p[1], 0) / COORDS.length
-const PC1: readonly [number, number] = [0.99987, -0.01604]
+const PC1: readonly [number, number] = [0.9998646, -0.0164554]
 
 const PROJECTED = COORDS.map(([x, y]) => {
     const score = (x - MEAN_X) * PC1[0] + (y - MEAN_Y) * PC1[1]
@@ -154,7 +154,7 @@ export function create(theme: ThemeMode = 'dark') {
         weight: 600,
         color: c.textPrimary,
     })
-    fig.math(rx, 184, String.raw`\lambda_1 = 11.182 \quad (85.2\%)`, {
+    fig.math(rx, 184, String.raw`\lambda_1 = 11.183 \quad (85.2\%)`, {
         size: 15,
         color: green,
     })

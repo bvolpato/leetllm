@@ -56,14 +56,15 @@ export function create(theme: ThemeMode = 'dark') {
         fig.text(cx, 24, col.title, { size: 15, weight: 700, color: col.tone, align: 'center' })
         fig.text(cx, 46, col.code, { size: 12.5, mono: true, color: c.textSecondary, align: 'center' })
 
-        // Step axis header S1 | S2 | S3
+        // Step axis header S1 | S2 | S3 with progression arrow
         const gx = col.x + 56
         const gw = colW - 64
         const sW = gw / 3
+        fig.arrow(gx, 86, gx + gw + 4, 86, { color: c.textMuted, width: 1.2, head: 5 })
         for (let s = 0; s < 3; s++) {
             const sx = gx + s * sW
-            fig.line(sx, 72, sx, 286, { color: c.borderSubtle, width: 0.9, dash: '2 3' })
-            fig.text(sx + sW / 2, 74, `S${s + 1}`, {
+            fig.line(sx, 86, sx, 286, { color: c.borderSubtle, width: 0.9, dash: '2 3' })
+            fig.text(sx + sW / 2, 72, `S${s + 1}`, {
                 size: 12,
                 mono: true,
                 color: c.textSecondary,
@@ -71,7 +72,7 @@ export function create(theme: ThemeMode = 'dark') {
             })
         }
 
-        // Branch bars: lint (S1), tests (S1..S2), bench (skipped in list/defer note, or S1..S2)
+        // Branch bars: lint (1 step: S1), tests -> tests_done (2 steps: S1..S2), optional bench skipped
         const rows = [
             { name: 'lint', y: 98, start: 0, span: 1, tone: blue, skipped: false },
             { name: 'tests', y: 146, start: 0, span: 2, tone: blue, skipped: false },
@@ -79,9 +80,9 @@ export function create(theme: ThemeMode = 'dark') {
                 name: 'bench',
                 y: 194,
                 start: 0,
-                span: 2,
+                span: 1,
                 tone: c.textMuted,
-                skipped: col.mode !== 'separate',
+                skipped: true,
             },
         ]
         for (const r of rows) {

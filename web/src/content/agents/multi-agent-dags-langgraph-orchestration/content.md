@@ -269,7 +269,7 @@ mode=defer    bench=False -> merges=['merge(4)'] full_log=['triage', 'lint', 'te
 ```
 <!-- leetllm: output:end -->
 
-Look closely at the three schedules in that trace. Separate `add_edge` statements trigger `merge` once after `lint` finishes in step 2 (`merge(3)`) and a second time after `tests_done` finishes in step 3 (`merge(4)`). A list-form join `add_edge(["lint", "tests_done", "bench"], "merge")` waits cleanly until all three complete, yet stays unexecuted forever if routing omits `bench`. Setting `defer=True` on `merge` instructs the runtime to wait until all active upstream paths drain before firing `merge` exactly once, even when optional branches skip cleanly.
+Look closely at the three schedules in that trace. Separate `add_edge` statements trigger `merge` once after `lint` finishes in step 2 (`merge(3)`) and a second time after `tests_done` finishes in step 3 (`merge(5)`, since `full_log` already holds `merge(3)` and `tests_done`). A list-form join `add_edge(["lint", "tests_done", "bench"], "merge")` waits cleanly until all three complete, yet stays unexecuted forever if routing omits `bench`. Setting `defer=True` on `merge` instructs the runtime to wait until all active upstream paths drain before firing `merge` exactly once, even when optional branches skip cleanly.
 
 ## Pause for review and enforce single-writer idempotency
 

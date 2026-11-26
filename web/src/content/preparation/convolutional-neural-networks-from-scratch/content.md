@@ -164,7 +164,7 @@ Slide the identical kernel across the remaining three positions. Each placement 
 | Bottom left | `1:4`, `0:3` | 0.817 |
 | Bottom right | `1:4`, `1:4` | 0.874 |
 
-The bottom-right window yields `0.874`, the highest activation on the grid, because rows 2 and 3 sit directly beneath the `+1.1` middle strip while row 4's low background intensities (`0.06`, `0.07`, `0.09`) minimize the bottom `-0.6` penalty. Compare that with the top-right offset, where two bright edge pixels fall inside the `-0.6` bottom weights and pull the score down to `0.789`. Because every offset applies the exact same weights, sliding one shared kernel builds a complete spatial map of feature match strength.
+The bottom-right window yields `0.874`, the highest activation on the grid, because row 3 (`0.90`, `0.93`, `0.11`) sits directly beneath the `+1.1` middle strip while row 4's low background intensities (`0.07`, `0.09`, `0.05`) minimize the bottom `-0.6` penalty. Compare that with the top-right offset, where two bright edge pixels fall inside the `-0.6` bottom weights and pull the score down to `0.789`. Because every offset applies the exact same weights, sliding one shared kernel builds a complete spatial map of feature match strength.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="slide-the-kernel.py"
@@ -291,7 +291,7 @@ parameters including biases: 448
 ```
 <!-- leetllm: output:end -->
 
-For a PyTorch batch ordered **NCHW** (`batch, channels, height, width`), $F$ filters map $(N, C_{\text{in}}, H_{\text{in}}, W_{\text{in}})$ to $(N, F, H_{\text{out}}, W_{\text{out}})$. In a grouped convolution with $G$ groups, each filter reads only $C_{\text{in}}/G$ input channels (both $C_{\text{in}}$ and $F$ must be divisible by $G$), cutting parameter count by a factor of $G$.[^pytorchConv2d2026]
+For a PyTorch batch ordered **NCHW** (`batch, channels, height, width`), $F$ filters map $(N, C_{\text{in}}, H_{\text{in}}, W_{\text{in}})$ to $(N, F, H_{\text{out}}, W_{\text{out}})$. In a grouped convolution with $G$ groups, each filter reads only $C_{\text{in}}/G$ input channels (both $C_{\text{in}}$ and $F$ must be divisible by $G$), cutting kernel weight count by a factor of $G$ while keeping $F$ biases when enabled.[^pytorchConv2d2026]
 
 ## Receptive fields and channel expansion
 

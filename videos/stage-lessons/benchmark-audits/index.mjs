@@ -1,31 +1,36 @@
-import { narratedLesson } from '../../lib/narrated-lesson.mjs';
-import intro from './scenes/intro.mjs';
-import contract from './scenes/contract.mjs';
-import gold from './scenes/gold-contract.mjs';
+// Full-bleed dark-cinema 25-scene Benchmark Audits stage lesson (vizmatic@0.10.0).
+import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
+import { verifyBenchmarkInvariants } from './parts.mjs';
+import audit from './scenes/benchmark-audit.mjs';
+import candidates from './scenes/candidates.mjs';
 import checker from './scenes/checker.mjs';
-import ragStage from './scenes/rag-stage.mjs';
-import ragMetrics from './scenes/rag-metrics.mjs';
+import code from './scenes/code-contract.mjs';
+import contract from './scenes/contract.mjs';
+import exposureScreen from './scenes/exposure-screen.mjs';
+import exposure from './scenes/exposure.mjs';
+import finite from './scenes/finite-report.mjs';
+import fresh from './scenes/fresh-report.mjs';
+import gates from './scenes/gates.mjs';
+import gold from './scenes/gold-contract.mjs';
+import intro from './scenes/intro.mjs';
+import judge from './scenes/judge-controls.mjs';
 import knowledge from './scenes/knowledge-contract.mjs';
 import math from './scenes/math-frontier.mjs';
-import code from './scenes/code-contract.mjs';
-import audit from './scenes/benchmark-audit.mjs';
+import paired from './scenes/paired-diagnosis.mjs';
 import preference from './scenes/preference-ratings.mjs';
-import slices from './scenes/slices.mjs';
-import candidates from './scenes/candidates.mjs';
+import ragMetrics from './scenes/rag-metrics.mjs';
+import ragStage from './scenes/rag-stage.mjs';
+import packageRecord from './scenes/reproducible-package.mjs';
 import estimator from './scenes/sample-estimator.mjs';
-import judge from './scenes/judge-controls.mjs';
-import exposure from './scenes/exposure.mjs';
-import screen from './scenes/exposure-screen.mjs';
+import slices from './scenes/slices.mjs';
+import synthesis from './scenes/synthesis.mjs';
 import uncertainty from './scenes/uncertainty.mjs';
 import wilson from './scenes/wilson-construction.mjs';
-import paired from './scenes/paired-diagnosis.mjs';
-import gates from './scenes/gates.mjs';
-import finite from './scenes/finite-report.mjs';
-import packageRecord from './scenes/reproducible-package.mjs';
-import synthesis from './scenes/synthesis.mjs';
-import fresh from './scenes/fresh-report.mjs';
-export default narratedLesson({
+
+export default cinematicLesson({
   id: 'benchmark-audits',
+  accent: COSMOS.amber,
+  invariants: verifyBenchmarkInvariants,
   scenes: {
     intro,
     contract,
@@ -43,7 +48,7 @@ export default narratedLesson({
     'sample-estimator': estimator,
     'judge-controls': judge,
     exposure,
-    'exposure-screen': screen,
+    'exposure-screen': exposureScreen,
     uncertainty,
     'wilson-construction': wilson,
     'paired-diagnosis': paired,

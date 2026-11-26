@@ -282,7 +282,7 @@ Multiplying tiny probabilities across long sequences underflows `float64` (whose
 
 <figure>
   <img src="illustrations/_generated/sequence_logprob_underflow_dark.png" alt="Chain rule prefix product across four tokens shrinks from 0.40 to 0.216 with total NLL 1.532 nats, while base-10 log mass for 200 tokens at p = 0.01 drops linearly past the binary64 underflow floor at -324." />
-  <figcaption>Prefix probabilities decay multiplicatively toward zero, underflowing `float64` by step 163 when step probabilities are `0.01`. Summing natural logarithms avoids numerical collapse.</figcaption>
+  <figcaption>Prefix probabilities decay multiplicatively toward zero, underflowing `float64` by step 162 when step probabilities are `0.01`. Summing natural logarithms avoids numerical collapse.</figcaption>
 </figure>
 
 The same underflow hits naive `torch.log(torch.softmax(logits))` when extreme logit gaps round a probability to `0.0` before the log runs. Always pass raw logits straight to fused log-sum-exp routines like `F.log_softmax` or `nn.CrossEntropyLoss`:[^pytorchCrossEntropy2026]

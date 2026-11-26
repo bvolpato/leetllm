@@ -1,5 +1,6 @@
-// The lesson `agent-orchestration` as a narrated film. One file for each scene, in the order of lesson.yaml.
-import { narratedLesson } from '../../lib/narrated-lesson.mjs';
+// Full-bleed dark-cinema 11-scene Agent Orchestration stage lesson (vizmatic@0.10.0).
+import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
+import { verifyOrchestrationInvariants } from './parts.mjs';
 import checkpointRetry from './scenes/checkpoint-retry.mjs';
 import dependencyGraph from './scenes/dependency-graph.mjs';
 import parallelClock from './scenes/parallel-clock.mjs';
@@ -12,8 +13,10 @@ import typedReceipts from './scenes/typed-receipts.mjs';
 import validatedJoin from './scenes/validated-join.mjs';
 import wireProtocols from './scenes/wire-protocols.mjs';
 
-export default narratedLesson({
+export default cinematicLesson({
   id: 'agent-orchestration',
+  accent: COSMOS.cyan,
+  invariants: verifyOrchestrationInvariants,
   scenes: {
     'subject-intro': subjectIntro,
     'dependency-graph': dependencyGraph,

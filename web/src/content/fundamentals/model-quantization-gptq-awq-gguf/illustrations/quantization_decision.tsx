@@ -5,12 +5,12 @@ export const width = 760
 export const height = 410
 export const preset = 'engineering'
 export const alt =
-    'Paired held-out output comparison between source baseline and reloaded 4-bit model under identical tokenizer, chat template, and decoding controls. On a shared -4 to +8 axis, held-out column x0 shifts from -2.460 to -2.457 (delta -0.003), x1 shifts from -3.100 to -2.714 (delta -0.386), and x2 shifts from +6.800 to +6.571 (delta +0.229), exposing uneven per-input drift.'
+    'Paired held-out output comparison between source baseline and reloaded 4-bit model under identical tokenizer, chat template, and decoding controls. On a shared -4 to +8 axis, held-out column x0 shifts from -2.460 to -2.457 (drift +0.003), x1 shifts from -3.100 to -2.714 (drift +0.386), and x2 shifts from +6.800 to +6.571 (drift -0.229), exposing uneven per-input drift.'
 
 const rows = [
-    { name: 'x₀', base: -2.46, cand: -2.457, delta: '−0.003', sev: 'green' as const },
-    { name: 'x₁', base: -3.1, cand: -2.714, delta: '−0.386', sev: 'critical' as const },
-    { name: 'x₂', base: 6.8, cand: 6.571, delta: '+0.229', sev: 'warm' as const },
+    { name: 'x₀', base: -2.46, cand: -2.457, delta: '+0.003', sev: 'green' as const },
+    { name: 'x₁', base: -3.1, cand: -2.714, delta: '+0.386', sev: 'critical' as const },
+    { name: 'x₂', base: 6.8, cand: 6.571, delta: '−0.229', sev: 'warm' as const },
 ]
 
 export function create(theme: ThemeMode = 'dark') {

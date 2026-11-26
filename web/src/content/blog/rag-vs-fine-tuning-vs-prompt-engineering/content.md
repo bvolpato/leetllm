@@ -7,8 +7,8 @@
     "name": "LeetLLM Team"
   },
   "publishedAt": "2026-02-19",
-  "updatedAt": "2026-11-15",
-  "verifiedAt": "2026-11-15",
+  "updatedAt": "2026-11-25",
+  "verifiedAt": "2026-11-25",
   "refreshAfter": "2027-01-08",
   "excerpt": "How prompting, retrieval-augmented generation (RAG), and fine-tuning act on different layers of an LLM system, and how to isolate retrieval failures from model behavior with controlled ablations.",
   "tags": [
@@ -137,7 +137,7 @@ Never evaluate prompting, RAG, and fine-tuning purely on aggregate headline accu
 | `C` | Verified oracle passages | SFT / LoRA model | Does fine-tuning improve structured reasoning and abstention given perfect context? |
 | `D` | Live automated RAG | SFT / LoRA model | Does fine-tuning improve end-to-end production behavior over `B`? |
 
-Reading deltas across these four cells eliminates guesswork cleanly. If `A` and `C` both score 95%+ while `B` and `D` stall near 70%, fine-tuning is solving the wrong problem and retrieval recall needs work; if `B` already clears quality targets but costs too much because it requires 2,400 prompt tokens of demonstrations, `D` justifies tuning only if it matches quality with a leaner prompt. The script below computes both exact LoRA parameter overhead for a 32-layer Llama-style 8B architecture and a case-by-case paired regression check showing how small aggregate gains can conceal behavioral regressions:
+Reading deltas across these four cells eliminates guesswork cleanly. If `A` and `C` both score 95%+ while `B` and `D` stall near 70%, fine-tuning is solving the wrong problem and retrieval recall needs work; if `B` already clears quality targets but costs too much because it requires 2,400 prompt tokens of demonstrations, `D` justifies tuning only if it matches quality with a leaner prompt. The script below computes both exact LoRA parameter overhead for a 32-layer Llama-3-style 8.03B GQA architecture (32 query heads, 8 KV heads, `head_dim=128`, so `q_proj`/`o_proj` are `4096 -> 4096` while `k_proj`/`v_proj` are `4096 -> 1024`) and a case-by-case paired regression check showing how small aggregate gains can conceal behavioral regressions:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="LoRA adapter size and paired 2x2 ablation check" -->
 ```python title="ablation_and_lora_budget.py"
@@ -147,12 +147,14 @@ import numpy as np
 def lora_parameter_budget(
     layers: int,
     hidden_dim: int,
+    kv_dim: int,
     rank: int,
-    adapted_projections: int = 4,
     base_params: int = 8_030_000_000,
 ) -> dict[str, float | int]:
-    # Each adapted linear map adds A (hidden_dim x rank) + B (rank x hidden_dim).
-    trainable = layers * adapted_projections * (2 * hidden_dim * rank)
+    # GQA attention adapters: q_proj & o_proj (hidden_dim -> hidden_dim),
+    # k_proj & v_proj (hidden_dim -> kv_dim). Each map adds rank * (d_in + d_out).
+    per_layer = 2 * rank * (hidden_dim + hidden_dim) + 2 * rank * (hidden_dim + kv_dim)
+    trainable = layers * per_layer
     return {
         "trainable_params": trainable,
         "pct_of_base": 100.0 * trainable / base_params,
@@ -160,7 +162,7 @@ def lora_parameter_budget(
     }
 
 
-budget = lora_parameter_budget(layers=32, hidden_dim=4096, rank=16)
+budget = lora_parameter_budget(layers=32, hidden_dim=4096, kv_dim=1024, rank=16)
 
 # Synthetic 100-question 2x2 ablation outcomes (1 = grounded pass, 0 = fail).
 base_rag = np.array([1] * 70 + [0] * 30)
@@ -171,7 +173,7 @@ tuned_oracle = np.array([1] * 98 + [0] * 2)
 fixed = int(np.sum((base_rag == 0) & (tuned_rag == 1)))
 regressed = int(np.sum((base_rag == 1) & (tuned_rag == 0)))
 
-assert budget["trainable_params"] == 16_777_216
+assert budget["trainable_params"] == 13_631_488
 assert (int(base_rag.sum()), int(tuned_rag.sum())) == (70, 71)
 assert (fixed, regressed) == (10, 9)
 
@@ -190,7 +192,7 @@ print(f"Paired RAG diff (Tuned vs Base): +1 net hides {fixed} fixed / {regressed
 
 <!-- leetllm: output:start -->
 ```text title="LoRA adapter size and paired 2x2 ablation check" output compact
-LoRA r=16 trainable params: 16,777,216 (0.21% of 8.03B base, 32.0 MiB BF16)
+LoRA r=16 trainable params: 13,631,488 (0.17% of 8.03B base, 26.0 MiB BF16)
 2x2 accuracy (%): Base+RAG=70, Base+Oracle=95, Tuned+RAG=71, Tuned+Oracle=98
 Paired RAG diff (Tuned vs Base): +1 net hides 10 fixed / 9 regressed
 ```

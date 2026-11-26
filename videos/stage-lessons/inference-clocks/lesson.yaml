@@ -1,0 +1,801 @@
+version: 1
+id: inference-clocks
+title: The Two Clocks of a Generated Answer
+source: fundamentals/inference-mechanics-ttft-tps-kv-cache/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: Hugging Face cache explanation
+    url: https://huggingface.co/docs/transformers/cache_explanation
+  - title: Roofline, an insightful visual performance model
+    url: https://dl.acm.org/doi/10.1145/1498765.1498785
+  - title: Qwen3.6-27B model card
+    url: https://huggingface.co/Qwen/Qwen3.6-27B
+  - title: Efficient Memory Management for Large Language Model Serving with PagedAttention
+    url: https://arxiv.org/abs/2309.06180
+  - title: "SARATHI: Efficient LLM Inference by Piggybacking Decodes with Chunked Prefills"
+    url: https://arxiv.org/abs/2308.16369
+scenes:
+  - id: intro
+    title: Which reply will finish first?
+    visual: Open on B's first two words. Its third token lands while A is still silent. Pause for a prediction, then run both server traces to the finish and measure the first waits and later gaps.
+    beats:
+      - say: |
+          B has sent “at dawn”. Here comes “too”. A is still silent. Both requests reached the server together. Which reply will finish first?
+        hold: 2.3
+        visual_cues:
+          - id: head-start
+            phrase: "Here comes too"
+            targets: [reply-traces]
+            color: cyan
+      - say: |
+          Here comes A. Watch it catch up. Both periods leave at the same instant. Measure from arrival to the first token. A took three hundred twenty milliseconds. B took eighty. That's server time to first token. Now look between marks. Which reply has the longer gaps?
+        hold: 2
+        visual_cues:
+          - id: run-both
+            phrase: "Here comes A. Watch it catch up"
+            targets: [reply-traces]
+            color: cyan
+          - id: first-waits
+            phrase: "Measure from arrival to the first token"
+            targets: [reply-traces]
+            color: yellow
+          - id: compare-gaps
+            phrase: "look between marks"
+            targets: [reply-traces]
+            color: cyan
+      - say: |
+          B. Its tokens come a hundred sixteen milliseconds apart. A's arrive about every thirty-six. Counting all four tokens over the whole request gives both replies the same rate. Let's follow A inside the model to see what happened before that first mark.
+        hold: 0.8
+        visual_cues:
+          - id: b-gaps
+            phrase: "Its tokens come a hundred sixteen milliseconds apart"
+            targets: [reply-traces]
+            color: cyan
+            caption_boundary: true
+          - id: a-gaps
+            phrase: "A's arrive about every thirty-six"
+            targets: [reply-traces]
+            color: cyan
+            caption_boundary: true
+          - id: same-finish
+            phrase: "Counting all four tokens over the whole request"
+            targets: [reply-traces]
+            color: yellow
+  - id: prefill
+    title: Inside reply A
+    visual: Four known prompt rows share a causal attention grid. Their keys and values enter the cache before the first output appears.
+    beats:
+      - say: |
+          A starts with four prompt tokens. Read them across. The birds sing softly. All four are known before the model starts, so each layer can project all four rows together. Look at the triangle. For the word “birds”, only the first two columns are open. The words “sing” and “softly” come later in the sentence.
+        hold: 0.8
+        visual_cues:
+          - id: known-prompt
+            phrase: The birds sing softly
+            targets: [prefill-readout-2]
+            color: blue
+          - id: causal-visibility
+            phrase: Look at the triangle
+            targets: [prefill-field-grid]
+            color: blue
+      - say: |
+          Each prompt position leaves a key and a value in each full-attention layer. The model keeps those pairs for later. Processing the prompt this way is called prefill. From the scores at the last position, it samples the first output. In our trace, the word is at.
+        hold: 0.9
+        visual_cues:
+          - id: prompt-kv
+            phrase: Each prompt position leaves a key and a value
+            targets: [cache-contents]
+            color: cyan
+          - id: first-prediction
+            phrase: the word is at
+            targets: [first-output]
+            color: yellow
+            caption_boundary: true
+      - say: |
+          That's the first mark on A's clock, three hundred twenty milliseconds after arrival. Count the four rows in the cache. Each belongs to a prompt token. The new word is outside, ready to go through the model on the next step.
+        hold: 0.9
+        visual_cues:
+          - id: four-consumed
+            phrase: Count the four rows in the cache
+            targets: [cache-contents]
+            color: cyan
+          - id: emitted-not-consumed
+            phrase: The new word is outside
+            targets: [first-output]
+            color: yellow
+  - id: decode
+    title: What enters the cache on this step?
+    visual: Keep the emitted words on A's clock. Feed each latest word down into its own KV slot, then emit the next word. At the fourth mark, the period has no cache entry.
+    beats:
+      - say: |
+          Find the word “at” on the output line. Feed “at” back in. Its key and value join the four prompt positions. Now its query can read all five positions. From that step the model gives us “dawn”, our second token.
+        hold: 0.85
+        visual_cues:
+          - id: take-at
+            phrase: Feed at back in
+            targets: [token-history]
+            color: cyan
+          - id: emit-dawn
+            phrase: the model gives us dawn
+            targets: [token-history]
+            color: yellow
+            caption_boundary: true
+      - say: |
+          Now consume “dawn”. Its pair becomes the sixth entry. The next word is “too”. Look where that word landed. Three tokens have left the server. Only the first two have been back through the model. Each decode step needs the word the previous step produced.
+        hold: 0.9
+        visual_cues:
+          - id: take-dawn
+            phrase: Now consume dawn
+            targets: [token-history]
+            color: cyan
+          - id: emit-too
+            phrase: The next word is too
+            targets: [token-history]
+            color: yellow
+            caption_boundary: true
+      - say: |
+          Feed “too” back in. The model emits a period. Stop there. Four prompt positions and three consumed outputs give seven cached positions. The period is the fourth output. Its slot is still empty. For ordinary full-history generation with at least one output, add prompt length and output count, then subtract one. Other requests can share a batch while each follows its own sequence. Physical page padding counts separately.
+        hold: 1
+        visual_cues:
+          - id: take-too
+            phrase: Feed too back in
+            targets: [token-history]
+            color: cyan
+          - id: emit-period
+            phrase: The model emits a period
+            targets: [token-history]
+            color: yellow
+            caption_boundary: true
+          - id: seven-cached
+            phrase: give seven cached positions
+            targets: [token-history]
+            color: cyan
+  - id: first-clock
+    title: Decompose the path to the first token
+    visual: A common authored server clock lays out queue, tokenization, prefill and first-logit work. Removing queue delay moves first-token completion while preserving the other spans.
+    beats:
+      - say: |
+          Now inspect the initial blank interval. Our server trace begins at arrival and contains a queue, tokenization, prompt processing, and the final work that produces the first output. Adding these dependent spans gives the first-token endpoint. Each span keeps its duration and its event boundary.
+        visual_cues:
+          - id: construct-first-clock
+            phrase: contains a queue, tokenization, prompt processing, and the final work
+            targets:
+              - first-token-spans
+            color: blue
+          - id: first-token-endpoint
+            phrase: first-token endpoint
+            targets:
+              - first-clock-readout-3
+            color: yellow
+        hold: 0.65
+      - say: |
+          Remove the queue delay and recompute the path. The first token arrives earlier even though prefill runs at exactly the same speed. A high first-token delay can come from waiting before the GPU starts. The trace tells us which part changed and which part stayed fixed.
+        visual_cues:
+          - id: remove-queue
+            phrase: Remove the queue delay and recompute the path
+            targets:
+              - first-token-spans
+            color: yellow
+          - id: fixed-prefill
+            phrase: prefill runs at exactly the same speed
+            targets:
+              - first-token-spans
+            color: blue
+        hold: 0.7
+      - say: |
+          Restore the queue, then add the client boundaries. The client sent before server arrival and sees output after transport. Its first-token clock spans both extra intervals. Name the observation point whenever comparing results, especially when proxies, hidden reasoning, buffering, or rendering can shift the visible endpoint.
+        visual_cues:
+          - id: restore-queue
+            phrase: Restore the queue
+            targets:
+              - first-token-spans
+            color: yellow
+          - id: client-boundaries
+            phrase: add the client boundaries
+            targets:
+              - client-clock
+            color: pink
+          - id: observation-point
+            phrase: Name the observation point
+            targets:
+              - first-clock-readout-4
+            color: blue
+        hold: 0.65
+  - id: cadence
+    title: A stopwatch on reply A
+    visual: One ruler magnifies the four emissions from reply A. Three brackets join neighboring marks. Moving the start back to arrival changes both the counted tokens and the elapsed time.
+    beats:
+      - say: |
+          Clip a stopwatch to A's first token. It's already here when we start. Stop at the fourth token. How many new tokens arrived while that watch was running?
+        hold: 2.2
+        visual_cues:
+          - id: clip-watch
+            phrase: "Clip a stopwatch to A's first token"
+            targets: [window]
+            color: cyan
+          - id: stop-watch
+            phrase: "Stop at the fourth token"
+            targets: [window]
+            color: cyan
+      - say: |
+          Three more tokens. Walk from the first mark to the second, then to the third, then to the fourth. Each hop is one inter-token latency. The three gaps span a hundred eight milliseconds. Divide by three and you get thirty-six milliseconds per token. That's the time per output token.
+        hold: 0.9
+        visual_cues:
+          - id: count-later
+            phrase: Three more tokens
+            targets: [window]
+            color: cyan
+            caption_boundary: true
+          - id: walk-gaps
+            phrase: "Walk from the first mark to the second, then to the third, then to the fourth"
+            targets: [window]
+            color: cyan
+          - id: mean-gap
+            phrase: "thirty-six milliseconds per token"
+            targets: [window]
+            color: yellow
+            caption_boundary: true
+      - say: |
+          Turn the same stopwatch reading into a rate. Three later tokens in point one zero eight seconds give about twenty-seven point eight tokens per second. A reply with just one token has a first-token time. It gives us no later gap to measure.
+        hold: 0.85
+        visual_cues:
+          - id: decode-rate
+            phrase: "about twenty-seven point eight tokens per second"
+            targets: [window]
+            color: yellow
+            caption_boundary: true
+      - say: |
+          Now slide the start back to server arrival. Token one lands inside the count this time. Four tokens in point four two eight seconds give nine point three five tokens per second across the whole request. B got the same full-request rate. Its reader waited much longer between tokens.
+        hold: 1
+        visual_cues:
+          - id: extend-window
+            phrase: "slide the start back to server arrival"
+            targets: [window]
+            color: cyan
+          - id: full-rate
+            phrase: "nine point three five tokens per second across the whole request"
+            targets: [window]
+            color: yellow
+            caption_boundary: true
+      - say: |
+          Across requests, calculate each decode rate before averaging those rates. For example, a ten-millisecond gap gives a hundred tokens a second. A hundred-millisecond gap gives ten. The mean of the rates is fifty-five. Averaging the gaps first and inverting that result gives about eighteen instead.
+        hold: 0.85
+        visual_cues:
+          - id: average-rates
+            phrase: "The mean of the rates is fifty-five"
+            targets: [window]
+            color: yellow
+            caption_boundary: true
+          - id: invert-mean
+            phrase: "gives about eighteen instead"
+            targets: [window]
+            color: yellow
+            caption_boundary: true
+  - id: delivery
+    title: Follow the last two tokens
+    visual: A magnified server and client clock shares four token identities. Replay delivery with a buffer. Two separate server emissions converge on one client receipt.
+    beats:
+      - say: |
+          Put the server and the client on the same time axis. First let each token take thirty milliseconds to get through. Follow the four paths down. They all shift by the same amount. A reader starts later, and the gaps between tokens stay the same.
+        hold: 0.85
+        visual_cues:
+          - id: trace-crossings
+            phrase: "Follow the four paths down"
+            targets: [delivery-lanes]
+            color: cyan
+      - say: |
+          Replay from the client's second token. This time the transport holds the next two. Watch the server emit token three, then token four. Both are waiting in the buffer. When the buffer flushes, the reader gets both tokens together.
+        hold: 0.85
+        visual_cues:
+          - id: buffer-two
+            phrase: "Watch the server emit token three, then token four"
+            targets: [delivery-lanes]
+            color: cyan
+          - id: flush-two
+            phrase: "When the buffer flushes, the reader gets both tokens together"
+            targets: [delivery-lanes]
+            color: pink
+      - say: |
+          The client clock went from three eighty-five to four seventy. That's eighty-five milliseconds between delivery events. Two tokens arrived in the second event. Splitting the interval gives forty-two and a half milliseconds per delivered token. Can you recover when the server generated token three from that average?
+        hold: 2
+        visual_cues:
+          - id: event-gap
+            phrase: "eighty-five milliseconds between delivery events"
+            targets: [delivery-lanes]
+            color: pink
+            caption_boundary: true
+          - id: event-average
+            phrase: "forty-two and a half milliseconds per delivered token"
+            targets: [delivery-lanes]
+            color: yellow
+            caption_boundary: true
+      - say: |
+          You need the server timestamp. The client recorded one arrival for that pair. A speculative decoder can also emit several tokens in one iteration. Keep the token IDs when you compare server iterations, output tokens and chunks on the wire.
+        hold: 0.85
+        visual_cues:
+          - id: join-ids
+            phrase: "You need the server timestamp"
+            targets: [delivery-lanes]
+            color: cyan
+            caption_boundary: true
+  - id: synthesis
+    title: The same client pause
+    visual: Align both runs beneath their shared client trace. Split each bar where the server emits token three, keeping both splits visible for the diagnosis.
+    beats:
+      - say: |
+          Two readers see the same pause. Token two arrives at three eighty-five. Tokens three and four arrive together at four seventy. Let's see where token three spent its time.
+        hold: 0.8
+        visual_cues:
+          - id: client-evidence
+            phrase: "Tokens three and four arrive together"
+            targets: [diagnosis]
+            color: pink
+      - say: |
+          Both servers send token two at three fifty-five. In the first run, token three leaves at three ninety-two. That's thirty-seven milliseconds between emissions. It takes another seventy-eight to reach the reader. Compare the proxy flush with the client read to find that delay.
+        hold: 1
+        visual_cues:
+          - id: ask-source
+            phrase: "Both servers send token two"
+            targets: [diagnosis]
+            color: cyan
+            caption_boundary: true
+          - id: fast-source
+            phrase: "token three leaves at three ninety-two"
+            targets: [diagnosis]
+            color: cyan
+            caption_boundary: true
+          - id: downstream
+            phrase: "Compare the proxy flush with the client read"
+            targets: [diagnosis]
+            color: yellow
+            caption_boundary: true
+      - say: |
+          In the second run, token three leaves at four thirty-eight. It needs just thirty-two milliseconds to reach the reader. Which worker's schedule would you open first?
+        hold: 2.6
+        visual_cues:
+          - id: swap-source
+            phrase: "token three leaves at four thirty-eight"
+            targets: [diagnosis]
+            color: cyan
+            caption_boundary: true
+      - say: |
+          The second worker took eighty-three milliseconds between emissions. Check whether another request was processing a long prompt during that gap.
+        hold: 1.1
+        visual_cues:
+          - id: upstream
+            phrase: "The second worker took eighty-three milliseconds"
+            targets: [diagnosis]
+            color: yellow
+            caption_boundary: true
+  - id: roofline
+    title: Different row counts reuse weights differently
+    visual: A computed weight-only projection example changes row count from one to eight to thirty-two. Its intensity marker follows an authored bandwidth/compute roofline with a clearly labeled ridge.
+    beats:
+      - say: |
+          The two phases can also put different pressure on hardware. One projection weight can serve many known prompt rows. For a single decode stream, it serves one new row. Count multiply-add work per weight byte in our simplified projection to see how row count changes arithmetic intensity.
+        visual_cues:
+          - id: weight-payload
+            phrase: work per weight byte
+            targets:
+              - roofline-readout-3
+            color: blue
+          - id: arithmetic-intensity
+            phrase: row count changes arithmetic intensity
+            targets:
+              - roofline-readout-4
+            color: yellow
+        hold: 0.65
+      - say: |
+          Increase the number of rows sharing the same weight read. Useful arithmetic grows while that weight payload stays fixed. The point moves along the bandwidth ceiling until the compute ceiling becomes lower. A batched decode can gain the same kind of reuse across different requests.
+        visual_cues:
+          - id: shared-rows
+            phrase: Increase the number of rows
+            targets:
+              - roofline-readout
+            color: yellow
+          - id: fixed-weight-bytes
+            phrase: weight payload stays fixed
+            targets:
+              - roofline-readout-3
+            color: blue
+          - id: roofline-point
+            phrase: point moves along the bandwidth ceiling
+            targets:
+              - projection-roofline
+            color: cyan
+        hold: 0.7
+      - say: |
+          At twenty rows the two ceilings meet. With thirty-two rows, the flat compute ceiling is lower. To place a real kernel on this chart, measure its operations, its time and all the bytes it reads or writes in device memory. That includes activations and the attention cache. If the point falls well below both lines, look for time spent waiting between operations.
+        visual_cues:
+          - id: upper-bounds
+            phrase: the flat compute ceiling is lower
+            targets:
+              - projection-roofline
+            color: cyan
+          - id: profile-shapes
+            phrase: measure its operations, its time and all the bytes
+            targets:
+              - roofline-readout-2
+              - roofline-readout-3
+            color: yellow
+        hold: 0.65
+      - say: Here's why the row count moves the point. Read one two-byte weight once. Each row uses it for a multiply and an add. Eight rows get sixteen operations from those two bytes. That's eight operations per weight byte. With N rows, the same division gives N.
+        hold: 0.8
+        visual_cues:
+          - id: roofline-core-extension
+            phrase: Each row uses it for a multiply and an add. Eight rows get sixteen operations
+            targets:
+              - roofline-extension
+            linger: 0.5
+  - id: hardware-ceilings
+    title: Put dense work under the correct hardware roof
+    visual: Halve the sparse peak to find the dense ridge. Divide one second of bandwidth into weight reads for a single stream, then compare reads from a short and a long prefix.
+    beats:
+      - say: The H100 SXM figure at the top uses structured sparsity. For dense BF16 work, halve that peak. Divide the dense rate by memory bandwidth. The two ceilings meet at about two hundred ninety-five floating-point operations per byte.
+        hold: 1.1
+        visual_cues:
+          - id: hardware-ceilings-b1
+            phrase: For dense BF16 work, halve that peak
+            targets:
+              - hardware-ceilings-mechanism
+            linger: 0.5
+      - say: Give one stream a full second of peak memory bandwidth. Suppose each new token reads fifty-four gigabytes of weights. How many reads fit? About sixty-two. That's the token ceiling if weights get all the bandwidth. Each read from the attention cache uses some of that same second.
+        hold: 0.7
+        visual_cues:
+          - id: hardware-ceilings-b2
+            phrase: each new token reads fifty-four gigabytes of weights
+            targets:
+              - hardware-ceilings-mechanism
+            linger: 0.5
+          - id: weight-read-count
+            phrase: About sixty-two
+            targets: [hardware-ceilings-mechanism]
+            color: yellow
+      - say: Look at the four thousand positions in this history. The next token reads keys and values from each one. Extend the history to thirty-two thousand positions. Each step now reads eight times as much cached data. The model weights are the same size in both runs.
+        hold: 0.7
+        visual_cues:
+          - id: hardware-ceilings-b3
+            phrase: Extend the history to thirty-two thousand positions
+            targets:
+              - hardware-ceilings-mechanism
+            linger: 0.5
+  - id: cache-payload
+    title: How many bytes does one position add?
+    visual: Unfold one position into a key and a value, four stored heads and sixteen attention layers. Stack the same slice along the history axis and keep recurrent state separate.
+    beats:
+      - say: |
+          Pick one consumed position. One attention head keeps a key vector and a value vector for it. In this model six query heads share that pair. Count the heads that store a pair. Twenty-four readers share just four sets of keys and values.
+        hold: 0.9
+        visual_cues:
+          - id: stored-pair
+            phrase: "a key vector and a value vector"
+            targets: [cache-slice]
+            color: cyan
+          - id: sharing
+            phrase: "Twenty-four readers share just four sets of keys and values"
+            targets: [cache-slice]
+            color: cyan
+      - say: |
+          Each vector has two hundred fifty-six entries, at two bytes each. Stack four pairs in each of sixteen attention layers. That gives sixty-four kibibytes per position. Grow one request to four thousand ninety-six cached positions. Its raw key and value tensors now occupy a quarter of a gibibyte. With several requests, add their retained lengths.
+        hold: 0.95
+        visual_cues:
+          - id: stack-layers
+            phrase: "Stack four pairs in each of sixteen attention layers"
+            targets: [cache-slice]
+            color: cyan
+          - id: price-slice
+            phrase: "sixty-four kibibytes per position"
+            targets: [cache-slice]
+            color: yellow
+            caption_boundary: true
+          - id: grow-history
+            phrase: "Grow one request to four thousand ninety-six cached positions"
+            targets: [cache-slice]
+            color: cyan
+          - id: quarter-gib
+            phrase: "a quarter of a gibibyte"
+            targets: [cache-slice]
+            color: yellow
+            caption_boundary: true
+      - say: |
+          Only sixteen of the model's sixty-four layers keep this growing history. The other forty-eight keep recurrent state, with its own memory budget. For a sliding window, count just the positions that layer retains. If key and value widths differ, add their widths. Try deleting the old keys and values. All four thousand ninety-six positions are still in the conversation. The next full-history step must rebuild their keys and values. Replay with the cache intact. This time it can read the old pairs straight away.
+        hold: 0.9
+        visual_cues:
+          - id: other-state
+            phrase: "The other forty-eight keep recurrent state"
+            targets: [cache-slice]
+            color: cyan
+          - id: drop-history
+            phrase: "Try deleting the old keys and values"
+            targets: [cache-slice]
+            color: yellow
+          - id: rebuild
+            phrase: "The next full-history step must rebuild their keys and values"
+            targets: [cache-slice]
+            color: cyan
+          - id: reuse-history
+            phrase: "Replay with the cache intact"
+            targets: [cache-slice]
+            color: cyan
+  - id: page-admission
+    title: Will the next reservation fit?
+    visual: Sixteen-position pages fill from one end. Compare two reservations against the same live requests and the same 12 GB boundary.
+    beats:
+      - say: |
+          A request used a hundred twenty positions. Reserving four thousand ninety-six up front would leave almost all of them empty. Give it pages of sixteen positions instead. Seven pages fill. The last page is half full. Eight of the hundred twenty-eight reserved slots are empty. That's six and a quarter percent.
+        hold: 1
+        visual_cues:
+          - id: fill-pages
+            phrase: "Seven pages fill. The last page is half full"
+            targets: [admission]
+            color: cyan
+      - say: |
+          A one-position request still leaves fifteen slots empty in its page. A block table lets a request use pages from different places in memory. That removes the need for one long contiguous allocation. Other allocations can still fragment. Set aside weights, runtime buffers and recurrent state first. Our remaining pool holds twelve decimal gigabytes for growing keys and values.
+        hold: 0.85
+        visual_cues:
+          - id: one-slot
+            phrase: "A one-position request still leaves fifteen slots empty in its page"
+            targets: [admission]
+            color: cyan
+          - id: pool-only
+            phrase: "Our remaining pool holds twelve decimal gigabytes"
+            targets: [admission]
+            color: cyan
+      - say: |
+          Forty live requests each reserve four thousand ninety-six positions. At sixty-four kibibytes per position, they already claim ten point seven four gigabytes. Try a new reservation of sixteen thousand three hundred eighty-four positions. That brings the total to eleven point eight one gigabytes. It fits. What if that same newcomer asks for four times as many positions?
+        hold: 2.2
+        visual_cues:
+          - id: live-total
+            phrase: "they already claim ten point seven four gigabytes"
+            targets: [admission]
+            color: cyan
+          - id: small-request
+            phrase: "Try a new reservation of sixteen thousand three hundred eighty-four positions"
+            targets: [admission]
+            color: cyan
+          - id: fits
+            phrase: "It fits"
+            targets: [admission]
+            color: green
+            caption_boundary: true
+          - id: big-request
+            phrase: "four times as many positions"
+            targets: [admission]
+            color: cyan
+      - say: |
+          The larger reservation takes the total to fifteen point zero three gigabytes. It crosses the twelve-gigabyte limit. Queue or reject this request under this policy. Its length may be legal for the model and still leave the worker short of physical pages.
+        hold: 1
+        visual_cues:
+          - id: over-limit
+            phrase: "fifteen point zero three gigabytes"
+            targets: [admission]
+            color: yellow
+            caption_boundary: true
+          - id: queue-request
+            phrase: "Queue or reject this request"
+            targets: [admission]
+            color: yellow
+            caption_boundary: true
+  - id: chunk-and-handoff
+    title: The new prompt and the live chat
+    visual: A long prompt occupies one worker between two output tokens. Split the same prompt into four chunks and put the live stream back on the schedule. For separate workers, price the new request's state transfer on a different clock.
+    beats:
+      - say: |
+          Here's the worker trace we'd look for. A chat normally gets its next token after thirty-five milliseconds. Just after one token leaves, a new prompt takes the whole worker for two hundred milliseconds. The chat still needs its usual decode turn. How long does its reader wait between those two tokens?
+        hold: 2.3
+        visual_cues:
+          - id: exclusive-work
+            phrase: a new prompt takes the whole worker for two hundred milliseconds
+            targets: [worker]
+            color: blue
+          - id: decode-turn
+            phrase: The chat still needs its usual decode turn
+            targets: [worker]
+            color: cyan
+      - say: |
+          Two hundred thirty-five milliseconds. The long prompt fits in memory, but it took the chat's turn. On the same worker, split its eight thousand one hundred ninety-two prompt tokens into four chunks. Give the live chat a decode turn after each chunk. Now it can make progress before the prompt finishes. Measure the new request's first wait too. More turns can mean a later first token, and all those prompt positions still enter its cache.
+        hold: 1
+        visual_cues:
+          - id: stall-total
+            phrase: Two hundred thirty-five milliseconds
+            targets: [worker]
+            color: yellow
+            caption_boundary: true
+          - id: split-prompt
+            phrase: split its eight thousand one hundred ninety-two prompt tokens into four chunks
+            targets: [worker]
+            color: blue
+          - id: interleave-decode
+            phrase: Give the live chat a decode turn after each chunk
+            targets: [worker]
+            color: cyan
+      - say: |
+          What if a second worker handles decode? The new request's keys and values have to get there first. For a four-thousand-ninety-six-position prefix, send the quarter gibibyte we priced earlier. Two hundred gigabits per second is twenty-five gigabytes per second. Even an idle link needs about ten point seven milliseconds for those bytes. The receiver also needs compatible layouts, metadata and any recurrent state.
+        hold: 0.85
+        visual_cues:
+          - id: send-short
+            phrase: send the quarter gibibyte we priced earlier
+            targets: [handoff]
+            color: cyan
+          - id: short-floor
+            phrase: about ten point seven milliseconds for those bytes
+            targets: [handoff]
+            color: yellow
+            caption_boundary: true
+      - say: |
+          Make the prefix sixteen times longer. The raw payload takes roughly a hundred seventy-two milliseconds at best on that same link. The chat stalled on the old worker. This transfer holds up the new request. To choose a layout, compare both clocks, quality, goodput and cost on the same arrivals, including the bursts.
+        hold: 1
+        visual_cues:
+          - id: send-long
+            phrase: Make the prefix sixteen times longer
+            targets: [handoff]
+            color: cyan
+          - id: long-floor
+            phrase: roughly a hundred seventy-two milliseconds at best on that same link
+            targets: [handoff]
+            color: yellow
+            caption_boundary: true
+  - id: quantize-capacity
+    title: Change the bytes that limit admission
+    visual: The same per-request cells shrink from two bytes to one, while independent fixed and per-request allocations stay unchanged.
+    beats:
+      - say: |
+          A long chat needs a cache page and the pool is full. Keep the same number of entries and give each value one byte instead of two. Each position now takes half as many raw bytes. Compressing the weights would free space elsewhere. Splitting the prompt would change when it runs. Raising the context limit would let it ask for even more pages.
+        hold: 1.1
+        visual_cues:
+          - id: quantize-capacity-b1
+            phrase: A long chat needs a cache page and the pool is full
+            targets:
+              - quantize-capacity-mechanism
+            linger: 0.5
+          - id: ic-one-byte-row
+            phrase: give each value one byte instead of two
+            targets:
+              - quantize-capacity-mechanism
+            color: cyan
+            linger: 0.35
+      - say: |
+          Start with eighty gigabytes. Set aside fifty-four gigabytes for weights and eight for the runtime. That leaves eighteen gigabytes for raw KV. Give each user five thousand one hundred twenty positions. At two bytes per value, fifty-three users fit. At one byte, a hundred seven fit. Even the space left over in the first row can now hold one smaller reservation.
+        hold: 0.7
+        visual_cues:
+          - id: quantize-capacity-b2
+            phrase: Set aside fifty-four gigabytes for weights and eight for the runtime
+            targets:
+              - quantize-capacity-mechanism
+            linger: 0.5
+          - id: ic-cap-device
+            phrase: Start with eighty gigabytes
+            targets:
+              - quantize-capacity-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ic-cap-weights
+            phrase: fifty-four gigabytes for weights
+            targets:
+              - quantize-capacity-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ic-cap-reserve
+            phrase: and eight for the runtime
+            targets:
+              - quantize-capacity-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ic-cap-pool
+            phrase: That leaves eighteen gigabytes for raw KV
+            targets:
+              - quantize-capacity-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ic-cap-positions
+            phrase: Give each user five thousand one hundred twenty positions
+            targets:
+              - quantize-capacity-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ic-cap-53
+            phrase: At two bytes per value, fifty-three users fit
+            targets:
+              - quantize-capacity-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ic-cap-107
+            phrase: At one byte, a hundred seven fit
+            targets:
+              - quantize-capacity-mechanism
+            color: cyan
+            linger: 0.35
+      - say: |
+          Which costs follow the smaller values? The raw KV row shrinks. The allocator also pays for scales, unused page slots, recurrent state and request buffers. Charge each to the pool it comes from. On a backend that supports the format, calibrate it and replay the same requests to check quality and latency.
+        hold: 0.7
+        visual_cues:
+          - id: quantize-capacity-b3
+            phrase: The raw KV row shrinks
+            targets:
+              - quantize-capacity-mechanism
+            linger: 0.5
+      - say: |
+          Look at one short chat. Its blue block is a hundred forty-four mebibytes of recurrent state. The little strip beside it is eight mebibytes of KV. Halve the strip. The chat saves four mebibytes. Its total drops from a hundred fifty-two to a hundred forty-eight. Each chat still needs its own blue block, so an eight-gibibyte pool gains just two places, from fifty-three chats to fifty-five.
+        hold: 0.8
+        visual_cues:
+          - id: quantize-capacity-core-extension
+            phrase: Halve the strip
+            targets:
+              - quantize-capacity-extension
+            linger: 0.5
+  - id: earned-transfer
+    title: A worker under load
+    visual: Test an admitted reply against two latency targets. Then a third reservation runs past a fixed memory boundary. Replay at half the raw bytes per value and count the outcomes of a separate load window.
+    beats:
+      - say: |
+          One last worker. Its first token must leave within four hundred fifty milliseconds. Every later gap must be fifty milliseconds or less. Read the four marks on its server clock. Does this reply pass both targets?
+        hold: 3
+        visual_cues:
+          - id: test-stream
+            phrase: "Read the four marks on its server clock"
+            targets: [final-trace]
+            color: cyan
+      - say: |
+          It passes both. The first wait is four hundred ten milliseconds. The longest gap is forty-seven milliseconds. The three gaps average forty-four, about twenty-two point seven tokens per second. But another request was turned away before prefill. Open the memory record. Seven pages are reserved. There's room for eight. The newcomer needs two. With reservations fixed, which would let all three requests fit together, faster decode or smaller cache values?
+        hold: 2.7
+        visual_cues:
+          - id: trace-verdict
+            phrase: "It passes both"
+            targets: [final-trace]
+            color: green
+            caption_boundary: true
+          - id: worst-gap
+            phrase: "The longest gap is forty-seven milliseconds"
+            targets: [final-trace]
+            color: cyan
+          - id: second-rate
+            phrase: "about twenty-two point seven tokens per second"
+            targets: [final-trace]
+            color: yellow
+          - id: open-pool
+            phrase: "Open the memory record"
+            targets: [reservation]
+            color: cyan
+          - id: new-pages
+            phrase: "The newcomer needs two"
+            targets: [reservation]
+            color: cyan
+      - say: |
+          Try smaller cache values. Keep sixteen positions per page and change just the stored values from two bytes to one. A page now costs half a mebibyte. All nine pages fit. A faster decode step could finish one of the old requests sooner. It would still take the same bytes to host all three at once.
+        hold: 1.1
+        visual_cues:
+          - id: shrink-pages
+            phrase: "change just the stored values from two bytes to one"
+            targets: [reservation]
+            color: cyan
+          - id: ic-capacity-answer
+            phrase: "All nine pages fit"
+            targets: [reservation]
+            color: green
+            caption_boundary: true
+      - say: |
+          Nine smaller pages use four and a half mebibytes of raw KV. We could also reserve fewer positions or give the worker more memory. Now test what readers actually get.
+        hold: 0.85
+        visual_cues:
+          - id: verify-pages
+            phrase: "four and a half mebibytes of raw KV"
+            targets: [reservation]
+            color: cyan
+      - say: |
+          Count every request in a fresh twenty-second run. Twelve replies were correct and on time, five requests were rejected and three failed. Divide twelve by twenty seconds for point six requests per second of goodput. Now divide by the twenty requests offered. Sixty percent got a correct reply on time. Count cancellations among the requests offered, too. Next we'll see how several query heads share the same stored keys and values.
+        hold: 1.2
+        visual_cues:
+          - id: score-window
+            phrase: "Twelve replies were correct and on time, five requests were rejected and three failed"
+            targets: [outcomes]
+            color: cyan
+          - id: per-second
+            phrase: "point six requests per second of goodput"
+            targets: [outcomes]
+            color: green
+            caption_boundary: true
+          - id: fraction-offered
+            phrase: "sixty percent"
+            targets: [outcomes]
+            color: yellow
+            caption_boundary: true

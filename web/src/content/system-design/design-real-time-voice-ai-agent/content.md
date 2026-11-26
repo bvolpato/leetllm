@@ -544,7 +544,7 @@ $$
 \text{duration (ms)} = \frac{\text{sample frames}}{\text{sample rate (Hz)}} \times 1000
 $$
 
-Relabeling a 24 kHz stream as 16 kHz without resampling stretches every 20 ms chunk (480 samples, 960 bytes) to 30 ms, slowing the voice by 50% and breaking interruption timestamps.
+Relabeling a 24 kHz stream as 16 kHz without resampling stretches every 20 ms chunk (480 samples, 960 bytes) to 30 ms (a 50% duration stretch, playing at two-thirds speed) and breaks interruption timestamps.
 
 <!-- leetllm: test, output=show -->
 ```python title="session-and-pcm-accounting.py"
@@ -781,15 +781,15 @@ A clean demo on wired Ethernet hides almost every real voice failure. Evaluate c
     "explanation": "Deadlines are 75 ms and 85 ms, so arrival at 78 ms misses 35 ms (concealed) and meets 45 ms (played). Raising a fixed buffer by 10 ms shifts every packet's playout deadline by 10 ms."
   },
   {
-    "question": "A prompt splits into 2,000 cached-read tokens ($0.20/M), 600 cache-write tokens ($1.25/M), and 400 ordinary tokens ($1.00/M). What is the input subtotal?",
+    "question": "A prompt splits into 2,000 cached-read tokens (\\$0.20/M), 600 cache-write tokens (\\$1.25/M), and 400 ordinary tokens (\\$1.00/M). What is the input subtotal?",
     "options": [
-      "$0.00092",
-      "$0.00140",
-      "$0.00155",
-      "$0.00215"
+      "\\$0.00092",
+      "\\$0.00140",
+      "\\$0.00155",
+      "\\$0.00215"
     ],
-    "answer": "$0.00155",
-    "explanation": "Reads: 2000 * 0.20 / 1e6 = $0.00040. Writes: 600 * 1.25 / 1e6 = $0.00075. Ordinary: 400 * 1.00 / 1e6 = $0.00040. Sum = $0.00155."
+    "answer": "\\$0.00155",
+    "explanation": "Reads: 2000 * 0.20 / 1e6 = \\$0.00040. Writes: 600 * 1.25 / 1e6 = \\$0.00075. Ordinary: 400 * 1.00 / 1e6 = \\$0.00040. Sum = \\$0.00155."
   },
   {
     "question": "Out of 100 attempted calls on a mobile slice, 96 produce audio, 92 start audio within 500 ms, and 4 time out silently. The SLO requires at least 95% of attempted calls within 500 ms. Which report is accurate?",

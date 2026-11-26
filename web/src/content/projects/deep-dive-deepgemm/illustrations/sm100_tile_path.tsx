@@ -86,8 +86,8 @@ export function create(mode: ThemeMode = 'dark') {
             w: 145,
             h: 125,
             title: 'TMEM Scales',
-            sub: 'Scale Registers',
-            desc: 'Allocated in TMEM',
+            sub: 'Block Scales',
+            desc: 'Copied SMEM -> TMEM',
             tone: 'cyan',
         },
 

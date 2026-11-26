@@ -1,303 +1,219 @@
-// Scene `breaker-contract`: what counts for a breaker, and for whom.
-//
-// The picture: three tenants, each with its own switch on its own lane to one controller. On
-// the middle lane, a schema error turns back before the switch and counts nothing. Two quota
-// failures open that one switch, and the other two lanes keep passing. Then a cancelled probe
-// frees its place and opens the switch again, an error that is not about health leaves it
-// half-open. A newer failure opens generation 4 before the old result returns unchanged.
-// The controller record stays. Remote cancellation remains unverified.
+// Scene 12: breaker-contract - "A probe result belongs to one generation"
+// Two visual phases: (1) Health scope filter (only documented dependency failures count; tenant +
+// dependency + failure class scoped; local event loop vs fleet),
+// (2) Single half-open probe slot token (cancel -> release & reopen; non-health -> release & keep
+// half-open; stale gen 3 -> return to caller without closing gen 4; job-1 still needs lookup).
+import { circle, line } from 'vizmatic/stage';
 import {
-  appear,
-  assertEqual,
-  beside,
-  boxOf,
-  column,
-  fadeOut,
-  indicate,
-  line,
-  moveTo,
-  par,
-  place,
-  recolor,
-  rect,
-  row,
-  seq,
-} from 'vizmatic/stage';
-import {
-  admitProbe,
-  breakerTransition,
-  finishProbe,
-} from '../../../films/agent-recovery/model.mjs';
-import { area, chip, heading, label, namedBox, note } from '../../kit-narrated.mjs';
-import { COLOR, OP, breaker, places, record, token } from '../parts.mjs';
+  BREAKER_RACE,
+  COSMOS,
+  OP,
+  ROLE,
+  ambientClock,
+  cinemaAtmosphere,
+  glowArrow,
+  glowDot,
+  glowPill,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  hexAlpha,
+  lowerFooter,
+  playCue,
+  txt,
+} from '../parts.mjs';
 
 export default function breakerContract(s, c) {
-  // The life of the middle breaker, from the model.
-  let state = { state: 'closed', generation: 1, failures: 0, threshold: 2, probeAvailable: false };
-  for (let failure = 0; failure < 2; failure++)
-    state = breakerTransition(state, { type: 'failure', generation: 1 });
-  const opened = state;
-  const halfOpen = breakerTransition(opened, { type: 'cooldown' });
-  const cancelled = finishProbe(admitProbe(halfOpen, 'probe-1'), {
-    id: 'probe-1',
-    generation: halfOpen.generation,
-    outcome: 'cancel',
+  const title = heroTitle(['A probe result belongs', 'to one generation'], {
+    x: -855,
+    y: -440,
+    size: 50,
+    lineHeight: 58,
+    accent: ROLE.mark,
   });
-  const again = breakerTransition(cancelled, { type: 'cooldown' });
-  const other = finishProbe(admitProbe(again, 'probe-2'), {
-    id: 'probe-2',
-    generation: again.generation,
-    outcome: 'other-error',
-  });
-  const newer = finishProbe(admitProbe(other, 'probe-3'), {
-    id: 'probe-3',
-    generation: other.generation,
-    outcome: 'failure',
-  });
-  assertEqual([newer.state, newer.generation], ['open', 4], 'the newer circuit stays open');
-  assertEqual(
-    [
-      opened.state,
-      opened.generation,
-      cancelled.state,
-      cancelled.generation,
-      other.state,
-      other.generation,
-      other.inFlight,
-    ],
-    ['open', 2, 'open', 3, 'half-open', 3, null],
-    'the states of the middle breaker',
-  );
 
-  // The frame: three lanes to one controller, and one line at the foot.
-  const [lanesRegion, foot] = area.rows([15, 3], 'none');
-  const bands = lanesRegion.rows([3, 9, 3], 'none');
-  const service = place(
-    rect(340, lanesRegion.height, {
-      radius: 18,
-      stroke: COLOR.controller,
-      fill: 'surface',
-      width: 3,
-    }),
-    lanesRegion,
-    'right',
-  );
-  const inside = boxOf(service).inset('normal');
-  const serviceName = place(label('controller', { color: COLOR.controller }), inside, 'top left');
-  const job = place(
-    record(
-      [
-        [OP.job, COLOR.sure],
-        [OP.state, 'ink'],
-      ],
-      inside.width,
-    ),
-    inside,
-    'bottom',
-  );
-  const tenants = ['tenant A', 'tenant B', 'tenant C'].map((name, index) =>
-    place(
-      namedBox(name, { width: 240, height: index === 1 ? 110 : 84, color: COLOR.attempt }),
-      bands[index],
-      'left',
-    ),
-  );
-  const lanes = tenants.map((tenant, index) =>
-    breaker(s, {
-      from: [boxOf(tenant).right + 14, bands[index].cy],
-      to: [boxOf(service).left - 14, bands[index].cy],
-      gap: index === 1 ? 220 : 110,
-      ball: index === 1 ? 16 : 12,
-    }),
-  );
-  const main = lanes[1];
+  const amb = ambientClock(s, c);
+  const stage = s.value(0); // 0 = scope filter, 1 = single probe slot outcomes
+  const showDoc = s.value(0);
+  const showOther = s.value(0);
+  const showScope = s.value(0);
+  const showFleet = s.value(0);
 
-  // The middle lane: its state, its two counts, and the admission check before its switch.
-  const stateName = (name, generation, color) =>
-    beside(
-      label(`${name} · gen ${generation}`, { size: 48, color }),
-      [main.x, main.top],
-      'above',
-      'tight',
-    );
-  const states = {
-    closed: stateName('closed', 1, COLOR.sure),
-    open: stateName(opened.state, opened.generation, COLOR.fail),
-    half: stateName(halfOpen.state, halfOpen.generation, COLOR.mark),
-    reopened: stateName(cancelled.state, cancelled.generation, COLOR.fail),
-    halfAgain: stateName(other.state, other.generation, COLOR.mark),
-    newer: stateName(newer.state, newer.generation, COLOR.fail),
-  };
-  const failures = places(s, opened.threshold, { size: 64 });
-  const probe = places(s, 1, { size: 64, color: COLOR.mark });
-  const meterNames = [note('failures that count'), note('probe')];
-  const meter = (frames, name) =>
-    column([row(frames, { gap: 'tight' }), name], { gap: 'tight', align: 'center' });
-  beside(
-    row([meter(failures.frames, meterNames[0]), meter(probe.frames, meterNames[1])], {
-      gap: 'wide',
-      align: 'top',
-    }),
-    [main.x, main.y],
-    'under',
-    'loose',
-  );
-  const checkAt = [main.from[0] + (main.to[0] - main.from[0]) * 0.2, main.y];
-  const check = line([checkAt[0], main.y - 40], [checkAt[0], main.y + 40], {
-    stroke: 'dim',
-    width: 6,
-  });
-  const checkName = beside(
-    note('schema error, denial: no count', { color: COLOR.fail }),
-    [checkAt[0], main.y - 40],
-    'above',
-    'tight',
-  );
-  // The probe that is cancelled stops at three quarters of the lane.
-  const stopAt = [main.from[0] + (main.to[0] - main.from[0]) * 0.78, main.y];
+  const showCancel = s.value(0);
+  const showNonHealth = s.value(0);
+  const showStale = s.value(0);
+  const showJobLookup = s.value(0);
 
-  // One line at the foot: what the voice says about the breaker as a whole.
-  const lines = [
-    'one breaker for each dependency, tenant and kind of failure',
-    'this breaker lives in one event loop',
-    'fleet behavior: choose shared or distributed control',
-    'no verdict about health: it stays half-open',
-    'Check job status at the controller',
-  ].map((words, index) =>
-    place(
-      chip(words, {
-        color: index === 4 ? COLOR.fail : COLOR.mark,
-        stroke: index === 4 ? COLOR.fail : COLOR.mark,
-      }),
-      foot,
-    ),
-  );
-  const old = token(`gen ${opened.generation}`, COLOR.sure);
-  old.moveTo([main.to[0] - old.width / 2, main.y]);
+  const layer = guardedDynamic(
+    () => 1,
+    (alpha) => {
+      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
+      const st = Math.round(stage.value);
+      const nodes = [];
 
-  s.add(
-    heading(c.title),
-    service,
-    serviceName,
-    job,
-    tenants,
-    lanes.flatMap((lane) => lane.nodes),
-    states.closed,
-    failures.frames,
-    failures.fills,
-    meterNames[0],
-  );
-  c.clear([main.nodes[0]], 0.46, 0.2);
+      if (st === 0) {
+        // Stage 1: Scoped failure admission filter
+        nodes.push(
+          txt(
+            'WHICH FAILURES COUNT TOWARD A CIRCUIT BREAKER?',
+            0,
+            -275,
+            28,
+            ROLE.agent,
+            'mono',
+            'center',
+          ).opacity(alpha),
+        );
 
-  // Times are seconds from the start of the scene.
-  const origin = c.cue('documented').start - 0.4;
-  const at = (seconds, build) => s.at(origin + seconds, build);
-  const answer = (lane, color) => lane.answer(lane.call(color).at(...lane.to));
-  // The two outer lanes pass calls throughout the scene. Each pass must finish before it ends.
-  for (let time = 0.6; origin + time < c.end; time += 2.6) {
-    for (const [lane, offset] of [[lanes[0], 0], [lanes[2], 1.3]]) {
-      const pass = lane.pass(lane.call());
-      if (origin + time + offset + pass.duration <= c.end)
-        at(time + offset, () => s.play(pass));
-    }
-  }
+        // Left incoming error streams
+        nodes.push(
+          glowPill('Timeout / 503 (dependency)', -520, -110, ROLE.fail, {
+            size: 26,
+            alpha: Math.max(0.55, showDoc.value) * alpha,
+          }),
+          glowArrow(-260, -110, -40, -110, ROLE.fail, { width: 3.5, alpha }),
+          glowPill('COUNTS -> BREAKER', 240, -110, ROLE.fail, {
+            size: 26,
+            alpha: Math.max(0.55, showDoc.value) * alpha,
+          }),
+          glowPill('Schema / Permission Denial', -520, 45, ROLE.mark, {
+            size: 26,
+            alpha: Math.max(0.35, showOther.value) * alpha,
+          }),
+          glowArrow(-260, 45, -40, 45, ROLE.mark, { width: 3, alpha, dash: [8, 6] }),
+          glowPill('DIFFERENT BOUNDARY', 240, 45, ROLE.sure, {
+            size: 26,
+            alpha: Math.max(0.35, showOther.value) * alpha,
+          }),
+        );
 
-  // A failure of the dependency counts. A schema error or a denial turns back before the switch.
-  at(0.8, () =>
-    s.play(
-      seq(
-        main.pass(main.call()),
-        answer(main, COLOR.fail),
-        failures.filled.to(1, { duration: 0.3 }),
-      ),
-    ),
-  );
-  c.on('documented', () => s.play(indicate(meterNames[0], { color: COLOR.mark, scale: 1 })), 1.4);
-  c.show('other-boundary', [check, checkName]);
-  c.on(
-    'other-boundary',
-    () => {
-      const turned = main.call();
-      s.play(
-        seq(
-          appear(turned),
-          moveTo(turned, [checkAt[0] - 30, main.y], { duration: 0.5 }),
-          recolor(turned, COLOR.fail, { duration: 0.1 }),
-          moveTo(turned, main.from, { duration: 0.5 }),
-          fadeOut(turned, { duration: 0.15 }),
+        // Scope key strip (dependency + tenant + failure class)
+        const scOp = Math.max(0.35, showScope.value) * alpha;
+        nodes.push(
+          glowPill('Scope Key: (dependency, tenant, failure_class)', -200, 195, ROLE.agent, {
+            size: 27,
+            alpha: scOp,
+          }),
+          glowPill('1 loop != fleet', 485, 195, ROLE.violet, {
+            size: 27,
+            alpha: Math.max(0.35, showFleet.value) * alpha,
+          }),
+          txt(
+            'One exhausted tenant quota must never trip the circuit for unrelated tenants.',
+            0,
+            320,
+            27,
+            COSMOS.ink,
+            'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      } else {
+        // Stage 2: Single half-open probe slot token + 3 outcomes
+        const hubX = -510;
+        const hubY = 15;
+        nodes.push(
+          txt(
+            'SINGLE HALF-OPEN PROBE SLOT & GENERATION TOKEN',
+            0,
+            -275,
+            28,
+            ROLE.mark,
+            'mono',
+            'center',
+          ).opacity(alpha),
+          glowRing(hubX, hubY, 105, ROLE.mark, { width: 4.5, glow: 14 }).opacity(alpha),
+          circle(16, { fill: ROLE.mark, stroke: null }).at(
+            hubX + Math.cos(amb.value * Math.PI * 8) * 105,
+            hubY + Math.sin(amb.value * Math.PI * 8) * 105,
+          ),
+          txt('PROBE', hubX, hubY - 16, 30, ROLE.mark, 'mono', 'center').opacity(alpha),
+          txt('SLOT: 1', hubX, hubY + 24, 26, COSMOS.ink, 'mono', 'center').opacity(alpha),
+        );
+
+        const branches = [
+          {
+            y: -145,
+            title: 'CANCELED',
+            res: 'Release slot -> REOPEN + propagate cancel',
+            col: ROLE.fail,
+            op: Math.max(0.5, showCancel.value),
+          },
+          {
+            y: 15,
+            title: 'NON-HEALTH',
+            res: 'Release slot -> STAY HALF-OPEN (no verdict)',
+            col: ROLE.mark,
+            op: Math.max(0.4, showNonHealth.value),
+          },
+          {
+            y: 175,
+            title: `STALE GEN ${BREAKER_RACE.olderGeneration}`,
+            res: `Return to caller · GEN ${BREAKER_RACE.currentGeneration} STAYS OPEN`,
+            col: ROLE.controller,
+            op: Math.max(0.4, showStale.value),
+          },
+        ];
+
+        for (const b of branches) {
+          const ba = b.op * alpha;
+          nodes.push(
+            glowArrow(hubX + 118, hubY, -225, b.y, b.col, { width: 3.2, alpha: ba }),
+            glowPill(b.title, -70, b.y, b.col, { size: 26, alpha: ba }),
+            txt(b.res, 110, b.y, 26, COSMOS.ink, 'sans', 'left').opacity(ba),
+          );
+        }
+
+        nodes.push(
+          glowPill(
+            showJobLookup.value > 0.4
+              ? `Controller still holds ${OP.job} -> look up the job to know its state`
+              : 'Breaker state reflects dependency health, not whether an earlier write ran',
+            0,
+            325,
+            showJobLookup.value > 0.4 ? ROLE.sure : ROLE.op,
+            { size: 27, alpha: alpha * (0.88 + 0.12 * pulse) },
+          ),
+        );
+      }
+
+      nodes.push(
+        lowerFooter(
+          'SCOPED HEALTH · 1 PROBE SLOT · GENERATION GUARD',
+          st === 0
+            ? 'DEPENDENCY + TENANT + FAILURE CLASS'
+            : 'ALWAYS RELEASE SLOT ON CANCEL / ERROR',
+          { accent: ROLE.mark, alpha },
         ),
       );
-    },
-    0.6,
-  );
-  c.show('health-scope', lines[0]);
-  c.on('health-scope', () =>
-    s.play(...tenants.map((tenant) => indicate(tenant, { color: COLOR.mark, scale: 1.05 }))),
-  );
-  // The quota of one tenant: its second failure opens its own switch, and only that one.
-  at(11.6, () =>
-    s.play(
-      seq(
-        main.pass(main.call()),
-        answer(main, COLOR.fail),
-        failures.filled.to(2, { duration: 0.3 }),
-      ),
-    ),
-  );
-  c.swap('quota', states.closed, states.open, { lead: -0.6 });
-  c.on('quota', () => s.play(main.open()), 0.5);
-  [15.4, 17.2, 20.4, 24.6].forEach((time) => at(time, () => s.play(main.refuse(main.call()))));
-  c.swap('local-loop', lines[0], lines[1]);
-  c.swap('fleet', lines[1], lines[2]);
 
-  // A probe that is cancelled frees its place, and the breaker opens again at a new generation.
-  const first = main.call(COLOR.mark);
-  c.swap('canceled-probe', states.open, states.half);
-  c.show('canceled-probe', [probe.frames, probe.fills, meterNames[1]]);
-  c.hide('canceled-probe', lines[2]);
-  c.on('canceled-probe', () =>
-    s.play(
-      main.halfOpen(),
-      seq(
-        par(appear(first), probe.filled.to(1, { duration: 0.3 })),
-        moveTo(first, stopAt, { duration: 1.2 }),
-        par(recolor(first, 'dim', { duration: 0.2 }), probe.filled.to(0, { duration: 0.4 })),
-      ),
-    ),
+      return nodes;
+    },
   );
-  c.swap('probe-cancel', states.half, states.reopened);
-  c.on('probe-cancel', () => s.play(main.open(), moveTo(first, main.from, { duration: 1.2 })));
-  c.hide('non-health', first);
-  // An error that is not about health frees the place too, and gives no verdict.
-  c.swap('non-health', states.reopened, states.halfAgain);
-  c.on('non-health', () =>
-    s.play(
-      main.halfOpen(),
-      seq(
-        par(main.pass(main.call(COLOR.mark)), probe.filled.to(1, { duration: 0.3 })),
-        answer(main, 'ink'),
-        probe.filled.to(0, { duration: 0.4 }),
-      ),
-    ),
+
+  s.add(cinemaAtmosphere(ROLE.mark, ROLE.fail), title, layer);
+
+  playCue(s, c, 'documented', (d) => s.play(showDoc.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'other-boundary', (d) => s.play(showOther.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'health-scope', (d) => s.play(showScope.to(0.7, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'quota', (d) => s.play(showScope.to(1, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'local-loop', (d) => s.play(showFleet.to(0.6, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'fleet', (d) => s.play(showFleet.to(1, { duration: d })), { dur: 0.45 });
+
+  playCue(
+    s,
+    c,
+    'canceled-probe',
+    (d) => s.play(stage.to(1, { duration: 0.15 }), showCancel.to(0.7, { duration: d })),
+    {
+      dur: 0.45,
+    },
   );
-  c.show('probe-nonhealth', lines[3]);
-  c.on('probe-nonhealth', () =>
-    s.play(indicate(states.halfAgain, { color: COLOR.mark, scale: 1.06 })),
-  );
-  // A new qualifying failure opens the circuit before the old result returns.
-  c.swap('old-result', states.halfAgain, states.newer);
-  c.hide('old-result', lines[3]);
-  c.on('old-result', () => s.play(main.open()));
-  // An old result goes to its caller, and the state stays. The record of the controller stays too.
-  c.on(
-    'old-result',
-    () =>
-      s.play(
-        seq(appear(old), moveTo(old, [main.from[0] + old.width / 2, main.y], { duration: 1.6 })),
-      ),
-    0.8,
-  );
-  c.on('old-result', () => s.play(indicate(states.newer, { color: COLOR.mark, scale: 1.06 })), 3.4);
-  c.show('not-proof', lines[4]);
-  c.on('not-proof', () => s.play(indicate(job, { color: COLOR.mark })), 1.2);
+  playCue(s, c, 'probe-cancel', (d) => s.play(showCancel.to(1, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'non-health', (d) => s.play(showNonHealth.to(0.7, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'probe-nonhealth', (d) => s.play(showNonHealth.to(1, { duration: d })), {
+    dur: 0.4,
+  });
+  playCue(s, c, 'old-result', (d) => s.play(showStale.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'not-proof', (d) => s.play(showJobLookup.to(1, { duration: d })), { dur: 0.45 });
 }

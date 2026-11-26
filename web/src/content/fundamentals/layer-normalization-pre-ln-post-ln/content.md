@@ -251,7 +251,7 @@ post | pre-head stream RMS=1.000 | block grads=[0.2663, 0.2614, 0.2619, 0.2555, 
 ```
 <!-- leetllm: output:end -->
 
-Notice two concrete signatures in that output: Post-LN clamps the stream RMS right at `1.000`, while Pre-LN's unnormalized residual stream has already grown to `1.351` after just 6 blocks, which is why deleting `FinalNorm` in a Pre-LN checkpoint port changes the scale hitting the language-modeling head.
+Notice two concrete signatures in that output: Post-LN clamps the stream RMS right at `1.000`, while Pre-LN's unnormalized residual stream has already grown to `1.151` after just 6 blocks, which is why deleting `FinalNorm` in a Pre-LN checkpoint port changes the scale hitting the language-modeling head.
 
 ## Representation collapse and DeepNorm
 

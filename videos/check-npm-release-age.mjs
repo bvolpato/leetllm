@@ -11,7 +11,7 @@ const RELEASE_AGE_DAYS = 7;
 const REGISTRY = 'https://registry.npmjs.org/';
 const MAX_CONCURRENT_QUERIES = 8;
 // Vizmatic is a first-party package; only this exact tested release bypasses the age window.
-const RELEASE_AGE_EXEMPTION = { name: 'vizmatic', version: '0.8.3' };
+const RELEASE_AGE_EXEMPTION = { name: 'vizmatic', version: '0.10.0' };
 
 function packageNameFromLockPath(lockPath) {
   const marker = 'node_modules/';

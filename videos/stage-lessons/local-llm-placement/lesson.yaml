@@ -1,0 +1,1707 @@
+version: 1
+id: local-llm-placement
+title: Which Logs Can This GPU Admit?
+opening: lesson
+source: fundamentals/local-llm-deployment-hardware-quantization/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "Gemma 4 12B Configuration"
+    url: https://huggingface.co/google/gemma-4-12B/blob/023679ed352de9bb66cc873c9009ce3482585c08/config.json
+  - title: "Transformers Gemma 4 Unified Attention and Cache Update"
+    url: https://github.com/huggingface/transformers/blob/2c4914fb939fe9de0d8e7a798af4684d552f18b4/src/transformers/models/gemma4_unified/modeling_gemma4_unified.py
+  - title: "llama.cpp Model Tensor Placement"
+    url: https://github.com/ggml-org/llama.cpp/blob/709fe755dfa810d77e2ac386292b29648b536864/src/llama-model.cpp
+  - title: "Usage"
+    url: https://docs.ollama.com/api/usage
+  - title: "gemma4:12b artifact and tensor components"
+    url: https://ollama.com/library/gemma4:12b
+  - title: NVIDIA CUDA programming guide
+    url: https://docs.nvidia.com/cuda/cuda-programming-guide/
+scenes:
+  - id: intro
+    title: "Why did the fourth log fail?"
+    visual: "The fourth incident log has an out-of-memory response beside a 24 GB GPU. Replay the four logs on a worksheet. Count the shared weights once, then add workspace and a two-color cache strip for each log."
+    beats:
+      - say: >-
+          The fourth incident log gets an out-of-memory error. This GPU answered a short runbook question.
+          Now four long logs share one copy of the model. What else needs room on the card?
+        hold: 0.9
+        visual_cues:
+          - id: failed-request
+            phrase: "The fourth incident log gets an out-of-memory error"
+            targets: [requests]
+            color: pink
+            linger: 0.25
+          - id: short-answer
+            phrase: "This GPU answered a short runbook question"
+            targets: [requests]
+            color: blue
+            linger: 0.25
+          - id: shared-model
+            phrase: "four long logs share one copy of the model"
+            targets: [device-budget]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Put the weights on the worksheet at seven point six gigabytes. The yellow line leaves a fifth
+          of the card in reserve. Allow two gigabytes for workspace. With capped storage, each log needs
+          about six tenths of a gigabyte to remember its tokens. Will all four fit under the line?
+        hold: 2.2
+        visual_cues:
+          - id: working-allocation
+            phrase: "Allow two gigabytes for workspace"
+            targets: [device-budget]
+            color: pink
+            linger: 0.25
+          - id: ask-fit
+            phrase: "Will all four fit under the line"
+            targets: [requests, device-budget, question]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Add one cache strip for each log. Just over twelve gigabytes in total. All four fit under the yellow line.
+          Each strip has two colors. Some layers keep a recent window of tokens. Others keep the full
+          history. To explain the failed request, check how much cache the runner reserved and how much
+          workspace it asked for while those logs were open.
+        hold: 0.6
+        caption_starts: ["Just over twelve gigabytes in total", "All four fit under the yellow line", "To explain the failed request"]
+        visual_cues:
+          - id: workload-state
+            phrase: "Add one cache strip for each log. Just over twelve gigabytes in total."
+            targets: [requests, device-budget]
+            color: cyan
+            linger: 0.25
+          - id: check-peak
+            phrase: "check how much cache the runner reserved"
+            targets: [question]
+            color: blue
+            linger: 0.25
+  - id: weight-payload
+    title: "What does the download weigh?"
+    visual: "Compare ideal 16-bit and 4-bit codes with the listed native artifact on the same decimal-GB scale. Zeroing dense codes keeps every storage position."
+    beats:
+      - say: >-
+          Start with a single weight file. If it holds N weights at B bits apiece, multiply those numbers
+          and divide by eight to get bytes. A real artifact can also carry scales, metadata and
+          higher-precision tensors. Set every code here to zero and the dense array still has all sixteen
+          slots. Saving space would require a sparse encoding and a runner that can use it.
+        hold: 0.6
+        visual_cues:
+          - id: pl-weight-payload-0-0
+            phrase: "Start with a single weight file. If it holds N weights at B bits apiece, multiply those numbers and divide by eight to get bytes."
+            targets: [pl-weight-payload-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-weight-payload-0-1
+            phrase: "A real artifact can also carry scales, metadata and higher-precision tensors."
+            targets: [pl-weight-payload-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-weight-payload-0-2
+            phrase: "Set every code here to zero and the dense array still has all sixteen slots. Saving space would require a sparse encoding and a runner that can use it."
+            targets: [pl-weight-payload-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          For Gemma's eleven point nine five billion parameters, uniform sixteen-bit storage gives
+          twenty-three point nine gigabytes. Four-bit codes alone take just under six. The eight-gigabyte
+          Ollama artifact listed in the article also includes mixed-precision target tensors, a
+          sixteen-bit projector and a four-hundred-twenty-three-million-parameter draft model. If the
+          runner uses the draft model, it needs space for its weights and can add cache and execution
+          costs. The worksheet budgets seven point six gigabytes for weights. On your worker, record
+          the loaded artifact and measure its tensors in each memory pool.
+        hold: 0.6
+        visual_cues:
+          - id: pl-weight-payload-1-0
+            phrase: "For Gemma's eleven point nine five billion parameters, uniform sixteen-bit storage gives twenty-three point nine gigabytes. Four-bit codes alone take just under six."
+            targets: [pl-weight-payload-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-weight-payload-1-1
+            phrase: "The eight-gigabyte Ollama artifact listed in the article also includes mixed-precision target tensors, a sixteen-bit projector and a four-hundred-twenty-three-million-parameter draft model."
+            targets: [pl-weight-payload-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-weight-payload-1-2
+            phrase: "If the runner uses the draft model, it needs space for its weights and can add cache and execution costs."
+            targets: [pl-weight-payload-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-weight-payload-1-3
+            phrase: "The worksheet budgets seven point six gigabytes for weights. On your worker, record the loaded artifact and measure its tensors in each memory pool."
+            targets: [pl-weight-payload-trace]
+            color: blue
+            linger: 0.25
+  - id: workspace-contract
+    title: "Which allocations coexist?"
+    visual: "Compare the live allocations in two phases on the same device. Then replace the phase-specific work values with an explicit worksheet assumption."
+    beats:
+      - say: >-
+          Both bars follow one request on one device. The weights, cache and other allocations are
+          already there when the temporary workspace arrives. The prefill phase uses fourteen gigabytes
+          at its peak. The later decode phase uses twelve point four. Pick the larger peak. Adding the
+          two peaks counts the same weights twice. Adding a reserved pool to the storage it already
+          contains would make a similar mistake. For a split runner, make another budget for host memory.
+          Charge each allocation to the pool that supplies it.
+        hold: 0.6
+        visual_cues:
+          - id: pl-workspace-contract-0-0
+            phrase: "Both bars follow one request on one device. The weights, cache and other allocations are already there when the temporary workspace arrives."
+            targets: [pl-workspace-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-workspace-contract-0-1
+            phrase: "The prefill phase uses fourteen gigabytes at its peak. The later decode phase uses twelve point four. Pick the larger peak."
+            targets: [pl-workspace-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-workspace-contract-0-2
+            phrase: "Adding the two peaks counts the same weights twice. Adding a reserved pool to the storage it already contains would make a similar mistake."
+            targets: [pl-workspace-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-workspace-contract-0-3
+            phrase: "For a split runner, make another budget for host memory. Charge each allocation to the pool that supplies it."
+            targets: [pl-workspace-contract-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          A memory-efficient attention kernel can avoid building the full matrix of attention scores. It
+          still needs workspace. A longer prefill chunk, a different backend, output logits or a captured
+          graph can change the peak. Simultaneous requests can change it too. For the four-log worksheet,
+          allow two gigabytes for workspace and leave a fifth of the card in reserve. Before setting
+          the worker's admission limit, measure its peak workspace and the memory other processes use.
+        hold: 0.6
+        visual_cues:
+          - id: pl-workspace-contract-1-0
+            phrase: "A memory-efficient attention kernel can avoid building the full matrix of attention scores. It still needs workspace."
+            targets: [pl-workspace-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-workspace-contract-1-1
+            phrase: "A longer prefill chunk, a different backend, output logits or a captured graph can change the peak. Simultaneous requests can change it too."
+            targets: [pl-workspace-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-workspace-contract-1-2
+            phrase: "For the four-log worksheet, allow two gigabytes for workspace and leave a fifth of the card in reserve."
+            targets: [pl-workspace-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-workspace-contract-1-3
+            phrase: "Before setting the worker's admission limit, measure its peak workspace and the memory other processes use."
+            targets: [pl-workspace-contract-trace]
+            color: blue
+            linger: 0.25
+  - id: cache-formula
+    title: "How many bytes does one token leave behind?"
+    visual: "Build the raw byte count from the two stored arrays and the configured layer dimensions. Repeat the count for multiple sessions, then separate Gemma's sliding and full layers."
+    beats:
+      - say: >-
+          Pick one retained token in one layer. Its cache holds a key and a value for each K V head. Each
+          head has a configured width, and each number takes a known number of bytes. The leading two
+          counts the separate key and value arrays. Read the width from the configuration. Dividing
+          hidden size by the number of query heads can give a different answer. Multiply by layers,
+          retained tokens and simultaneous sequences. If layer shapes differ, count each group separately
+          and add the results. That gives the raw payload. Page rounding, temporary updates, metadata and
+          unused reserved space can raise the allocation.
+        hold: 0.6
+        visual_cues:
+          - id: pl-cache-formula-0-0
+            phrase: "Pick one retained token in one layer. Its cache holds a key and a value for each K V head. Each head has a configured width, and each number takes a known number of bytes."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+          - id: pl-cache-formula-0-1
+            phrase: "The leading two counts the separate key and value arrays."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+          - id: pl-cache-formula-0-2
+            phrase: "Read the width from the configuration. Dividing hidden size by the number of query heads can give a different answer."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+          - id: pl-cache-formula-0-3
+            phrase: "Multiply by layers, retained tokens and simultaneous sequences. If layer shapes differ, count each group separately and add the results."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+          - id: pl-cache-formula-0-4
+            phrase: "That gives the raw payload. Page rounding, temporary updates, metadata and unused reserved space can raise the allocation."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          Take thirty-two identical layers. Eight heads, a width of one hundred twenty-eight, and two
+          bytes per number give one hundred twenty-eight kibibytes per token across those layers. A
+          kibibyte contains a thousand and twenty-four bytes. A gibibyte contains that factor cubed.
+          Multiply the per-token cost by four thousand ninety-six tokens to get half a gibibyte for one
+          log. At thirty-two thousand seven hundred sixty-eight tokens each, four logs use sixteen
+          gibibytes.
+        hold: 0.6
+        visual_cues:
+          - id: pl-cache-formula-1-0
+            phrase: "Take thirty-two identical layers. Eight heads, a width of one hundred twenty-eight, and two bytes per number give one hundred twenty-eight kibibytes per token across those layers."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+          - id: pl-cache-formula-1-1
+            phrase: "A kibibyte contains a thousand and twenty-four bytes. A gibibyte contains that factor cubed."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+          - id: pl-cache-formula-1-2
+            phrase: "Multiply the per-token cost by four thousand ninety-six tokens to get half a gibibyte for one log. At thirty-two thousand seven hundred sixty-eight tokens each, four logs use sixteen gibibytes."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          Now count the layers in our runbook example. Forty sliding layers each use eight K V heads of
+          width two hundred fifty-six. Eight full layers each use one head of width five hundred twelve.
+          Each sliding layer attends over a window of a thousand and twenty-four positions. The full
+          layers share a key and value projection, but the implementation transforms the two states
+          separately and caches both. Count both arrays in our worksheet. Keeping those states saves the
+          work of projecting the old tokens again. A full-attention layer still reads the retained
+          history for each new token. Reprocessing a whole prefix repeats attention over its token pairs.
+          Next, look at which positions the runner actually keeps.
+        hold: 0.6
+        visual_cues:
+          - id: pl-cache-formula-2-0
+            phrase: "Now count the layers in our runbook example. Forty sliding layers each use eight K V heads of width two hundred fifty-six. Eight full layers each use one head of width five hundred twelve."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+          - id: pl-cache-formula-2-1
+            phrase: "Each sliding layer attends over a window of a thousand and twenty-four positions."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+          - id: pl-cache-formula-2-2
+            phrase: "The full layers share a key and value projection, but the implementation transforms the two states separately and caches both. Count both arrays in our worksheet."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+          - id: pl-cache-formula-2-3
+            phrase: "Keeping those states saves the work of projecting the old tokens again. A full-attention layer still reads the retained history for each new token."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+          - id: pl-cache-formula-2-4
+            phrase: "Reprocessing a whole prefix repeats attention over its token pairs. Next, look at which positions the runner actually keeps."
+            targets: [pl-cache-formula-trace]
+            color: cyan
+            linger: 0.25
+  - id: retention
+    title: "Which parts of the log stay in memory?"
+    visual: "Sixteen columns represent one 16,384-token log. A fixed bracket marks the last query's sliding window. Two K/V layouts expose the difference between the positions a query may read and the storage a runner reserves."
+    beats:
+      - say: >-
+          Look at the last query in one of our four logs. Each column stands for a thousand and
+          twenty-four positions. This sliding layer can attend to just the yellow column. In a capped
+          cache, one tile of keys and one tile of values survive. The eight full-attention layers keep
+          keys and values for every column.
+        hold: 0.6
+        visual_cues:
+          - id: last-query
+            phrase: "just the yellow column"
+            targets: [mask]
+            color: blue
+            linger: 0.25
+          - id: keep-pair
+            phrase: "one tile of keys and one tile of values survive"
+            targets: [capped-pages]
+            color: cyan
+            linger: 0.25
+          - id: full-attention
+            phrase: "The eight full-attention layers"
+            targets: [cache-totals]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Replay the very same log in a second runner. Its sliding layer reserves room for the whole
+          history. Look at the two rows under the bracket. For one sliding layer in this log, how many
+          extra key tiles and value tiles does the lower layout reserve?
+        hold: 2.1
+        visual_cues:
+          - id: ask-reserve
+            phrase: "how many extra key tiles and value tiles"
+            targets: [mask, capped-pages, full-pages]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Fill the earlier slots in the lower row. Fifteen more key tiles and fifteen more value tiles,
+          all outside the yellow window. The last query still reads just the final column.
+          Across forty sliding layers and four logs, that storage choice takes the sliding allocation
+          from about one point three gigabytes to more than twenty-one. The eight full layers still need
+          the same amount. Add them and the raw cache alone can reach twenty-two and a half gigabytes.
+          Check what your backend reserves.
+        hold: 0.65
+        visual_cues:
+          - id: reserve-earlier
+            phrase: "Fill the earlier slots in the lower row"
+            targets: [full-pages]
+            color: blue
+            linger: 0.25
+          - id: count-extra
+            phrase: "Fifteen more key tiles and fifteen more value tiles"
+            targets: [mask, full-pages, cache-totals]
+            color: cyan
+            caption_boundary: true
+            linger: 0.25
+          - id: read-totals
+            phrase: "Across forty sliding layers and four logs"
+            targets: [cache-totals]
+            color: blue
+            linger: 0.25
+  - id: worksheet-evidence
+    title: "Change one input in the device budget"
+    visual: "Four common-scale stacks keep weights and workspace fixed. The sliding and full-layer cache segments respond separately to log length, session count and physical retention. Both the planning limit and the card capacity stay in place."
+    beats:
+      - say: >-
+          Put those bytes back on the card. Start with four logs, sixteen thousand three hundred
+          eighty-four tokens each, and capped storage. The first stack ends at twelve point zero one six
+          gigabytes. Now double the length of each log. Only the full-attention layers keep the extra
+          history. The total rises by just over one gigabyte.
+        hold: 0.6
+        visual_cues:
+          - id: reference-cache
+            phrase: "The first stack ends at twelve point zero one six gigabytes"
+            targets: [row-0]
+            color: cyan
+            linger: 0.25
+          - id: longer-logs
+            phrase: "Now double the length of each log"
+            targets: [row-1]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Go back to the original length and double the number of logs instead. Each new session needs
+          both kinds of cache. The weights and our assumed workspace stay put. Eight logs bring the total
+          to about fourteen point four gigabytes.
+        hold: 0.7
+        visual_cues:
+          - id: more-logs
+            phrase: "double the number of logs instead"
+            targets: [row-2]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Return to four logs and reserve the full sliding buffers. This time the stack crosses both
+          lines. It needs over thirty-two gigabytes on a twenty-four gigabyte card. Even if we cut
+          working memory to one gigabyte and give up the reserve, the demand still exceeds capacity. A
+          real server might decline that request, preempt it, or use a different placement. Its
+          allocation and request logs tell us which happened.
+        hold: 0.6
+        visual_cues:
+          - id: full-storage
+            phrase: "reserve the full sliding buffers"
+            targets: [row-3]
+            color: pink
+            linger: 0.25
+          - id: remove-reserve
+            phrase: "cut working memory to one gigabyte and give up the reserve"
+            targets: [worksheet-result]
+            color: blue
+            linger: 0.25
+  - id: synthesis
+    title: "What failed during prefill?"
+    visual: "A hypothetical trace pins the live weights and capped cache to one device. Outline a temporary allocation against physical capacity. Replay with smaller prefill chunks on the same device, keeping the same logs and cache."
+    beats:
+      - say: >-
+          Go back to the worker where the fourth log failed. Suppose we recover this allocation trace from the
+          prompt-processing phase, called prefill. Just before the failure, the device holds the weights
+          and the capped cache. In this example there are no other allocations. The allocator reports
+          just under fourteen gigabytes free. Can it grant a fifteen-gigabyte temporary buffer?
+        hold: 2
+        visual_cues:
+          - id: same-logs
+            phrase: "the weights and the capped cache"
+            targets: [live-bytes]
+            color: blue
+            linger: 0.25
+          - id: ask-allocation
+            phrase: "Can it grant a fifteen-gigabyte temporary buffer"
+            targets: [trace-decision]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Trace the requested buffer from the end of the cache. Its outline crosses the physical limit.
+          The allocation fails before that buffer becomes live. This trace identifies a workspace
+          request. It gives us a reason to try changing how much of each prompt we process at once.
+        hold: 1
+        caption_starts: ["Its outline crosses the physical limit", "The allocation fails before that buffer becomes live"]
+        visual_cues:
+          - id: large-request
+            phrase: "Trace the requested buffer from the end of the cache. Its outline crosses the physical limit."
+            targets: [original]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Replay with a smaller prefill chunk. In this example the temporary request drops to six
+          gigabytes and succeeds. Same weights. Same logs. Same cache. On your own worker, keep the
+          artifact, runtime, placement and request identity with both traces. Record the actual peak and
+          the latency change before recommending that chunk size.
+        hold: 0.7
+        visual_cues:
+          - id: small-request
+            phrase: "the temporary request drops to six gigabytes"
+            targets: [replay]
+            color: blue
+            linger: 0.25
+          - id: save-replay
+            phrase: "Record the actual peak and the latency change"
+            targets: [trace-decision]
+            color: blue
+            linger: 0.25
+  - id: hardware-contract
+    title: "Which number belongs on the memory budget?"
+    visual: "Keep device capacity and peak bandwidth on separate axes. Compare the discrete GPU with Apple's shared physical memory and the processes competing for it."
+    beats:
+      - say: >-
+          The runbook worker needs somewhere to hold its bytes and a way to read them as it generates an
+          answer. Capacity goes on the memory budget. Bandwidth belongs on a clock. For the RTX
+          forty-ninety, the specification gives twenty-four gigabytes of G D D R six X and a
+          three-hundred-eighty-four-bit interface, with a peak of one thousand eight gigabytes per
+          second. Four-bit weights describe storage. A kernel can unpack those codes and multiply in
+          floating point.
+        hold: 0.6
+        visual_cues:
+          - id: pl-hardware-contract-0-0
+            phrase: "The runbook worker needs somewhere to hold its bytes and a way to read them as it generates an answer."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-hardware-contract-0-1
+            phrase: "Capacity goes on the memory budget. Bandwidth belongs on a clock."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-hardware-contract-0-2
+            phrase: "For the RTX forty-ninety, the specification gives twenty-four gigabytes of G D D R six X and a three-hundred-eighty-four-bit interface, with a peak of one thousand eight gigabytes per second."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-hardware-contract-0-3
+            phrase: "Four-bit weights describe storage. A kernel can unpack those codes and multiply in floating point."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          The Mac Studio configurations in the article use shared memory. The M five Max variants list
+          four hundred sixty or six hundred fourteen gigabytes per second, and the M five Ultra lists one
+          point two terabytes per second. The maximum supported memory shown for the two families is one
+          hundred twenty-eight and five hundred twelve gigabytes respectively. Use those specifications
+          to select configurations to test, then time the long logs on the actual machine. Shared
+          physical storage lets the CPU and GPU use the same data even when their virtual addresses
+          differ.
+        hold: 0.6
+        visual_cues:
+          - id: pl-hardware-contract-1-0
+            phrase: "The Mac Studio configurations in the article use shared memory. The M five Max variants list four hundred sixty or six hundred fourteen gigabytes per second, and the M five Ultra lists one point two terabytes per second."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-hardware-contract-1-1
+            phrase: "The maximum supported memory shown for the two families is one hundred twenty-eight and five hundred twelve gigabytes respectively."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-hardware-contract-1-2
+            phrase: "Use those specifications to select configurations to test, then time the long logs on the actual machine."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-hardware-contract-1-3
+            phrase: "Shared physical storage lets the CPU and GPU use the same data even when their virtual addresses differ."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Start the shared-memory budget with what's already on the machine. The operating system and
+          other applications take up part of the same pool. Check memory pressure, runtime caches and the
+          Metal working-set limit. The amount available can change from one run to the next. MLX
+          schedules dependencies between CPU and GPU work on shared arrays. Its execution devices are the
+          CPU and GPU. The chip's Neural Engine is outside that interface. Compare compatible runners
+          with the same prompts, quality checks and concurrent load.
+        hold: 0.6
+        visual_cues:
+          - id: pl-hardware-contract-2-0
+            phrase: "Start the shared-memory budget with what's already on the machine. The operating system and other applications take up part of the same pool."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-hardware-contract-2-1
+            phrase: "Check memory pressure, runtime caches and the Metal working-set limit. The amount available can change from one run to the next."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-hardware-contract-2-2
+            phrase: "MLX schedules dependencies between CPU and GPU work on shared arrays. Its execution devices are the CPU and GPU. The chip's Neural Engine is outside that interface."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-hardware-contract-2-3
+            phrase: "Compare compatible runners with the same prompts, quality checks and concurrent load."
+            targets: [pl-hardware-contract-trace]
+            color: blue
+            linger: 0.25
+  - id: pools
+    title: "Which pool has to grant the request?"
+    visual: "An ordinary device request crosses its own VRAM limit while host memory remains free. A separate host buffer fits. Shared memory instead puts system and model demand on one rail."
+    beats:
+      - say: >-
+          Here the GPU has its own twenty-four gigabytes. An ordinary device allocation asks for
+          twenty-eight. It runs past the end of video memory. The host has thirty-two gigabytes free, but
+          that request went to the device allocator.
+        hold: 0.7
+        visual_cues:
+          - id: device-demand
+            phrase: "An ordinary device allocation asks for twenty-eight"
+            targets: [device]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Now allocate a separate eight-gigabyte buffer on the host. That request fits. Look back at the
+          GPU. Its request still exceeds capacity by four gigabytes. To use host memory for model work,
+          the runner needs an explicit placement or a supported managed-memory path.
+        hold: 0.6
+        visual_cues:
+          - id: host-buffer
+            phrase: "allocate a separate eight-gigabyte buffer on the host"
+            targets: [host]
+            color: blue
+            linger: 0.25
+          - id: host-does-fit
+            phrase: "Its request still exceeds capacity"
+            targets: [device]
+            color: blue
+            linger: 0.25
+      - say: >-
+          On the shared-memory machine, count both users against the same physical pool. The system and
+          other apps already use ten of its thirty-two gigabytes. Ask for twenty-four more for the model.
+          Together they need thirty-four. On Apple Silicon, check actual system pressure and the Metal
+          working-set limit as well.
+        hold: 0.65
+        visual_cues:
+          - id: shared-request
+            phrase: "Ask for twenty-four more for the model"
+            targets: [shared]
+            color: blue
+            linger: 0.25
+  - id: bandwidth-batch
+    title: "How many tokens can one weight read serve?"
+    visual: "Build the theoretical bandwidth of two and eight populated channels. One weight read then feeds one sequence or eight sequences in a batched decode step."
+    beats:
+      - say: >-
+          For a hypothetical CPU, give each populated channel five point six billion transfers per second
+          and eight bytes per transfer. Two channels give eighty-nine point six gigabytes per second
+          before losses. Populate eight such channels and the theoretical total rises to three hundred
+          fifty-eight point four. A thread on another NUMA node may fetch remote memory. Channel
+          population, kernel choice and competing traffic affect what the process sustains. Try several
+          thread counts with the same workload and check which memory node supplies the bytes.
+        hold: 0.6
+        visual_cues:
+          - id: pl-bandwidth-batch-0-0
+            phrase: "For a hypothetical CPU, give each populated channel five point six billion transfers per second and eight bytes per transfer."
+            targets: [pl-bandwidth-batch-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-bandwidth-batch-0-1
+            phrase: "Two channels give eighty-nine point six gigabytes per second before losses."
+            targets: [pl-bandwidth-batch-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-bandwidth-batch-0-2
+            phrase: "Populate eight such channels and the theoretical total rises to three hundred fifty-eight point four."
+            targets: [pl-bandwidth-batch-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-bandwidth-batch-0-3
+            phrase: "A thread on another NUMA node may fetch remote memory. Channel population, kernel choice and competing traffic affect what the process sustains."
+            targets: [pl-bandwidth-batch-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-bandwidth-batch-0-4
+            phrase: "Try several thread counts with the same workload and check which memory node supplies the bytes."
+            targets: [pl-bandwidth-batch-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Suppose each decode step reads five gigabytes of weights and the machine sustains eighty
+          gigabytes per second. Divide eighty by five. The weight stream allows sixteen steps per second.
+          For one sequence that's one token per step. Batch eight sequences together. They can reuse that
+          read while each produces a token, giving up to a hundred twenty-eight tokens per second in
+          aggregate under this assumption. Eight sequences also need more arithmetic and cache work, so a
+          different resource can become the limit. Measure the aggregate rate and each user's wait under
+          the intended arrivals.
+        hold: 0.6
+        visual_cues:
+          - id: pl-bandwidth-batch-1-0
+            phrase: "Suppose each decode step reads five gigabytes of weights and the machine sustains eighty gigabytes per second."
+            targets: [pl-bandwidth-batch-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-bandwidth-batch-1-1
+            phrase: "Divide eighty by five. The weight stream allows sixteen steps per second. For one sequence that's one token per step."
+            targets: [pl-bandwidth-batch-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-bandwidth-batch-1-2
+            phrase: "Batch eight sequences together. They can reuse that read while each produces a token, giving up to a hundred twenty-eight tokens per second in aggregate under this assumption."
+            targets: [pl-bandwidth-batch-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-bandwidth-batch-1-3
+            phrase: "Eight sequences also need more arithmetic and cache work, so a different resource can become the limit."
+            targets: [pl-bandwidth-batch-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-bandwidth-batch-1-4
+            phrase: "Measure the aggregate rate and each user's wait under the intended arrivals."
+            targets: [pl-bandwidth-batch-trace]
+            color: blue
+            linger: 0.25
+  - id: placement
+    title: "What travels from block 16 to block 17?"
+    visual: "Thirty-two numbered blocks execute one ordered numerical graph. Sixteen move to host RAM under the smaller device budget. A two-coordinate activation travels between the stationary weight banks, and both placements produce the same reference vector."
+    beats:
+      - say: >-
+          Try a separate model where every block weighs three tenths of a gigabyte. Set aside three point
+          two gigabytes for everything else, including the output head. All thirty-two blocks fit in a
+          sixteen-gigabyte allowance. Run the blocks in order and keep the final pair of numbers for
+          comparison.
+        hold: 0.55
+        visual_cues:
+          - id: fixed-blocks
+            phrase: "including the output head"
+            targets: [block-budget]
+            color: blue
+            linger: 0.25
+          - id: run-reference
+            phrase: "Run the blocks in order"
+            targets: [block-homes]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Cut the device allowance to eight gigabytes. Subtract fixed use and divide what's left by the
+          size of a block. That buys sixteen whole blocks. Leave the first sixteen on the CPU and keep
+          the last sixteen on the GPU. The CPU now runs its half. Block seventeen needs the result. What
+          has to cross the link?
+        hold: 2
+        visual_cues:
+          - id: smaller-budget
+            phrase: "Cut the device allowance to eight gigabytes"
+            targets: [block-budget]
+            color: blue
+            linger: 0.25
+          - id: place-prefix
+            phrase: "Leave the first sixteen on the CPU"
+            targets: [block-homes]
+            color: cyan
+            linger: 0.25
+          - id: run-prefix
+            phrase: "The CPU now runs its half"
+            targets: [block-homes]
+            color: cyan
+            linger: 0.25
+          - id: ask-boundary
+            phrase: "What has to cross the link"
+            targets: [activation]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Send the two numbers from block sixteen. That intermediate result is the activation. The CPU
+          weights stay where they were used. Run the remaining blocks on the GPU. The final pair matches
+          the reference because this toy graph performed the same operations in the same order. In a real
+          model, inspect tensor sizes and placement logs before turning a block budget into a runner
+          setting.
+        hold: 0.65
+        caption_starts: ["That intermediate result is the activation"]
+        visual_cues:
+          - id: cross-vector
+            phrase: "Send the two numbers from block sixteen"
+            targets: [activation]
+            color: blue
+            linger: 0.25
+          - id: run-suffix
+            phrase: "Run the remaining blocks on the GPU"
+            targets: [block-homes]
+            color: blue
+            linger: 0.25
+          - id: inspect-placement
+            phrase: "The final pair matches the reference"
+            targets: [activation]
+            color: blue
+            linger: 0.25
+  - id: flag-semantics
+    title: "Which slot does the layer flag count?"
+    visual: "Count backward from the output slot under the inspected llama.cpp rule. The input stays on CPU and the trailing hidden blocks plus output use the GPU."
+    beats:
+      - say: >-
+          For an equal-block estimate, subtract fixed use, divide by block size, round down to a whole
+          number and stop at the model's block count. Include the output head in fixed use at its
+          intended placement. Real models can have unequal blocks, experts, different cache placement or
+          tensor overrides. Read the suffix sizes and backend allocations before choosing a flag.
+        hold: 0.6
+        visual_cues:
+          - id: pl-flag-semantics-0-0
+            phrase: "For an equal-block estimate, subtract fixed use, divide by block size, round down to a whole number and stop at the model's block count."
+            targets: [pl-flag-semantics-trace]
+            color: pink
+            linger: 0.25
+          - id: pl-flag-semantics-0-1
+            phrase: "Include the output head in fixed use at its intended placement."
+            targets: [pl-flag-semantics-trace]
+            color: pink
+            linger: 0.25
+          - id: pl-flag-semantics-0-2
+            phrase: "Real models can have unequal blocks, experts, different cache placement or tensor overrides. Read the suffix sizes and backend allocations before choosing a flag."
+            targets: [pl-flag-semantics-trace]
+            color: pink
+            linger: 0.25
+      - say: >-
+          Now look at a different model with forty transformer blocks. In the llama dot cpp revision
+          shown here, the trailing range includes one more position for the output. Count back
+          twenty-four slots from the end. That selects the output and the final twenty-three transformer
+          blocks before overrides. The input stays on the CPU. Check the rule for your installed version,
+          then verify tensor placement and peak allocation in its logs.
+        hold: 0.6
+        visual_cues:
+          - id: pl-flag-semantics-1-0
+            phrase: "Now look at a different model with forty transformer blocks. In the llama dot cpp revision shown here, the trailing range includes one more position for the output."
+            targets: [pl-flag-semantics-trace]
+            color: pink
+            linger: 0.25
+          - id: pl-flag-semantics-1-1
+            phrase: "Count back twenty-four slots from the end. That selects the output and the final twenty-three transformer blocks before overrides."
+            targets: [pl-flag-semantics-trace]
+            color: pink
+            linger: 0.25
+          - id: pl-flag-semantics-1-2
+            phrase: "The input stays on the CPU."
+            targets: [pl-flag-semantics-trace]
+            color: pink
+            linger: 0.25
+          - id: pl-flag-semantics-1-3
+            phrase: "Check the rule for your installed version, then verify tensor placement and peak allocation in its logs."
+            targets: [pl-flag-semantics-trace]
+            color: pink
+            linger: 0.25
+  - id: allocation-evidence
+    title: "Which path did the bytes take?"
+    visual: "Follow an ordinary device allocation, a deliberate CPU placement and a managed allocation. File-backed pages and anonymous pages have different sources when brought back into memory."
+    beats:
+      - say: >-
+          An ordinary CUDA device allocation asks for device memory. It can fail when that pool cannot
+          supply the request. A runner can instead place selected blocks on the CPU, or explicitly copy
+          selected tensors across a link. A third path uses managed memory on supported platforms.
+          Unified virtual addressing alone tells you about pointer ranges. To identify migration, find
+          the allocation type, the platform's capabilities and a trace of pages moving.
+        hold: 0.6
+        visual_cues:
+          - id: pl-allocation-evidence-0-0
+            phrase: "An ordinary CUDA device allocation asks for device memory. It can fail when that pool cannot supply the request."
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-allocation-evidence-0-1
+            phrase: "A runner can instead place selected blocks on the CPU, or explicitly copy selected tensors across a link."
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-allocation-evidence-0-2
+            phrase: "A third path uses managed memory on supported platforms. Unified virtual addressing alone tells you about pointer ranges."
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-allocation-evidence-0-3
+            phrase: "To identify migration, find the allocation type, the platform's capabilities and a trace of pages moving."
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Follow page seven of the model file. A clean copy sits in host memory. Under pressure, the
+          operating system can discard that copy. The address still maps to page seven in the file.
+          The next read faults and brings the bytes back from the model file. Anonymous pages can
+          take a different route. If swap is enabled, the system can save them there and read them back later.
+          Compare major faults with file reads, swap activity and the size of the resident working set.
+        hold: 0.6
+        visual_cues:
+          - id: pl-allocation-evidence-1-0
+            phrase: "A clean copy sits in host memory"
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-allocation-evidence-1-1
+            phrase: "Under pressure, the operating system can discard that copy"
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-allocation-evidence-1-2
+            phrase: "The next read faults and brings the bytes back from the model file"
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-allocation-evidence-1-3
+            phrase: "If swap is enabled, the system can save them there and read them back later"
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-allocation-evidence-1-4
+            phrase: "Compare major faults with file reads, swap activity and the size of the resident working set"
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          A long request slows down. The card is nearly full and the host link is busy.
+          Occupancy tells us how much memory is in use. Activity tells us how busy the memory
+          subsystem is. Look at one transfer in this trace. CPU block sixteen sends its output
+          to GPU block seventeen. An activation crossed the link. A cache copy would carry a cache
+          tensor. For managed migration, look for pages moving. For a preempted request, look for
+          work the runner repeats.
+        hold: 0.6
+        visual_cues:
+          - id: pl-allocation-evidence-2-0
+            phrase: "The card is nearly full and the host link is busy"
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-allocation-evidence-2-1
+            phrase: "Occupancy tells us how much memory is in use. Activity tells us how busy the memory subsystem is"
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-allocation-evidence-2-2
+            phrase: "CPU block sixteen sends its output to GPU block seventeen"
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-allocation-evidence-2-3
+            phrase: "A cache copy would carry a cache tensor"
+            targets: [pl-allocation-evidence-trace]
+            color: blue
+            linger: 0.25
+  - id: transfers
+    title: "Time the bytes that cross the link"
+    visual: "A fixed payload splits into device and host segments above a shared 100-millisecond ruler. The mixed run appends its host leg to the end of its device leg. The all-device reference stays visible."
+    beats:
+      - say: >-
+          Now suppose the runner reads seven point six gigabytes of weights on every decode step. Here's
+          the weight payload. Give the device a sustained five hundred gigabytes per second. Divide the
+          bytes by that rate. The blue read takes fifteen point two milliseconds before we account for
+          compute, attention, unpacking or launching kernels.
+        hold: 0.6
+        visual_cues:
+          - id: weight-payload
+            phrase: "Here's the weight payload"
+            targets: [payload]
+            color: blue
+            linger: 0.25
+          - id: resident-read
+            phrase: "Divide the bytes by that rate"
+            targets: [stopwatch]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Try a different placement. This runner reads five point six gigabytes on the device and sends
+          two gigabytes of weights across a host link on each step. Here the link sustains twenty-five
+          gigabytes per second. With the two reads in sequence, which takes longer, the larger blue
+          portion or the smaller pink one?
+        hold: 1.8
+        visual_cues:
+          - id: split-bytes
+            phrase: "sends two gigabytes of weights across a host link"
+            targets: [payload]
+            color: blue
+            linger: 0.25
+          - id: ask-leg
+            phrase: "the larger blue portion or the smaller pink one"
+            targets: [payload, duration, stopwatch]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Start the device read. That's eleven point two milliseconds. Now send the two gigabytes across
+          the host link. That leg adds eighty milliseconds. The same weight payload now takes ninety-one
+          point two milliseconds in this serial calculation. Remember block sixteen sending two numbers?
+          A trace of the tensor crossing the link can distinguish that activation from the weight
+          transfer we just timed.
+        hold: 0.65
+        caption_starts: ["That's eleven point two milliseconds", "That leg adds eighty milliseconds"]
+        visual_cues:
+          - id: device-leg
+            phrase: "Start the device read. That's eleven point two milliseconds."
+            targets: [stopwatch]
+            color: blue
+            linger: 0.25
+          - id: host-leg
+            phrase: "Now send the two gigabytes across the host link. That leg adds eighty milliseconds."
+            targets: [stopwatch]
+            color: pink
+            linger: 0.25
+          - id: serial-total
+            phrase: "ninety-one point two milliseconds"
+            targets: [duration, stopwatch]
+            color: yellow
+            caption_boundary: true
+            linger: 0.25
+          - id: trace-bytes
+            phrase: "that activation from the weight transfer"
+            targets: [duration]
+            color: blue
+            linger: 0.25
+  - id: transfer-comparison
+    title: "Change the bandwidth assumption"
+    visual: "The host leg holds its duration while a change to assumed device bandwidth shortens the device segments. A second axis fits a full host transfer and a full storage read."
+    beats:
+      - say: >-
+          Change just the blue rate to the card's advertised peak, one thousand eight gigabytes per
+          second. Leave the host link alone. The all-device time drops below eight milliseconds. The
+          mixed run still spends eighty milliseconds on the host link. Divide one modeled time by the
+          other and the mixed path takes about eleven times as long, under these assumptions.
+        hold: 0.65
+        visual_cues:
+          - id: peak-bandwidth
+            phrase: "Change just the blue rate to the card's advertised peak"
+            targets: [device-rate]
+            color: blue
+            linger: 0.25
+          - id: compare-floors
+            phrase: "Divide one modeled time by the other"
+            targets: [fast-axis]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Zoom out for two slower paths. Sending the entire payload over that host link takes three
+          hundred and four milliseconds. Reading the same bytes from storage at five gigabytes per second
+          takes over a second and a half, before the runner processes them. These clocks measure serial
+          data movement. For user-visible token speed, time a request on the installed runner.
+        hold: 0.6
+        visual_cues:
+          - id: all-host
+            phrase: "Sending the entire payload over that host link"
+            targets: [long-axis]
+            color: blue
+            linger: 0.25
+          - id: read-file
+            phrase: "Reading the same bytes from storage"
+            targets: [long-axis]
+            color: blue
+            linger: 0.25
+  - id: runner-contract
+    title: "Which part of the runner owns the choice?"
+    visual: "Distinguish tensor storage, cache options and model-server configuration. Follow supported weights through the runner and its API."
+    beats:
+      - say: >-
+          A G G U F file contains tensors and metadata that a compatible G G M L executor can read. The
+          tensors can span multiple shards. Mapping the files sets up addresses, while physical pages
+          still have to be brought into memory. Llama dot cpp can run as a native binary. Check that its
+          build, drivers and chosen backend support your model.
+        hold: 0.6
+        visual_cues:
+          - id: pl-runner-contract-0-0
+            phrase: "A G G U F file contains tensors and metadata that a compatible G G M L executor can read."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-runner-contract-0-1
+            phrase: "The tensors can span multiple shards. Mapping the files sets up addresses, while physical pages still have to be brought into memory."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-runner-contract-0-2
+            phrase: "Llama dot cpp can run as a native binary. Check that its build, drivers and chosen backend support your model."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          The inspected command line lists several cache types, including the two sixteen-bit types and
+          the quantized types shown here. That revision has no generic F P eight entry in the accepted
+          list. Quantized cache may add metadata and require specific kernels. Run the task-quality
+          checks again if you change it. The cache type governs stored request history. The weight type
+          governs the model tensors.
+        hold: 0.6
+        visual_cues:
+          - id: pl-runner-contract-1-0
+            phrase: "The inspected command line lists several cache types, including the two sixteen-bit types and the quantized types shown here."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-runner-contract-1-1
+            phrase: "That revision has no generic F P eight entry in the accepted list."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-runner-contract-1-2
+            phrase: "Quantized cache may add metadata and require specific kernels. Run the task-quality checks again if you change it."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-runner-contract-1-3
+            phrase: "The cache type governs stored request history. The weight type governs the model tensors."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Ollama manages models and serves requests over H T T P. Its Modelfile points to supported
+          Safetensors or G G U F weights and can set a template and parameters. Its OpenAI-compatible
+          interface implements a subset of endpoints and fields. Check the ones your client sends. A
+          placeholder client key provides no authentication on the default local server. Authenticate
+          callers at the gateway. On Apple hardware, MLX supplies array operations and MLX L M supplies
+          the language-model tools.
+        hold: 0.6
+        visual_cues:
+          - id: pl-runner-contract-2-0
+            phrase: "Ollama manages models and serves requests over H T T P."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-runner-contract-2-1
+            phrase: "Its Modelfile points to supported Safetensors or G G U F weights and can set a template and parameters."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-runner-contract-2-2
+            phrase: "Its OpenAI-compatible interface implements a subset of endpoints and fields. Check the ones your client sends."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-runner-contract-2-3
+            phrase: "A placeholder client key provides no authentication on the default local server. Authenticate callers at the gateway."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-runner-contract-2-4
+            phrase: "On Apple hardware, MLX supplies array operations and MLX L M supplies the language-model tools."
+            targets: [pl-runner-contract-trace]
+            color: blue
+            linger: 0.25
+  - id: serving-comparison
+    title: "Which two-GPU arrangement serves these requests?"
+    visual: "Map token blocks to noncontiguous cache slots. Use the same workload to compare two replicas and a tensor-parallel worker against separate latency and throughput thresholds."
+    beats:
+      - say: >-
+          In v L L M, the scheduler can continuously batch requests and allocate cache in blocks on
+          supported hardware and kernels. Each logical token block points to a cache slot. Those slots
+          can be scattered around the pool, as the lines show. They belong to the inference runtime.
+          Operating-system pages have a different job. Block size, sequence lengths, prefix sharing and
+          pool policy determine how much cache space is wasted.
+        hold: 0.6
+        visual_cues:
+          - id: pl-serving-comparison-0-0
+            phrase: "In v L L M, the scheduler can continuously batch requests and allocate cache in blocks on supported hardware and kernels."
+            targets: [pl-serving-comparison-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-serving-comparison-0-1
+            phrase: "Each logical token block points to a cache slot. Those slots can be scattered around the pool, as the lines show."
+            targets: [pl-serving-comparison-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-serving-comparison-0-2
+            phrase: "They belong to the inference runtime. Operating-system pages have a different job. Block size, sequence lengths, prefix sharing and pool policy determine how much cache space is wasted."
+            targets: [pl-serving-comparison-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Ollama and llama-server can serve concurrent requests too. Our model fits on one of two GPUs.
+          Compare two independent replicas against one tensor-parallel worker using both GPUs. Keep
+          quality, arrivals, context and concurrency fixed. Here are two supplied replays. Both beat the
+          output-rate floor. Only the replicas return the first visible token within eight hundred
+          milliseconds at the ninety-fifth percentile. Choose the replicas for this workload. Track queue
+          time and the gaps between tokens as well, because a high aggregate output rate can coexist with
+          a long wait for one engineer.
+        hold: 0.6
+        visual_cues:
+          - id: pl-serving-comparison-1-0
+            phrase: "Ollama and llama-server can serve concurrent requests too. Our model fits on one of two GPUs."
+            targets: [pl-serving-comparison-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-serving-comparison-1-1
+            phrase: "Compare two independent replicas against one tensor-parallel worker using both GPUs. Keep quality, arrivals, context and concurrency fixed."
+            targets: [pl-serving-comparison-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-serving-comparison-1-2
+            phrase: "Here are two supplied replays. Both beat the output-rate floor. Only the replicas return the first visible token within eight hundred milliseconds at the ninety-fifth percentile."
+            targets: [pl-serving-comparison-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-serving-comparison-1-3
+            phrase: "Choose the replicas for this workload. Track queue time and the gaps between tokens as well, because a high aggregate output rate can coexist with a long wait for one engineer."
+            targets: [pl-serving-comparison-trace]
+            color: blue
+            linger: 0.25
+  - id: private-boundary
+    title: "Where can the incident log travel?"
+    visual: "Place local processing, an on-premises service and an outside destination on a network boundary. Follow a request that forwards through a local endpoint."
+    beats:
+      - say: >-
+          An engineer gives this assistant an incident log under an internal-only policy. A server on the
+          same laptop can still forward a prompt to a cloud model. Trace that hop past the local process.
+          An on-premises server can also have external network access. An air gap requires actual
+          separation from outside networks and controlled transfer of updates and artifacts. Keep
+          credentials in their store and let retrieval return only documents that this caller may read.
+        hold: 0.6
+        visual_cues:
+          - id: pl-private-boundary-0-0
+            phrase: "An engineer gives this assistant an incident log under an internal-only policy."
+            targets: [pl-private-boundary-trace]
+            color: yellow
+            linger: 0.25
+          - id: pl-private-boundary-0-1
+            phrase: "A server on the same laptop can still forward a prompt to a cloud model. Trace that hop past the local process."
+            targets: [pl-private-boundary-trace]
+            color: yellow
+            linger: 0.25
+          - id: pl-private-boundary-0-2
+            phrase: "An on-premises server can also have external network access."
+            targets: [pl-private-boundary-trace]
+            color: yellow
+            linger: 0.25
+          - id: pl-private-boundary-0-3
+            phrase: "An air gap requires actual separation from outside networks and controlled transfer of updates and artifacts."
+            targets: [pl-private-boundary-trace]
+            color: yellow
+            linger: 0.25
+          - id: pl-private-boundary-0-4
+            phrase: "Keep credentials in their store and let retrieval return only documents that this caller may read."
+            targets: [pl-private-boundary-trace]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Hosting tells you where a process runs. Legal requirements also depend on the data, the
+          recipients and the applicable agreements and safeguards. For example, HIPAA permits cloud
+          processing under the applicable requirements, and GDPR provides mechanisms for international
+          transfers. Check which requirements apply to the deployment. For this runbook assistant the
+          product contract is more specific. Incident data stays inside the approved network, including
+          during failure.
+        hold: 0.6
+        visual_cues:
+          - id: pl-private-boundary-1-0
+            phrase: "Hosting tells you where a process runs. Legal requirements also depend on the data, the recipients and the applicable agreements and safeguards."
+            targets: [pl-private-boundary-trace]
+            color: yellow
+            linger: 0.25
+          - id: pl-private-boundary-1-1
+            phrase: "For example, HIPAA permits cloud processing under the applicable requirements, and GDPR provides mechanisms for international transfers."
+            targets: [pl-private-boundary-trace]
+            color: yellow
+            linger: 0.25
+          - id: pl-private-boundary-1-2
+            phrase: "Check which requirements apply to the deployment."
+            targets: [pl-private-boundary-trace]
+            color: yellow
+            linger: 0.25
+          - id: pl-private-boundary-1-3
+            phrase: "For this runbook assistant the product contract is more specific. Incident data stays inside the approved network, including during failure."
+            targets: [pl-private-boundary-trace]
+            color: yellow
+            linger: 0.25
+  - id: network-controls
+    title: "Trace the caller and the last hop"
+    visual: "Track the scope of the no-cloud setting and the retrieval caller. Follow the onward hop from an internal relay, then test the expected local fallback."
+    beats:
+      - say: >-
+          Configure Ollama's no-cloud setting and restart the server. This disables its cloud-model and
+          web-search features. The registry, telemetry, proxies and tools have their own network paths.
+          Check their policies separately. By default the local API listens on loopback and requires no
+          authentication. Another local process can reach it. A proxy can expose it to other callers.
+          Authenticate each caller, then enforce that caller's permissions when retrieving runbooks.
+        hold: 0.6
+        visual_cues:
+          - id: pl-network-controls-0-0
+            phrase: "Configure Ollama's no-cloud setting and restart the server. This disables its cloud-model and web-search features."
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-network-controls-0-1
+            phrase: "The registry, telemetry, proxies and tools have their own network paths. Check their policies separately."
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-network-controls-0-2
+            phrase: "By default the local API listens on loopback and requires no authentication."
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-network-controls-0-3
+            phrase: "Another local process can reach it. A proxy can expose it to other callers."
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-network-controls-0-4
+            phrase: "Authenticate each caller, then enforce that caller's permissions when retrieving runbooks."
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Follow a log all the way through retrieval, inference, tools, proxies, logs, backups and
+          monitoring. A generated command is text until a tool executes it. The tool's network access
+          belongs in the review. If an approved internal relay sends the incident to an outside service,
+          the first hop passed its check and the complete route still violated the policy. Test and
+          enforce the onward route too. Review what allowed peers store and what enters local logs.
+        hold: 0.6
+        visual_cues:
+          - id: pl-network-controls-1-0
+            phrase: "Follow a log all the way through retrieval, inference, tools, proxies, logs, backups and monitoring."
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-network-controls-1-1
+            phrase: "A generated command is text until a tool executes it. The tool's network access belongs in the review."
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-network-controls-1-2
+            phrase: "If an approved internal relay sends the incident to an outside service, the first hop passed its check and the complete route still violated the policy."
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-network-controls-1-3
+            phrase: "Test and enforce the onward route too. Review what allowed peers store and what enters local logs."
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          In a controlled test, make the worker unavailable. Also ask for a runbook the assistant cannot
+          find. In both cases the engineer should reach approved local documentation or a human, with the
+          incident kept inside the approved boundary. Follow the request in the network log.
+          Record which connections were attempted or denied and which fallback the engineer received.
+        hold: 0.6
+        visual_cues:
+          - id: pl-network-controls-2-0
+            phrase: "In a controlled test, make the worker unavailable. Also ask for a runbook the assistant cannot find."
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-network-controls-2-1
+            phrase: "In both cases the engineer should reach approved local documentation or a human, with the incident kept inside the approved boundary."
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-network-controls-2-2
+            phrase: "Follow the request in the network log"
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-network-controls-2-3
+            phrase: "which fallback the engineer received"
+            targets: [pl-network-controls-trace]
+            color: blue
+            linger: 0.25
+  - id: inventory-evidence
+    title: "Which record proves the worker can answer?"
+    visual: "Distinguish an inventory entry, a loaded-model receipt and a controlled inference. A later pull of a mutable tag can change the artifact behind it."
+    beats:
+      - say: >-
+          On your installation, start with the model manager's inventory and running-model records. The
+          tags endpoint tells you which models are present. The running-model endpoint reports the loaded
+          name, digest, total size, size in video memory and context length. The processor percentage
+          summarizes placement. To determine exact layer placement, kernels, peak use and readiness,
+          inspect their own traces and send a controlled inference request.
+        hold: 0.6
+        visual_cues:
+          - id: pl-inventory-evidence-0-0
+            phrase: "On your installation, start with the model manager's inventory and running-model records."
+            targets: [pl-inventory-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-inventory-evidence-0-1
+            phrase: "The tags endpoint tells you which models are present."
+            targets: [pl-inventory-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-inventory-evidence-0-2
+            phrase: "The running-model endpoint reports the loaded name, digest, total size, size in video memory and context length."
+            targets: [pl-inventory-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-inventory-evidence-0-3
+            phrase: "The processor percentage summarizes placement. To determine exact layer placement, kernels, peak use and readiness, inspect their own traces and send a controlled inference request."
+            targets: [pl-inventory-evidence-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Save the container digest and verified local model manifest with the tokenizer, template,
+          runtime, backend and options. Restarting a process by itself leaves the artifact alone. A
+          deployment step that pulls a mutable tag can install different bytes under the same name. Use
+          the model manager's documented identity mechanism. Docker's digest syntax does not
+          automatically carry over to a model name.
+        hold: 0.6
+        visual_cues:
+          - id: pl-inventory-evidence-1-0
+            phrase: "Save the container digest and verified local model manifest with the tokenizer, template, runtime, backend and options."
+            targets: [pl-inventory-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-inventory-evidence-1-1
+            phrase: "Restarting a process by itself leaves the artifact alone."
+            targets: [pl-inventory-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-inventory-evidence-1-2
+            phrase: "A deployment step that pulls a mutable tag can install different bytes under the same name."
+            targets: [pl-inventory-evidence-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-inventory-evidence-1-3
+            phrase: "Use the model manager's documented identity mechanism. Docker's digest syntax does not automatically carry over to a model name."
+            targets: [pl-inventory-evidence-trace]
+            color: blue
+            linger: 0.25
+  - id: timings
+    title: "Which prompt tokens did the clock time?"
+    visual: "A bracket contracts from the whole prompt to the uncached suffix. Generated tokens use their own clock. Removing its duration leaves the output rate unavailable."
+    beats:
+      - say: >-
+          One completed request gives us this timing receipt. Of the thousand tokens in the prompt, six
+          hundred came from cache. The server reports two tenths of a second for prompt evaluation. Which
+          span of the prompt belongs over those two tenths?
+        hold: 1.7
+        visual_cues:
+          - id: cached-prefix
+            phrase: "six hundred came from cache"
+            targets: [prompt-span]
+            color: cyan
+            linger: 0.25
+          - id: which-time
+            phrase: "Which span of the prompt"
+            targets: [prompt-span]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Move the bracket past the reused prefix. The server evaluated the remaining four hundred tokens
+          in that time. That's two thousand uncached prompt tokens per second. Counting the whole prompt
+          would give five thousand and credit work skipped on this request. Output has its own clock.
+          Eighty generated tokens in two seconds gives forty per second.
+        hold: 0.65
+        caption_starts: ["The server evaluated the remaining four hundred tokens", "That's two thousand uncached prompt tokens per second"]
+        visual_cues:
+          - id: select-span
+            phrase: "Move the bracket past the reused prefix"
+            targets: [prompt-span]
+            color: blue
+            linger: 0.25
+          - id: selected-count
+            phrase: "The server evaluated the remaining four hundred tokens in that time"
+            targets: [prompt-span]
+            color: cyan
+            linger: 0.25
+          - id: prompt-result
+            phrase: "That's two thousand uncached prompt tokens per second"
+            targets: [prompt-rate]
+            color: green
+            linger: 0.25
+          - id: own-duration
+            phrase: "Eighty generated tokens in two seconds gives forty per second"
+            targets: [output-rate]
+            color: blue
+            linger: 0.25
+      - say: >-
+          Take away the output duration. We still know the count, but we can't calculate its rate. Keep
+          the server version with the receipt. To find out how long the engineer waited for the first
+          visible token, timestamp its arrival at the client. Use the same arrival stream to check gaps
+          between tokens.
+        hold: 0.6
+        visual_cues:
+          - id: remove-duration
+            phrase: "Take away the output duration"
+            targets: [output-rate]
+            color: blue
+            linger: 0.25
+  - id: timing-contract
+    title: "What can a completed receipt establish?"
+    visual: "Check the recorded values and units, then mark submission, first chunk, first visible token and completion on a separate client timeline."
+    beats:
+      - say: >-
+          Read the final completed response. The Python helper requires the Boolean value true for done
+          and nonnegative integer counts and times. A Boolean is invalid as a numeric metric. If the
+          cached count exceeds the total prompt, reject the receipt. Subtract only when both counts are
+          present. An omitted cache count leaves the uncached rate unknown, even if you know the total
+          number of tokens. A missing or zero duration gives you no rate. Reject a computed rate outside
+          the finite range. The helper divides integer quantities before converting the result. That
+          keeps a finite ratio usable even when the individual integers are very large.
+        hold: 0.6
+        visual_cues:
+          - id: pl-timing-contract-0-0
+            phrase: "Read the final completed response. The Python helper requires the Boolean value true for done and nonnegative integer counts and times. A Boolean is invalid as a numeric metric."
+            targets: [pl-timing-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-timing-contract-0-1
+            phrase: "If the cached count exceeds the total prompt, reject the receipt."
+            targets: [pl-timing-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-timing-contract-0-2
+            phrase: "Subtract only when both counts are present."
+            targets: [pl-timing-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-timing-contract-0-3
+            phrase: "An omitted cache count leaves the uncached rate unknown, even if you know the total number of tokens."
+            targets: [pl-timing-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-timing-contract-0-4
+            phrase: "A missing or zero duration gives you no rate. Reject a computed rate outside the finite range."
+            targets: [pl-timing-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-timing-contract-0-5
+            phrase: "The helper divides integer quantities before converting the result. That keeps a finite ratio usable even when the individual integers are very large."
+            targets: [pl-timing-contract-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          For the Ollama usage contract in the article, streaming returns the server metrics in the final
+          completed chunk. Durations are in nanoseconds. A billion nanoseconds makes one second.
+          Generation counts can include thinking tokens. Keep the server version and thinking mode with
+          the receipt. At the client, mark submit, first chunk, first visible token and completion.
+          Decide which event defines time to first token before comparing runs. Buffering can combine
+          tokens in one chunk. A cold load or a queue can make an engineer wait before generation even
+          starts.
+        hold: 0.6
+        visual_cues:
+          - id: pl-timing-contract-1-0
+            phrase: "For the Ollama usage contract in the article, streaming returns the server metrics in the final completed chunk. Durations are in nanoseconds."
+            targets: [pl-timing-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-timing-contract-1-1
+            phrase: "A billion nanoseconds makes one second."
+            targets: [pl-timing-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-timing-contract-1-2
+            phrase: "Generation counts can include thinking tokens. Keep the server version and thinking mode with the receipt."
+            targets: [pl-timing-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-timing-contract-1-3
+            phrase: "At the client, mark submit, first chunk, first visible token and completion. Decide which event defines time to first token before comparing runs."
+            targets: [pl-timing-contract-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-timing-contract-1-4
+            phrase: "Buffering can combine tokens in one chunk. A cold load or a queue can make an engineer wait before generation even starts."
+            targets: [pl-timing-contract-trace]
+            color: blue
+            linger: 0.25
+  - id: quality
+    title: "Does the smaller model pass the release checks?"
+    visual: "The same four checks score both sets of supplied outputs. Resolve tied totals by looking at the protected command and its exact missing flag."
+    beats:
+      - say: >-
+          The smaller model could save memory. Now check what it would hand the engineer. Run the same
+          four checks on these two sets of invented answers. One checks the rollback flags, one asks for
+          a missing node, one parses alert severity, and one expects the assistant to abstain when a
+          runbook is unknown. Both sets pass three. Under a policy that protects the rollback command,
+          can we promote the candidate?
+        hold: 1.9
+        visual_cues:
+          - id: pair-outputs
+            phrase: "Run the same four checks"
+            targets: [paired-cases]
+            color: cyan
+            linger: 0.25
+          - id: ask-quality
+            phrase: "can we promote the candidate"
+            targets: [paired-cases]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          The candidate now asks for human review on the unknown runbook. That's a real improvement in
+          this case. Look at the end of its rollback draft. The confirmation flag is missing. That one
+          protected regression holds the release. Keep working on the baseline's abstention failure too.
+          Save the paired prompts, retrieval context, template, decoding options and outputs with the
+          artifact identities so you can repeat the comparison.
+        hold: 0.65
+        caption_starts: ["The confirmation flag is missing", "That one protected regression holds the release"]
+        visual_cues:
+          - id: better-abstention
+            phrase: "on the unknown runbook"
+            targets: [paired-cases]
+            color: blue
+            linger: 0.25
+          - id: read-flag
+            phrase: "The confirmation flag is missing"
+            targets: [command-pair]
+            color: pink
+            linger: 0.25
+          - id: preserve-pair
+            phrase: "repeat the comparison"
+            targets: [command-pair]
+            color: cyan
+            linger: 0.25
+  - id: diagnostic-replay
+    title: "What would distinguish the two explanations?"
+    visual: "Replay one factor at a time. Bind the failed request and phase to its backend, allocation and worker evidence."
+    beats:
+      - say: >-
+          At startup, read the failing allocation along with its device pool and other live use. For a
+          long-input failure, hold concurrency steady. Change context alone, then try a separate sweep of
+          prefill chunk size. Inspect the reserved cache and the workspace peak each time. On a slow CPU,
+          vary thread count with fixed inputs, then vary memory locality. A transfer trace can identify
+          cache or activation traffic. Faults and file reads point toward rereads, while repeated
+          computation after preemption calls for a different fix.
+        hold: 0.6
+        visual_cues:
+          - id: pl-diagnostic-replay-0-0
+            phrase: "At startup, read the failing allocation along with its device pool and other live use."
+            targets: [pl-diagnostic-replay-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-diagnostic-replay-0-1
+            phrase: "For a long-input failure, hold concurrency steady. Change context alone, then try a separate sweep of prefill chunk size. Inspect the reserved cache and the workspace peak each time."
+            targets: [pl-diagnostic-replay-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-diagnostic-replay-0-2
+            phrase: "On a slow CPU, vary thread count with fixed inputs, then vary memory locality."
+            targets: [pl-diagnostic-replay-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-diagnostic-replay-0-3
+            phrase: "A transfer trace can identify cache or activation traffic. Faults and file reads point toward rereads, while repeated computation after preemption calls for a different fix."
+            targets: [pl-diagnostic-replay-trace]
+            color: blue
+            linger: 0.25
+      - say: >-
+          For a changed answer, compare artifact and template identities and repeat paired prompts under
+          the same decoding policy. Here the health check succeeds, but the inference request fails.
+          Find that request in the worker log. Its ID connects the error to the loaded model and
+          the phase that failed.
+        hold: 0.6
+        visual_cues:
+          - id: pl-diagnostic-replay-1-0
+            phrase: "For a changed answer, compare artifact and template identities and repeat paired prompts under the same decoding policy."
+            targets: [pl-diagnostic-replay-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-diagnostic-replay-1-1
+            phrase: "Here the health check succeeds, but the inference request fails."
+            targets: [pl-diagnostic-replay-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-diagnostic-replay-1-2
+            phrase: "Find that request in the worker log."
+            targets: [pl-diagnostic-replay-trace]
+            color: blue
+            linger: 0.25
+          - id: pl-diagnostic-replay-1-3
+            phrase: "Its ID connects the error to the loaded model and the phase that failed."
+            targets: [pl-diagnostic-replay-trace]
+            color: blue
+            linger: 0.25
+  - id: fresh-admission
+    title: "Who gets the last slot?"
+    visual: "Eight new logs share a 16 GB planning limit. Each admitted log contributes one raw-cache segment. The eighth moves to the queue. A separate paired output comparison determines whether the candidate can handle the admitted requests."
+    beats:
+      - say: >-
+          Eight logs arrive, each about thirty-three thousand tokens long. With capped storage,
+          each needs a little under nine tenths of a gigabyte of cache. The weights and workspace
+          use nine point six gigabytes. With a sixteen-gigabyte limit, how many logs can the worker admit?
+        hold: 2.4
+        visual_cues:
+          - id: new-workload
+            phrase: "a little under nine tenths of a gigabyte of cache"
+            targets: [session-inputs]
+            color: blue
+            linger: 0.25
+          - id: session-question
+            phrase: "how many logs can the worker admit"
+            targets: [session-inputs, admission-bar, case-policy]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Lay all eight cache strips beside the fixed allocations. The eighth crosses the line at about
+          sixteen point six gigabytes. Subtract the weights and workspace from sixteen. That leaves
+          six point four gigabytes for cache.
+          Divide that by the cache per log. Rounding down gives seven whole logs. Queue log eight.
+          Seven fit at about fifteen point seven gigabytes. This is the workload to test for peak
+          memory and latency on the worker.
+        hold: 0.8
+        caption_starts: ["That leaves six point four gigabytes for cache", "Rounding down gives seven whole logs"]
+        visual_cues:
+          - id: count-eight
+            phrase: "Lay all eight cache strips beside the fixed allocations"
+            targets: [admission-bar]
+            color: blue
+            linger: 0.25
+          - id: eight-total
+            phrase: "The eighth crosses the line at about sixteen point six gigabytes"
+            targets: [admission-bar]
+            caption_boundary: true
+            color: pink
+            linger: 0.25
+          - id: cache-allowance
+            phrase: "That leaves six point four gigabytes for cache"
+            targets: [case-policy]
+            color: yellow
+            linger: 0.25
+          - id: divide-allowance
+            phrase: "Divide that by the cache per log. Rounding down gives seven whole logs."
+            targets: [case-policy, admission-bar]
+            color: yellow
+            linger: 0.25
+          - id: queue-eight
+            phrase: "Queue log eight"
+            targets: [session-inputs, admission-bar]
+            color: blue
+            linger: 0.25
+          - id: seven-fit
+            phrase: "Seven fit at about fifteen point seven gigabytes"
+            targets: [session-inputs, admission-bar]
+            caption_boundary: true
+            color: green
+            linger: 0.25
+      - say: >-
+          Now decide which model those seven logs can use. Five paired checks test the drafts. The
+          smaller candidate passes four, exactly the number the policy requires. The rollback check
+          also has to keep passing. Compare its two entries. Can this candidate take the admitted logs?
+        hold: 2.1
+        visual_cues:
+          - id: case-grid
+            phrase: "Five paired checks"
+            targets: [case-policy]
+            color: blue
+            linger: 0.25
+          - id: ask-promote
+            phrase: "Can this candidate take the admitted logs"
+            targets: [case-policy]
+            color: yellow
+            linger: 0.25
+      - say: >-
+          Seven logs fit the memory budget. The rollback draft still lacks its confirmation flag.
+          Hold the candidate. If the approved worker fails, use an approved local runbook or ask a human.
+          The incident log stays inside the network. On a field laptop, replay the workload on battery.
+          Measure power use and response time as the laptop warms up. Then disconnect the network
+          and open the fallback runbook.
+        hold: 1
+        caption_starts: ["Hold the candidate", "On a field laptop"]
+        visual_cues:
+          - id: inspect-command
+            phrase: "The rollback draft still lacks its confirmation flag"
+            targets: [case-policy]
+            caption_boundary: true
+            color: blue
+            linger: 0.25
+          - id: local-handoff
+            phrase: "an approved local runbook or ask a human"
+            targets: [case-policy]
+            color: blue
+            linger: 0.25
+          - id: field-replay
+            phrase: "On a field laptop, replay the workload on battery"
+            targets: [case-policy]
+            color: blue
+            linger: 0.25
+          - id: offline-check
+            phrase: "disconnect the network and open the fallback runbook"
+            targets: [case-policy]
+            color: yellow
+            linger: 0.25

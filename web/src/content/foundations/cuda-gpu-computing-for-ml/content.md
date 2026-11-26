@@ -161,7 +161,7 @@ $$
 \text{training memory} \approx \text{weights} + \text{activations} + \text{gradients} + \text{optimizer state} + \text{temporary workspaces}
 $$
 
-**Adam** stores two running statistics per parameter (mean and squared gradient), usually allocated on the *first* `optimizer.step()`.[^pytorchAdamDocs2026] At 16 bytes per parameter in FP32 (`4 B` weights + `4 B` gradients + `8 B` Adam moments), every billion parameters demands a `14.90 GiB` floor *before* activations, temporary workspaces, or allocator overhead (for 7B parameters: `14 GB` serving at FP16 fits on 24 GB, whereas FP16 Adam hits `56 GB` and FP32 master-weight mixed-precision Adam hits `112 GB` before activations!).[^micikevicius2018][^pytorchAmpDocs2026]
+**Adam** stores two running statistics per parameter (mean and squared gradient), usually allocated on the *first* `optimizer.step()`.[^pytorchAdamDocs2026] At 16 bytes per parameter in FP32 (`4 B` weights + `4 B` gradients + `8 B` Adam moments), every billion parameters demands a `14.90 GiB` floor *before* activations, temporary workspaces, or allocator overhead (for 7B parameters: `14 GB` serving at FP16 fits on 24 GB, whereas all-FP16 Adam hits `56 GB` and FP32 Adam, or mixed-precision Adam keeping FP16 weights and gradients alongside FP32 master weights and moments, hits `112 GB` before activations!).[^micikevicius2018][^pytorchAmpDocs2026]
 
 <figure>
   <img src="illustrations/_generated/memory_budget_dark.png" alt="Three horizontal bars of gigabytes for a 7 billion parameter model, against a vertical line at a 24 GB GPU. Serving at FP16 needs 14 GB of weights and fits, with room for per-request memory. Training with Adam at FP16 needs 14 GB of weights, 14 GB of gradients, and 28 GB of optimizer averages, 56 GB before activations. Training with Adam and FP32 weights doubles each part to 112 GB before activations." />
@@ -372,7 +372,7 @@ PyTorch's caching allocator retains freed blocks inside `memory_reserved()` for 
     "explanation": "The count is 300 million×16=4.8 billion bytes, or about 4.47 GiB. That floor is below 6 GiB, but activations, workspaces, allocator overhead and any extra copies still need room. A fitting parameter total leaves the rest of the step unbudgeted."
   },
   {
-    "question": "In one load, the 32 lanes of a warp read consecutive 4-byte global words starting at byte address 80, one word per lane. In a separate load, the same lanes read shared words starting at word 1 with a stride of 38 words. Use the standard 32-bank layout for 4-byte words, with word 0 in bank 0. How many aligned 32-byte global segments does the warp touch, and how do the shared words map to banks?",
+    "question": "In one load, the 32 lanes of a warp read consecutive 4-byte global words starting at byte address 112, one word per lane. In a separate load, the same lanes read shared words starting at word 1 with a stride of 38 words. Use the standard 32-bank layout for 4-byte words, with word 0 in bank 0. How many aligned 32-byte global segments does the warp touch, and how do the shared words map to banks?",
     "options": [
       "5 segments, 16 odd-numbered banks with 2 words each.",
       "4 segments, 16 odd-numbered banks with 2 words each.",
@@ -380,7 +380,7 @@ PyTorch's caching allocator retains freed blocks inside `memory_reserved()` for 
       "5 segments, 16 even-numbered banks with 2 words each."
     ],
     "answer": "5 segments, 16 odd-numbered banks with 2 words each.",
-    "explanation": "The global load spans bytes 80 through 207. It starts halfway through segment 2 and ends in segment 6, touching 5 segments. Counting 128 bytes as 4 full segments misses the offset. In shared memory, a stride of 38 advances 6 banks on each step because bank numbers wrap at 32. Starting at bank 1 keeps every request in an odd-numbered bank. The first 16 lanes visit all 16 odd banks, then the pattern repeats with different words. Each used bank serves two distinct words. The even-bank answer assumes a start at word 0. Using all 32 banks would require a stride that also reaches even banks."
+    "explanation": "The global load spans bytes 112 through 239. It starts halfway through segment 3 and ends in segment 7, touching 5 segments. Counting 128 bytes as 4 full segments misses the offset. In shared memory, a stride of 38 advances 6 banks on each step because bank numbers wrap at 32. Starting at bank 1 keeps every request in an odd-numbered bank. The first 16 lanes visit all 16 odd banks, then the pattern repeats with different words. Each used bank serves two distinct words. The even-bank answer assumes a start at word 0. Using all 32 banks would require a stride that also reaches even banks."
   },
   {
     "question": "A block launches 8 threads for the 6 input values [5, 1, 4, 2, 8, 0]. Shared memory has one slot per thread. After the block barrier, thread 0 sums all 8 slots. How should the two tail threads handle their slots, and what mean should the block return for the input?",
@@ -416,15 +416,15 @@ PyTorch's caching allocator retains freed blocks inside `memory_reserved()` for 
     "explanation": "Live tensors remain 5 GiB. Releasing the two unused cached GiB makes reserved 5 GiB, and the separate 1 GiB context makes the modeled driver total 6 GiB. This simplified breakdown is not a general equation equating actual nvidia-smi and allocator counters."
   },
   {
-    "question": "Suppose a kernel performs 2,400 FLOPs and moves 600 bytes beyond cache. At the same memory level, bandwidth is 60 GB/s and the compute ceiling is 200 GFLOP/s. A larger tile lowers occupancy but reduces those bytes further. Which bound and conclusion follow?",
+    "question": "Suppose a kernel performs 3,000 FLOPs and moves 500 bytes beyond cache. At the same memory level, bandwidth is 50 GB/s and the compute ceiling is 250 GFLOP/s. A larger tile lowers occupancy but reduces those bytes further. Which bound and conclusion follow?",
     "options": [
-      "The bound is 240 GFLOP/s; compare occupancy alone to choose.",
-      "The bound is 200 GFLOP/s; compare occupancy alone to choose.",
-      "The bound is 240 GFLOP/s; compare output and whole-step time.",
-      "The bound is 200 GFLOP/s; compare output and whole-step time."
+      "The bound is 300 GFLOP/s; compare occupancy alone to choose.",
+      "The bound is 250 GFLOP/s; compare occupancy alone to choose.",
+      "The bound is 300 GFLOP/s; compare output and whole-step time.",
+      "The bound is 250 GFLOP/s; compare output and whole-step time."
     ],
-    "answer": "The bound is 200 GFLOP/s; compare output and whole-step time.",
-    "explanation": "Intensity is 2400/600=4 FLOPs/byte, giving a bandwidth ceiling 240 GFLOP/s. The minimum with compute 200 is 200 GFLOP/s. Once at the compute ceiling, fewer bytes do not raise this bound. Lower occupancy alone does not determine performance; compare correctness and measured whole-step results."
+    "answer": "The bound is 250 GFLOP/s; compare output and whole-step time.",
+    "explanation": "Intensity is 3000/500=6 FLOPs/byte, giving a bandwidth ceiling 300 GFLOP/s. The minimum with compute 250 is 250 GFLOP/s. Once at the compute ceiling, fewer bytes do not raise this bound. Lower occupancy alone does not determine performance; compare correctness and measured whole-step results."
   }
 ]
 ```

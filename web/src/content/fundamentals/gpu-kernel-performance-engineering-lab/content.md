@@ -47,7 +47,7 @@
 
 You edit four lines of CUDA, recompile, and kernel latency drops 40%. Then verification runs and flags thousands of NaNs because your kernel skipped part of the grid and returned early. Performance engineering starts with a causal hypothesis, changes one mechanism at a time, proves correctness on edge and full shapes, and trusts the timer only after hardware counters and sanitizers agree.
 
-In this lab you optimize an out-of-place single-precision ($N \times N$) matrix transpose. With zero floating-point math, every launch reads and writes each element once, isolating memory coalescing, shared-memory bank conflicts, barriers, and benchmark discipline cleanly. It combines concepts from [CUDA for ML Training](/learn/cuda-gpu-computing-for-ml) and [Accelerator Architecture Field Guide](/learn/cuda-gpu-computing-for-ml) inside one reproducible workflow.
+In this lab you optimize an out-of-place single-precision ($N \times N$) matrix transpose. With zero floating-point math, every launch reads and writes each element once, isolating memory coalescing, shared-memory bank conflicts, barriers, and benchmark discipline cleanly. It builds directly on [CUDA for ML Training](/learn/cuda-gpu-computing-for-ml) inside one reproducible workflow.
 
 ## Keep one experiment stable
 
@@ -378,7 +378,7 @@ Because continuous batching varies batch sizes dynamically, serving engines (vLL
 
 | Check | Calculation | Result |
 |---|---|---|
-| CUDA Graph break-even ($12\text{ ms}$ setup, $18 \to 12\;\mu\text{s}$/iter) | $\lfloor 12{,}000 / (18 - 12) \rfloor + 1$ | Breaks even at iter **2,000** (36 ms); first net win at iter **2,001** |
+| CUDA Graph break-even ($12\text{ ms}$ setup, $18 \to 12\;\mu\text{s}$/iter) | $12{,}000 / (18 - 12) = 2{,}000$ (+1 for net win) | Breaks even at iter **2,000** (36 ms); first net win at iter **2,001** |
 | Bucket-8 affine op $(2x+1)^2$ on 6 valid inputs `[1..6]` | True sum vs. 2 zero-padded slots ($(2 \cdot 0 + 1)^2 = 1$ each) | True/masked sum **454** vs. unmasked **456** (corrupted by `+2`) |
 
 ## Report the result you measured

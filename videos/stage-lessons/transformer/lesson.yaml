@@ -1,0 +1,1648 @@
+version: 1
+id: transformer
+title: How Does a Transformer Choose the Next Token?
+source: preparation/transformer-architecture-end-to-end/content.md
+opening: lesson
+voice: af_heart
+rate: +12%
+sources:
+  - title: "Vaswani et al.: Attention Is All You Need"
+    url: https://arxiv.org/abs/1706.03762
+  - title: "Ba, Kiros and Hinton: Layer Normalization"
+    url: https://arxiv.org/abs/1607.06450
+  - title: GPT-2 Source Implementation.
+    url: https://github.com/openai/gpt-2/blob/master/src/model.py
+  - title: "RoFormer: Enhanced Transformer with Rotary Position Embedding."
+    url: https://arxiv.org/abs/2104.09864
+  - title: Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer.
+    url: https://arxiv.org/abs/1910.10683
+  - title: "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding."
+    url: https://arxiv.org/abs/1810.04805
+  - title: "LLaMA: Open and Efficient Foundation Language Models."
+    url: https://arxiv.org/abs/2302.13971
+  - title: GLU Variants Improve Transformer
+    url: https://arxiv.org/abs/2002.05202
+  - title: Root Mean Square Layer Normalization.
+    url: https://arxiv.org/abs/1910.07467
+  - title: On Layer Normalization in the Transformer Architecture.
+    url: https://arxiv.org/abs/2002.04745
+  - title: "Gemma: Open Models Based on Gemini Research and Technology"
+    url: https://arxiv.org/abs/2403.08295
+  - title: The Llama 3 Herd of Models.
+    url: https://arxiv.org/abs/2407.21783
+  - title: gpt-oss-120b Configuration
+    url: https://huggingface.co/openai/gpt-oss-120b/blob/main/config.json
+  - title: torch.nn.functional.scaled_dot_product_attention
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.nn.functional.scaled_dot_product_attention.html
+  - title: Transformer Feed-Forward Layers Are Key-Value Memories
+    url: https://arxiv.org/abs/2012.14913
+  - title: Scaling Laws for Neural Language Models
+    url: https://arxiv.org/abs/2001.08361
+  - title: Transformers KV Cache Documentation
+    url: https://huggingface.co/docs/transformers/main/en/kv_cache
+scenes:
+  - id: intro
+    title: Which row scores the next word?
+    visual: A cursor blinks after the three words. The bar heights show the four features of each word.
+      The last row lights up, and its bracket reaches back across the whole prompt.
+    beats:
+      - say: The cursor is waiting after “function returns the.” Each word has four numbers underneath it.
+          Which row will the decoder use to score the word at the cursor?
+        hold: 2.2
+        visual_cues:
+          - id: enter-prefix
+            phrase: function returns the
+            targets:
+              - prefix
+            color: blue
+            linger: 0.35
+          - id: enter-rows
+            phrase: four numbers underneath it
+            targets:
+              - input-rows
+            color: blue
+            linger: 0.3
+      - say: Follow the row for “the.” It sits at position two because we counted from zero. It can read all
+          three positions, including its own. The empty slot is where its prediction goes.
+        hold: 0.8
+        visual_cues:
+          - id: select-query
+            phrase: Follow the row for “the”
+            targets:
+              - prefix
+            color: yellow
+            linger: 0.35
+          - id: carry-row
+            phrase: read all three positions, including its own
+            targets:
+              - history-span
+            color: cyan
+            linger: 0.35
+      - say: This decoder has one block and one attention head. We picked the weights by hand and will use
+          them for both predictions. The row for “the” starts with a lookup at vocabulary ID two.
+        hold: 0.6
+        visual_cues:
+          - id: lookup-start
+            phrase: at vocabulary ID two
+            targets:
+              - opening-id
+            color: yellow
+            linger: 0.35
+  - id: embedding
+    title: Give the token its content and position
+    visual: The token ID selects the exact the embedding. A separately displayed position vector adds
+      coordinate by coordinate to create its width-four input.
+    beats:
+      - say: "The token the has ID two in this vocabulary. That ID selects one learned embedding row. It is
+          a lookup: the same ID selects the same row. Watch the four coordinates arrive together,
+          still carrying the label the."
+        hold: 0.5
+        visual_cues:
+          - id: embedding-lookup
+            phrase: four coordinates arrive together
+            targets:
+              - embedding-row
+            color: blue
+            linger: 0.5
+      - say: The token sits at position two when counting from zero. Add that position's vector. Follow the
+          first coordinate, then the remaining coordinates. Content and position now share one
+          four-number row. This toy uses additive positions; other architectures can rotate queries
+          and keys instead.
+        hold: 0.6
+        visual_cues:
+          - id: position-add
+            phrase: Follow the first coordinate, then the remaining coordinates
+            targets:
+              - positioned-row
+            color: cyan
+            linger: 0.5
+      - say: Keep this original row. A copy will enter normalization, while the original waits for the
+          residual addition. The other two tokens have their own positioned rows. They will supply
+          the information that this selected position can read.
+        hold: 0.5
+        visual_cues:
+          - id: preserve-input
+            phrase: original waits
+            targets:
+              - original-branch
+            color: blue
+            linger: 0.4
+  - id: normalization
+    title: Center and rescale one row
+    visual: Four coordinate markers move on one fixed scale from the positioned row to centered values
+      and then normalized values. The unchanged original remains below.
+    beats:
+      - say: Layer normalization starts inside this one row. Mark the mean of its four coordinates. Subtract
+          that mean from each coordinate. The four points move together until their mean is zero;
+          the differences between them survive this centering step.
+        hold: 0.6
+        visual_cues:
+          - id: center-row
+            phrase: Subtract that mean from each coordinate
+            targets:
+              - normalization-points
+            color: yellow
+            linger: 0.5
+          - id: norm-mean
+            phrase: Mark the mean of its four coordinates.
+            targets:
+              - norm-statistics
+            color: yellow
+            linger: 0.5
+      - say: Now divide by the row's standard deviation, with a small epsilon inside the square root. The
+          centered points spread onto the normalized scale. We use unit learned scale and zero bias.
+          Labels beside the points track their current coordinates.
+        hold: 0.6
+        visual_cues:
+          - id: rescale-row
+            phrase: centered points spread onto the normalized scale
+            targets:
+              - normalization-points
+            color: cyan
+            linger: 0.5
+          - id: norm-statistic
+            phrase: Now divide by the row's standard deviation, with a small epsilon inside the square root.
+            targets:
+              - norm-statistics
+            color: cyan
+            linger: 0.5
+      - say: Normalization prepares a view for attention. The original row stays unchanged on its own
+          branch. Each token is normalized across its own features, so this step keeps token
+          identities separate. Communication between positions comes next.
+        hold: 0.5
+        visual_cues:
+          - id: norm-branch
+            phrase: original row stays unchanged
+            targets:
+              - original-branch
+            color: blue
+            linger: 0.4
+  - id: mask
+    title: Build one query's legal read
+    visual: The last input row projects to a query and scores the three prefix keys. A second view adds the
+      observed fourth token during training. Its finite score changes to negative infinity before the
+      exponentials are normalized.
+    beats:
+      - say: "A projection makes this position's query. Another makes each token's key. Here is the first query
+          coordinate: multiply the normalized inputs by these fixed coefficients and add. The second
+          coordinate completes the query. Our value projection keeps all four normalized coordinates."
+        hold: 0.6
+        visual_cues:
+          - id: query-project
+            phrase: multiply the normalized inputs by these fixed coefficients and add
+            targets:
+              - query-calculation
+            color: cyan
+            linger: 0.5
+      - say: Compare this query with each visible key. Matching coordinates multiply, then their products add.
+          Divide each score by the square root of two, our query and key width. These three scores decide
+          how strongly this position will read each value row.
+        hold: 0.6
+        visual_cues:
+          - id: key-scores
+            phrase: Matching coordinates multiply, then their products add
+            targets:
+              - score-row
+            color: yellow
+            linger: 0.5
+      - say: During generation the fourth word is still missing. Switch to training on a complete four-word
+          example. The target now has a key and a finite score. If “the” is supposed to predict that
+          fourth word, how much weight should its key receive?
+        hold: 2
+        visual_cues:
+          - id: training-key
+            phrase: Switch to training on a complete four-word example
+            targets:
+              - masked-row
+            color: yellow
+            linger: 0.35
+      - say: Set its score to negative infinity before softmax. Its exponential becomes zero. For the other
+          three keys, subtract the largest legal score and exponentiate. Divide by the shared total. The
+          three shares become weights that sum to one. Now we can use them to mix the values.
+        hold: 0.8
+        caption_starts:
+          - Its exponential becomes zero
+        visual_cues:
+          - id: causal-mask
+            phrase: Set its score to negative infinity before softmax
+            targets:
+              - masked-row
+            color: pink
+            linger: 0.4
+          - id: causal-weights
+            phrase: become weights that sum to one
+            targets:
+              - legal-weights
+            color: green
+            linger: 0.5
+  - id: attention
+    title: Where will the contextual blend land?
+    visual: A labeled coordinate-one/four slice shows the three value points and their convex hull. Actual
+      weights scale their vectors, then transfer them head-to-tail. The completed blend is held inside the
+      triangle; one small accumulator retains all four coordinates.
+    beats:
+      - say: "The triangle shows two coordinates of each four-number value row: coordinate one across,
+          coordinate four up. Returns has the largest weight. Where will the mixture land? Start with
+          function. Shrink its arrow by its weight, then place that contribution at the origin."
+        hold: 0.7
+        visual_cues:
+          - id: mix-function
+            phrase: Shrink its arrow by its weight, then place that contribution
+            targets:
+              - weighted-contribution
+              - attention-sum
+            color: blue
+            linger: 0.5
+      - say: Now take returns. Its weight shrinks this value arrow. Move the weighted arrow to the previous tip,
+          keeping its direction and length. Its new tip is the two-source partial sum. The row on the
+          right keeps all four coordinates.
+        hold: 0.7
+        visual_cues:
+          - id: mix-returns
+            phrase: Its weight shrinks this value arrow. Move the weighted arrow to the previous tip
+            targets:
+              - weighted-contribution
+              - attention-sum
+            color: pink
+            linger: 0.5
+      - say: The last arrow comes from the word “the.” Place it at the current tip. The tip of that third arrow
+          marks the complete read, inside the triangle. All three positive weights sum to one, so the
+          mixture stays inside their convex hull. Each head builds its own contextual read this way.
+        hold: 0.7
+        visual_cues:
+          - id: mix-the
+            phrase: The last arrow comes from the word “the.” Place it at the current tip
+            targets:
+              - weighted-contribution
+              - attention-sum
+            color: green
+            linger: 0.5
+  - id: residual
+    title: Add the update to the waiting state
+    visual: The actual attention vector shrinks under its scaled-identity projection. An explicitly
+      labeled equal-unit close-up translates the update onto the original point, retaining both
+      states and one full four-coordinate row.
+    beats:
+      - say: Shrink the complete read by point three five. This is our head's output projection. The arrow
+          keeps its direction and scales its length. A general learned projection can mix
+          coordinates too. Keep the token's original row waiting for the addition.
+        hold: 0.5
+        visual_cues:
+          - id: output-project
+            phrase: Shrink the complete read by point three five
+            targets:
+              - attention-update
+            color: cyan
+            linger: 0.5
+      - say: Here is a close-up of the original state, using the same coordinate indices and equal units on
+          both axes. Translate the attention update to this point. Its tip becomes the new
+          contextual state. The original point stays visible, so you can see exactly what the update
+          changed.
+        hold: 0.7
+        visual_cues:
+          - id: residual-add
+            phrase: Translate the attention update to this point
+            targets:
+              - residual-result
+            color: green
+            linger: 0.5
+      - say: The row still belongs to the, at the same position and width. Its numbers have changed. A
+          second sublayer will work inside this contextual row. It receives another normalized view
+          while this residual result waits for the next addition.
+        hold: 0.5
+        visual_cues:
+          - id: next-normalization
+            phrase: another normalized view
+            targets:
+              - ffn-input
+            color: yellow
+            linger: 0.4
+  - id: feed-forward
+    title: Expand, reshape, and return to four coordinates
+    visual: The selected normalized residual row expands into six actual preactivations. Negative bars
+      move to zero under ReLU; the output projection builds four update coordinates, then the second
+      residual adds them.
+    beats:
+      - say: The feed-forward layer uses the same weights at every position. Here it expands four inputs
+          into six hidden features. The first four copy the inputs; the last two subtract pairs of
+          inputs. These are the actual values before the activation, including their negative signs.
+        hold: 0.6
+        visual_cues:
+          - id: ffn-expand
+            phrase: last two subtract pairs of inputs
+            targets:
+              - hidden-preactivation
+            color: cyan
+            linger: 0.5
+      - say: Which hidden features will survive? Apply ReLU. Each negative hidden value becomes zero; each
+          positive value survives. Watch those bars move. This bend gives the sublayer a nonlinear
+          response. The surviving features can contribute to the projected update.
+        hold: 0.7
+        caption_starts:
+          - Each negative hidden value becomes zero
+        visual_cues:
+          - id: ffn-relu
+            phrase: negative hidden value becomes zero
+            targets:
+              - hidden-activation
+            color: pink
+            linger: 0.5
+      - say: The return projection makes a four-coordinate update. Here is one of its calculations. Bring
+          that update to the waiting contextual point. Coordinate one stays fixed in this slice
+          while coordinate four rises. The full four-coordinate row now completes the block.
+        hold: 0.7
+        visual_cues:
+          - id: ffn-project
+            phrase: return projection makes a four-coordinate update
+            targets:
+              - ffn-update
+            color: green
+            linger: 0.4
+          - id: ffn-add
+            phrase: Bring that update to the waiting contextual point
+            targets:
+              - block-output
+            color: green
+            linger: 0.5
+  - id: causality
+    title: Which way can a change travel?
+    visual: A changed last input coordinate is physically introduced after the prediction. Recomputed
+      output differences show earlier rows unchanged; a separate first-input change reaches later
+      outputs.
+    beats:
+      - say: Before scoring words, check the whole block. Change only the final input row. Could the earlier
+          outputs move? Hold that prediction, then add four to this one coordinate. The block
+          recomputes attention, normalization, and both residual updates.
+        hold: 0.8
+        visual_cues:
+          - id: change-future
+            phrase: add four to this one coordinate
+            targets:
+              - changed-input
+            color: yellow
+            linger: 0.5
+      - say: Compare the outputs. The first two rows stay exactly equal; the selected last row changes. The
+          causal mask preserves this direction through the complete block. Now change the first
+          input instead. Predict which later positions can receive that change.
+        hold: 0.8
+        caption_starts:
+          - The first two rows stay exactly equal
+          - Now change the first input instead
+        visual_cues:
+          - id: compare-future
+            phrase: first two rows stay exactly equal
+            targets:
+              - causal-comparison
+            color: green
+            linger: 0.4
+          - id: change-past
+            phrase: Now change the first input instead
+            targets:
+              - changed-input
+            color: pink
+            linger: 0.4
+      - say: That earlier change reaches later output rows through their legal reads. The feed-forward layer
+          then transforms each updated row separately. Return to our original prefix and original
+          weights. Its completed last row is ready to score the vocabulary.
+        hold: 0.5
+        visual_cues:
+          - id: compare-past
+            phrase: earlier change reaches later output rows
+            targets:
+              - causal-comparison
+            color: cyan
+            linger: 0.5
+  - id: logits
+    title: Turn the final state into a vocabulary choice
+    visual: Final normalization supplies the selected row. Actual output-weight products construct the
+      result logit, all six logits enter a stable shared softmax denominator, and greedy decoding
+      reveals the selected token.
+    beats:
+      - say: Apply final normalization to the completed last row. Each vocabulary entry has an output weight
+          vector. For result, multiply its matching coordinates and add. That dot product is one
+          logit. Repeat with the other entries to score all six IDs using the same state.
+        hold: 0.6
+        visual_cues:
+          - id: final-normalization
+            phrase: final normalization
+            targets:
+              - final-state
+            color: yellow
+            linger: 0.4
+          - id: result-product
+            phrase: multiply its matching coordinates and add
+            targets:
+              - result-products
+            color: green
+            linger: 0.5
+          - id: vocabulary-products
+            phrase: Repeat with the other entries
+            targets:
+              - vocabulary-logits
+            color: cyan
+            linger: 0.5
+      - say: Subtract the largest logit for numerical stability, then exponentiate. Build one shared
+          denominator from all six weights. Divide each weight by that total. The resulting
+          probability strip has a fixed budget of one, shared among the vocabulary entries.
+        hold: 0.7
+        visual_cues:
+          - id: next-token-probabilities-b2-1
+            phrase: Build one shared denominator from all six weights
+            targets:
+              - softmax-denominator
+              - next-token-probabilities
+            color: green
+            linger: 0.5
+          - id: probability-shares
+            phrase: Divide each weight by that total
+            targets:
+              - next-token-probabilities
+            color: cyan
+            linger: 0.5
+      - say: Which token does greedy decoding choose?
+        hold: 1.2
+        visual_cues: []
+      - say: "It takes the largest score: result. The earlier stages earned this choice through one
+          connected calculation. These hand-set weights produce a readable example. Training would
+          compare such scores with observed text and adjust the weights."
+        hold: 0.8
+        visual_cues:
+          - id: greedy-choice
+            phrase: "largest score: result"
+            targets:
+              - chosen-token
+            color: yellow
+            linger: 0.5
+  - id: feedback
+    title: Feed the chosen ID into the next real step
+    visual: The chosen result ID appends and re-embeds at position three. A fresh query and block
+      produce a new full state. An explicitly pairwise coordinate-three/four score boundary compares
+      the two leading candidates, with all six full-state logits retained beside it.
+    beats:
+      - say: Append result's actual ID, three. Look up its embedding and add the new position vector. This
+          is a fresh input row for result. Its starting state comes from that lookup and position,
+          while the prefix now contains four token IDs.
+        hold: 0.6
+        visual_cues:
+          - id: append-token
+            phrase: Append result's actual ID, three
+            targets:
+              - feedback-prefix
+            color: green
+            linger: 0.4
+          - id: feedback-embedding
+            phrase: Look up its embedding and add the new position vector
+            targets:
+              - feedback-input
+            color: cyan
+            linger: 0.5
+      - say: Run the same block again. Result makes a new query and mixes four legal value rows. Follow its
+          new mixture through both updates and final normalization. The earlier three block outputs
+          stay equal; appending a future token preserves their legal context.
+        hold: 0.7
+        visual_cues:
+          - id: feedback-read
+            phrase: mixes four legal value rows
+            targets:
+              - feedback-mixture
+            color: cyan
+            linger: 0.5
+          - id: feedback-state
+            phrase: through both updates and final normalization
+            targets:
+              - feedback-output
+            color: yellow
+            linger: 0.5
+      - say: Keep the output weights fixed. Predict the next winner. Result and value read coordinates three
+          and four. Their scores tie when these two coordinates are equal.
+        hold: 1.3
+        visual_cues: []
+      - say: Plot the new final row. It lies on value's side. The full vocabulary calculation now selects
+          value. Each chosen ID becomes input for the next decision; that is the decoding loop.
+        hold: 0.8
+        caption_starts:
+          - It lies on value's side
+          - The full vocabulary calculation now selects value
+        visual_cues:
+          - id: feedback-point
+            phrase: Plot the new final row
+            targets:
+              - decision-comparison
+              - full-vocabulary-scores
+            color: cyan
+            linger: 0.6
+          - id: feedback-choice
+            phrase: full vocabulary calculation now selects value
+            targets:
+              - feedback-choice
+            color: green
+            linger: 0.6
+  - id: position-designs
+    title: Give order a declared mechanism
+    visual: Keep the original prefix and its saved states visible. Shuffle an unmasked three-row
+      attention example, exhaust a three-row learned position table, and rotate the same query/key
+      pair together while preserving their relative angle.
+    beats:
+      - say: Move “the” from the last row to the first. For this calculation, keep each input vector intact
+          and let every row read every other row. Its keys and values move together, so the output for
+          “the” follows it to the top with the same numbers. This is permutation equivariance. A causal
+          mask gives that move a different effect. In the first position, “the” can now read only
+          itself.
+        hold: 0.65
+        visual_cues:
+          - id: tr-position-designs-voice-0
+            phrase: the output for “the” follows it to the top with the same numbers
+            targets:
+              - position-designs-construction
+            color: cyan
+            linger: 0.4
+      - say: The original Transformer added sine and cosine waves at several frequencies. GPT and BERT
+          learned a table of position vectors. Here the table has rows zero, one and two. The next token
+          needs position three. To use that position, extend the table and evaluate the model on longer
+          inputs.
+        hold: 0.65
+        visual_cues:
+          - id: tr-position-designs-voice-1
+            phrase: The original Transformer added sine and cosine waves at several frequencies. GPT and
+                BERT learned a table of position vectors. Here the table has rows zero, one and two. The
+                next token needs position three. To use that position, extend the table and evaluate the
+                model on longer inputs.
+            targets:
+              - position-designs-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-position-designs-learned
+            phrase: The next token needs position three
+            targets:
+              - position-designs-construction
+            color: yellow
+            linger: 0.4
+      - say: "RoPE rotates query and key coordinate pairs. In this authored two-coordinate example, begin
+          both vectors at one, zero and rotate by point one radians per position. Positions four and
+          one give a relative angle point three and dot product about point nine five five. Move
+          both positions forward by two: the relative angle and dot product stay the same. Content
+          still matters. T5 offers another design, a learned relative-position bias added to
+          scores."
+        hold: 0.65
+        visual_cues:
+          - id: tr-position-designs-voice-2
+            phrase: "RoPE rotates query and key coordinate pairs. In this authored two-coordinate example, begin
+              both vectors at one, zero and rotate by point one radians per position. Positions four
+              and one give a relative angle point three and dot product about point nine five five.
+              Move both positions forward by two: the relative angle and dot product stay the same.
+              Content still matters. T5 offers another design, a learned relative-position bias
+              added to scores."
+            targets:
+              - position-designs-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-position-designs-rope
+            phrase: Positions four and one give a relative angle point three and dot product about point nine
+              five five.
+            targets:
+              - position-designs-construction
+            color: yellow
+            linger: 0.4
+          - id: tr-position-designs-rope-shift
+            phrase: "Move both positions forward by two: the relative angle and dot product stay the same."
+            targets:
+              - position-designs-construction
+            color: yellow
+            linger: 0.4
+  - id: matching-scale
+    title: What gives one key a larger share?
+    visual: Two equal cross-scores compete against different scores in their own rows. The width example
+      keeps blue unscaled attention shares on a fixed percentage scale while green scaled shares grow
+      underneath. A separate token grid grows from three to six positions beside fixed-width rows.
+    beats:
+      - say: Let each of these two rows act as both query and key. A compared with B gives one. Reverse them and
+          it still gives one. Fill in the two self-matches. Look across row A. Both scores are one, so the
+          two keys split the weight evenly. Down in row B, that same score of one now competes with a two.
+          The smaller score gets about twenty-seven percent. Equal dot products can receive different
+          weights because each query has its own denominator. A learned query and a separate learned key
+          let the model change the matching rule. The value projection chooses what each match delivers.
+        hold: 0.9
+        caption_starts:
+          - Both scores are one
+          - Down in row B
+          - The smaller score gets about twenty-seven percent
+        visual_cues:
+          - id: tr-matching-scale-cross
+            phrase: A compared with B gives one. Reverse them and it still gives one.
+            targets:
+              - matching-scale-construction
+            color: cyan
+            linger: 0.35
+          - id: tr-matching-scale-raw
+            phrase: Fill in the two self-matches
+            targets:
+              - matching-scale-construction
+            color: cyan
+            linger: 0.35
+          - id: tr-matching-scale-first
+            phrase: the two keys split the weight evenly
+            targets:
+              - matching-scale-construction
+            color: green
+            linger: 0.35
+          - id: tr-matching-scale-shares
+            phrase: The smaller score gets about twenty-seven percent
+            targets:
+              - matching-scale-construction
+            color: green
+            linger: 0.35
+      - say: What happens to a dot product when a head has more coordinates? Suppose the query and key
+          components are all independent, each with mean zero and variance one. One coordinate product
+          then has variance one. Add one product per coordinate. The variances add, so the variance of the
+          dot product equals the key width. Its standard deviation is the square root of that width.
+          Dividing by that quantity keeps the score scale steady under these assumptions. Learned
+          coordinates can be correlated.
+        hold: 0.7
+        visual_cues:
+          - id: tr-matching-scale-voice-1
+            phrase: Add one product per coordinate
+            targets:
+              - matching-scale-construction
+            color: cyan
+            linger: 0.35
+          - id: tr-matching-scale-variance
+            phrase: the variance of the dot product equals the key width
+            targets:
+              - matching-scale-construction
+            color: yellow
+            linger: 0.35
+      - say: Here are three scores from a head of width sixty-four. The first key gets almost all the weight
+          before scaling. Divide all three scores by eight and apply softmax again. Look at the green
+          bars. The first key still wins, but the other two now receive about half the total weight
+          between them. The order stayed the same. The gaps that softmax sees got smaller. Learned scores
+          can still be far enough apart to produce a sharp read.
+        hold: 0.9
+        visual_cues:
+          - id: tr-matching-scale-scaled
+            phrase: Divide all three scores by eight and apply softmax again
+            targets:
+              - matching-scale-construction
+            color: green
+            linger: 0.35
+      - say: Now change the length of the prompt. Keep the feature width fixed and go from three tokens to six.
+          Each new token adds a query and a key, so the explicit score grid grows along both edges. Nine
+          pair scores become thirty-six. The projected queries, keys and values each gain rows along just
+          one axis. Each array doubles in size. A fused implementation can compute the read without
+          storing the whole grid.
+        hold: 0.85
+        visual_cues:
+          - id: tr-matching-scale-length
+            phrase: go from three tokens to six
+            targets:
+              - matching-scale-construction
+            color: cyan
+            linger: 0.35
+  - id: parallel-heads
+    title: Split projected features while preserving every token
+    visual: A labeled three-token, six-feature projected array separates into three two-feature heads.
+      Each head retains all three token IDs. The outputs merge back exactly; separate block outputs
+      then advance through a dependency chain.
+    beats:
+      - say: Our film used one head so every weighted contribution stayed visible. For a separate shape
+          worksheet, use one batch, three tokens, width six and three equal-width heads. First
+          compute learned projections, each able to use all input features. Reshape and transpose
+          the projected feature axis into batch, heads, tokens, head width. That gives one by three
+          by three by two. Every head still receives all three positions; splitting the token axis
+          would silently change its history.
+        hold: 0.65
+        visual_cues:
+          - id: tr-parallel-heads-voice-0
+            phrase: Our film used one head so every weighted contribution stayed visible. For a separate shape
+              worksheet, use one batch, three tokens, width six and three equal-width heads. First
+              compute learned projections, each able to use all input features. Reshape and
+              transpose the projected feature axis into batch, heads, tokens, head width. That gives
+              one by three by three by two. Every head still receives all three positions; splitting
+              the token axis would silently change its history.
+            targets:
+              - parallel-heads-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-parallel-heads-split
+            phrase: That gives one by three by three by two.
+            targets:
+              - parallel-heads-construction
+            color: yellow
+            linger: 0.4
+      - say: Each head builds its own three-by-three score grid and its own weighted value read. Concatenate
+          those two-feature reads into six features and apply an output map back to model width.
+          Reverse the transpose before reshaping; our executed split-and-merge check restores every
+          original projected entry. The familiar model-width divided by head-count rule belongs to
+          this equal-width projection contract. Some real architectures declare head width
+          independently.
+        hold: 0.65
+        visual_cues:
+          - id: tr-parallel-heads-voice-1
+            phrase: Each head builds its own three-by-three score grid and its own weighted value read.
+              Concatenate those two-feature reads into six features and apply an output map back to
+              model width. Reverse the transpose before reshaping; our executed split-and-merge
+              check restores every original projected entry. The familiar model-width divided by
+              head-count rule belongs to this equal-width projection contract. Some real
+              architectures declare head width independently.
+            targets:
+              - parallel-heads-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-parallel-heads-merge
+            phrase: our executed split-and-merge check restores every original projected entry.
+            targets:
+              - parallel-heads-construction
+            color: yellow
+            linger: 0.4
+      - say: The heads in one block all read its input in parallel. Follow the arrows between blocks. Block
+          two takes the output of block one, and each block normally has its own learned projections.
+          Training shapes what a head responds to. If you suspect a head tracks syntax, you can test
+          that idea on a trained model.
+        hold: 0.65
+        visual_cues:
+          - id: tr-parallel-heads-voice-2
+            phrase: The heads in one block all read its input in parallel. Follow the arrows between blocks.
+                Block two takes the output of block one, and each block normally has its own learned
+                projections. Training shapes what a head responds to. If you suspect a head tracks
+                syntax, you can test that idea on a trained model.
+            targets:
+              - parallel-heads-construction
+            color: cyan
+            linger: 0.4
+  - id: ffn-variants
+    title: What changes inside one token’s row?
+    visual: One scalar passes through two affine maps. Clipping the negative intermediate bends the output
+      line. A signed ruler then shows a SwiGLU product. On a fixed weight budget, a third matrix
+      overshoots the limit at width 48 and all three matrices narrow until they fit.
+    beats:
+      - say: Take one feature of one token. Double it and add one, then triple that answer and subtract two. Try
+          it on minus one. The two maps give minus five. The same straight line fits all four inputs. Its
+          equation is six times the input plus one. Even a wider pair of affine layers collapses to one
+          affine map. Now put ReLU between them. It clips that negative intermediate to zero. The second
+          map returns minus two. Look at the bend on the left. That bend belongs to this branch, and the
+          same branch acts separately on every token. Attention and normalization also contribute their
+          own nonlinearities.
+        hold: 1
+        caption_starts:
+          - The two maps give minus five
+          - The second map returns minus two
+        visual_cues:
+          - id: tr-ffn-variants-affine
+            phrase: The two maps give minus five
+            targets:
+              - ffn-variants-construction
+            color: blue
+            linger: 0.35
+          - id: tr-ffn-variants-relu
+            phrase: It clips that negative intermediate to zero
+            targets:
+              - ffn-variants-construction
+            color: green
+            linger: 0.35
+          - id: tr-ffn-variants-bent-output
+            phrase: The second map returns minus two
+            targets: [ffn-variants-construction]
+            color: green
+            linger: 0.35
+      - say: The original Transformer used ReLU. The PyTorch block in the article uses GELU. LLaMA’s SwiGLU
+          gives a feature two upward projections. Here one produces plus two and the other produces minus
+          one. Apply SiLU to minus one. That gives a gate of about minus point two seven. Multiply plus
+          two by that gate. The feature lands below zero, at about minus point five four. A gate can also
+          amplify a feature above its original size. Do this for each coordinate, then project the
+          products back down. The original Gemma uses GELU on the gate branch instead. That variant is
+          called GeGLU.
+        hold: 0.8
+        caption_starts:
+          - That gives a gate of about minus point two seven
+          - The feature lands below zero, at about minus point five four
+        visual_cues:
+          - id: tr-ffn-variants-gate
+            phrase: That gives a gate of about minus point two seven
+            targets:
+              - ffn-variants-construction
+            color: pink
+            linger: 0.35
+          - id: tr-ffn-variants-multiply
+            phrase: Multiply plus two by that gate. The feature lands below zero, at about minus point five
+                four
+            targets:
+              - ffn-variants-construction
+            color: green
+            linger: 0.35
+      - say: How wide can we make the gated branch on the same weight budget? The model has twelve features. The
+          plain branch goes up to forty-eight and back down. Each rectangle holds twelve times forty-eight
+          weights. Together they set the yellow limit. Keep that inner width and add the gate matrix. We
+          are over budget by one whole rectangle. How many inner features would you keep?
+        hold: 2.3
+        visual_cues:
+          - id: tr-ffn-variants-add-gate
+            phrase: add the gate matrix
+            targets:
+              - ffn-variants-construction
+            color: green
+            linger: 0.35
+      - say: Every inner feature now costs twelve weights in each of three matrices. Divide the budget by
+          thirty-six. Narrow all three matrices to thirty-two features and the last one ends right at the
+          limit. Ignoring biases, the plain branch at four times model width costs eight times model width
+          squared. Matching that with three matrices gives an inner width of eight thirds of model width.
+          This counts stored weights. The gate still has an activation and a multiplication to perform. In
+          trained models, researchers have found feed-forward features that respond to patterns and
+          influence several word scores.
+        hold: 1
+        caption_starts:
+          - Narrow all three matrices to thirty-two features
+        visual_cues:
+          - id: tr-ffn-variants-budget
+            phrase: Narrow all three matrices to thirty-two features
+            targets:
+              - ffn-variants-construction
+            color: yellow
+            linger: 0.35
+  - id: norm-contracts
+    title: What does normalization change?
+    visual: Four twos stay in view as LayerNorm subtracts their mean and RMSNorm scales the original values.
+      Each output row stays beside its calculation. The final diagram traces the straight path and the
+      branch through a residual update.
+    beats:
+      - say: Give one token four identical features, all twos. Their mean is two. LayerNorm subtracts that
+          mean from each feature. All four differences are zero. Dividing by the square root of the
+          variance plus epsilon leaves them at zero. For any row with variance v, the centered and
+          divided row has mean zero and variance v divided by the sum of v and epsilon. That variance is
+          close to one when v is much larger than epsilon. LayerNorm then applies a learned scale and
+          shift. Here the scale is one and the shift is zero.
+        hold: 0.65
+        caption_starts:
+          - All four differences are zero
+          - For any row with variance v
+        visual_cues:
+          - id: tr-norm-contracts-voice-0
+            phrase: LayerNorm subtracts that mean from each feature
+            targets:
+              - norm-contracts-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-norm-contracts-centered
+            phrase: All four differences are zero
+            targets:
+              - norm-contracts-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-norm-contracts-variance
+            phrase: variance v divided by the sum of v and epsilon
+            targets:
+              - norm-contracts-construction
+            color: yellow
+            linger: 0.4
+      - say: Keep the same four twos. RMSNorm squares each two and averages the squares to get four. Its
+          divisor is the square root of four plus epsilon. This time each numerator is still two. Each
+          output is just under one. Both methods work across the features of this one token. RMSNorm
+          usually learns a scale, while LayerNorm also learns a shift. When loading a checkpoint, use
+          its normalization rule, epsilon and learned parameters.
+        hold: 0.65
+        caption_starts:
+          - Each output is just under one
+        visual_cues:
+          - id: tr-norm-contracts-voice-1
+            phrase: Its divisor is the square root of four plus epsilon
+            targets:
+              - norm-contracts-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-norm-contracts-constant
+            phrase: Each output is just under one
+            targets:
+              - norm-contracts-construction
+            color: yellow
+            linger: 0.4
+      - say: Follow the straight path from x to the sum. Our block and GPT-2 normalize inside the branch.
+          The straight path carries x directly to the addition, so its derivative is the identity. The
+          gradient also flows through the branch. Those two contributions can reinforce or cancel each
+          other. The original Transformer used post-LayerNorm, which normalizes the sum itself. In
+          experiments by Xiong and colleagues, their pre-normalized models trained without learning-rate
+          warmup. LLaMA used pre-normalization with two thousand warmup steps.
+        hold: 0.65
+        visual_cues:
+          - id: tr-norm-contracts-voice-2
+            phrase: Follow the straight path from x to the sum. Our block and GPT-2 normalize inside the
+                branch. The straight path carries x directly to the addition, so its derivative is the
+                identity. The gradient also flows through the branch. Those two contributions can
+                reinforce or cancel each other. The original Transformer used post-LayerNorm, which
+                normalizes the sum itself. In experiments by Xiong and colleagues, their pre-normalized
+                models trained without learning-rate warmup. LLaMA used pre-normalization with two
+                thousand warmup steps.
+            targets:
+              - norm-contracts-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-norm-contracts-residual
+            phrase: its derivative is the identity
+            targets:
+              - norm-contracts-construction
+            color: yellow
+            linger: 0.4
+  - id: causal-training
+    title: Align the target before checking the whole path
+    visual: The retained four token IDs form input/next-target pairs. A future score changes from an
+      incorrect zero to negative infinity, followed by an earlier-layer contamination trace and
+      deterministic whole-block comparison.
+    beats:
+      - say: Put the complete text function returns the result in training memory. The logit at function
+          predicts returns; returns predicts the; the predicts result. A shifted label provides that
+          target but does not restrict attention. Each query may read its own position and earlier
+          positions only. In generation, the fourth token is absent until chosen. This alignment
+          makes the training information boundary match the decoding task; sequence boundaries and
+          loss masks decide which positions contribute.
+        hold: 0.65
+        visual_cues:
+          - id: tr-causal-training-voice-0
+            phrase: Put the complete text function returns the result in training memory. The logit at function
+              predicts returns; returns predicts the; the predicts result. A shifted label provides
+              that target but does not restrict attention. Each query may read its own position and
+              earlier positions only. In generation, the fourth token is absent until chosen. This
+              alignment makes the training information boundary match the decoding task; sequence
+              boundaries and loss masks decide which positions contribute.
+            targets:
+              - causal-training-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-causal-training-shift
+            phrase: the predicts result.
+            targets:
+              - causal-training-construction
+            color: yellow
+            linger: 0.4
+      - say: Use a separate two-key mask worksheet with equal finite scores. Setting a forbidden future
+          score to zero leaves exponential mass one, giving it half the total. Replacing that score
+          with negative infinity removes its mass and leaves the legal key weight one. In our
+          explicit manual softmax, masking every entry makes maximum subtraction compute negative
+          infinity minus negative infinity, producing NaN. Give each real query a legal key and
+          handle fully padded queries explicitly.
+        hold: 0.65
+        visual_cues:
+          - id: tr-causal-training-voice-1
+            phrase: Use a separate two-key mask worksheet with equal finite scores. Setting a forbidden future
+              score to zero leaves exponential mass one, giving it half the total. Replacing that
+              score with negative infinity removes its mass and leaves the legal key weight one. In
+              our explicit manual softmax, masking every entry makes maximum subtraction compute
+              negative infinity minus negative infinity, producing NaN. Give each real query a legal
+              key and handle fully padded queries explicitly.
+            targets:
+              - causal-training-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-causal-training-wrong-mask
+            phrase: giving it half the total.
+            targets:
+              - causal-training-construction
+            color: yellow
+            linger: 0.4
+          - id: tr-causal-training-fixed-mask
+            phrase: leaves the legal key weight one.
+            targets:
+              - causal-training-construction
+            color: yellow
+            linger: 0.4
+          - id: tr-causal-training-all-masked
+            phrase: producing NaN.
+            targets:
+              - causal-training-construction
+            color: yellow
+            linger: 0.4
+      - say: "A zero future-attention total in the last layer cannot remove information already leaked into
+          an earlier residual stream. Test the complete path: hold weights and the earlier inputs
+          fixed, disable dropout randomness, perturb only a future input and compare earlier
+          outputs. They should remain unchanged under the declared causal computation; also verify
+          that an allowed changed row actually affects its own output so the test does not reward a
+          block ignoring all input."
+        hold: 0.65
+        visual_cues:
+          - id: tr-causal-training-voice-2
+            phrase: "A zero future-attention total in the last layer cannot remove information already leaked
+              into an earlier residual stream. Test the complete path: hold weights and the earlier
+              inputs fixed, disable dropout randomness, perturb only a future input and compare
+              earlier outputs. They should remain unchanged under the declared causal computation;
+              also verify that an allowed changed row actually affects its own output so the test
+              does not reward a block ignoring all input."
+            targets:
+              - causal-training-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-causal-training-invariance
+            phrase: They should remain unchanged under the declared causal computation;
+            targets:
+              - causal-training-construction
+            color: yellow
+            linger: 0.4
+  - id: api-alignment
+    title: Which mask row belongs to this query?
+    visual: A four-token projection splits across two heads. The boolean grids contrast future masks and
+      allow masks. On the fixed four-key grid, an outline moves from local row zero to the query’s
+      absolute row three. The next word stays the same while a comparison with the full-prefix read
+      changes.
+    beats:
+      - say: Look at the four token rows on the left. The digits mark feature positions inside a projection.
+          Split its eight features between two heads. Each head keeps every token, with four features per
+          token. The query, key and value tensors all have these four axes. The article’s layer checks
+          that the widths divide evenly and that the input contains a token. It builds its mask on the
+          input device and fills future scores with negative infinity. The resulting weights sum to one
+          per query and give future keys zero. A backward pass through the example block also gives finite
+          input gradients.
+        hold: 0.8
+        visual_cues:
+          - id: tr-api-alignment-voice-0
+            phrase: Split its eight features between two heads
+            targets:
+              - api-alignment-construction
+            color: cyan
+            linger: 0.35
+          - id: tr-api-alignment-shape
+            phrase: four features per token
+            targets:
+              - api-alignment-construction
+            color: yellow
+            linger: 0.35
+      - say: Find a future key in the top row. On the left, True tells masked fill to block it. In PyTorch
+          scaled dot-product attention, True means allow. Invert that future mask and the same key is
+          False on the right. For a repeatable comparison, pass a dropout probability of zero to the
+          function, even when the module is in evaluation mode. A fused kernel can avoid storing the full
+          score grids. A math backend may store them. The function returns the mixed values. To inspect
+          attention weights, compute them separately.
+        hold: 0.7
+        visual_cues:
+          - id: tr-api-alignment-voice-1
+            phrase: Find a future key in the top row
+            targets:
+              - api-alignment-construction
+            color: cyan
+            linger: 0.35
+          - id: tr-api-alignment-allow
+            phrase: True means allow
+            targets:
+              - api-alignment-construction
+            color: green
+            linger: 0.35
+      - say: Bring back the four words after our first prediction. We saved their keys and values. Keep just the
+          query for “result.” In the sentence it sits at position three. In a tensor containing only that
+          query, it sits in row zero. For a rectangular input, PyTorch’s causal flag takes the upper-left
+          corner of the mask. Follow that top row across. Which word can supply a value?
+        hold: 2.4
+        visual_cues:
+          - id: tr-api-alignment-wrong
+            phrase: takes the upper-left corner of the mask
+            targets:
+              - api-alignment-construction
+            color: pink
+            linger: 0.35
+      - say: Only “function” gets through. Its attention weight is one. Compare that cached read with the last
+          read from the full prefix. They differ, yet both runs still choose the word “value.” A test that
+          checked only the word would miss the error. Keep the query and the saved keys and values. Move
+          the mask to absolute row three. Every key up to that position can now contribute. Repeat the
+          comparison on the two read vectors. They agree within the numerical tolerance. That tests the
+          part of this forward pass we changed.
+        hold: 1
+        caption_starts:
+          - They differ, yet both runs still choose the word “value”
+          - Move the mask to absolute row three
+          - They agree within the numerical tolerance
+        visual_cues:
+          - id: tr-api-alignment-result
+            phrase: Compare that cached read with the last read from the full prefix
+            targets:
+              - api-alignment-construction
+            color: pink
+            linger: 0.35
+          - id: tr-api-alignment-repair
+            phrase: Move the mask to absolute row three
+            targets:
+              - api-alignment-construction
+            color: green
+            linger: 0.35
+          - id: tr-api-alignment-compare
+            phrase: Repeat the comparison on the two read vectors
+            targets:
+              - api-alignment-construction
+            color: green
+            linger: 0.35
+  - id: executable-contracts
+    title: What can the output tell us about the block?
+    visual: A width-24 inner layer returns to width eight. The film decoder and the PyTorch decoder each
+      score the opening prompt. The two article programs then show the same rounded probability beside
+      different measured residual rows.
+    beats:
+      - say: The PyTorch example has two sequences of four tokens. Each row starts with eight features. Widen
+          that row to twenty-four inside the feed-forward layer, then project back to eight for the
+          residual addition. Another block can take that same shape. The example checks zero attention to
+          future tokens and finite gradients on this input. It leaves out padding, dropout and caching.
+          Training a deep stack would take a separate experiment.
+        hold: 0.8
+        visual_cues:
+          - id: tr-executable-contracts-voice-0
+            phrase: Widen that row to twenty-four inside the feed-forward layer, then project back to eight
+            targets:
+              - executable-contracts-construction
+            color: cyan
+            linger: 0.35
+          - id: tr-executable-contracts-decoder
+            phrase: Another block can take that same shape
+            targets:
+              - executable-contracts-construction
+            color: yellow
+            linger: 0.35
+      - say: Compare two decoders on our original prompt. The film uses one head and ReLU. The seeded PyTorch
+          decoder has two heads, a six-feature GELU layer, and its own vocabulary weights. Both have width
+          four. Look at the score and probability each gives “result.” The PyTorch model puts about
+          thirty-five percent on that word. The two models choose the same word, but different blocks and
+          weights got them there.
+        hold: 0.85
+        visual_cues:
+          - id: tr-executable-contracts-voice-1
+            phrase: Compare two decoders on our original prompt
+            targets:
+              - executable-contracts-construction
+            color: cyan
+            linger: 0.35
+          - id: tr-executable-contracts-seeded
+            phrase: the score and probability each gives “result”
+            targets:
+              - executable-contracts-construction
+            color: yellow
+            linger: 0.35
+      - say: Here is a closer match. The article also has a two-block decoder you can run with standard Python.
+          Each block uses its normalized rows as queries, keys and values, then applies a hand-built local
+          update. Its gains and vocabulary weights were chosen to reproduce the ranking. Write the
+          probability for “result” as a percentage to one decimal place. Both article models give
+          thirty-five point three percent. Would you expect the same hidden row? Look one step before
+          final normalization. Their first features even have opposite signs. A matching probability tells
+          you what came out. Comparing the states tells you where the two computations differ.
+        hold: 1
+        visual_cues:
+          - id: tr-executable-contracts-voice-2
+            phrase: Write the probability for “result” as a percentage to one decimal place
+            targets:
+              - executable-contracts-construction
+            color: cyan
+            linger: 0.35
+          - id: tr-executable-contracts-distinct
+            phrase: Look one step before final normalization
+            targets:
+              - executable-contracts-construction
+            color: yellow
+            linger: 0.35
+        caption_starts:
+          - Both article models give thirty-five point three percent
+          - Look one step before final normalization
+          - Their first features even have opposite signs
+  - id: vocabulary-contract
+    title: How do four features score six words?
+    visual: All-position hidden rows map to vocabulary logits before selecting the last row. Two actual
+      vocabulary tables merge into one shared array, then fixed logits undergo a temperature change
+      while a probability-rescale counterexample cancels.
+    beats:
+      - say: The three rows on the left have four features each. The vocabulary head gives each row six
+          scores, one per word. The batch and token axes stay in place. To predict the next word, we can
+          project just the last row or take the last row of the finished scores. Either way we get the
+          same six numbers. Attention weights told us where to read. A softmax over these six scores
+          gives the probabilities for what to write.
+        hold: 0.65
+        visual_cues:
+          - id: tr-vocabulary-contract-voice-0
+            phrase: The three rows on the left have four features each. The vocabulary head gives each row
+                six scores, one per word. The batch and token axes stay in place. To predict the next
+                word, we can project just the last row or take the last row of the finished scores.
+                Either way we get the same six numbers. Attention weights told us where to read. A
+                softmax over these six scores gives the probabilities for what to write.
+            targets:
+              - vocabulary-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-vocabulary-contract-shape
+            phrase: six scores, one per word
+            targets:
+              - vocabulary-contract-construction
+            color: yellow
+            linger: 0.4
+      - say: Count one table. Six words times four features gives twenty-four weights. A separate output
+          table brings the total to forty-eight. Tie the weights and both jobs use the same twenty-four.
+          The input lookup reads a row by token ID. The output projection still scores every word. In
+          general, tying saves one vocabulary-sized table of model-width rows. To feed the chosen word
+          back, use its tokenizer ID and the row for its next position in the learned position table.
+        hold: 0.65
+        visual_cues:
+          - id: tr-vocabulary-contract-voice-1
+            phrase: Count one table. Six words times four features gives twenty-four weights. A separate
+                output table brings the total to forty-eight. Tie the weights and both jobs use the same
+                twenty-four. The input lookup reads a row by token ID. The output projection still
+                scores every word. In general, tying saves one vocabulary-sized table of model-width
+                rows. To feed the chosen word back, use its tokenizer ID and the row for its next
+                position in the learned position table.
+            targets:
+              - vocabulary-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-vocabulary-contract-tying
+            phrase: both jobs use the same twenty-four
+            targets:
+              - vocabulary-contract-construction
+            color: yellow
+            linger: 0.4
+      - say: Look at the bar for “result.” At a temperature of one half, the tallest bar gets most of the
+          probability. At one, you see the original distribution. Raise the temperature to two. The
+          other words gain a larger share between them. Temperature divides the logits before softmax.
+          For a stable calculation, subtract the largest logit first. Dividing probabilities instead and
+          normalizing again would cancel the change. As positive temperature approaches zero, the
+          probability concentrates on the largest logit. Tied winners share that mass, and greedy
+          decoding needs a rule to choose between them. If every logit is equal, sampling stays uniform
+          at every positive temperature.
+        hold: 0.65
+        visual_cues:
+          - id: tr-vocabulary-contract-voice-2
+            phrase: At one
+            targets:
+              - vocabulary-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-vocabulary-contract-warm
+            phrase: Raise the temperature to two
+            targets: [vocabulary-contract-construction]
+            color: cyan
+            linger: 0.4
+          - id: tr-vocabulary-contract-temperature
+            phrase: Dividing probabilities instead and normalizing again would cancel the change
+            targets:
+              - vocabulary-contract-construction
+            color: yellow
+            linger: 0.4
+  - id: architecture-visibility
+    title: Change the legal reads when the task changes
+    visual: A single source snippet remains visible while encoder, causal target and rectangular
+      source-cross-attention matrices are built cell by cell. Queries and fixed/growing cache roles
+      keep their sequence ownership.
+    beats:
+      - say: "Classify a complete code snippet as code or prose. An encoder-only model may read both left
+          and right input context. Generate a continuation instead, and decoder-only self-attention
+          reads current and prior positions. Translate a complete source into an unfinished target:
+          the encoder reads the full source; target self-attention stays causal; each target query
+          can cross-attend to encoded source keys and values. Self-attention takes all three roles
+          from one sequence; cross-attention separates those origins."
+        hold: 0.65
+        visual_cues:
+          - id: tr-architecture-visibility-voice-0
+            phrase: "Classify a complete code snippet as code or prose. An encoder-only model may read both left
+              and right input context. Generate a continuation instead, and decoder-only
+              self-attention reads current and prior positions. Translate a complete source into an
+              unfinished target: the encoder reads the full source; target self-attention stays
+              causal; each target query can cross-attend to encoded source keys and values.
+              Self-attention takes all three roles from one sequence; cross-attention separates
+              those origins."
+            targets:
+              - architecture-visibility-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-architecture-visibility-encoder
+            phrase: An encoder-only model may read both left and right input context.
+            targets:
+              - architecture-visibility-construction
+            color: yellow
+            linger: 0.4
+          - id: tr-architecture-visibility-decoder
+            phrase: decoder-only self-attention reads current and prior positions.
+            targets:
+              - architecture-visibility-construction
+            color: yellow
+            linger: 0.4
+          - id: tr-architecture-visibility-cross
+            phrase: each target query can cross-attend to encoded source keys and values.
+            targets:
+              - architecture-visibility-construction
+            color: yellow
+            linger: 0.4
+      - say: The original Transformer paired an encoder and decoder. BERT uses an encoder. GPT uses a
+          decoder. Look at the middle of this sentence. T5 hides a span from the encoder and trains the
+          decoder to write the missing text. Ordinary text also supplies training examples for a decoder
+          like GPT. Shift the targets by one token and each input has a next token to predict. An
+          instruction can go in that same stream, ahead of the response. Training teaches the model how
+          to follow it.
+        hold: 0.65
+        visual_cues:
+          - id: tr-architecture-visibility-voice-1
+            phrase: T5 hides a span from the encoder and trains the decoder to write the missing text
+            targets:
+              - architecture-visibility-construction
+            color: cyan
+            linger: 0.4
+      - say: Watch the blue row grow by one position each time the decoder writes a word. Its cache keeps
+          the earlier keys and values for the next read. In translation the green source row stays
+          fixed. Every new target query can reuse the same projected source keys and values for
+          cross-attention. Running without a cache recomputes those projections. Caching trades that
+          repeated work for memory. Reading a longer history and processing the initial prompt still
+          take computation. Scaling studies relate training resources to loss. To choose an architecture
+          for a particular task, measure performance on that task.
+        hold: 0.65
+        visual_cues:
+          - id: tr-architecture-visibility-voice-2
+            phrase: Watch the blue row grow by one position each time the decoder writes a word
+            targets:
+              - architecture-visibility-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-architecture-visibility-cache
+            phrase: the same projected source keys and values for cross-attention
+            targets:
+              - architecture-visibility-construction
+            color: yellow
+            linger: 0.4
+  - id: real-scale
+    title: How wide is a real attention head?
+    visual: A counted Llama405B layer stack and embedding ledger scale the same row roles. A separate
+      declared gpt-oss configuration makes64×64 projected features and returns4096 to model
+      width2880, with alternating causal-window/full masks.
+    beats:
+      - say: Look at the thin blue strip. It holds the token embeddings for Llama three’s largest model.
+          About one hundred twenty-eight thousand vocabulary entries, each with sixteen thousand three
+          hundred eighty-four features, take about two point one billion weights. That is around half a
+          percent of four hundred five billion. The model has one hundred twenty-six layers and one
+          hundred twenty-eight query heads per layer. Here, dividing the model width by the head count
+          gives one hundred twenty-eight features per head.
+        hold: 0.65
+        visual_cues:
+          - id: tr-real-scale-voice-0
+            phrase: Look at the thin blue strip. It holds the token embeddings for Llama three’s largest
+                model. About one hundred twenty-eight thousand vocabulary entries, each with sixteen
+                thousand three hundred eighty-four features, take about two point one billion weights.
+                That is around half a percent of four hundred five billion. The model has one hundred
+                twenty-six layers and one hundred twenty-eight query heads per layer. Here, dividing the
+                model width by the head count gives one hundred twenty-eight features per head.
+            targets:
+              - real-scale-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-real-scale-embed
+            phrase: around half a percent of four hundred five billion.
+            targets:
+              - real-scale-construction
+            color: yellow
+            linger: 0.4
+      - say: Now look at the three widths in the gpt-oss one hundred twenty b configuration. A token enters
+          with two thousand eight hundred eighty features. Its sixty-four query heads each have
+          sixty-four features. Together they span four thousand ninety-six. The output projection brings
+          the width back to two thousand eight hundred eighty so the update fits the residual row.
+        hold: 0.65
+        visual_cues:
+          - id: tr-real-scale-voice-1
+            phrase: Now look at the three widths in the gpt-oss one hundred twenty b configuration. A token
+                enters with two thousand eight hundred eighty features. Its sixty-four query heads each
+                have sixty-four features. Together they span four thousand ninety-six. The output
+                projection brings the width back to two thousand eight hundred eighty so the update fits
+                the residual row.
+            targets:
+              - real-scale-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-real-scale-width
+            phrase: Together they span four thousand ninety-six
+            targets:
+              - real-scale-construction
+            color: yellow
+            linger: 0.4
+      - say: The same model alternates eighteen sliding-attention layers with eighteen full-attention
+          layers. Its window is one hundred twenty-eight positions. A sliding layer can read recent
+          history. A full layer can reach farther back. Both leave future tokens out of the read. With
+          access to the hidden rows, you can test that by changing a future input. A hosted text
+          interface lets you test the completions and measure token use.
+        hold: 0.65
+        visual_cues:
+          - id: tr-real-scale-voice-2
+            phrase: The same model alternates eighteen sliding-attention layers with eighteen full-attention
+                layers. Its window is one hundred twenty-eight positions. A sliding layer can read
+                recent history. A full layer can reach farther back. Both leave future tokens out of the
+                read. With access to the hidden rows, you can test that by changing a future input. A
+                hosted text interface lets you test the completions and measure token use.
+            targets:
+              - real-scale-construction
+            color: cyan
+            linger: 0.4
+          - id: tr-real-scale-window
+            phrase: Its window is one hundred twenty-eight positions.
+            targets:
+              - real-scale-construction
+            color: yellow
+            linger: 0.4
+  - id: failure-contract
+    title: Where did the forward pass go wrong?
+    visual: Repair a six-feature update before adding it to a four-feature row. Then compare two full blocks
+      with identical causal masks. One computes its first normalization across each token’s features. The
+      other computes it across positions. A change to the last input separates their first output rows.
+    beats:
+      - say: The residual for “the” has four features. The feed-forward branch expanded it to six. Suppose
+          someone tries to add those six back directly. With three tokens we have eighteen entries on one
+          side and twelve on the other. A reshape cannot make that addition work. Project the six features
+          back into the original four, then add the matching coordinates. If the error came earlier, check
+          the head split and that the mask and scores are on the same device.
+        hold: 0.85
+        visual_cues:
+          - id: tr-failure-contract-voice-0
+            phrase: eighteen entries on one side and twelve on the other
+            targets:
+              - failure-contract-construction
+            color: cyan
+            linger: 0.35
+          - id: tr-failure-contract-project
+            phrase: Project the six features back into the original four
+            targets:
+              - failure-contract-construction
+            color: green
+            linger: 0.35
+      - say: A wrong read can still have the right shape. The cached query at position three returned exactly
+          the first value. Look at which keys it was allowed to read. Select the mask for its absolute
+          position and compare with the full prefix. For other symptoms, use the number that changed. A
+          row of undefined weights calls for checking which keys survived masking. If the temperature
+          setting does nothing, check whether it was applied to the logits before softmax.
+        hold: 0.8
+        visual_cues:
+          - id: tr-failure-contract-voice-1
+            phrase: Look at which keys it was allowed to read
+            targets:
+              - failure-contract-construction
+            color: cyan
+            linger: 0.35
+          - id: tr-failure-contract-mask
+            phrase: Select the mask for its absolute position
+            targets:
+              - failure-contract-construction
+            color: green
+            linger: 0.35
+      - say: Now take two copies of our original three-token block. Both give every future key zero attention
+          weight. Both have dropout off. Only the first normalization differs. On the left, the word
+          “function” uses its own four features to compute a mean. On the right, its first feature uses a
+          mean taken down the column, across all three words. Suppose we edit the first feature of the
+          last word. Which block could change what “function” sends out?
+        hold: 2.3
+        visual_cues: []
+      - say: Add four to that feature of “the.” On the left, the edit falls outside the highlighted row. Its
+          mean stays put. On the right, the edit lands inside the column and moves its mean. Compare the
+          output for “function” before and after the edit in each block. Only the right one changed.
+          Information from the last word crossed positions during normalization, before attention ever
+          used its mask. Restore normalization across features and repeat the comparison. Keep the input,
+          weights, dtype and dropout settings fixed. The test checks this path through the block. A cache
+          has another way to go wrong. It can leave out something the query should have read.
+        hold: 1.1
+        caption_starts:
+          - On the left, the edit falls outside the highlighted row
+          - On the right, the edit lands inside the column
+          - Only the right one changed
+        visual_cues:
+          - id: change-last-feature
+            phrase: Add four to that feature of “the”
+            targets:
+              - failure-contract-construction
+            color: pink
+            linger: 0.35
+          - id: tr-failure-contract-compare-rows
+            phrase: Compare the output for “function” before and after the edit in each block
+            targets:
+              - failure-contract-construction
+            color: yellow
+            linger: 0.35
+  - id: fresh-decoder
+    title: What did the last query actually read?
+    visual: Two labeled value points share axes from prediction through repair. Each key stays paired with
+      its value and weight. The last test returns to the opening three tokens. Two rows of six computed
+      logits expose a changed greedy token, then agree after the absolute-position repair.
+    beats:
+      - say: Try a fresh pair of keys. The blue key picks out the first coordinate of the query. The green key
+          picks out the second. Their values are the two points on the plot. At position one, the query
+          can read both. It has a positive first coordinate and a negative second coordinate. A mixture of
+          the two values lands on the line between them. Which point will it land closer to?
+        hold: 3
+        visual_cues:
+          - id: fresh-blue-key
+            phrase: The blue key picks out the first coordinate
+            targets:
+              - fresh-decoder-construction
+            color: blue
+            linger: 0.35
+          - id: fresh-green-key
+            phrase: The green key picks out the second
+            targets:
+              - fresh-decoder-construction
+            color: green
+            linger: 0.35
+          - id: fresh-inputs
+            phrase: the two points on the plot
+            targets:
+              - fresh-decoder-construction
+            color: blue
+            linger: 0.35
+      - say: The dot products are two for blue and minus one for green. Divide each by the square root of two,
+          the key width. Apply softmax across the two scores. Blue gets about eighty-nine percent of the
+          weight. Take that share of the blue value, then add the green contribution at its tip. Read the
+          two coordinates at the tip of the second arrow. The short upward step is the evidence that the
+          green key contributed. This is a pair of features. The vocabulary projection comes later.
+        hold: 1.1
+        caption_starts:
+          - Blue gets about eighty-nine percent of the weight
+        visual_cues:
+          - id: tr-fresh-decoder-scores
+            phrase: Divide each by the square root of two
+            targets:
+              - fresh-decoder-construction
+            color: cyan
+            linger: 0.35
+          - id: tr-fresh-decoder-shares
+            phrase: Blue gets about eighty-nine percent of the weight
+            targets:
+              - fresh-decoder-construction
+            color: green
+            linger: 0.35
+          - id: tr-fresh-decoder-accumulate
+            phrase: Take that share of the blue value, then add the green contribution at its tip
+            targets:
+              - fresh-decoder-construction
+            color: green
+            linger: 0.35
+          - id: tr-fresh-decoder-read
+            phrase: Read the two coordinates at the tip of the second arrow
+            targets:
+              - fresh-decoder-construction
+            color: yellow
+            linger: 0.35
+      - say: Run that same query alone against the two saved keys. Use the upper-left mask. The green key drops
+          out. All the weight goes to blue and the read lands exactly at four, zero. Blue grew longer
+          because its weight rose to one. The upward step disappeared because green got zero. Align the
+          mask with position one. The upward step comes back, and the read meets the full-prefix result
+          again.
+        hold: 1.1
+        caption_starts:
+          - The green key drops out
+          - All the weight goes to blue and the read lands exactly at four, zero
+        visual_cues:
+          - id: tr-fresh-decoder-wrong
+            phrase: The green key drops out
+            targets:
+              - fresh-decoder-construction
+            color: pink
+            linger: 0.35
+          - id: fresh-cropped-read
+            phrase: All the weight goes to blue and the read lands exactly at four, zero
+            targets: [fresh-decoder-construction]
+            color: blue
+            linger: 0.35
+          - id: tr-fresh-decoder-repair
+            phrase: Align the mask with position one
+            targets:
+              - fresh-decoder-construction
+            color: green
+            linger: 0.35
+      - say: Back to our opening prompt. The full prefix gave us six scores for the blank. This time “the” makes
+          one cached query, and the mask lets it read only “function.” Keep the original weights and run
+          that read through the rest of the block. Here are its six scores. Which word would greedy
+          decoding put in the blank now?
+        hold: 2.6
+        caption_starts:
+          - Which word would greedy decoding put in the blank now
+        visual_cues:
+          - id: crop-history
+            phrase: the mask lets it read only “function”
+            targets:
+              - fresh-decoder-construction
+            color: pink
+            linger: 0.35
+          - id: cache-scores
+            phrase: Here are its six scores
+            targets:
+              - fresh-decoder-construction
+            color: yellow
+            linger: 0.35
+      - say: The highest score belongs to “None.” The prompt and weights are the same. The query lost
+          access to “returns” and even to its own value. Restore both of those keys. Compare the six
+          scores column by column. Every cached score now matches its full-prefix score. The largest
+          score puts “result” back in the blank.
+        hold: 1.8
+        visual_cues:
+          - id: cache-choice
+            phrase: belongs to “None”
+            targets:
+              - fresh-decoder-construction
+            color: yellow
+            linger: 0.35
+          - id: restore-prefix
+            phrase: Restore both of those keys
+            targets:
+              - fresh-decoder-construction
+            color: green
+            linger: 0.35
+          - id: compare-scores
+            phrase: Every cached score now matches its full-prefix score
+            targets:
+              - fresh-decoder-construction
+            color: cyan
+            linger: 0.35
+          - id: restored-choice
+            phrase: puts “result” back in the blank
+            targets:
+              - fresh-decoder-construction
+            color: green
+            linger: 0.35
+        caption_starts:
+          - Restore both of those keys
+          - Every cached score now matches its full-prefix score
+          - The largest score puts “result” back in the blank

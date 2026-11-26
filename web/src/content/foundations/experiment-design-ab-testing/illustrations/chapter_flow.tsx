@@ -4,7 +4,7 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 860
 export const height = 390
 export const alt =
-    'Four incoming support requests belong to three query units. Both requests for qry-014 hash to bucket 58 and stay pinned in Control (raw query); qry-001 and qry-021 hash to buckets 27 and 21 and enter Treatment (rewritten query). Both arms share the same pinned RAG index and greedy generator, then deduplicate after the 10-minute maturity window into three logged unit outcomes: 1 Control and 2 Treatment.'
+    'Four incoming support requests belong to three query units. Both requests for qry-021 hash to bucket 85 and stay pinned in Control (raw query); qry-001 and qry-014 hash to buckets 24 and 37 and enter Treatment (rewritten query). Both arms share the same pinned RAG index and greedy generator, then deduplicate after the 10-minute maturity window into three logged unit outcomes: 1 Control and 2 Treatment.'
 
 export function create(theme: ThemeMode = 'dark') {
     const fig = new Figure(theme, width, height)
@@ -25,10 +25,10 @@ export function create(theme: ThemeMode = 'dark') {
     const reqW = 140
     const reqH = 34
     const reqs = [
-        { y: 60, id: 'qry-014', tag: 'first', tone: blue },
-        { y: 112, id: 'qry-014', tag: 'retry', tone: blue },
+        { y: 60, id: 'qry-021', tag: 'first', tone: blue },
+        { y: 112, id: 'qry-021', tag: 'retry', tone: blue },
         { y: 196, id: 'qry-001', tag: 'first', tone: purple },
-        { y: 256, id: 'qry-021', tag: 'first', tone: purple },
+        { y: 256, id: 'qry-014', tag: 'first', tone: purple },
     ]
     for (const r of reqs) {
         fig.rect(reqX, r.y, reqW, reqH, {
@@ -55,9 +55,9 @@ export function create(theme: ThemeMode = 'dark') {
     const buckW = 124
     const buckH = 36
     const buckets = [
-        { y: 86, text: 'bucket 58', sub: 'pinned (>=50)', tone: blue },
-        { y: 195, text: 'bucket 27', sub: '(<50)', tone: purple },
-        { y: 255, text: 'bucket 21', sub: '(<50)', tone: purple },
+        { y: 86, text: 'bucket 85', sub: 'pinned (>=50)', tone: blue },
+        { y: 195, text: 'bucket 24', sub: '(<50)', tone: purple },
+        { y: 255, text: 'bucket 37', sub: '(<50)', tone: purple },
     ]
 
     // Curved merging connectors from requests to buckets
@@ -129,9 +129,9 @@ export function create(theme: ThemeMode = 'dark') {
     const logX = 666
     const logW = 172
     const logRows = [
-        { y: 86, id: 'qry-014', note: '1 row (merged)', tone: blue },
+        { y: 86, id: 'qry-021', note: '1 row (merged)', tone: blue },
         { y: 195, id: 'qry-001', note: '1 row', tone: purple },
-        { y: 255, id: 'qry-021', note: '1 row', tone: purple },
+        { y: 255, id: 'qry-014', note: '1 row', tone: purple },
     ]
 
     fig.arrow(armX + armW, 104, logX - 2, 104, { color: blue, width: 2, head: 6 })

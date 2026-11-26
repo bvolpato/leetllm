@@ -360,7 +360,7 @@ def filter_and_renormalize(
 
     scaled = logits.astype(np.float64) / temperature
     if 0 < top_k < vocab_size:
-        kth_vals = np.partition(scaled, -top_k, axis=-1)[:, -top_k : -top_k + 1]
+        kth_vals = np.partition(scaled, -top_k, axis=-1)[:, [-top_k]]
         scaled = np.where(scaled >= kth_vals, scaled, -np.inf)
 
     shifted = scaled - np.max(scaled, axis=-1, keepdims=True)

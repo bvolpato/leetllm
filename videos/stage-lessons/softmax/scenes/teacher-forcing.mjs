@@ -1,179 +1,346 @@
-// Scene `teacher-forcing`: each position predicts the next observed token.
-//
-// The picture: the observed tokens stand in one row. Each target comes down from that row, one
-// place later than its input. The batch table then fills with scores, shares and losses, and one
-// line reduces them to a mean.
-import { boxOf, column, dot, moveTo, place, rect, row } from 'vizmatic/stage';
-import { area, chip, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { lossTrace } from '../../../films/softmax/arithmetic.mjs';
-import { FRESH_LOGITS, LOGITS } from '../../../films/softmax/fixtures.mjs';
-import { MARK_COLOR } from '../parts.mjs';
-import { sequenceBatch } from '../sequence-batch.mjs';
+// Scene 16 (teacher-forcing): "Which word did each row score?"
+// Sequence "bug docs today" -> next-token target alignment -> misaligned shift keeps mean 1.238 while changing task!
+import {
+  COSMOS,
+  DANGER_COLOR,
+  DOG_TRACE,
+  FRESH_LOGITS,
+  FRESH_TRACE,
+  LOGITS,
+  MARK_COLOR,
+  SEQ_WORDS,
+  TARGET_COLOR,
+  WORD_COLOR,
+  aura,
+  crossSwap,
+  glowArrow,
+  guardedDynamic,
+  heroTitle,
+  lossTrace,
+  lumBar,
+  rule,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
+
+const WRONG_R0 = lossTrace(LOGITS, 0); // scoring 'bug' at row 0 -> 0.170
+const WRONG_R1 = lossTrace(FRESH_LOGITS, 1); // scoring 'docs' at row 1 -> 2.306
+const MEAN_VAL = (DOG_TRACE.loss + FRESH_TRACE.loss) / 2; // 1.238
 
 export default function teacherForcing(s, c) {
-  const { sequence, top, foot, supervised: rows, titles, kept } = sequenceBatch();
-  const of = (name) => rows.map((cells) => cells[name]);
-  // The observed tokens, in their order.
-  const tokens = ['bug', 'docs', 'today'].map((word, i) =>
-    chip(word, { size: 56, color: ['blue', 'green', 'pink'][i] }),
-  );
-  const observed = [note('observed tokens'), ...tokens];
-  place(row(observed, { gap: 'normal' }), top, 'left');
-  // Keep the table's structure visible while its numerical results are withheld.
-  const frames = rows.flatMap((cells) =>
-    ['scores', 'target', 'meter', 'loss'].map((name) => {
-      const box = boxOf(cells[name]);
-      return rect(box.width + 16, Math.max(58, box.height + 12), {
-        stroke: 'grid',
-        fill: null,
-        width: 2,
-        radius: 6,
-      }).moveTo(box.point('center'));
-    }),
-  );
-  const shift = place(
-    row(
-      [
-        chip('Observed prefix', { size: 42 }),
-        mono('→'),
-        chip('Next observed token', { size: 42, dash: true }),
-      ],
-      { gap: 'wide' },
-    ),
-    foot,
-    'top left',
-  );
-  s.add(heading(c.title), Object.values(titles), frames, shift);
-  c.show('teacher-forcing-0', observed, { stagger: true });
-  c.show('teacher-shift', [...of('name'), ...of('input')]);
+  const phase = s.value(0);
+  const vTokens = s.value(1);
+  const vRows = s.value(0);
 
-  // Each target arrives from its place in the row of tokens: one place after its input.
-  const travelers = ['green', 'pink'].map((color, i) =>
-    dot(12, color).at(...boxOf(tokens[i + 1]).point('bottom')),
-  );
-  ['teacher-observed', 'teacher-prefix-target'].forEach((cue, i) => {
-    const mark = travelers[i],
-      target = rows[i].target;
-    c.show(cue, mark);
-    const phrase = c.cue(cue);
-    const duration = Math.max(0.1, phrase.end - phrase.start - 0.15);
-    c.on(cue, () => s.play(moveTo(mark, boxOf(target).point('center'), { duration })), 0.15);
-    c.hide(cue, mark, { after: true });
-    c.show(cue, target, { after: true });
+  // View 1 state
+  const showShift = s.value(0);
+  const showObs1 = s.value(0);
+  const showObs2 = s.value(0);
+  const showLogitsNote = s.value(0);
+  const showContextNote = s.value(0);
+
+  // View 2 state
+  const showLosses = s.value(0);
+  const showMean = s.value(0);
+  const showFirstShare = s.value(0);
+  const slideWrong = s.value(0); // 0 = aligned [docs, today], 1 = current-word bug [bug, docs]
+  const showWrongResult = s.value(0);
+  const showMaskRoles = s.value(0);
+
+  const bgAura = aura(0, 20, 620, '#14384432', '#261a4a18');
+  const title = heroTitle(['Teacher Forcing &', 'Next-Token Alignment'], {
+    x: -855,
+    y: -430,
+    size: 54,
+    lineHeight: 62,
+    accent: TARGET_COLOR,
+    eyebrow: 'SEQUENCE LANGUAGE MODELING',
   });
 
-  // What a position is made of: a score for each token of the vocabulary, and the observed context.
-  const facts = [
-    chip('one score for each token of the vocabulary'),
-    chip('the context is the observed tokens'),
-  ];
-  place(column(facts, { gap: 'normal' }), foot, 'top left');
-  c.swap('teacher-logits', shift, facts[0]);
-  c.show('teacher-context', facts[1]);
-
-  // The scores, then the share and the loss of each target, then the mean.
-  c.show('teacher-forcing-1', of('scores'), { stagger: true });
-  c.show('teacher-token-losses', [...of('meter'), ...of('share'), ...of('loss')], { after: true });
-  c.hide('teacher-token-losses', frames, { after: true });
-  const current = [LOGITS, FRESH_LOGITS].map((scores, i) => lossTrace(scores, i));
-  const currentSum = current.reduce((sum, item) => sum + item.loss, 0);
-  if (Math.abs(currentSum - sequence.numerator) > 1e-12)
-    throw new Error('The current-word and next-word examples must have the same total loss');
-  const mean = place(
-    mono('Mean per token   ' + sequence.mean.toFixed(3) + ' nats', {
-      size: 48,
-      color: MARK_COLOR,
-    }),
-    foot,
-    'top left',
-  );
-  const [, shareBand] = foot.rows([1, 1], 'tight');
-  const width = area.width * 0.5;
-  const contribution = (fraction, colors) =>
-    place(
-      row(
-        [
-          row(
-            [
-              rect(width * fraction, 36, { fill: colors[0], stroke: null }),
-              rect(width * (1 - fraction), 36, { fill: colors[1], stroke: null }),
-            ],
-            { gap: 'none' },
-          ),
-          mono('position 1   ' + (100 * fraction).toFixed(1) + '% of loss', { size: 35 }),
-        ],
-        { gap: 'normal' },
-      ),
-      shareBand,
-      'left',
-    );
-  const correctBar = contribution(sequence.losses[0] / sequence.numerator, ['green', 'pink']);
-  const wrongBar = contribution(current[0].loss / currentSum, ['blue', 'green']);
-  c.hide('teacher-forcing-1', facts);
-  c.show('teacher-loss-mean', mean, { after: true });
-  c.show('teacher-first-contribution', correctBar, { after: true });
-
-  // Re-read the very same scores under the current words. Their summed loss happens to agree.
-  const names = ['bug', 'docs'];
-  const picked = ['target', 'meter', 'share', 'loss'];
-  const nextCells = rows.flatMap((cells) => picked.map((key) => cells[key]));
-  const currentCells = rows.map((cells, i) => {
-    const color = ['blue', 'green'][i];
-    const share = current[i].probabilities[i];
-    const atCell = (value, key, ink) =>
-      mono(value, { size: 42, color: ink }).moveTo(cells[key]).alignTo(cells[key], 'left');
-    const meter = boxOf(cells.meter);
-    const frame = rect(meter.width, meter.height, {
-      stroke: 'dim',
-      fill: null,
-      width: 2,
-      radius: 6,
-    }).at(meter.cx, meter.cy);
-    const fill = rect(meter.width * share, meter.height, {
-      fill: color,
-      stroke: null,
-      opacity: 0.86,
-    }).at(meter.left + (meter.width * share) / 2, meter.cy);
-    return [
-      atCell(names[i], 'target', color),
-      frame,
-      fill,
-      atCell(share.toFixed(3), 'share', 'ink'),
-      atCell(current[i].loss.toFixed(3), 'loss', MARK_COLOR),
+  // View 1: Sequence tokens -> next-token prediction arrows
+  const viewTokens = guardedDynamic(vTokens, (a) => {
+    const xs = [-540, 0, 540];
+    const yTok = -130;
+    const nodes = [
+      txt('OBSERVED TRAINING SEQUENCE', -855, -245, 26, COSMOS.cyan, 'mono', 'left').opacity(a),
+      // Persistent timeline guide rail across lower canvas (keeps frame balanced from t=0!)
+      rule(-855, 325, 855, 325, COSMOS.rule, 2.5).opacity(0.75 * a),
+      txt('t = 0  (prefix: bug)', -720, 365, 26, WORD_COLOR[0], 'mono').opacity(a),
+      txt('t = 1  (predict: docs)', 0, 365, 26, TARGET_COLOR, 'mono').opacity(a),
+      txt('t = 2  (predict: today)', 690, 365, 26, WORD_COLOR[2], 'mono').opacity(a),
     ];
+
+    SEQ_WORDS.forEach((w, i) => {
+      nodes.push(
+        lumBar(xs[i], yTok, 260, 88, {
+          color: WORD_COLOR[i],
+          fillOpacity: 0.25,
+          strokeWidth: 2.5,
+          glow: 9,
+          opacity: a,
+        }),
+        txt(w, xs[i], yTok, 42, WORD_COLOR[i], 'serif').opacity(a),
+        txt(`pos ${i}`, xs[i], yTok - 68, 26, COSMOS.muted, 'mono').opacity(a),
+      );
+    });
+
+    if (showShift.value > 0.02 || showObs1.value > 0.02) {
+      const op1 = Math.max(showShift.value * 0.5, showObs1.value) * a;
+      nodes.push(
+        glowArrow([xs[0] + 145, yTok], [xs[1] - 145, yTok], TARGET_COLOR, { opacity: op1 }),
+        txt(
+          'Step 1:  Input [bug]  →  Target: docs',
+          -855,
+          8,
+          30,
+          TARGET_COLOR,
+          'mono',
+          'left',
+        ).opacity(op1),
+      );
+    }
+    if (showObs2.value > 0.02) {
+      nodes.push(
+        glowArrow([xs[1] + 145, yTok], [xs[2] - 145, yTok], WORD_COLOR[2], {
+          opacity: showObs2.value * a,
+        }),
+        txt(
+          'Step 2:  Input [bug, docs]  →  Target: today',
+          -855,
+          72,
+          30,
+          WORD_COLOR[2],
+          'mono',
+          'left',
+        ).opacity(showObs2.value * a),
+      );
+    }
+    if (showLogitsNote.value > 0.02) {
+      nodes.push(
+        txt(
+          'Each hidden state projects to |V| logits (weights can tie with input embeddings)',
+          -855,
+          155,
+          28,
+          COSMOS.cyan,
+          'sans',
+          'left',
+        ).opacity(showLogitsNote.value * a),
+      );
+    }
+    if (showContextNote.value > 0.02) {
+      nodes.push(
+        txt(
+          'Teacher forcing: feed true "docs" into position 2 even if position 1 guessed "bug"',
+          -855,
+          230,
+          30,
+          MARK_COLOR,
+          'sans',
+          'left',
+        )
+          .glow(6, MARK_COLOR)
+          .opacity(showContextNote.value * a),
+      );
+    }
+
+    return nodes;
   });
-  const targetMode = place(
-    label('Scoring the current word', { color: 'yellow' }),
-    foot,
-    'top right',
-  );
-  c.swap(
-    'teacher-current',
-    [nextCells, correctBar],
-    [currentCells.map((cells) => cells.slice(0, -1)), targetMode],
-  );
-  c.show('teacher-wrong-result', [currentCells.map((cells) => cells.at(-1)), wrongBar], {
-    after: true,
+
+  // View 2: Score table with live sliding target alignment (shows invariance of mean 1.238!)
+  const viewRows = guardedDynamic(vRows, (a) => {
+    const sw = slideWrong.value;
+    const isWrong = sw > 0.5;
+    const revWrong = showWrongResult.value > 0.5;
+
+    const r0Loss = isWrong ? WRONG_R0.loss : DOG_TRACE.loss;
+    const r1Loss = isWrong ? WRONG_R1.loss : FRESH_TRACE.loss;
+    const r0Prob = isWrong ? WRONG_R0.probabilities[0] : DOG_TRACE.probabilities[1];
+    const r1Prob = isWrong ? WRONG_R1.probabilities[1] : FRESH_TRACE.probabilities[2];
+
+    const nodes = [
+      txt(
+        isWrong ? 'MISALIGNED: SCORING CURRENT WORDS (OFF BY 1!)' : 'ALIGNED: SCORING NEXT WORDS',
+        -855,
+        -245,
+        28,
+        isWrong ? DANGER_COLOR : TARGET_COLOR,
+        'mono',
+        'left',
+      )
+        .glow(6, isWrong ? DANGER_COLOR : TARGET_COLOR)
+        .opacity(a),
+      // Clean floating column headers (zero boxes!)
+      txt('PREFIX', -855, -172, 26, COSMOS.muted, 'mono', 'left').opacity(a),
+      txt('SCORES [bug, docs, today]', -510, -172, 26, COSMOS.muted, 'mono', 'left').opacity(a),
+      txt('TARGET', 30, -172, 26, COSMOS.muted, 'mono', 'left').opacity(a),
+      txt('p(target)', 260, -172, 26, COSMOS.muted, 'mono', 'left').opacity(a),
+      txt('LOSS', 525, -172, 26, COSMOS.muted, 'mono', 'left').opacity(a),
+      rule(-855, -142, 855, -142, COSMOS.rule, 2).opacity(a),
+      // Persistent sequence alignment reference strip along bottom (keeps lower half balanced!)
+      rule(-855, 388, 855, 388, COSMOS.cyan, 2.2).opacity(0.65 * a),
+      txt('SEQUENCE: [ bug  →  docs  →  today ]', 0, 422, 26, COSMOS.muted, 'mono').opacity(a),
+    ];
+
+    const rows = [
+      {
+        y: -75,
+        prefix: 'bug',
+        scores: '[3.0, 1.0, 0.0]',
+        target: isWrong ? 'bug (0)' : 'docs (1)',
+        tCol: isWrong ? DANGER_COLOR : TARGET_COLOR,
+        prob: r0Prob,
+        loss: r0Loss,
+      },
+      {
+        y: 35,
+        prefix: 'bug docs',
+        scores: '[0.5, 0.0, 2.0]',
+        target: isWrong ? 'docs (1)' : 'today (2)',
+        tCol: isWrong ? DANGER_COLOR : WORD_COLOR[2],
+        prob: r1Prob,
+        loss: r1Loss,
+      },
+    ];
+
+    rows.forEach((r) => {
+      const hideWrongLoss = isWrong && !revWrong;
+      nodes.push(
+        txt(r.prefix, -855, r.y, 30, COSMOS.ink, 'mono', 'left').opacity(a),
+        txt(r.scores, -510, r.y, 28, COSMOS.cyan, 'mono', 'left').opacity(a),
+        txt(r.target, 30, r.y, 30, r.tCol, 'mono', 'left').glow(6, r.tCol).opacity(a),
+      );
+      if (showLosses.value > 0.02 && !hideWrongLoss) {
+        const bw = Math.max(8, r.prob * 180);
+        nodes.push(
+          lumBar(260 + bw / 2, r.y, bw, 32, {
+            color: r.tCol,
+            fillOpacity: 0.72,
+            glow: 7,
+            opacity: showLosses.value * a,
+          }),
+          txt(
+            `${(r.prob * 100).toFixed(1)}%`,
+            260 + bw + 14,
+            r.y,
+            26,
+            r.tCol,
+            'mono',
+            'left',
+          ).opacity(showLosses.value * a),
+          txt(`${r.loss.toFixed(3)} nats`, 525, r.y, 30, MARK_COLOR, 'mono', 'left').opacity(
+            showLosses.value * a,
+          ),
+        );
+      } else if (hideWrongLoss) {
+        nodes.push(txt('?', 565, r.y, 34, MARK_COLOR, 'mono', 'left').opacity(a));
+      }
+    });
+
+    if (isWrong && !revWrong) {
+      nodes.push(
+        txt(
+          'Targets slid back 1 token: which row carries the bigger loss now?',
+          -855,
+          165,
+          32,
+          MARK_COLOR,
+          'serif',
+          'left',
+        )
+          .glow(6, MARK_COLOR)
+          .opacity(a),
+      );
+    }
+
+    if (showMean.value > 0.02) {
+      nodes.push(
+        rule(-855, 118, 855, 118, COSMOS.rule, 2).opacity(showMean.value * a),
+        txt(
+          `Mean loss = (${r0Loss.toFixed(3)} + ${r1Loss.toFixed(3)}) / 2 = ${MEAN_VAL.toFixed(3)} nats`,
+          -855,
+          178,
+          32,
+          isWrong && revWrong ? DANGER_COLOR : TARGET_COLOR,
+          'mono',
+          'left',
+        )
+          .glow(7, isWrong && revWrong ? DANGER_COLOR : TARGET_COLOR)
+          .opacity((isWrong && !revWrong ? 0 : showMean.value) * a),
+      );
+    }
+
+    if (showFirstShare.value > 0.02 && !isWrong && showMaskRoles.value < 0.5) {
+      nodes.push(
+        txt(
+          'Missed "docs" drives 87.6% of total sequence loss (2.170 of 2.476 nats)',
+          -855,
+          255,
+          28,
+          MARK_COLOR,
+          'sans',
+          'left',
+        ).opacity(showFirstShare.value * (1 - showMaskRoles.value) * a),
+      );
+    }
+
+    if (isWrong && revWrong) {
+      nodes.push(
+        txt(
+          'Row 2 jumped +2.00 nats, Row 1 dropped −2.00 nats → SAME 1.238 mean, WRONG task!',
+          -855,
+          255,
+          28,
+          DANGER_COLOR,
+          'sans',
+          'left',
+        ).opacity(a),
+      );
+    }
+
+    if (showMaskRoles.value > 0.02) {
+      nodes.push(
+        txt(
+          'Causal mask = hides future inputs   ·   Loss mask = picks target positions to score',
+          -855,
+          335,
+          28,
+          COSMOS.cyan,
+          'sans',
+          'left',
+        )
+          .glow(6, COSMOS.cyan)
+          .opacity(showMaskRoles.value * a),
+      );
+    }
+
+    return nodes;
   });
-  const repairedMean = place(
-    mono('Mean per token   ' + sequence.mean.toFixed(3) + ' nats', {
-      size: 48,
-      color: MARK_COLOR,
-    }),
-    foot,
-    'top left',
-  );
-  const nextMode = place(label('Scoring the next word', { color: 'green' }), foot, 'top right');
-  c.swap(
-    'teacher-realign',
-    [currentCells, wrongBar, targetMode, mean],
-    [nextCells, correctBar, repairedMean, nextMode],
-  );
-  const masks = [
-    chip('Causal mask    Which tokens can this input see?'),
-    chip('Loss mask    Which targets count?'),
-  ];
-  place(row(masks, { gap: 'normal' }), foot, 'left');
-  c.swap('teacher-mask-roles', [correctBar, repairedMean, nextMode], masks);
-  c.keep(kept);
+
+  s.add(bgAura, title, viewTokens, viewRows);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  // Beat 0 cues
+  c.on('teacher-forcing-0', () => {
+    s.play(showShift.to(0.25, { duration: 0.3 }));
+  });
+  tweenCue(s, c, 'teacher-shift', showShift, 1, { duration: 0.45 });
+  tweenCue(s, c, 'teacher-observed', showObs1, 1, { duration: 0.45 });
+  tweenCue(s, c, 'teacher-prefix-target', showObs2, 1, { duration: 0.45 });
+  tweenCue(s, c, 'teacher-logits', showLogitsNote, 1, { duration: 0.45 });
+  tweenCue(s, c, 'teacher-context', showContextNote, 1, { duration: 0.45 });
+
+  // Beat 1-3 cues
+  crossSwap(s, c, 'teacher-forcing-1', vTokens, vRows, { duration: 0.55 });
+  tweenCue(s, c, 'teacher-token-losses', showLosses, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'teacher-loss-mean', showMean, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'teacher-first-contribution', showFirstShare, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'teacher-current', slideWrong, 1, { duration: 0.65 });
+  tweenCue(s, c, 'teacher-wrong-result', showWrongResult, 1, { duration: 0.45, after: true });
+  c.on('teacher-realign', () => {
+    s.play(slideWrong.to(0, { duration: 0.65 }));
+    s.play(showWrongResult.to(0, { duration: 0.3 }));
+  });
+  tweenCue(s, c, 'teacher-mask-roles', showMaskRoles, 1, { duration: 0.5 });
 }

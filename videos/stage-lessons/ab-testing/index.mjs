@@ -1,48 +1,52 @@
-import { narratedLesson } from '../../lib/narrated-lesson.mjs';
-import scene0 from './scenes/intro.mjs';
-import scene1 from './scenes/randomize.mjs';
-import scene2 from './scenes/unit-and-interference.mjs';
-import scene3 from './scenes/metric.mjs';
-import scene4 from './scenes/event-maturity.mjs';
-import scene5 from './scenes/lift.mjs';
-import scene6 from './scenes/independent-units.mjs';
-import scene7 from './scenes/power.mjs';
-import scene8 from './scenes/power-and-decision.mjs';
-import scene9 from './scenes/srm.mjs';
-import scene10 from './scenes/peeking.mjs';
-import scene11 from './scenes/alpha-spending.mjs';
-import scene12 from './scenes/mixture-evidence.mjs';
-import scene13 from './scenes/cuped-adjustment.mjs';
-import scene14 from './scenes/bandit-routing.mjs';
-import scene15 from './scenes/paired-prompts.mjs';
-import scene16 from './scenes/evaluation-stack.mjs';
-import scene17 from './scenes/guardrails.mjs';
-import scene18 from './scenes/decision.mjs';
-import scene19 from './scenes/takeaway.mjs';
-import scene20 from './scenes/fresh-grounding.mjs';
-export default narratedLesson({
+// Pure-cinema stage lesson for Experiment Design & A/B Testing (21 scenes).
+import { COSMOS, cinematicLesson, verifyAbTestingInvariants } from './parts.mjs';
+import intro from './scenes/intro.mjs';
+import randomize from './scenes/randomize.mjs';
+import unitAndInterference from './scenes/unit-and-interference.mjs';
+import metric from './scenes/metric.mjs';
+import eventMaturity from './scenes/event-maturity.mjs';
+import lift from './scenes/lift.mjs';
+import independentUnits from './scenes/independent-units.mjs';
+import power from './scenes/power.mjs';
+import powerAndDecision from './scenes/power-and-decision.mjs';
+import srm from './scenes/srm.mjs';
+import peeking from './scenes/peeking.mjs';
+import alphaSpending from './scenes/alpha-spending.mjs';
+import mixtureEvidence from './scenes/mixture-evidence.mjs';
+import cupedAdjustment from './scenes/cuped-adjustment.mjs';
+import banditRouting from './scenes/bandit-routing.mjs';
+import pairedPrompts from './scenes/paired-prompts.mjs';
+import evaluationStack from './scenes/evaluation-stack.mjs';
+import guardrails from './scenes/guardrails.mjs';
+import decision from './scenes/decision.mjs';
+import takeaway from './scenes/takeaway.mjs';
+import freshGrounding from './scenes/fresh-grounding.mjs';
+
+export default cinematicLesson({
   id: 'ab-testing',
+  accent: COSMOS.cyan,
+  invariants: verifyAbTestingInvariants,
   scenes: {
-    'intro': scene0,
-    'randomize': scene1,
-    'unit-and-interference': scene2,
-    'metric': scene3,
-    'event-maturity': scene4,
-    'lift': scene5,
-    'independent-units': scene6,
-    'power': scene7,
-    'power-and-decision': scene8,
-    'srm': scene9,
-    'peeking': scene10,
-    'alpha-spending': scene11,
-    'mixture-evidence': scene12,
-    'cuped-adjustment': scene13,
-    'bandit-routing': scene14,
-    'paired-prompts': scene15,
-    'evaluation-stack': scene16,
-    'guardrails': scene17,
-    'decision': scene18,
-    'takeaway': scene19,
-    'fresh-grounding': scene20,
+    intro,
+    randomize,
+    'unit-and-interference': unitAndInterference,
+    metric,
+    'event-maturity': eventMaturity,
+    lift,
+    'independent-units': independentUnits,
+    power,
+    'power-and-decision': powerAndDecision,
+    srm,
+    peeking,
+    'alpha-spending': alphaSpending,
+    'mixture-evidence': mixtureEvidence,
+    'cuped-adjustment': cupedAdjustment,
+    'bandit-routing': banditRouting,
+    'paired-prompts': pairedPrompts,
+    'evaluation-stack': evaluationStack,
+    guardrails,
+    decision,
+    takeaway,
+    'fresh-grounding': freshGrounding,
   },
 });

@@ -45,7 +45,7 @@
 
 Your LLM finishes reading the prompt in milliseconds, then dribbles out its answer one token at a time. Each step waits on a full read of tens of billions of weights. What if a tiny draft model guessed five tokens ahead, and the big target model graded all five in one pass in roughly the time of a single step, **without changing the output distribution at all**?
 
-That is <span data-glossary="speculative-decoding">speculative decoding</span>.[^leviathan2023][^chen2023a] Whereas the previous chapter deployed a [small language model](/learn/local-llm-deployment-hardware-quantization) directly, here a cheap proposer (a smaller model, extra prediction heads, or n-gram prompt lookup) drafts candidates and an exact rejection-sampling rule accepts the valid prefix and corrects the first mismatch. In exact arithmetic, the output matches sampling from the target model alone in distribution.
+That is <span data-glossary="speculative-decoding">speculative decoding</span>.[^leviathan2023][^chen2023a] Whereas deploying a [small language model](/learn/local-llm-deployment-hardware-quantization) directly trades away quality for speed, here a cheap proposer (a smaller model, extra prediction heads, or n-gram prompt lookup) drafts candidates and an exact rejection-sampling rule accepts the valid prefix and corrects the first mismatch. In exact arithmetic, the output matches sampling from the target model alone in distribution.
 
 ## Why memory bandwidth throttles autoregressive decoding
 

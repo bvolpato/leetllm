@@ -1,0 +1,1634 @@
+version: 1
+id: cuda-execution
+title: When Is a CUDA Result Ready?
+source: foundations/cuda-gpu-computing-for-ml/content.md
+sources:
+  - title: NVIDIA CUDA Programming Guide, Writing SIMT Kernels
+    url: https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/writing-cuda-kernels.html
+  - title: NVIDIA CUDA Programming Guide, Asynchronous Execution
+    url: https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/asynchronous-execution.html
+  - title: NVIDIA CUDA Best Practices Guide
+    url: https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html
+  - title: PyTorch CUDA semantics
+    url: https://docs.pytorch.org/docs/stable/notes/cuda.html
+  - title: PyTorch Adam
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.optim.Adam.html
+  - title: NVIDIA nvidia-smi field definitions
+    url: https://docs.nvidia.com/deploy/nvidia-smi/index.html
+  - title: PyTorch AMP
+    url: https://docs.pytorch.org/docs/2.15/amp.html
+  - title: PyTorch floating-point type information
+    url: https://docs.pytorch.org/docs/2.15/type_info.html
+  - title: PyTorch CrossEntropyLoss, integer targets and mean reduction
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.nn.CrossEntropyLoss.html
+  - title: PyTorch pinned memory and nonblocking copy contracts
+    url: https://docs.pytorch.org/tutorials/intermediate/pinmem_nonblock.html
+  - title: Nsight Compute Roofline and resource profiling
+    url: https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html
+  - title: Compute Sanitizer
+    url: https://docs.nvidia.com/compute-sanitizer/ComputeSanitizer/index.html
+scenes:
+  - id: intro
+    title: When can Python print the mean?
+    visual: >-
+      Start the mean on a row already on the GPU. The first call returns a CUDA tensor at two
+      milliseconds. Hold the clock there, then follow the scalar read until the number reaches Python.
+    beats:
+      - say: >-
+          Run mean on these eight GPU values. Two milliseconds later, Python has a CUDA tensor.
+          Can Python print the number yet?
+        hold: 2.5
+        visual_cues:
+          - id: start-clock
+            phrase: "Run mean on these eight GPU values"
+            targets: [gpu-input, mean-call]
+            color: cyan
+            linger: 0.25
+          - id: host-return
+            phrase: "Two milliseconds later"
+            targets: [host-receipt]
+            color: blue
+            linger: 0.35
+          - id: opening-prediction
+            phrase: "Can Python print the number yet"
+            targets: [print-value]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          The next operation on the same GPU stream can use the tensor when its turn comes.
+          For a Python number, call item. Watch the GPU finish the mean while Python waits.
+          Now the number comes back. Two point six two five.
+        hold: 1.4
+        caption_starts:
+          - "For a Python number"
+          - "Now the number comes back"
+        visual_cues:
+          - id: read-call
+            phrase: "For a Python number, call item"
+            targets: [print-value]
+            color: yellow
+            linger: 0.35
+          - id: stream-advances
+            phrase: "Watch the GPU finish the mean while Python waits"
+            targets: [event-receipt, host-receipt]
+            color: cyan
+            linger: 0.35
+          - id: number-returns
+            phrase: "Now the number comes back"
+            targets: [print-value]
+            color: green
+            linger: 0.35
+  - id: residence
+    title: Where are the eight values?
+    visual: >-
+      Rewind to the CPU row. The eight payloads cross into a separate CUDA allocation before Python
+      queues the mean.
+    beats:
+      - say: >-
+          Rewind to the copy that put those values on the GPU. Python has the row in CPU memory. Copy
+          the row into device memory and look at token six on both sides. Its value is still one. Its
+          residence changes. On this discrete GPU there are now two allocations, each with the same
+          eight numbers.
+        hold: 0.55
+        visual_cues:
+          - id: copy-row
+            phrase: "Copy the row into device memory"
+            targets: [copy-payloads]
+            color: cyan
+            linger: 0.35
+          - id: device-residence
+            phrase: "Its residence changes"
+            targets: [device-row]
+            color: green
+            linger: 0.35
+      - say: >-
+          The last line asks for the mean of the floating-point copy. Python queues device work.
+          PyTorch launches a function across threads on the NVIDIA GPU. A function launched this
+          way is called a CUDA kernel. Before we give this GPU the
+          whole classifier, check the PyTorch build and CUDA availability where the program actually
+          runs.
+        hold: 0.7
+        visual_cues:
+          - id: queue-mean
+            phrase: "Python queues device work"
+            targets: [placement-code]
+            color: yellow
+            linger: 0.35
+          - id: process-check
+            phrase: "check the PyTorch build and CUDA availability"
+            targets: [process-checks]
+            color: blue
+            linger: 0.35
+  - id: stack-contract
+    title: Which CUDA version did you check?
+    visual: >-
+      Read three fields on one host. Compare two Python environments with the same failed availability
+      test. Follow physical GPU 3 into the process that sees it as cuda:0.
+    beats:
+      - say: >-
+          Suppose the driver lists your GPU. Read the CUDA version in the driver header. That's the
+          newest CUDA version the driver supports. Its name in the documentation is CUDA UMD Version.
+          Ask the compiler for its version if you're building an extension or compiling from source.
+          For a prebuilt package, ask PyTorch what it was built with. Those three answers can differ
+          on the same machine.
+        hold: 0.6
+        visual_cues:
+          - id: stack-driver
+            phrase: "Read the CUDA version in the driver header"
+            targets: [stack-contract-construction]
+            color: blue
+            linger: 0.35
+          - id: stack-compiler
+            phrase: "Ask the compiler for its version"
+            targets: [stack-contract-construction]
+            color: blue
+            linger: 0.35
+          - id: stack-build
+            phrase: "ask PyTorch what it was built with"
+            targets: [stack-contract-construction]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Now the driver sees the GPU, but Python says CUDA is unavailable. Read the package's build
+          field. None means this copy of PyTorch was built without CUDA. Try the other Python
+          environment. It has a CUDA build and the same failed availability test. Here you'd check
+          driver compatibility, container access and which devices this process can see.
+        hold: 0.7
+        caption_starts:
+          - "None means"
+          - "It has a CUDA build"
+        visual_cues:
+          - id: stack-no-build
+            phrase: "Read the package's build field"
+            targets: [stack-contract-construction]
+            color: blue
+            linger: 0.35
+          - id: stack-unavailable
+            phrase: "Try the other Python environment"
+            targets: [stack-contract-construction]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Say the process gets just the fourth card on this host. Follow physical GPU three inside.
+          The first device the process can see is called CUDA zero. Check the device name there. If a
+          kernel still fails on that card, compare its compute capability with the hardware targets in
+          the package and any extension. Then run the operation and check its output.
+        hold: 0.7
+        visual_cues:
+          - id: stack-logical
+            phrase: "Follow physical GPU three inside"
+            targets: [stack-contract-construction]
+            color: green
+            linger: 0.35
+  - id: ticket-step
+    title: Which tensor does the loss still need?
+    visual: >-
+      Pool one column of the four-ticket batch. Try the loss with CPU labels, then move the labels
+      across the device boundary and finish the SGD step.
+    beats:
+      - say: >-
+          That row was one feature of one ticket. Here it is down the first column. Average the eight
+          positions in each column. One ticket now has sixteen features, and there are four tickets.
+          The linear layer gives each ticket three scores, called logits. Each score takes sixteen
+          weights and a bias. That's fifty-one parameters for the layer.
+        hold: 0.65
+        visual_cues:
+          - id: ticket-pool
+            phrase: "Average the eight positions in each column"
+            targets: [ticket-step-construction]
+            color: cyan
+            linger: 0.35
+          - id: ticket-logits
+            phrase: "Each score takes sixteen weights and a bias"
+            targets: [ticket-step-construction]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          These three tensors use FP32. Count four bytes for each input value, each pooled feature
+          and each logit. Look at the labels below. Each of those four class numbers is an eight-byte
+          integer. Together they take thirty-two bytes. Now try the loss. It needs one label for each
+          row of scores. The shapes match. Which tensor would you move?
+        hold: 2.2
+        visual_cues:
+          - id: ticket-byte-count
+            phrase: "Count four bytes for each input value, each pooled feature and each logit"
+            targets: [tensor-sizes]
+            color: cyan
+            linger: 0.35
+          - id: ticket-label-bytes
+            phrase: "Each of those four class numbers is an eight-byte integer"
+            targets: [ticket-labels]
+            color: blue
+            linger: 0.35
+          - id: ticket-label-failure
+            phrase: "Now try the loss"
+            targets: [loss-input, ticket-labels]
+            color: pink
+            linger: 0.35
+      - say: >-
+          Copy the four labels to the device holding the scores. Cross-entropy can now use each
+          integer label to pick out its ticket's class. If the features had stayed on the CPU, the
+          forward pass would have failed one operation earlier. A wait can't move either tensor.
+        hold: 0.8
+        visual_cues:
+          - id: ticket-move-labels
+            phrase: "Copy the four labels to the device holding the scores"
+            targets: [ticket-labels, loss-input]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Run the loss, work backward, check that the loss and gradients are finite, then take one
+          stochastic gradient descent step. These random features let us test the code through a weight update.
+          To find out whether the classifier routes tickets correctly, we'd need real labeled
+          examples. Keep the finite checks outside a throughput measurement. Reading their results in
+          Python can make it wait.
+        hold: 0.75
+        visual_cues:
+          - id: ticket-complete
+            phrase: "Run the loss, work backward, check that the loss and gradients are finite, then take one stochastic gradient descent step"
+            targets: [ticket-step-construction]
+            color: green
+            linger: 0.35
+  - id: mapping
+    title: Who owns token six?
+    visual: >-
+      Eight token identities stay in order as the row separates into two blocks. A larger launch
+      leaves two workers beyond the last input.
+    beats:
+      - say: >-
+          Let's build a small kernel for the ticket. Give each token one thread. Put four threads in a
+          block, and call the set of blocks in the launch a grid. Watch token six as the row separates
+          into two blocks. Which local thread owns it?
+        hold: 2.1
+        visual_cues:
+          - id: split-blocks
+            phrase: "row separates into two blocks"
+            targets: [owned-tokens]
+            color: cyan
+            linger: 0.35
+          - id: predict-owner
+            phrase: "Which local thread owns it"
+            targets: [owner-calculation]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Block one starts after four positions. Add local thread two and you reach position six. The
+          same rule works across this one-dimensional grid. Multiply the block index by its width,
+          then add the local thread index. A whole block runs on one streaming multiprocessor, where
+          its threads can cooperate. Either block might run first.
+        hold: 0.7
+        visual_cues:
+          - id: owner-base
+            phrase: "Block one starts after four positions"
+            targets: [owner-calculation]
+            color: blue
+            linger: 0.35
+          - id: owner-answer
+            phrase: "Add local thread two and you reach position six"
+            targets: [owner-calculation, owned-tokens]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Give the ticket two more tokens. Now three four-thread blocks cover the row. Workers ten and
+          eleven have no input address. A bounds check protects those accesses. Keep those threads in
+          mind when we ask them to cooperate with the rest of their block.
+        hold: 0.7
+        visual_cues:
+          - id: extend-launch
+            phrase: "three four-thread blocks"
+            targets: [owned-tokens]
+            color: blue
+            linger: 0.35
+          - id: guard-tail
+            phrase: "bounds check protects those accesses"
+            targets: [guarded-workers]
+            color: pink
+            linger: 0.35
+  - id: warps
+    title: Where does a new warp start?
+    visual: >-
+      Pack threads into 32-lane warps without crossing block boundaries. With 36 threads, four spill
+      into a second warp.
+    beats:
+      - say: >-
+          A warp is a group of threads the GPU schedules together. Each row has thirty-two lanes,
+          all for one block. Put the first four threads in the top row. Where does thread zero of
+          the next block go? It starts a new warp. Each block uses four lanes in its own row.
+        hold: 0.7
+        visual_cues:
+          - id: populate-warps
+            phrase: "Put the first four threads in the top row"
+            targets: [warp-membership]
+            color: cyan
+            linger: 0.35
+          - id: next-block-warp
+            phrase: "It starts a new warp"
+            targets: [warp-membership]
+            color: pink
+            linger: 0.35
+      - say: >-
+          Try one block of thirty-six threads. The first thirty-two fill one warp. The remaining four
+          enter the next. Threads thirty-one and thirty-two are neighbors in the block but sit on
+          opposite sides of that boundary. Even in a full warp, different branches can leave some
+          lanes inactive while the others execute a path.
+        hold: 0.8
+        visual_cues:
+          - id: larger-block
+            phrase: "first thirty-two fill one warp"
+            targets: [warp-membership]
+            color: blue
+            linger: 0.35
+          - id: warp-remainder
+            phrase: "remaining four enter the next"
+            targets: [warp-membership]
+            color: yellow
+            linger: 0.35
+  - id: coalescing
+    title: How many segments does one warp load touch?
+    visual: >-
+      Trace one warp load from eight logical values to their byte addresses. Change the spacing
+      between words and count the aligned segments the load touches in each layout.
+    beats:
+      - say: >-
+          Take eight active lanes in one warp on a GPU with compute capability six or newer. In one
+          load instruction they read eight consecutive four-byte words. Start the first word on a
+          thirty-two-byte boundary. Follow the addresses from zero to twenty-eight. They fit in a
+          single segment. That's coalescing. Suppose we lay out the same values thirty-two words
+          apart. Predict the footprint.
+        hold: 2.2
+        visual_cues:
+          - id: collect-adjacent
+            phrase: "Follow the addresses from zero to twenty-eight"
+            targets: [memory-routes, segment-receipt]
+            color: cyan
+            linger: 0.35
+          - id: predict-segments
+            phrase: "Predict the footprint"
+            targets: [segment-receipt]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Spread the same eight values down a column. Lane zero still reads byte zero. Lane one used
+          to read byte four. Now it reads byte one hundred twenty-eight, a stride of one hundred
+          twenty-eight bytes from lane zero. Each lane now touches its own segment. The lanes use
+          thirty-two bytes across two hundred fifty-six bytes of segments. Caches affect how much
+          traffic goes farther.
+        hold: 0.7
+        caption_starts:
+          - "Each lane now touches its own segment"
+        visual_cues:
+          - id: fan-segments
+            phrase: "Spread the same eight values down a column"
+            targets: [memory-routes, segment-receipt]
+            color: pink
+            linger: 0.35
+      - say: >-
+          Restore adjacent requests and the routes converge. A kernel that needs a column can first
+          load convenient rows into a tile, then read the column locally. The useful values survive
+          the rearrangement. Now check the addresses inside the tile.
+        hold: 0.7
+        visual_cues:
+          - id: restore-segments
+            phrase: "Restore adjacent requests and the routes converge"
+            targets: [memory-routes, segment-receipt]
+            color: cyan
+            linger: 0.35
+  - id: banks
+    title: Which requests can a bank serve together?
+    visual: >-
+      Route distinct words to one bank, then pad the tile. Replay the fan-in with eight requests for
+      exactly the same word.
+    beats:
+      - say: >-
+          Shared memory is split into banks. In the standard layout here, successive four-byte words
+          go to successive banks, then wrap at thirty-two. Send these different words to bank zero.
+          Every lane wants a different address from that one bank, so it takes turns serving them.
+          What would one extra column do to the routes?
+        hold: 2
+        visual_cues:
+          - id: bank-conflict
+            phrase: "Send these different words to bank zero"
+            targets: [bank-routes, bank-receipt]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Add one padding column to each row. The stride is now thirty-three words. Move each request
+          to its new bank. The lanes still read the same logical column, but now different banks can
+          serve them together. Suppose instead that all eight lanes read exactly the same word.
+        hold: 1.4
+        caption_starts:
+          - "but now different banks can serve them together"
+        visual_cues:
+          - id: pad-banks
+            phrase: "Move each request to its new bank"
+            targets: [bank-routes, bank-receipt]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Trace eight requests for word zero. They meet at a single address. Those requests can
+          broadcast one value to every lane. That's why we counted different words inside each bank.
+          The number of arrows pointing at the bank alone couldn't distinguish the two cases.
+        hold: 0.8
+        visual_cues:
+          - id: broadcast-word
+            phrase: "Trace eight requests for word zero"
+            targets: [bank-routes, bank-receipt]
+            color: yellow
+            linger: 0.35
+  - id: storage-scope
+    title: Which addresses share the work?
+    visual: >-
+      Load four words into a block tile. Use a new eight-word tile to trace word seven to its bank.
+      Slide a full warp of reads across global segments, then group distinct shared words by bank.
+    beats:
+      - say: >-
+          Here's the original feature row again, in device global memory where all the streaming
+          multiprocessors can reach it. Load the first four words into a tile. Threads in this block
+          share that copy. A single thread can keep its running sum in registers. The hardware manages
+          the caches. Moving the tensor to CUDA gave the kernel a global allocation. The kernel
+          chooses which words to bring closer.
+        hold: 0.75
+        visual_cues:
+          - id: storage-working-set
+            phrase: "Load the first four words into a tile"
+            targets: [storage-scope-construction]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Follow lane seven in the global row, starting the row at byte zero. Each word is four bytes
+          wide, so word seven starts at byte twenty-eight. Divide the byte address by thirty-two and
+          round down. That's segment zero. Now load all eight words into a new shared tile, with word
+          zero in bank zero. To find the bank for word seven, take the word index modulo thirty-two.
+          Seven modulo thirty-two is seven. Lane seven reads bank seven.
+        hold: 0.7
+        visual_cues:
+          - id: storage-segment
+            phrase: "Divide the byte address by thirty-two and round down"
+            targets: [storage-scope-construction]
+            color: blue
+            linger: 0.35
+          - id: storage-eight-words
+            phrase: "load all eight words into a new shared tile"
+            targets: [storage-eight-word-tile]
+            color: cyan
+            linger: 0.25
+          - id: storage-bank
+            phrase: "Seven modulo thirty-two is seven"
+            targets: [storage-eight-word-tile]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Try a full warp. Each of the thirty-two lanes reads one consecutive word. Starting at byte
+          zero, those words fill four segments. Keep all the lanes together and start the row at byte
+          twenty-eight instead. Before we slide it, how many segments will the warp touch?
+        hold: 2.4
+        visual_cues:
+          - id: storage-stride
+            phrase: "how many segments will the warp touch"
+            targets: [global-window]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Slide the window seven words to the right. Now the first segment supplies only its last
+          word, and the row spills into a fifth segment. The lanes still use a hundred twenty-eight
+          bytes. The segments cover a hundred sixty. A cache hit can change how many bytes actually
+          travel to device memory.
+        hold: 0.85
+        caption_starts:
+          - "a fifth segment"
+        visual_cues:
+          - id: storage-offset
+            phrase: "Slide the window seven words to the right"
+            targets: [global-window]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Try one more column in shared memory, this time with a stride of thirty-four words. Send the
+          lanes to their banks in order. Each jump advances two banks after wrapping around. Lane
+          sixteen comes back to bank zero carrying a different word from lane zero. The even banks
+          each have two distinct words to serve, and the odd banks are empty. That's a two-way
+          conflict.
+        hold: 0.85
+        visual_cues:
+          - id: storage-bank-pairs
+            phrase: "Send the lanes to their banks in order"
+            targets: [bank-stacks]
+            color: yellow
+            linger: 0.35
+  - id: barrier
+    title: Can thread zero trust the sum?
+    visual: >-
+      Show four stores and the instant thread zero tries to read. Leave the unsynchronized result
+      unknown. Replay with every thread at the block barrier before revealing the four readable
+      values.
+    beats:
+      - say: >-
+          Come back to the first four tokens. The threads publish their shared slots at different
+          times. Let thread zero read early. The pink mark is its read. Look at the writes still in
+          flight. What can that thread count on when it adds the four slots?
+        hold: 2.3
+        visual_cues:
+          - id: early-writes
+            phrase: "publish their shared slots at different times"
+            targets: [shared-writes]
+            color: blue
+            linger: 0.35
+          - id: early-reader
+            phrase: "Let thread zero read early"
+            targets: [reader-result]
+            color: pink
+            linger: 0.35
+      - say: >-
+          There's no defined sum. Thread zero's reads race with the other threads' writes, even
+          inside one warp. The question mark means the result is unreliable. A run might even print
+          the right number. Replay those same writes. Each thread publishes its value and reaches the
+          block barrier. Once all four arrive, let the reader through. Now it can safely add the four
+          values.
+        hold: 0.9
+        visual_cues:
+          - id: barrier-replay
+            phrase: "Replay those same writes"
+            targets: [shared-writes]
+            color: blue
+            linger: 0.35
+          - id: barrier-publish
+            phrase: "Each thread publishes its value and reaches the block barrier"
+            targets: [shared-writes, barrier-arrivals]
+            color: cyan
+            linger: 0.35
+          - id: barrier-read
+            phrase: "let the reader through"
+            targets: [reader-result]
+            color: green
+            linger: 0.35
+      - say: >-
+          The second block produces its own subtotal. Its threads have their own shared memory and
+          their own barrier. Put a second kernel after the first in the same stream. It reads both
+          completed outputs, adds them, and divides by eight. The average now has an address on the
+          GPU. How soon can Python put it in the log?
+        hold: 1.1
+        visual_cues:
+          - id: second-subtotal
+            phrase: "second block produces its own subtotal"
+            targets: [block-subtotals]
+            color: cyan
+            linger: 0.35
+          - id: join-subtotals
+            phrase: "reads both completed outputs, adds them"
+            targets: [block-subtotals, device-pooled]
+            color: blue
+            linger: 0.35
+          - id: pool-device
+            phrase: "divides by eight"
+            targets: [device-pooled]
+            color: green
+            linger: 0.35
+  - id: clocks
+    title: Which clock can we stop?
+    visual: >-
+      Replay ticket 102 on the opening clock. The submission stays fixed while the stream and host
+      reach their distinct endpoints. A separate warmup run supplies two completed samples.
+    beats:
+      - say: >-
+          Here's the opening run again. Python finishes queueing at two milliseconds. The GPU
+          continues along the lower track. We could queue the next layer on that stream right now. Its
+          place in line keeps it behind the mean.
+        hold: 0.7
+        visual_cues:
+          - id: advance-enqueue
+            phrase: "finishes queueing at two milliseconds"
+            targets: [host-receipt]
+            color: blue
+            linger: 0.35
+          - id: continue-device
+            phrase: "The GPU continues along the lower track"
+            targets: [event-receipt, host-receipt]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Suppose Python asked for the number as soon as the call returned. Let the device finish. The
+          two dots on the stream are CUDA events. Forty milliseconds passed between them. Now read the
+          scalar. The host clock includes submitting, waiting and getting the number back. That's
+          forty-two milliseconds from its own start.
+        hold: 0.9
+        caption_starts:
+          - "Forty milliseconds"
+          - "That's forty-two milliseconds"
+        visual_cues:
+          - id: finish-device
+            phrase: "Let the device finish"
+            targets: [event-receipt]
+            color: cyan
+            linger: 0.35
+          - id: report-scalar
+            phrase: "Now read the scalar"
+            targets: [host-scalar, host-receipt]
+            color: green
+            linger: 0.35
+      - say: >-
+          Here's a fresh series of calls. For a steady-state timing, exclude the setup-heavy first
+          call. Count only completed warmed samples in the mean. Both samples take eight milliseconds
+          here. Use representative shapes on the actual machine, and keep the warmup and the
+          measurement boundaries the same when you compare runs.
+        hold: 0.7
+        visual_cues:
+          - id: warmup-complete
+            phrase: "exclude the setup-heavy first call"
+            targets: [warmup-trace]
+            color: blue
+            linger: 0.35
+          - id: warmed-samples
+            phrase: "Count only completed warmed samples in the mean"
+            targets: [warmup-trace, warmed-mean]
+            color: cyan
+            linger: 0.35
+  - id: budget
+    title: What stays in memory for one Adam weight?
+    visual: >-
+      Build the parameter-state budget from a weight, its gradient and two Adam moments. Scale the
+      same accounting to a billion parameters.
+    beats:
+      - say: >-
+          We got one feature out of the device. What would the GPU have to hold to train the
+          classifier? Follow one full-precision Adam parameter. Four bytes for its weight, four for
+          its gradient, and eight for two moments. Adam keeps a running average of gradients and
+          another of squared gradients. When all four values are present, they've used sixteen bytes
+          for one parameter.
+        hold: 0.7
+        visual_cues:
+          - id: weight-bytes
+            phrase: "Four bytes for its weight"
+            targets: [parameter-budget]
+            color: blue
+            linger: 0.35
+          - id: gradient-bytes
+            phrase: "four for its gradient"
+            targets: [parameter-budget]
+            color: cyan
+            linger: 0.35
+          - id: moment-bytes
+            phrase: "eight for two moments"
+            targets: [parameter-budget]
+            color: pink
+            linger: 0.35
+      - say: >-
+          Scale that ledger to a billion parameters. Sixteen billion bytes is about fourteen point
+          nine gibibytes. To get gibibytes, divide by one thousand twenty-four cubed. Activations and
+          workspaces add to it. Loading the weights only tests the first allocation. Saved activations
+          can exhaust memory later. PyTorch Adam creates a parameter's two moments on the first step
+          where that parameter has a gradient. For our classifier, that's the first update.
+        hold: 0.7
+        visual_cues:
+          - id: scale-budget
+            phrase: "Scale that ledger to a billion parameters"
+            targets: [scaled-budget]
+            color: yellow
+            linger: 0.35
+          - id: activation-budget
+            phrase: "Activations and workspaces add to it"
+            targets: [additional-memory]
+            color: cyan
+            linger: 0.35
+          - id: adam-first-gradient
+            phrase: "the first step where that parameter has a gradient"
+            targets: [adam-moments]
+            color: pink
+            linger: 0.35
+  - id: activation-budget
+    title: Which change removes more attention scores?
+    visual: >-
+      Compare equal-sized score cells on two copies of four grids. Remove whole examples from one and
+      trim both position axes on the other.
+    beats:
+      - say: >-
+          Take a larger batch with the dimensions on screen. Multiply the three dimensions by four
+          bytes per float. That's twelve mebibytes just to get the features onto the GPU. Backward
+          still needs some of the activations from forward. Gradients, workspaces and the optimizer
+          also need space. That's how a model can load and then run out of memory during training.
+        hold: 0.65
+        caption_starts:
+          - "That's twelve mebibytes"
+        visual_cues:
+          - id: activation-input
+            phrase: "Multiply the three dimensions by four bytes per float"
+            targets: [activation-budget-construction]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Our classifier averages its tokens. Now consider an attention layer that saves a score for
+          each pair of positions. Give each example its own grid for one attention head. Make two copies of
+          that batch. You could take half as many examples, or keep them all and halve their length.
+          Both choices halve the number of input positions. Which removes more scores?
+        hold: 2.5
+        visual_cues:
+          - id: activation-grid
+            phrase: "Give each example its own grid"
+            targets: [batch-grids, length-grids]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          First remove half the examples. Two complete grids disappear. On the other copy, shorten
+          every example. Each query row gets shorter and half the query rows disappear too. The first
+          copy keeps half the scores. The second keeps a quarter. This count applies when the backend
+          actually saves the full score grid.
+        hold: 0.85
+        caption_starts:
+          - "The first copy keeps half"
+          - "The second keeps a quarter"
+        visual_cues:
+          - id: activation-halving
+            phrase: "First remove half the examples"
+            targets: [batch-grids]
+            color: cyan
+            linger: 0.35
+          - id: activation-length
+            phrase: "shorten every example"
+            targets: [length-grids]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Now price that stored grid for a batch of thirty-two sequences, each two thousand
+          forty-eight tokens long. Count twelve heads in each of twelve layers and two bytes per
+          score. The scores alone take about thirty-eight point seven decimal gigabytes. Some
+          attention implementations avoid keeping the full grid. Check the backend and measure a
+          complete step with the longest input the model needs to handle.
+        hold: 0.7
+        caption_starts:
+          - "The scores alone take"
+        visual_cues:
+          - id: activation-large-grid
+            phrase: "Count twelve heads in each of twelve layers and two bytes per score"
+            targets: [activation-budget-construction]
+            color: yellow
+            linger: 0.35
+  - id: precision-slots
+    title: Which copy keeps the update?
+    visual: >-
+      Compare two stored copies on one fixed ruler near one. At the far end of the FP16 range, move
+      the input one unit across the nearest-even overflow threshold, then try 70,000 in three
+      formats. Bring back the small weight update beside those three results.
+    beats:
+      - say: >-
+          The optimizer has a new value to write. Take two copies of a weight at one. The upper copy
+          uses single precision, FP32. The lower one uses half precision, FP16. Subtract one
+          ten-thousandth from each. The yellow mark is where we want to land. Which stored weight will
+          move?
+        hold: 2.6
+        visual_cues:
+          - id: precision-small-update
+            phrase: "Subtract one ten-thousandth from each"
+            targets: [candidate]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Write the candidate into both copies. Now read them back.
+        hold: 1.35
+        visual_cues:
+          - id: precision-write
+            phrase: "Write the candidate into both copies"
+            targets: [stored-weights, candidate]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          The upper dot moved. The FP32 copy kept almost the whole update. The FP16 copy still reads
+          one. Find the next FP16 value below one. The yellow mark didn't even get halfway there, so
+          rounding picked one again. BF16 has a wider gap here and loses this update too. A
+          full-precision master weight can keep the change for the next step.
+        hold: 0.85
+        caption_starts:
+          - "The FP16 copy still reads one"
+        visual_cues:
+          - id: precision-spacing
+            phrase: "Find the next FP16 value below one"
+            targets: [half-neighbors, candidate]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Where do those gaps come from? Each square is a bit. Set aside one bit for the sign, then
+          divide the rest between exponent and fraction. The exponent sets the range. The fraction
+          sets the spacing at that scale. Look just above one this time. FP16 has ten fraction bits
+          and BF16 has seven, so BF16's step there is eight times as wide. Both take two bytes.
+        hold: 0.85
+        visual_cues:
+          - id: precision-bits
+            phrase: "divide the rest between exponent and fraction"
+            targets: [bit-layout, format-results]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Now look at the other end of the FP16 range. The last finite value is sixty-five thousand
+          five hundred four. Put the input fifteen units past that mark. With round-to-nearest-even,
+          it still rounds back to the last finite value. Move the input one unit farther. At
+          sixty-five thousand five hundred twenty, we're halfway to the next power of two. The tie
+          rounds up, and that power needs an exponent FP16 can't store. The result is infinity. Every
+          larger positive input overflows too.
+        hold: 1
+        caption_starts:
+          - "it still rounds back"
+          - "The result is infinity"
+        visual_cues:
+          - id: precision-last-finite
+            phrase: "Put the input fifteen units past that mark"
+            targets: [range-probe]
+            color: blue
+            linger: 0.35
+          - id: precision-overflow-tie
+            phrase: "Move the input one unit farther"
+            targets: [range-probe]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Store seventy thousand in each format. FP16 overflows. BF16 has the range to hold a
+          nearby value. Now compare the small update beside it. Both sixteen-bit weights rounded
+          back to one. Only the FP32 weight moved.
+        hold: 1.4
+        caption_starts:
+          - "Now compare the small update"
+        visual_cues:
+          - id: precision-range
+            phrase: "Store seventy thousand in each format"
+            targets: [format-results]
+            color: yellow
+            linger: 0.35
+          - id: precision-compare-update
+            phrase: "Now compare the small update beside it"
+            targets: [update-results]
+            color: cyan
+            linger: 0.35
+  - id: large-model-budget
+    title: What changes when we split the batch?
+    visual: >-
+      Keep a 24 GB limit fixed as the parameter and activation bars grow. For a model whose fixed
+      state fits, split two tickets into two microbatches. Divide both loss sums by the full token
+      count. Repeat with class weights, then ignore one target and decide whether to update.
+    beats:
+      - say: >-
+          Now put a price on those two bytes. Your GPU has twenty-four gigabytes. Load seven billion
+          weights at two bytes each. They fit. Before you send in the first batch, would you bet that
+          you can train this model by making the batch small enough?
+        hold: 2.3
+        visual_cues:
+          - id: large-weights
+            phrase: "Load seven billion weights at two bytes each"
+            targets: [budget-stack, budget-total]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Add a gradient for every weight. The bar crosses the line during backward, even if the
+          activations cost nothing. Now add Adam's two running averages. That's fifty-six gigabytes of
+          parameter state under this generous assumption that all four arrays use two bytes per value.
+        hold: 1
+        caption_starts:
+          - "That's fifty-six gigabytes"
+          - "The bar crosses the line during backward"
+        visual_cues:
+          - id: large-gradients
+            phrase: "Add a gradient for every weight"
+            targets: [budget-stack, budget-total]
+            color: cyan
+            linger: 0.35
+          - id: large-moments
+            phrase: "add Adam's two running averages"
+            targets: [budget-stack, budget-total]
+            color: pink
+            linger: 0.35
+      - say: >-
+          What if autocast chooses half precision for a matrix multiply but keeps the weights in full
+          precision? Give each weight, gradient and moment four bytes. The bar doubles to one hundred
+          twelve gigabytes. To budget your own run, inspect the optimizer and the dtypes of the
+          tensors it keeps, including extra copies or any state split across devices.
+        hold: 0.7
+        visual_cues:
+          - id: large-fp32
+            phrase: "Give each weight, gradient and moment four bytes"
+            targets: [budget-stack, budget-total]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Go back to two-byte storage. Suppose the batch keeps eight gigabytes of activations. Cut
+          those activations in half. The fixed state still crosses the line. For this model we need
+          room for that state first. If we shorten the sequences, we may also lose context the task
+          needs.
+        hold: 0.85
+        visual_cues:
+          - id: large-fixed-floor
+            phrase: "Cut those activations in half"
+            targets: [budget-stack, budget-total]
+            color: green
+            linger: 0.35
+      - say: >-
+          Now take a model whose fixed state fits. We can accumulate gradients over smaller batches,
+          then update once. For our ticket mean, each ticket counts once. Switch to a loss that
+          averages valid tokens. Split two tickets into separate microbatches. The first has one
+          valid token with loss one. The second has three, each with loss three. If we put the
+          tickets back together, what's the mean loss per token?
+        hold: 2.5
+        visual_cues:
+          - id: micro-first
+            phrase: "one valid token with loss one"
+            targets: [loss-tokens]
+            color: blue
+            linger: 0.35
+          - id: micro-second
+            phrase: "three, each with loss three"
+            targets: [loss-tokens]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Count all four valid tokens. Add the losses on each ticket. The first sums to one and the
+          second sums to nine. Divide each sum by four before backward. The two contributions add
+          up to two and a half, the mean loss per token. Accumulate their gradients and take one
+          optimizer step.
+        hold: 1
+        caption_starts:
+          - "The two contributions add up"
+        visual_cues:
+          - id: micro-denominator
+            phrase: "Count all four valid tokens"
+            targets: [loss-tokens]
+            color: yellow
+            linger: 0.35
+          - id: micro-sums
+            phrase: "The first sums to one and the second sums to nine"
+            targets: [loss-sums]
+            color: blue
+            linger: 0.35
+          - id: micro-divide
+            phrase: "Divide each sum by four before backward"
+            targets: [loss-sums, combined-loss]
+            color: yellow
+            linger: 0.35
+          - id: micro-mean
+            phrase: "add up to two and a half"
+            targets: [combined-loss]
+            color: green
+            linger: 0.35
+      - say: >-
+          Now give each ticket one integer class label. We're using class-weighted cross-entropy.
+          Both tickets get two equal scores, so each target has probability one half. Its loss
+          before weighting is the natural log of two. Give the first ticket's class weight zero
+          and the second one's weight one. What does the first ticket contribute to backward?
+        hold: 2.6
+        visual_cues:
+          - id: equal-scores
+            phrase: "Both tickets get two equal scores"
+            targets: [ticket-scores]
+            color: blue
+            linger: 0.35
+          - id: base-loss
+            phrase: "Its loss before weighting is the natural log of two"
+            targets: [raw-loss]
+            color: cyan
+            linger: 0.35
+          - id: micro-weight-units
+            phrase: "Give the first ticket's class weight zero and the second one's weight one"
+            targets: [target-weights]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Ticket A's weighted loss sum is zero. Try its own mean and you get zero divided by zero.
+          Now add the weights of all the targets we keep across the full batch. Here the total
+          weight is one. Divide each microbatch's weighted loss sum by
+          that same total before backward. Watch the divisor on ticket A. Zero divided by one gives
+          zero. Only the second ticket contributes a gradient. Together the tickets give a mean
+          loss of about point six nine three.
+        hold: 1.2
+        caption_starts:
+          - "Here the total weight is one"
+          - "Zero divided by one gives zero"
+          - "Together the tickets"
+        visual_cues:
+          - id: weighted-sums
+            phrase: "Ticket A's weighted loss sum is zero"
+            targets: [weighted-losses]
+            color: blue
+            linger: 0.35
+          - id: local-mean
+            phrase: "Try its own mean and you get zero divided by zero"
+            targets: [ticket-a-division]
+            color: pink
+            linger: 0.35
+          - id: weighted-total
+            phrase: "add the weights of all the targets we keep"
+            targets: [target-weights, full-weight]
+            color: yellow
+            linger: 0.35
+          - id: weighted-backward
+            phrase: "Divide each microbatch's weighted loss sum by that same total before backward"
+            targets: [weighted-losses, loss-update]
+            color: green
+            linger: 0.35
+      - say: >-
+          Keep the scores and class weights. This time ignore the second target. That leaves the
+          first ticket with weight zero. Should the optimizer still take a step?
+        hold: 2.6
+        visual_cues:
+          - id: ignore-target
+            phrase: "ignore the second target"
+            targets: [target-weights, weighted-losses]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Check the full batch first. Its total weight is zero, so the mean is undefined. Skip the
+          update. You would do the same if every target were ignored.
+        hold: 1.3
+        caption_starts:
+          - "Skip the update"
+        visual_cues:
+          - id: no-target-weight
+            phrase: "Its total weight is zero"
+            targets: [full-weight]
+            color: yellow
+            linger: 0.35
+          - id: skip-update
+            phrase: "Skip the update"
+            targets: [loss-update]
+            color: pink
+            linger: 0.35
+  - id: precision-controls
+    title: Which precision change touched the result?
+    visual: >-
+      Scale a tiny gradient, trace two different causes of a NaN, then switch the input precision of
+      one illustrative matrix-product term while keeping the tensor storage visible.
+    beats:
+      - say: >-
+          Keep the master weight in full precision. PyTorch autocast can still choose lower precision
+          for individual operations. Look at this tiny gradient. Storing it directly in FP16 rounds it
+          to zero. Scale the loss, carry that scale through backward, then unscale the gradients in
+          full precision before the update. At this scale the intermediate gradient fits. We still
+          need finite loss, finite gradients and a check on the task itself.
+        hold: 0.75
+        visual_cues:
+          - id: amp-unscale
+            phrase: "Scale the loss, carry that scale through backward, then unscale the gradients in full precision"
+            targets: [precision-controls-construction]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Both calculations end in NaN. Trace the first value that goes wrong in each run.
+          On the left, a product overflows and we subtract infinity from itself. On the right, a tiny
+          value rounds to zero and we divide zero by zero. Both examples recover in full precision. If
+          turning off mixed precision fixes a run, check the actual dtypes, scaling, kernels and
+          reductions to find which operation failed.
+        hold: 0.8
+        visual_cues:
+          - id: amp-diagnosis
+            phrase: "Trace the first value that goes wrong in each run"
+            targets: [precision-controls-construction]
+            color: pink
+            linger: 0.35
+      - say: >-
+          Look at one output of a matrix multiply. Only this weight times one contributes to it.
+          The other products are zero. The input and output tensors both use float32 storage.
+          Switch the multiply inputs to TF32. Watch the bits in the middle. That small fraction
+          rounds away, even though the accumulator and output still use FP32. On a supported NVIDIA
+          GPU you can choose this TensorFloat mode for eligible operations. Record the matmul
+          precision setting, use a consistent set of PyTorch controls, and compare the result to
+          your tolerance before accepting a faster run.
+        hold: 0.8
+        visual_cues:
+          - id: tf32-storage
+            phrase: "Switch the multiply inputs to TF32"
+            targets: [precision-controls-construction]
+            color: yellow
+            linger: 0.35
+  - id: allocator-ledger
+    title: Which memory can the allocator give back?
+    visual: >-
+      Keep live tensors in place as two cached blocks leave. Keep the memory count visible while the
+      compute lane waits for another batch.
+    beats:
+      - say: >-
+          Your GPU tool reports eleven gibibytes. Follow the owners in this example. Eight belong to
+          live tensors. Two empty blocks still belong to PyTorch's cache. Count those ten together for
+          reserved memory. The last block is the CUDA context, outside that pool. On a real device the
+          driver can also see other allocations.
+        hold: 0.7
+        visual_cues:
+          - id: allocator-counts
+            phrase: "Count those ten together for reserved memory"
+            targets: [allocator-ledger-construction]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Call empty cache. Watch which blocks leave. Allocated memory stays at eight because the job
+          still holds those tensors. Reserved memory falls to eight, and the driver sees nine
+          including the context. The job could already reuse the cached blocks. Clearing them after
+          each layer can't free an activation that backward still needs.
+        hold: 0.75
+        visual_cues:
+          - id: allocator-return
+            phrase: "Watch which blocks leave"
+            targets: [allocator-ledger-construction]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Leave the weights in place and wait for the CPU to prepare the next batch. Watch the idle
+          interval and the short burst that follows. The memory count barely budges. A utilization
+          sample can miss that burst entirely. Check the timeline for late batches, copies or a host
+          wait before tuning the kernel.
+        hold: 0.7
+        visual_cues:
+          - id: allocator-idle
+            phrase: "Watch the idle interval and the short burst that follows"
+            targets: [allocator-ledger-construction]
+            color: cyan
+            linger: 0.35
+  - id: copy-dependencies
+    title: When can the second batch start?
+    visual: >-
+      Use a common clock for the copy and compute streams. Give each batch a separate device input
+      buffer. Connect each copy-complete event to its own kernel and distinguish host refill from
+      device reuse.
+    beats:
+      - say: >-
+          Batch A and batch B are ready in pinned host memory. Pinning keeps those pages in place for
+          the transfer. A nonblocking copy lets Python continue when the hardware and runtime support
+          it. Follow both batches through one stream. Each copy takes three milliseconds and each
+          kernel takes seven in this example. Where could we put the second copy while the first
+          kernel is running?
+        hold: 2.15
+        visual_cues:
+          - id: copy-serial
+            phrase: "Follow both batches through one stream"
+            targets: [copy-schedule]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Give each batch its own device input buffer. Put the copies on a separate stream with a
+          free copy engine. Record an event after each copy. Have the compute stream wait for A's
+          event before launching A, and for B's event before launching B. Start copying B as soon as
+          A's copy finishes. Stop at six milliseconds. Both inputs have arrived. Can B's kernel start
+          here?
+        hold: 2.4
+        visual_cues:
+          - id: copy-buffers
+            phrase: "Give each batch its own device input buffer"
+            targets: [device-inputs]
+            color: cyan
+            linger: 0.35
+          - id: copy-start-a
+            phrase: "wait for A's event before launching A"
+            targets: [copy-schedule]
+            color: blue
+            linger: 0.35
+          - id: copy-overlap
+            phrase: "Start copying B as soon as A's copy finishes"
+            targets: [copy-schedule, device-inputs]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Look at the compute lane. A still owns it. Let A finish, then run B. A finishes at ten
+          milliseconds and B at seventeen. We saved three milliseconds against the serial schedule.
+          Check the timeline on your GPU to see whether the copy engine and compute actually
+          overlapped.
+        hold: 0.85
+        caption_starts:
+          - "A finishes at ten milliseconds"
+        visual_cues:
+          - id: copy-finish
+            phrase: "Let A finish, then run B"
+            targets: [copy-schedule, device-inputs]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Replay just the first two copies. Release each pinned source when its copy finishes. If the
+          CPU refills either buffer too soon, the GPU can receive part of the next batch. The input
+          on the device has a different lifetime. Keep it until its kernel finishes reading.
+        hold: 0.8
+        visual_cues:
+          - id: copy-ownership
+            phrase: "Release each pinned source when its copy finishes"
+            targets: [batch-ready, copy-schedule]
+            color: green
+            linger: 0.35
+      - say: >-
+          Reverse the direction. This time the CPU wants to read the copied feature. Wait for the
+          device-to-host transfer to finish. Now the host buffer is ready to read.
+        hold: 0.8
+        visual_cues:
+          - id: copy-readiness
+            phrase: "Wait for the device-to-host transfer to finish"
+            targets: [host-destination]
+            color: blue
+            linger: 0.35
+  - id: synthesis
+    title: Can fewer bytes raise the upper bound?
+    visual: >-
+      Hold the operation count and both hardware ceilings fixed. Move a kernel along the sloped
+      bandwidth limit until fewer bytes stop raising its upper bound.
+    beats:
+      - say: >-
+          Our kernel does a thousand floating-point operations and moves four thousand bytes beyond
+          the caches. Divide operations by bytes. That's a quarter of an operation per byte, its
+          arithmetic intensity. Multiply by the device's forty gigabytes per second. Even with perfect
+          use of that bandwidth, the work tops out at ten gigaflops per second. The lower of this
+          limit and the compute ceiling is the Roofline bound.
+        hold: 0.75
+        caption_starts:
+          - "That's a quarter of an operation per byte"
+        visual_cues:
+          - id: build-intensity
+            phrase: "Divide operations by bytes"
+            targets: [byte-ledger, roofline-point]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Reuse each load and reduce the bytes moved. Keep the thousand operations. At a thousand
+          bytes the point has climbed to forty gigaflops per second. If we could get all the way down
+          to two hundred fifty bytes, would this line keep climbing at the same rate?
+        hold: 2.1
+        visual_cues:
+          - id: reuse-bytes
+            phrase: "reduce the bytes moved"
+            targets: [byte-ledger, roofline-point]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Follow the point until it reaches the arithmetic ceiling. The last part of the trip is
+          horizontal. Once compute sets the bound, saving another byte can't raise that roof. A real
+          kernel can still run well below it. Check the output, then measure the whole step to see
+          what the reuse bought you.
+        hold: 0.8
+        caption_starts:
+          - "The last part of the trip is horizontal"
+        visual_cues:
+          - id: reach-compute
+            phrase: "Follow the point until it reaches the arithmetic ceiling"
+            targets: [byte-ledger, roofline-point]
+            color: yellow
+            linger: 0.35
+  - id: occupancy-resources
+    title: How many warps fit on one SM?
+    visual: >-
+      Fill warp slots on a hypothetical SM. Double the per-block shared tile, leave fewer blocks
+      resident and reuse eight global values for two passes.
+    beats:
+      - say: >-
+          Each square is a place for a warp on one hypothetical streaming multiprocessor. There are
+          sixty-four places, sixty-four kibibytes of shared memory and sixty-five thousand five
+          hundred thirty-six registers. Put one block of two hundred fifty-six threads on it. That
+          fills eight warp slots. At thirty-two registers per thread, the block also takes eight
+          thousand one hundred ninety-two registers.
+        hold: 0.65
+        visual_cues:
+          - id: occupancy-block
+            phrase: "Put one block of two hundred fifty-six threads on it"
+            targets: [occupancy-resources-construction]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Give each block a sixteen-kibibyte tile. Fill the SM until the shared memory runs out. Four
+          blocks fit, so thirty-two of the sixty-four warp slots are occupied. That fraction is called
+          occupancy. Now double the tile size while keeping the same threads. Two blocks fit.
+          Occupancy drops from one half to one quarter. Real hardware has allocation granularity and
+          other limits to check as well.
+        hold: 0.75
+        caption_starts:
+          - "Four blocks fit"
+          - "Two blocks fit"
+        visual_cues:
+          - id: occupancy-four
+            phrase: "Fill the SM until the shared memory runs out"
+            targets: [occupancy-resources-construction]
+            color: blue
+            linger: 0.35
+          - id: occupancy-two
+            phrase: "double the tile size while keeping the same threads"
+            targets: [occupancy-resources-construction]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Would you throw out the larger tile? Load our eight values once and read the shared copy
+          twice. Both passes got their inputs from the same eight global loads. Fewer resident warps
+          can make it harder to hide a stall, while reuse can save traffic. Check the answer and time
+          the whole step. The lower occupancy alone can't tell you which version wins.
+        hold: 0.8
+        visual_cues:
+          - id: occupancy-reuse
+            phrase: "Load our eight values once and read the shared copy twice"
+            targets: [occupancy-resources-construction]
+            color: cyan
+            linger: 0.35
+  - id: profile-choice
+    title: Where would you look first?
+    visual: >-
+      Select the kernel on a host and device timeline. Check a wrong sum against the reference. For
+      the repaired eight-value sum, line up two physical layouts beneath the same logical values.
+    beats:
+      - say: >-
+          Look at the gap before this GPU copy. Was the CPU still preparing the batch? Nsight Systems
+          puts host work, copies and streams on one timeline. Now select the kernel itself. Nsight
+          Compute can show which instructions stalled, how many warps were resident and how much data
+          moved. For a device-memory Roofline, use bytes beyond the caches and bandwidth at that same
+          level.
+        hold: 0.7
+        visual_cues:
+          - id: profile-kernel
+            phrase: "Now select the kernel itself"
+            targets: [profile-choice-construction]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          All eight loads in our teaching kernel are in bounds. Compare its sum with a trusted result.
+          Even legally addressed values can add up to the wrong answer if the code adds a one twice.
+          For a custom kernel, Compute Sanitizer also checks memory access, shared-memory races and
+          synchronization. Use both checks before you interpret a timing improvement.
+        hold: 0.75
+        visual_cues:
+          - id: profile-correctness
+            phrase: "Compare its sum with a trusted result"
+            targets: [profile-choice-construction]
+            color: pink
+            linger: 0.35
+      - say: >-
+          Now use the corrected sum. Keep the eight logical values and the lanes that read them. In
+          the first layout, consecutive lanes read words thirty-two positions apart. Pack the words
+          side by side in a second layout. Both start on a thirty-two-byte boundary. How many
+          segments does the warp load touch in the second layout?
+        hold: 2.15
+        visual_cues:
+          - id: profile-one-variable
+            phrase: "Pack the words side by side in a second layout"
+            targets: [profile-packed]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Trace the segment boundaries. All eight packed words fit in one segment. The strided layout
+          needed eight. Try the layout on your GPU. If you have to repack every batch, include that
+          time. In NVIDIA's assess, parallelize, optimize and deploy cycle, measure a representative
+          step, change one thing and check the output and whole-step time. Record the shape, device,
+          dtype, precision setting, warmup and timer endpoints.
+        hold: 0.85
+        caption_starts:
+          - "All eight packed words fit in one segment"
+        visual_cues:
+          - id: profile-segment-count
+            phrase: "Trace the segment boundaries"
+            targets: [profile-packed, profile-footprint]
+            color: yellow
+            linger: 0.35
+  - id: full-step-contract
+    title: What is the logging line waiting for?
+    visual: >-
+      Keep the kernel fixed and compare scalar reads starting at 2 and 32 milliseconds on the same
+      ruler. Mark the time spent waiting and the time spent reading. Then time a complete step.
+    beats:
+      - say: >-
+          Put all four tickets through one update. Check placement and shapes, take the forward loss
+          through backward, then update the weights. Try the longest input as well as a typical one.
+          Our small classifier used plain SGD. Switch it to Adam and the first update can allocate two
+          moments per weight. That extra allocation can fail even after backward succeeded.
+        hold: 0.75
+        visual_cues:
+          - id: full-step-checks
+            phrase: "Check placement and shapes, take the forward loss through backward, then update the weights"
+            targets: [full-step-contract-construction]
+            color: blue
+            linger: 0.35
+          - id: full-step-moments
+            phrase: "the first update can allocate two moments per weight"
+            targets: [full-step-contract-construction]
+            color: pink
+            linger: 0.35
+      - say: >-
+          A profile puts forty milliseconds on the call that reads the loss. Python asks at two.
+          The kernel finishes at forty-one, and the scalar takes one more millisecond to reach Python.
+          This time let Python do other work until thirty-two milliseconds, then read the same loss.
+          Look at how much of the kernel is left. Nine milliseconds of waiting and one to read.
+          That's ten milliseconds in the call. Python can also queue another operation on the same
+          CUDA stream. The GPU runs that operation after the loss is ready while Python continues.
+          A kernel error can surface at a later host wait. For debugging, launch blocking can reveal
+          the Python line that submitted the failing work. Turn it off before timing.
+        hold: 0.75
+        caption_starts:
+          - "Nine milliseconds of waiting"
+          - "That's ten milliseconds"
+        visual_cues:
+          - id: full-step-wait
+            phrase: "let Python do other work until thirty-two milliseconds"
+            targets: [later-read]
+            color: blue
+            linger: 0.25
+          - id: full-step-remaining
+            phrase: "Nine milliseconds of waiting and one to read"
+            targets: [later-read]
+            color: yellow
+            linger: 0.35
+          - id: full-step-read-time
+            phrase: "That's ten milliseconds in the call"
+            targets: [later-read]
+            color: yellow
+            linger: 0.25
+          - id: full-step-stream-use
+            phrase: "queue another operation on the same CUDA stream"
+            targets: [stream-consumer]
+            color: cyan
+            linger: 0.25
+      - say: >-
+          One more trap. There are five milliseconds of older work ahead of the step we want. Drain
+          the old work, start the host clock, and stop it after the target finishes. With CUDA events,
+          count the interval between the two recorded timestamps on the stream, including any gaps.
+          Decide whether the question includes copies and reporting, then keep those boundaries fixed.
+        hold: 0.85
+        visual_cues:
+          - id: full-step-boundary
+            phrase: "Drain the old work, start the host clock, and stop it after the target finishes"
+            targets: [full-step-contract-construction]
+            color: cyan
+            linger: 0.35
+  - id: transfer
+    title: Ten inputs go to twelve workers
+    visual: >-
+      Close the divisor bracket under the real zero at T9. Keep the exact fraction visible as Python
+      reads the stored FP32 value. Format the log separately.
+    beats:
+      - say: >-
+          Add six and zero to the original row. Three blocks of four threads now cover ten inputs. The
+          extra workers skip the array, publish neutral zeros, and still reach the barrier. Look at
+          the last block. Three of its contributions are zero. How many of those came from the ticket?
+          Predict the pooled feature.
+        hold: 2.6
+        visual_cues:
+          - id: final-tail
+            phrase: "extra workers skip the array, publish neutral zeros"
+            targets: [final-ownership]
+            color: yellow
+            linger: 0.35
+          - id: final-predict
+            phrase: "Predict the pooled feature"
+            targets: [final-result]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Combine the three completed subtotals. Token nine really was zero, so it counts in the
+          average. The two workers beyond it have no token to count. Divide by ten valid values. The
+          exact mean is two point seven. Is that the number Python will get when it reads this FP32
+          tensor?
+        hold: 2
+        caption_starts:
+          - "Token nine really was zero"
+        visual_cues:
+          - id: final-sums
+            phrase: "Combine the three completed subtotals"
+            targets: [final-ownership, final-result]
+            color: cyan
+            linger: 0.35
+          - id: final-divide
+            phrase: "Divide by ten valid values"
+            targets: [final-result, final-ownership]
+            color: cyan
+            linger: 0.35
+          - id: final-numeric-result
+            phrase: "The exact mean is two point seven"
+            targets: [final-result]
+            color: green
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Call item and wait for the device result. Python gets the stored float. It's a little above
+          the exact mean. Format the number to one decimal place for the log. That's where the short
+          spelling comes from.
+        hold: 1.1
+        visual_cues:
+          - id: final-report
+            phrase: "Call item and wait for the device result"
+            targets: [final-report]
+            color: cyan
+            linger: 0.35
+          - id: final-format
+            phrase: "Format the number to one decimal place"
+            targets: [final-report]
+            color: green
+            linger: 0.35
+  - id: fresh-runtime
+    title: Ticket 104
+    visual: >-
+      Ask which threads read and what mean they produce above thirteen inputs and sixteen worker
+      slots. Switch to the timing question as the clock appears. Enter the caller's latency beside
+      the formatted feature after the timing prediction.
+    beats:
+      - say: >-
+          Take one last ticket. Keep the original eight numbers and append the five on the right. Each
+          block now gets eight threads. Picture what goes into the empty slots below the input. Which
+          threads can read a value? Which have to reach the barrier? What number should eventually
+          appear in Python?
+        hold: 3.4
+        visual_cues:
+          - id: fresh-append
+            phrase: "append the five"
+            targets: [fresh-input]
+            color: cyan
+            linger: 0.35
+          - id: fresh-predict
+            phrase: "Which threads can read a value"
+            targets: [fresh-input, fresh-block-1]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Copy each real input into its thread's slot. See the zero at token nine? It has a source.
+          For the last three threads, write a zero locally. Their indexes fall past the end of the
+          array. Bring all eight threads in each block to its barrier. Each block can now read its
+          complete row.
+        hold: 0.9
+        visual_cues:
+          - id: fresh-reads
+            phrase: "Copy each real input into its thread's slot"
+            targets: [fresh-input, fresh-block-1]
+            color: cyan
+            linger: 0.35
+          - id: fresh-guards
+            phrase: "For the last three threads, write a zero locally"
+            targets: [fresh-block-1]
+            color: yellow
+            linger: 0.35
+          - id: fresh-arrivals
+            phrase: "Bring all eight threads in each block to its barrier"
+            targets: [fresh-block-0, fresh-block-1]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Gather the first block's sum. That's the original twenty-one. Gather the second block's sum.
+          Those five new inputs add fourteen. For the divisor, count the positions in the input row.
+          Divide thirty-five by thirteen. The device result rounds to about two point six nine two
+          three. Keep that number for the log.
+        hold: 1.1
+        caption_starts:
+          - "That's the original twenty-one"
+          - "Those five new inputs add fourteen"
+          - "The device result rounds"
+          - "two point six nine two three"
+        visual_cues:
+          - id: fresh-subtotal-0
+            phrase: "Gather the first block's sum"
+            targets: [fresh-block-0]
+            color: cyan
+            linger: 0.35
+          - id: fresh-subtotal-1
+            phrase: "Gather the second block's sum"
+            targets: [fresh-block-1]
+            color: blue
+            linger: 0.35
+          - id: fresh-count
+            phrase: "count the positions in the input row"
+            targets: [fresh-input]
+            color: yellow
+            linger: 0.35
+          - id: fresh-mean
+            phrase: "The device result rounds to about two point six nine two three"
+            targets: [fresh-quotient]
+            color: green
+            linger: 0.35
+      - say: >-
+          Now put that launch on a fresh clock. The caller logs four decimal places. The host starts
+          at four milliseconds. The call returns at six. If you stop here, your log will say two
+          milliseconds again. Python asks for the scalar.
+        hold: 0.75
+        visual_cues:
+          - id: fresh-return
+            phrase: "The call returns at six"
+            targets: [host-receipt, event-receipt]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Watch the end event on the GPU stream. Now follow the number back to Python. We have both
+          end marks. How much time belongs beside this ticket if we care about the whole trip, from
+          calling mean to having a number to log?
+        hold: 2.8
+        visual_cues:
+          - id: fresh-device-end
+            phrase: "Watch the end event on the GPU stream"
+            targets: [event-receipt]
+            color: cyan
+            linger: 0.35
+          - id: fresh-report
+            phrase: "follow the number back to Python"
+            targets: [host-receipt, host-scalar]
+            color: green
+            linger: 0.35
+      - say: >-
+          Twenty milliseconds. Subtract the host start from the time the number came back. The GPU
+          events ran from five to twenty-three. That's eighteen milliseconds. Use that interval when
+          you're comparing the same work on the stream. This log is for the person waiting for a
+          number. Enter the caller's time beside the feature. Now the next ticket can be compared on
+          the same terms.
+        hold: 1.8
+        caption_starts:
+          - "That's eighteen milliseconds"
+        visual_cues:
+          - id: fresh-intervals
+            phrase: "Twenty milliseconds"
+            targets: [host-receipt]
+            color: yellow
+            linger: 0.35
+          - id: fresh-stream-interval
+            phrase: "That's eighteen milliseconds"
+            targets: [event-receipt]
+            color: cyan
+            linger: 0.35
+          - id: fresh-log
+            phrase: "Enter the caller's time beside the feature"
+            targets: [ticket-log]
+            color: green
+            linger: 0.35

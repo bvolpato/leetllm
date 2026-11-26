@@ -1,210 +1,300 @@
-// Scene `compensation`: an undo is a new action on the state of now.
-//
-// The picture: three nodes with pods at the top, and the record of the steps under them. The
-// first node is cordoned, its original pods terminate, and the new image fails. Controllers
-// may create distinct replacement pods elsewhere. Uncordon leaves those replacements in place.
-// The record fills as the steps happen, and then one compensation fails.
+// Scene 14: compensation - "Where are the replacement pods?"
+// Stage 1: Kubernetes Node A cordon/evict -> original pods terminate -> 4 replacement pods appear
+// on Nodes B & C -> Uncordoning Node A permits future scheduling only (4 pods stay on B & C!).
+// Stage 2: Saga-style compensation log (dependency order, timeout durable checkpoint, queued vs done vs notice).
+import { circle } from 'vizmatic/stage';
 import {
-  column,
-  fadeOut,
-  grid,
-  group,
-  indicate,
-  lagged,
-  place,
-  recolor,
-  rect,
-} from 'vizmatic/stage';
-import { area, chip, heading, label, note } from '../../kit-narrated.mjs';
-import { COLOR, OP } from '../parts.mjs';
-
-/** The side of a pod, and the cells of each node that hold a pod at the start. */
-const POD = 58;
-const START = [[0, 1, 3, 4], [0], [0]];
-/** The illustrative destinations of new replacement pods, not the original instances. */
-const REPLACE = [
-  [1, 1],
-  [1, 2],
-  [2, 1],
-  [2, 2],
-];
+  COSMOS,
+  ROLE,
+  ambientClock,
+  cinemaAtmosphere,
+  glowArrow,
+  glowCross,
+  glowDot,
+  glowPill,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  hexAlpha,
+  lowerFooter,
+  playCue,
+  txt,
+} from '../parts.mjs';
 
 export default function compensation(s, c) {
-  const [top, bottom] = area.rows([5, 4], 'normal');
-
-  // Three nodes. Each has a name, six cells for pods, and one line at its foot.
-  const nodes = top.columns(3, 'wide').map((box, index) => {
-    const inner = box.inset('normal');
-    const [head, upper, lower, foot] = inner.rows([3, 3, 3, 2], 'tight');
-    return {
-      box,
-      frame: rect(box.width, box.height, {
-        radius: 16,
-        stroke: 'dim',
-        fill: 'surface',
-        width: 3,
-      }).moveTo(box.point()),
-      name: place(label(`node ${'ABC'[index]}`), head, 'left'),
-      head,
-      foot,
-      cells: [...upper.columns(3, 'tight'), ...lower.columns(3, 'tight')],
-    };
+  const title = heroTitle(['Where are the replacement pods?'], {
+    x: -855,
+    y: -440,
+    size: 52,
+    accent: ROLE.agent,
   });
-  const pod = (identity, color = COLOR.attempt) =>
-    group(
-      rect(POD, POD, { radius: 10, fill: 'surface', stroke: color, width: 3 }),
-      label(identity, { size: 30, color }),
-    );
-  const pods = START.map((cells, index) =>
-    cells.map((cell, item) =>
-      pod(`${'ABC'[index]}${item + 1}`).moveTo(nodes[index].cells[cell].point()),
-    ),
-  );
-  const replacements = REPLACE.map(([node, cell], index) =>
-    pod(`R${index + 1}`, COLOR.sure).moveTo(nodes[node].cells[cell].point()),
-  );
-  const terminated = place(
-    note('original pods terminated', { color: COLOR.fail }),
-    nodes[0].foot,
-    'left',
-  );
-  const replacementNames = [1, 2].map((index) =>
-    place(note('R: new Pod identities', { color: COLOR.sure }), nodes[index].foot, 'left'),
-  );
-  const empty = START[0].map((cell) =>
-    rect(POD, POD, { radius: 10, stroke: 'dim', fill: null, width: 2.5, dash: [8, 8] }).moveTo(
-      nodes[0].cells[cell].point(),
-    ),
-  );
-  const first = nodes[0];
-  const cordon = rect(first.box.width, first.box.height, {
-    radius: 16,
-    stroke: COLOR.mark,
-    fill: null,
-    width: 5,
-    dash: [14, 10],
-  }).moveTo(first.box.point());
-  const cordoned = place(
-    chip('cordoned', { color: COLOR.mark, stroke: COLOR.mark }),
-    first.head,
-    'right',
-  );
-  const open = place(
-    chip('schedulable', { color: COLOR.sure, stroke: COLOR.sure }),
-    first.head,
-    'right',
-  );
-  const image = place(
-    note('the new image: not available', { color: COLOR.fail }),
-    first.foot,
-    'left',
-  );
-  const health = place(note('Check node health', { color: COLOR.mark }), first.foot, 'left');
 
-  // The record of the flow: each confirmed step, and the compensation that was chosen for it.
-  const [tableSide, noteSide] = bottom.columns([3, 2], 'wide');
-  const cell = (words, color = 'ink') => label(words, { size: 34, color });
-  const heads = [note('confirmed step'), note('its compensation')];
-  const rows = [
-    [cell('1  cordon the node', 'dim'), cell('uncordon: done', COLOR.sure)],
-    [cell('2  evict the pods', 'dim'), cell('repair workload placement')],
-    [cell('3  pull the new image: failed', COLOR.fail), null],
-  ];
-  const otherEffects = [
-    [cell(`${OP.job} queued`), cell('cancel the job')],
-    [cell('rollout completed'), cell('new deployment', COLOR.mark)],
-    [cell('notification sent'), cell('retract: people still know', COLOR.mark)],
-  ];
-  const otherHead = note('Other effects: separate cases');
-  const late = cell('placement repair: timed out', COLOR.fail);
-  place(
-    column(
-      [
-        grid([...heads, ...rows.flat()], { columns: 2, gap: ['loose', 'none'] }),
-        otherHead,
-        grid(otherEffects.flat(), { columns: 2, gap: ['loose', 'none'] }),
-      ],
-      { gap: 'tight' },
-    ),
-    tableSide,
-    'top left',
+  const amb = ambientClock(s, c);
+  const stage = s.value(0); // 0 = K8s nodes A/B/C, 1 = Saga recovery
+  const evicted = s.value(0);
+  const imgFail = s.value(0);
+  const showRepl = s.value(0);
+  const uncordoned = s.value(0);
+  const showInspect = s.value(0);
+
+  const showSaga = s.value(0);
+  const showOrder = s.value(0);
+  const showTimeout = s.value(0);
+  const showLimits = s.value(0);
+
+  const layer = guardedDynamic(
+    () => 1,
+    (alpha) => {
+      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
+      const st = Math.round(stage.value);
+      const nodes = [];
+
+      if (st === 0) {
+        // Stage 1: Three glowing cluster node rings (Node A, Node B, Node C)
+        const nA = [-540, 15];
+        const nB = [0, 15];
+        const nC = [540, 15];
+        const nodeR = 148;
+
+        const colA =
+          uncordoned.value > 0.5 ? ROLE.sure : evicted.value > 0.4 ? ROLE.fail : ROLE.agent;
+        nodes.push(
+          txt('NODE A', nA[0], -195, 30, colA, 'mono', 'center').opacity(alpha),
+          txt('NODE B', nB[0], -195, 30, ROLE.sure, 'mono', 'center').opacity(alpha),
+          txt('NODE C', nC[0], -195, 30, ROLE.sure, 'mono', 'center').opacity(alpha),
+          glowRing(nA[0], nA[1], nodeR, colA, { width: 3.6, glow: 10 }).opacity(alpha),
+          glowRing(nB[0], nB[1], nodeR, ROLE.sure, { width: 3.2, glow: 8 }).opacity(alpha),
+          glowRing(nC[0], nC[1], nodeR, ROLE.sure, { width: 3.2, glow: 8 }).opacity(alpha),
+        );
+
+        // Node A status badge
+        const statusA =
+          uncordoned.value > 0.5
+            ? 'UNCORDONED (future only)'
+            : evicted.value > 0.4
+              ? 'CORDONED & DRAINED'
+              : '4 original pods';
+        nodes.push(glowPill(statusA, nA[0], 218, colA, { size: 26, alpha }));
+
+        // Original 4 pods on Node A (fade out & terminate on eviction)
+        const origAlpha = Math.max(0, 1 - evicted.value * 1.15) * alpha;
+        if (origAlpha > 0.05) {
+          for (const [dx, dy, name] of [
+            [-48, -42, 'p1'],
+            [48, -42, 'p2'],
+            [-48, 42, 'p3'],
+            [48, 42, 'p4'],
+          ]) {
+            nodes.push(
+              circle(28, {
+                fill: hexAlpha(ROLE.agent, 0.25 * origAlpha),
+                stroke: ROLE.agent,
+                width: 2.6,
+              }).at(nA[0] + dx, nA[1] + dy),
+              txt(name, nA[0] + dx, nA[1] + dy, 26, COSMOS.ink, 'mono', 'center').opacity(
+                origAlpha,
+              ),
+            );
+          }
+        } else {
+          nodes.push(
+            txt(
+              uncordoned.value > 0.5 ? '0 pods moved back' : 'pods terminated',
+              nA[0],
+              nA[1],
+              26,
+              uncordoned.value > 0.5 ? ROLE.mark : ROLE.fail,
+              'mono',
+              'center',
+            ).opacity(alpha),
+          );
+        }
+
+        // Image unavailable alert badge above Node A -> B
+        if (imgFail.value > 0.3 && uncordoned.value < 0.5) {
+          nodes.push(
+            glowPill('Replacement image unavailable', -270, -270, ROLE.fail, {
+              size: 26,
+              alpha: imgFail.value * alpha,
+            }),
+          );
+        }
+
+        // 4 Distinct replacement pods on Nodes B & C (STAY on B & C even after Node A uncordons!)
+        if (showRepl.value > 0.1) {
+          const ra = showRepl.value * alpha;
+          const bPods = [
+            [-45, 0, 'r1'],
+            [45, 0, 'r2'],
+          ];
+          const cPods = [
+            [-45, 0, 'r3'],
+            [45, 0, 'r4'],
+          ];
+          for (const [dx, dy, name] of bPods) {
+            nodes.push(
+              circle(32, {
+                fill: hexAlpha(ROLE.sure, 0.24 * ra),
+                stroke: ROLE.sure,
+                width: 3,
+              })
+                .at(nB[0] + dx, nB[1] + dy)
+                .glow(10, ROLE.sure),
+              txt(name, nB[0] + dx, nB[1] + dy, 26, COSMOS.ink, 'mono', 'center').opacity(ra),
+            );
+          }
+          for (const [dx, dy, name] of cPods) {
+            nodes.push(
+              circle(32, {
+                fill: hexAlpha(ROLE.sure, 0.24 * ra),
+                stroke: ROLE.sure,
+                width: 3,
+              })
+                .at(nC[0] + dx, nC[1] + dy)
+                .glow(10, ROLE.sure),
+              txt(name, nC[0] + dx, nC[1] + dy, 26, COSMOS.ink, 'mono', 'center').opacity(ra),
+            );
+          }
+          nodes.push(
+            glowPill('2 replacements STAY', nB[0], 218, ROLE.sure, { size: 26, alpha: ra }),
+            glowPill('2 replacements STAY', nC[0], 218, ROLE.sure, { size: 26, alpha: ra }),
+          );
+        }
+
+        nodes.push(
+          txt(
+            showInspect.value > 0.5
+              ? 'Health check + current permission choose forward repair, compensation, or human review.'
+              : 'Compensation is a new forward action, not a time machine back to the original pods.',
+            0,
+            325,
+            26,
+            COSMOS.ink,
+            'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      } else {
+        // Stage 2: Saga-style compensation log & irreversibility boundaries
+        nodes.push(
+          txt(
+            'SAGA RECOVERY: RECORD CONFIRMED STEPS & COMPENSATIONS',
+            0,
+            -275,
+            27,
+            ROLE.violet,
+            'mono',
+            'center',
+          ).opacity(alpha),
+        );
+
+        // Saga step flow at y = -105
+        const sy = -105;
+        nodes.push(
+          glowPill('Step 1: Cordon', -610, sy, ROLE.sure, { size: 26, alpha }),
+          glowArrow(-470, sy, -350, sy, ROLE.sure, { width: 3.2, alpha }),
+          glowPill('Step 2: Drain', -215, sy, ROLE.sure, { size: 26, alpha }),
+          glowArrow(-90, sy, 35, sy, ROLE.mark, { width: 3.2, alpha }),
+          glowPill('Repair: Placement', 195, sy, showTimeout.value > 0.4 ? ROLE.fail : ROLE.mark, {
+            size: 26,
+            alpha: Math.max(0.5, showSaga.value) * alpha,
+          }),
+          glowArrow(355, sy, 480, sy, ROLE.violet, { width: 3.2, alpha, dash: [7, 6] }),
+          glowPill('Save last step', 635, sy, ROLE.violet, {
+            size: 26,
+            alpha: Math.max(0.45, showTimeout.value) * alpha,
+          }),
+        );
+
+        if (showTimeout.value > 0.4) {
+          nodes.push(
+            glowCross(195, sy - 64, 28, ROLE.fail, showTimeout.value * alpha),
+            txt(
+              'TIMEOUT -> check remote effect before retry',
+              195,
+              sy - 102,
+              26,
+              ROLE.fail,
+              'mono',
+              'center',
+            ).opacity(showTimeout.value * alpha),
+          );
+        }
+
+        // Three irreversibility realities at y = 115
+        const cards = [
+          { x: -550, label: 'QUEUED JOB', note: 'May still be canceled', col: ROLE.sure },
+          { x: 0, label: 'COMPLETED ROLLOUT', note: 'Needs a new deployment', col: ROLE.mark },
+          {
+            x: 550,
+            label: 'SENT NOTIFICATION',
+            note: 'Cannot unread; retract only',
+            col: ROLE.fail,
+          },
+        ];
+        for (const item of cards) {
+          const op = Math.max(0.4, showLimits.value) * alpha;
+          nodes.push(
+            glowPill(item.label, item.x, 85, item.col, { size: 26, alpha: op }),
+            txt(item.note, item.x, 152, 26, COSMOS.ink, 'sans', 'center').opacity(op),
+          );
+        }
+
+        nodes.push(
+          txt(
+            showOrder.value > 0.4
+              ? 'Dependencies decide which repairs run sequentially and which can run in parallel.'
+              : 'Record each confirmed step durably so timed-out repairs reconcile safely.',
+            0,
+            315,
+            27,
+            COSMOS.muted,
+            'sans',
+            'center',
+          ).opacity(alpha * (0.85 + 0.15 * pulse)),
+        );
+      }
+
+      nodes.push(
+        lowerFooter(
+          'COMPENSATION != UNDO · SAGA DURABLE PROGRESS',
+          st === 0
+            ? 'UNCORDON PERMITS FUTURE SCHEDULING ONLY'
+            : 'CHECK EFFECT BEFORE REPEATING REPAIR',
+          { accent: st === 0 ? ROLE.agent : ROLE.violet, alpha },
+        ),
+      );
+
+      return nodes;
+    },
   );
-  late.moveTo(rows[1][1].center).alignTo(rows[1][1], 'left');
-  // The steps of the flow are on screen from the start, and each one lights when it happens.
-  const planned = cell('3  pull the new image', 'dim');
-  planned.moveTo(rows[2][0].center).alignTo(rows[2][0], 'left');
-  const choices = ['forward repair', 'compensation', 'human review'].map((words) =>
-    chip(words, { color: COLOR.mark, stroke: COLOR.mark }),
+
+  s.add(cinemaAtmosphere(ROLE.agent, ROLE.violet), title, layer);
+
+  playCue(s, c, 'pods-evicted', (d) => s.play(evicted.to(1, { duration: d })), { dur: 0.6 });
+  playCue(s, c, 'image-unavailable', (d) => s.play(imgFail.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'replacement-pods', (d) => s.play(showRepl.to(1, { duration: d })), { dur: 0.6 });
+  playCue(s, c, 'uncordon', (d) => s.play(uncordoned.to(1, { duration: d })), { dur: 0.5 });
+  playCue(s, c, 'not-restore', (d) => s.play(showRepl.to(1, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'not-healthy', (d) => s.play(showInspect.to(0.6, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'inspect', (d) => s.play(showInspect.to(1, { duration: d })), { dur: 0.4 });
+
+  playCue(
+    s,
+    c,
+    'saga-records',
+    (d) => s.play(stage.to(1, { duration: 0.15 }), showSaga.to(1, { duration: d })),
+    {
+      dur: 0.45,
+    },
   );
-  const choose = note('look at the real state first, then choose:');
-  const order = chip('the order comes from the domain', { color: COLOR.mark, stroke: COLOR.mark });
-  const safe = chip('saved progress + destination repeat safety', {
-    color: COLOR.mark,
-    stroke: COLOR.mark,
+  playCue(s, c, 'order', (d) => s.play(showOrder.to(1, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'saga-progress', (d) => s.play(showTimeout.to(0.7, { duration: d })), {
+    dur: 0.45,
   });
-  place(
-    column([choose, grid(choices, { columns: 2, gap: 'tight' }), order, safe], { gap: 'tight' }),
-    noteSide,
-    'top left',
-  );
-
-  s.add(
-    heading(c.title),
-    nodes.flatMap((node) => [node.frame, node.name]),
-    pods,
-    heads,
-    rows[0][0],
-    rows[1][0],
-    planned,
-  );
-
-  // Original Pod instances terminate at their original positions. No Pod moves between nodes.
-  c.show('pods-evicted', [cordon, cordoned]);
-  c.on('pods-evicted', () => s.play(recolor(rows[0][0], 'ink', { duration: 0.3 })));
-  c.on(
-    'pods-evicted',
-    () =>
-      s.play(
-        lagged(
-          pods[0].map((made) => fadeOut(made, { duration: 0.9 })),
-          { lag: 0.3 },
-        ),
-        recolor(rows[1][0], 'ink', { duration: 0.3 }),
-      ),
-    0.8,
-  );
-  c.show('image-unavailable', image);
-  c.swap('image-unavailable', planned, rows[2][0]);
-  c.swap('replacement-pods', image, terminated);
-  c.show('replacement-pods', [replacements, replacementNames]);
-  // Uncordon changes admission. The distinct replacement Pods remain on the other nodes.
-  c.hide('uncordon', cordon);
-  c.swap('uncordon', cordoned, open);
-  c.show('uncordon', rows[0][1], { after: true });
-  c.show('not-restore', empty);
-  c.on(
-    'not-restore',
-    () =>
-      s.play(
-        lagged(
-          replacements.map((made) => indicate(made, { color: COLOR.mark, scale: 1.2 })),
-          { lag: 0.2 },
-        ),
-      ),
-    1,
-  );
-  c.swap('not-healthy', terminated, health);
-  c.show('inspect', [choose, choices], { lead: 1.2 });
-
-  // A saga keeps this record. A compensation can fail too, so it needs what the first send needed.
-  c.on('saga-records', () =>
-    s.play(...heads.map((head) => indicate(head, { color: COLOR.mark, scale: 1 }))),
-  );
-  c.show('saga-records', rows[1][1], { lead: -1 });
-  c.show('order', order);
-  c.swap('saga-progress', rows[1][1], late);
-  c.show('durable-progress', safe);
-  c.show('queued-vs-done', otherHead);
-  c.show('queued-vs-done', [otherEffects[0], otherEffects[1]], { stagger: true });
-  c.show('notification', otherEffects[2]);
+  playCue(s, c, 'durable-progress', (d) => s.play(showTimeout.to(1, { duration: d })), {
+    dur: 0.4,
+  });
+  playCue(s, c, 'queued-vs-done', (d) => s.play(showLimits.to(0.7, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'notification', (d) => s.play(showLimits.to(1, { duration: d })), { dur: 0.4 });
 }

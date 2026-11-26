@@ -1,236 +1,280 @@
+// Scene 18 (spherical-centers): "Which center gets the query?"
+// Mean of (1,0) & (0,1) shrinks inside unit circle (r=0.707) -> C0=[0.1,0] vs C1=[0.8,0.6] Euclidean vs Cosine disagreement -> spherical L2 normalization & opposite-vector fallback.
+import { line } from 'vizmatic/stage';
 import {
-  place,
-  column,
-  row,
-  grid,
-  beside,
-  boxOf,
-  line,
-  arrow,
-  circle,
-  dot,
-  rect,
-  group,
-  dynamic,
-  to,
-  draw,
-  indicate,
-  recolor,
-  fade,
-  matrix,
-  tex,
-  stateGrid,
-  appear,
-  decimal,
-  barChart,
-  scatter,
-  assertEqual,
-  svgPath,
-} from 'vizmatic/stage';
-import {
-  area,
-  heading,
-  label,
-  note,
-  mono,
-  para,
-  namedBox,
-  chip,
-  tint,
-} from '../../kit-narrated.mjs';
-import {
-  IDS,
-  COLORS,
-  STATE,
-  left,
-  right,
-  ribbon,
-  body,
-  foot,
-  cloud,
-  identity,
-  messageKey,
-  rings,
-  links,
-  scoreBars,
-  liveNumber,
-  xy,
-  messages,
-  labels,
-  seeds,
-  centroids,
-  pca,
-  query,
-  clusterTrials,
-  transferDocuments,
-  transferQuery,
-  scaleFixture,
-  means,
-  stds,
-  inertia,
-  initialInertia,
-  updatedInertia,
-  coarseDistances,
-  distance,
-  mix,
-  silhouette,
-  lloyd,
-  seedMass,
-  emptyCenterRepair,
-  energyRows,
-  scaleCalculation,
-  cosine,
-  validateModel,
+  COSMOS,
+  DANGER_COLOR,
+  QUERY_COLOR,
+  aura,
+  crossSwap,
+  glowArrow,
+  glowDot,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  runAmbientPhase,
+  tweenCue,
+  txt,
 } from '../parts.mjs';
 
-export default function scene(s, c) {
-  const origin = left.point('center'),
-    unit = Math.min(left.width, left.height) * 0.4;
-  const p = ([x, y]) => [origin[0] + x * unit, origin[1] - y * unit];
-  const u = [
-      [1, 0],
-      [0, 1],
-    ],
-    mean = u[0].map((v, j) => (v + u[1][j]) / u.length);
-  const inputs = u.map((v, i) => arrow(p([0, 0]), p(v), { stroke: COLORS[i], width: 5 }));
-  const center = arrow(p([0, 0]), p(mean), { stroke: 'yellow', width: 7 });
-  const circle0 = circle(unit, { stroke: 'grid', width: 2 }).moveTo(origin);
-  const q = [1, 0],
-    centers = [
-      [0.1, 0],
-      [0.8, 0.6],
+export default function sphericalCenters(s, c) {
+  const phase = s.value(0);
+  const vMean = s.value(1);
+  const vConflict = s.value(0);
+  const vSpherical = s.value(0);
+
+  const showMean = s.value(0);
+  const showNorm = s.value(0);
+
+  const showEuc = s.value(0);
+  const showNear = s.value(0);
+  const showCos = s.value(0);
+  const showAligned = s.value(0);
+
+  const normToUnit = s.value(0);
+  const flipOpposite = s.value(0);
+  const showFallback = s.value(0);
+
+  const bgAura = aura(0, 20, 620, '#133a4a32', '#2a1c4f18');
+  const title = heroTitle(['Spherical k-means', '& Unit Centers'], {
+    x: -855,
+    y: -430,
+    size: 54,
+    lineHeight: 62,
+    accent: COSMOS.cyan,
+    eyebrow: 'ARITHMETIC MEAN VS DIRECTIONAL MEAN',
+  });
+
+  const cx = -340;
+  const cy = 65;
+  const R = 270;
+  const pt = (x, y) => [cx + x * R, cy - y * R];
+
+  // View 1: Two unit vectors (1,0) and (0,1) average to (0.5, 0.5) inside the unit circle (||m|| = 0.707)
+  const viewMean = guardedDynamic(vMean, (a) => {
+    const nodes = [
+      glowRing(cx, cy, R, COSMOS.rule, { width: 2.5, dash: [8, 6], opacity: a }),
+      glowArrow([cx, cy], pt(1, 0), COSMOS.cyan, { width: 4, opacity: a }),
+      glowArrow([cx, cy], pt(0, 1), COSMOS.emerald, { width: 4, opacity: a }),
+      txt('(1, 0)', ...pt(0.88, -0.18), 28, COSMOS.cyan, 'mono').opacity(a),
+      txt('(0, 1)', ...pt(-0.24, 0.92), 28, COSMOS.emerald, 'mono').opacity(a),
+      // Right-side explanation
+      txt('UNIT-CIRCLE MEAN SHRINKAGE', 110, -210, 26, COSMOS.cyan, 'mono', 'left').opacity(a),
+      txt('Two unit arrows: (1, 0) and (0, 1)', 110, -140, 28, COSMOS.ink, 'mono', 'left').opacity(
+        a,
+      ),
     ];
-  const constructed = centers.map((v, i) =>
-    arrow(p([0, 0]), p(v), { stroke: COLORS[i], width: 6 }),
-  );
-  const qArrow = arrow(p([0, 0]), p(q), { stroke: 'yellow', width: 4 });
-  const c0Marker = dot(11, 'cyan').moveTo(p(centers[0]));
-  const queryTip = circle(12, { stroke: 'yellow', width: 4 }).moveTo(p(q));
-  const trips = centers.map((v, i) => line(p(q), p(v), { stroke: COLORS[i], width: 6 }));
-  const aligned = line(origin, p(q), { stroke: 'cyan', width: 5, dash: [12, 8] });
-  const endpointNames = [
-    beside(label('C0', { size: 36, color: 'cyan' }), c0Marker, 'under', 'normal'),
-    beside(
-      label('C1', { size: 36, color: 'blue' }),
-      constructed[1],
-      'right',
-      'normal',
-      p(centers[1]),
-    ),
-    beside(label('Q', { size: 36, color: 'yellow' }), qArrow, 'under', 'normal', p(q)),
-  ];
-  const [a, b, d] = right.rows([1, 2, 1], 'normal');
-  const midpoint = place(mono('Mean = (' + mean.join(', ') + ')', { size: 38 }), a, 'top');
-  const norm = place(
-    mono('Length ≈ ' + Math.hypot(...mean).toFixed(3), { size: 38, color: 'yellow' }),
-    a,
-    'bottom',
-  );
-  const formula = place(
-    column(
-      [note('Squared distance for a unit query q'), mono('1 + ‖c‖² − 2(q · c)', { size: 39 })],
-      { gap: 'normal' },
-    ),
-    b,
-  );
-  const euclid = scoreBars(
-    b,
-    ['C0', 'C1'],
-    centers.map((v) => distance(q, v) ** 2),
-    { max: 1, format: (v) => v.toFixed(2) },
-  );
-  const cos = scoreBars(
-    b,
-    ['C0', 'C1'],
-    centers.map((v) => cosine(q, v)),
-    { max: 1, format: (v) => v.toFixed(2) },
-  );
-  const euclidName = place(note('Squared distance: smaller wins'), b, 'top');
-  const cosineName = place(note('Cosine: larger wins'), b, 'top');
-  const [distanceResult, cosineResult] = d.rows(2, 'tight');
-  const euclidWinner = place(label('Distance → C1', { size: 36, color: 'blue' }), distanceResult);
-  const cosineWinner = place(label('Cosine → C0', { size: 36, color: 'cyan' }), cosineResult);
-  const rule = place(label('Normalize the nonzero sum', { size: 34, color: 'yellow' }), d);
-  const zero = place(label('Choose a new seed', { size: 38, color: 'yellow' }), d);
-  const vectorSum = u[0].map((v, i) => v + u[1][i]);
-  const length = Math.hypot(...vectorSum);
-  const unitSum = vectorSum.map((v) => v / length);
-  const sum = arrow(origin, p(vectorSum), { stroke: 'yellow', width: 6 });
-  const oppositeVector = u[0].map((v) => -v);
-  const opposite = arrow(origin, p(oppositeVector), { stroke: 'red', width: 6 });
-  const pairSum = (second) => {
-    const result = u[0].map((v, i) => v + second[i]);
-    const pair = (v) => '(' + v.join(', ') + ')';
-    return place(
-      column(
-        [
-          note('Group sum'),
-          mono(pair(u[0]) + ' + ' + pair(second), { size: 41 }),
-          mono('= ' + pair(result), { size: 41, color: 'yellow' }),
-        ],
-        { gap: 'normal' },
-      ),
-      b,
-    );
-  };
-  const diagonalSum = pairSum(u[1]);
-  const cancelledSum = pairSum(oppositeVector);
-  const groupMeans = place(
-    column(
-      centers.map((p, i) => mono('C' + i + ' = (' + p.join(', ') + ')', { size: 34 })),
-      { gap: 'normal' },
-    ),
-    a,
-  );
-  s.add(
-    heading(c.title),
-    place(note('Unit inputs → ordinary mean → explicit spherical update'), ribbon),
-    circle0,
-    inputs,
-    place(note('An ordinary coordinate mean can lie inside the unit circle.'), foot),
-  );
-  c.show('mean', [center, midpoint]);
-  c.show('norm', [norm, formula], { after: true });
-  c.swap(
-    'groups',
-    [inputs, center, midpoint, norm, formula],
-    [constructed, qArrow, c0Marker, endpointNames, groupMeans],
-  );
-  c.show('euclidean', [queryTip, trips.map((trip) => draw(trip)), euclid, euclidName]);
-  c.show('near', euclidWinner, { after: true });
-  c.swap('cosine', [trips, euclid, euclidName], [draw(aligned), cos, cosineName]);
-  c.show('aligned', cosineWinner, { after: true });
-  c.swap(
-    'normalize',
-    [
-      constructed,
-      qArrow,
-      c0Marker,
-      endpointNames,
-      aligned,
-      queryTip,
-      cos,
-      cosineName,
-      euclidWinner,
-      cosineWinner,
-      groupMeans,
-    ],
-    [inputs, sum, diagonalSum],
-  );
-  c.show('unit', rule);
-  c.on(
-    'unit',
-    () =>
-      s.play(
-        to(sum, (n) =>
-          n
-            .moveTo(boxOf(arrow(origin, p(unitSum), { stroke: 'yellow' })).point('center'))
-            .scale(1 / length),
+
+    if (showMean.value > 0.02) {
+      nodes.push(
+        line(pt(1, 0), pt(0, 1), { stroke: COSMOS.muted, width: 2.2, dash: [6, 5] }).opacity(
+          showMean.value * a,
         ),
-        { duration: 1.5 },
+        glowArrow([cx, cy], pt(0.5, 0.5), QUERY_COLOR, {
+          width: 4.5,
+          opacity: showMean.value * a,
+        }),
+        txt('mean (0.5, 0.5)', ...pt(0.56, 0.62), 26, QUERY_COLOR, 'mono', 'left').opacity(
+          showMean.value * a,
+        ),
+        txt(
+          'Arithmetic mean lands INSIDE the circle!',
+          110,
+          -52,
+          28,
+          QUERY_COLOR,
+          'sans',
+          'left',
+        ).opacity(showMean.value * a),
+      );
+    }
+    if (showNorm.value > 0.02) {
+      nodes.push(
+        txt('||mean|| = √(0.5² + 0.5²) ≈ 0.707 < 1.0', 110, 25, 30, DANGER_COLOR, 'mono', 'left')
+          .glow(6, DANGER_COLOR)
+          .opacity(showNorm.value * a),
+        txt(
+          'Euclidean distance depends on center norm as well as angle',
+          110,
+          98,
+          26,
+          COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(showNorm.value * a),
+      );
+    }
+    return nodes;
+  });
+
+  // View 2: Q=(1,0), C0=(0.1,0), C1=(0.8,0.6): Euclidean picks C1 (dist 0.632 < 0.9), Cosine picks C0 (cos 1.0 > 0.8)!
+  const viewConflict = guardedDynamic(vConflict, (a) => {
+    const qP = pt(1, 0);
+    const c0P = pt(0.1, 0);
+    const c1P = pt(0.8, 0.6);
+
+    const nodes = [
+      glowRing(cx, cy, R, COSMOS.rule, { width: 2.5, dash: [8, 6], opacity: a }),
+      glowArrow([cx, cy], qP, QUERY_COLOR, { width: 4.2, opacity: a }),
+      txt('Q (1, 0)', qP[0] + 18, qP[1] + 34, 26, QUERY_COLOR, 'mono', 'left').opacity(a),
+      glowDot(c0P[0], c0P[1], { radius: 9, color: COSMOS.cyan, glow: 11, opacity: a }),
+      txt('C0 (0.1, 0)', c0P[0], c0P[1] + 38, 26, COSMOS.cyan, 'mono').opacity(a),
+      glowDot(c1P[0], c1P[1], { radius: 9, color: COSMOS.emerald, glow: 11, opacity: a }),
+      txt('C1 (0.8, 0.6)', c1P[0], c1P[1] - 32, 26, COSMOS.emerald, 'mono').opacity(a),
+      txt('ROUTING DISAGREEMENT', 110, -210, 26, DANGER_COLOR, 'mono', 'left').opacity(a),
+    ];
+
+    if (showEuc.value > 0.02) {
+      nodes.push(
+        line(qP, c1P, { stroke: COSMOS.emerald, width: 3.5 }).opacity(showEuc.value * a),
+        line(qP, c0P, { stroke: COSMOS.cyan, width: 2.5, dash: [7, 5] }).opacity(showEuc.value * a),
+        txt('Euclidean from Q:', 110, -135, 26, COSMOS.muted, 'mono', 'left').opacity(
+          showEuc.value * a,
+        ),
+        txt(
+          'd(Q, C1) = 0.63  <  d(Q, C0) = 0.90',
+          110,
+          -82,
+          28,
+          COSMOS.emerald,
+          'mono',
+          'left',
+        ).opacity(showEuc.value * a),
+      );
+    }
+    if (showNear.value > 0.02) {
+      nodes.push(
+        txt('⇒  Euclidean opens list C1', 110, -28, 28, COSMOS.emerald, 'mono', 'left')
+          .glow(6, COSMOS.emerald)
+          .opacity(showNear.value * a),
+      );
+    }
+    if (showCos.value > 0.02) {
+      nodes.push(
+        glowArrow([cx, cy], c0P, COSMOS.cyan, { width: 5, opacity: showCos.value * a }),
+        txt('Cosine from origin:', 110, 72, 26, COSMOS.muted, 'mono', 'left').opacity(
+          showCos.value * a,
+        ),
+        txt(
+          'cos(Q, C0) = 1.00  >  cos(Q, C1) = 0.80',
+          110,
+          125,
+          28,
+          COSMOS.cyan,
+          'mono',
+          'left',
+        ).opacity(showCos.value * a),
+      );
+    }
+    if (showAligned.value > 0.02) {
+      nodes.push(
+        txt('⇒  Cosine opens list C0 (DIFFERENT LIST!)', 110, 182, 28, DANGER_COLOR, 'mono', 'left')
+          .glow(7, DANGER_COLOR)
+          .opacity(showAligned.value * a),
+      );
+    }
+
+    return nodes;
+  });
+
+  // View 3: Spherical k-means normalizes sum onto unit circle + opposite vectors cancel to 0 -> fallback
+  const viewSpherical = guardedDynamic(vSpherical, (a) => {
+    const n = normToUnit.value;
+    const opp = flipOpposite.value;
+    const ang2 = (Math.PI / 2) * (1 - opp) + Math.PI * opp; // rotates from +y to -x (opposite!)
+    const v2 = [Math.cos(ang2), Math.sin(ang2)];
+    const sumVec = [1 + v2[0], v2[1]];
+    const sumNorm = Math.hypot(...sumVec);
+    const scale = sumNorm > 0.05 ? 0.5 + (1 / sumNorm - 0.5) * n : 0;
+    const ctr = [sumVec[0] * scale, sumVec[1] * scale];
+
+    const nodes = [
+      glowRing(cx, cy, R, COSMOS.cyan, { width: 2.8, glow: 7, opacity: a }),
+      glowArrow([cx, cy], pt(1, 0), COSMOS.cyan, { width: 4, opacity: a }),
+      glowArrow([cx, cy], pt(v2[0], v2[1]), COSMOS.emerald, { width: 4, opacity: a }),
+      txt('SPHERICAL K-MEANS UPDATE', 110, -210, 26, COSMOS.cyan, 'mono', 'left').opacity(a),
+      txt('1. Normalize inputs to unit length', 110, -142, 28, COSMOS.ink, 'sans', 'left').opacity(
+        a,
       ),
-    0.6,
-  );
-  c.swap('zero', [sum, rule, inputs[1], diagonalSum], [opposite, cancelledSum]);
-  c.show('fallback', zero);
+      txt('2. Assign by maximum dot product', 110, -84, 28, COSMOS.ink, 'sans', 'left').opacity(a),
+    ];
+
+    if (sumNorm > 0.08) {
+      nodes.push(
+        glowArrow([cx, cy], pt(ctr[0], ctr[1]), QUERY_COLOR, { width: 4.5, opacity: a }),
+        txt(
+          n > 0.5 ? 'c = Σx / ||Σx|| (unit circle)' : 'unnormalized sum',
+          cx,
+          cy + R + 44,
+          26,
+          QUERY_COLOR,
+          'mono',
+        ).opacity(a),
+      );
+    }
+
+    if (n > 0.5) {
+      nodes.push(
+        txt(
+          '3. Divide sum by ||sum|| → lands ON unit circle',
+          110,
+          -10,
+          28,
+          COSMOS.emerald,
+          'mono',
+          'left',
+        )
+          .glow(6, COSMOS.emerald)
+          .opacity(a),
+      );
+    }
+    if (opp > 0.5) {
+      nodes.push(
+        glowDot(cx, cy, { radius: 11, color: DANGER_COLOR, glow: 14, opacity: a }),
+        txt(
+          'Opposite vectors: (1, 0) + (−1, 0) = (0, 0)!',
+          110,
+          92,
+          28,
+          DANGER_COLOR,
+          'mono',
+          'left',
+        )
+          .glow(7, DANGER_COLOR)
+          .opacity(a),
+      );
+    }
+    if (showFallback.value > 0.02) {
+      nodes.push(
+        txt(
+          'Zero sum or empty group → trigger explicit seed fallback',
+          110,
+          165,
+          28,
+          QUERY_COLOR,
+          'sans',
+          'left',
+        ).opacity(showFallback.value * a),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, viewMean, viewConflict, viewSpherical);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  tweenCue(s, c, 'mean', showMean, 1, { duration: 0.45 });
+  tweenCue(s, c, 'norm', showNorm, 1, { duration: 0.45 });
+
+  crossSwap(s, c, 'groups', vMean, vConflict, { duration: 0.55 });
+  tweenCue(s, c, 'euclidean', showEuc, 1, { duration: 0.45 });
+  tweenCue(s, c, 'near', showNear, 1, { duration: 0.45 });
+  tweenCue(s, c, 'cosine', showCos, 1, { duration: 0.45 });
+  tweenCue(s, c, 'aligned', showAligned, 1, { duration: 0.45 });
+
+  crossSwap(s, c, 'normalize', vConflict, vSpherical, { duration: 0.55 });
+  tweenCue(s, c, 'unit', normToUnit, 1, { duration: 0.65 });
+  tweenCue(s, c, 'zero', flipOpposite, 1, { duration: 0.75 });
+  tweenCue(s, c, 'fallback', showFallback, 1, { duration: 0.45 });
 }

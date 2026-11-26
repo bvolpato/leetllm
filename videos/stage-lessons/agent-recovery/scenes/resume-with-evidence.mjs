@@ -1,170 +1,254 @@
-// Restore the local checkpoint, then read and date the controller response.
-//
-// The picture: the line of the operation. The agent side holds a checkpoint with the key. The
-// records of the controller are question marks, because a checkpoint cannot see them. On resume,
-// the key goes to the ledger and a read goes to the job: each question mark becomes a record,
-// and each answer goes into the view. The report says what was seen, with its time.
+// Scene 8: resume-with-evidence - "Where is the job after a restart?"
+// Checkpoint recovery beacon (key + rev-17), controller ledger reconciliation -> job-1 queued at 990s,
+// clock at 1000s, strictly withholding "10 seconds ago" until 'age' ({ after: true }).
+import { line } from 'vizmatic/stage';
 import {
-  assertEqual,
-  beside,
-  column,
-  fadeIn,
-  fadeOut,
-  moveTo,
-  par,
-  place,
-  row,
-  seq,
-} from 'vizmatic/stage';
-import { boundedRecoveryClaim, recoveryObservation } from '../../../films/agent-recovery/model.mjs';
-import { chip, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { COLOR, OP, board, cross, docked, record, token, travel } from '../parts.mjs';
+  BOUNDED_CLAIM,
+  COSMOS,
+  OBSERVATION,
+  OP,
+  ROLE,
+  actorOrb,
+  ambientClock,
+  cinemaAtmosphere,
+  glowArrow,
+  glowDot,
+  glowPill,
+  glowingTrail,
+  guardedDynamic,
+  heroTitle,
+  hexAlpha,
+  lowerFooter,
+  playCue,
+  txt,
+} from '../parts.mjs';
 
 export default function resumeWithEvidence(s, c) {
-  const observation = recoveryObservation();
-  const now = 1000;
-  const claim = boundedRecoveryClaim(observation, now);
-  assertEqual(claim.age, 10, 'age of the controller observation in seconds');
-  assertEqual(
-    [observation.jobId, observation.state, claim.text],
-    [OP.job, OP.state, `${OP.job} was ${OP.state} when checked`],
-    'the claim',
-  );
+  const title = heroTitle(['Where is the job after', 'a restart?'], {
+    x: -855,
+    y: -440,
+    size: 50,
+    lineHeight: 58,
+    accent: ROLE.sure,
+  });
 
-  const b = board();
+  const amb = ambientClock(s, c);
+  const showCheckpoint = s.value(0);
+  const askJob = s.value(0);
+  const lookupProg = s.value(0);
+  const showJob1 = s.value(0);
+  const showObsTime = s.value(0);
+  const showNowTime = s.value(0);
+  const revealAge = s.value(0); // STRICTLY AFTER 'age'!
+  const showClaim = s.value(0);
 
-  // The agent side: the approval over the agent, and the checkpoint under it.
-  const approved = beside(
-    chip('approved', { color: COLOR.sure, stroke: COLOR.sure }),
-    b.agent,
-    'above',
-    'normal',
-    'left',
-  );
-  const checkpoint = beside(
-    chip('checkpoint: wait for the job', { color: COLOR.attempt, stroke: COLOR.attempt }),
-    b.agent,
-    'under',
-    'normal',
-    'left',
-  );
-  const key = beside(token(OP.key, COLOR.op), checkpoint, 'under', 'tight', 'left');
-  const pending = beside(note('pending', { color: COLOR.op }), key, 'right', 'tight');
-  const target = beside(
-    token(`${OP.action} → ${OP.revision}`, COLOR.op),
-    key,
-    'under',
-    'tight',
-    'left',
-  );
+  const layer = guardedDynamic(
+    () => 1,
+    (alpha) => {
+      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
+      const nodes = [];
 
-  // The controller: what a checkpoint cannot see, and what is there.
-  const hidden = [0, 1].map((column) =>
-    record([['?', 'dim']], b.recordWidth(column), { color: 'dim', dash: [10, 8] }).moveTo(
-      b.durableAt(column),
-    ),
-  );
-  const ledger = record(
-    [
-      [OP.key, COLOR.op],
-      ['→', 'dim'],
-      [OP.job, COLOR.sure],
-    ],
-    b.recordWidth(0),
-  ).moveTo(b.durableAt(0));
-  const job = record(
-    [
-      [observation.jobId, COLOR.sure],
-      [observation.state, 'ink'],
-    ],
-    b.recordWidth(1),
-  ).moveTo(b.durableAt(1));
-  const unknown = label('?', { color: 'dim' }).moveTo(b.viewBox.point());
+      // Upper exchange: Restarted Agent <-> Controller Ledger (y = -135)
+      const topY = -135;
+      const ax = -620;
+      const cx = 620;
 
-  // The sends, the answers, and the place where the first reply was lost.
-  const lookup = token([[OP.key, COLOR.op]], COLOR.attempt, { tag: 'trace-a2' });
-  const read = token('status?');
-  for (const node of [lookup, read]) node.moveTo(docked(node, b.out, 'right'));
-  const answer = token(OP.job, COLOR.sure);
-  const seen = token(
-    [
-      [observation.jobId, COLOR.sure],
-      [observation.state, 'ink'],
-    ],
-    COLOR.sure,
-  );
-  for (const node of [answer, seen]) node.moveTo(docked(node, b.exit));
-  const broken = cross().moveTo(b.crossAt(answer));
+      nodes.push(
+        actorOrb(ax, topY, 64, ROLE.violet, 'Restarted', 'checkpoint loaded', {
+          alpha,
+          active: showCheckpoint.value > 0.3,
+        }),
+        actorOrb(cx, topY, 68, ROLE.controller, 'Controller', 'authoritative ledger', {
+          alpha,
+          active: showJob1.value > 0.3,
+        }),
+        glowArrow(ax + 86, topY - 22, cx - 86, topY - 22, hexAlpha(ROLE.agent, 0.42 * alpha), {
+          width: 2.6,
+          alpha,
+        }),
+        glowArrow(cx - 86, topY + 26, ax + 86, topY + 26, hexAlpha(ROLE.sure, 0.42 * alpha), {
+          width: 2.6,
+          alpha,
+        }),
+      );
 
-  const [clockArea] = b.store.inset('normal').rows(2);
-  const [thenSlot, nowSlot] = clockArea.columns(2, 'normal');
-  const clock = (slot, name, seconds, color) =>
-    place(
-      column([note(name), mono(seconds + ' s', { size: 51, color })], { gap: 'tight' }),
-      slot.inset('normal'),
-      'bottom left',
-    );
-  const then = clock(thenSlot, 'Observed at', observation.observedAt, COLOR.sure);
-  const current = clock(nowSlot, 'Clock now', now, 'ink');
-  const age = place(
-    mono(now + ' − ' + observation.observedAt + ' = ' + claim.age + ' s', {
-      size: 47,
-      color: COLOR.mark,
-    }),
-    b.store.rows(2)[1].inset('wide'),
-    'bottom left',
-  );
-  const report = chip(
-    observation.jobId + ' was ' + observation.state + ' ' + claim.age + ' seconds ago',
-    {
-      color: COLOR.sure,
-      stroke: COLOR.sure,
+      // Checkpoint data pills under Restarted Agent
+      if (showCheckpoint.value > 0.05) {
+        nodes.push(
+          glowPill(`key: ${OP.key} · ${OP.revision}`, -440, -295, ROLE.op, {
+            size: 26,
+            alpha: showCheckpoint.value * alpha,
+          }),
+        );
+      }
+
+      // Question 1 hold: Where can it find the job ID?
+      if (askJob.value > 0.3 && lookupProg.value < 0.25) {
+        nodes.push(
+          txt('Where can it find the job ID?', 0, topY - 125, 32, ROLE.mark, 'serif', 'center')
+            .glow(7, ROLE.mark)
+            .opacity(askJob.value * alpha * (0.8 + 0.2 * pulse)),
+        );
+      }
+
+      // Lookup & reply pulses
+      if (lookupProg.value > 0.05) {
+        const px = ax + 86 + (cx - 86 - (ax + 86)) * lookupProg.value;
+        nodes.push(
+          glowingTrail(
+            [
+              [ax + 86, topY - 22],
+              [px, topY - 22],
+            ],
+            { color: ROLE.agent, width: 5, glow: 10, opacity: alpha },
+          ),
+          glowDot(px, topY - 22, { radius: 10, color: ROLE.agent, glow: 14, opacity: alpha }),
+          glowPill(`lookup(${OP.key})`, 0, topY - 76, ROLE.agent, { size: 26, alpha }),
+        );
+      }
+
+      if (showJob1.value > 0.3) {
+        nodes.push(
+          glowPill(`${OP.job} · ${OP.state}`, 0, topY + 80, ROLE.sure, {
+            size: 28,
+            alpha: showJob1.value * alpha,
+          }),
+        );
+      }
+
+      // Lower timeline: Clock Ruler (970s .. 1010s) at y = 175
+      const tlY = 175;
+      const x0 = -640;
+      const x1 = 640;
+      const xOf = (sec) => x0 + ((x1 - x0) * (sec - 970)) / 40;
+
+      nodes.push(
+        txt('OBSERVATION CLOCK (SECONDS)', 0, tlY - 82, 26, COSMOS.muted, 'mono', 'center').opacity(
+          alpha,
+        ),
+        line([x0, tlY], [x1, tlY], { stroke: '#4a5c88', width: 4 }).opacity(alpha),
+      );
+
+      for (const tick of [970, 980, 990, 1000, 1010]) {
+        const tx = xOf(tick);
+        nodes.push(
+          line([tx, tlY - 12], [tx, tlY + 12], { stroke: COSMOS.muted, width: 2.5 }).opacity(alpha),
+          txt(`${tick}s`, tx, tlY + 42, 26, COSMOS.muted, 'mono', 'center').opacity(alpha),
+        );
+      }
+
+      const obsX = xOf(OBSERVATION.observedAt);
+      const nowX = xOf(1000);
+
+      if (showObsTime.value > 0.2) {
+        const oa = showObsTime.value * alpha;
+        nodes.push(
+          glowDot(obsX, tlY, { radius: 12, color: ROLE.sure, glow: 14, opacity: oa }),
+          txt(
+            `observed: ${OBSERVATION.observedAt}s`,
+            obsX - 110,
+            tlY - 52,
+            26,
+            ROLE.sure,
+            'mono',
+            'center',
+          ).opacity(oa),
+        );
+      }
+
+      if (showNowTime.value > 0.2) {
+        const na = showNowTime.value * alpha;
+        nodes.push(
+          glowDot(nowX, tlY, { radius: 12, color: ROLE.agent, glow: 14, opacity: na }),
+          txt('now: 1000s', nowX + 100, tlY - 52, 26, ROLE.agent, 'mono', 'center').opacity(na),
+        );
+      }
+
+      // Span highlight between 990s and 1000s (strictly withhold "10s" until revealAge > 0.5!)
+      if (revealAge.value > 0.5) {
+        const aa = revealAge.value * alpha;
+        nodes.push(
+          glowingTrail(
+            [
+              [obsX, tlY],
+              [nowX, tlY],
+            ],
+            { color: ROLE.mark, width: 8, glow: 12, opacity: aa },
+          ),
+          glowPill(`age = ${BOUNDED_CLAIM.age} s`, (obsX + nowX) / 2, tlY + 86, ROLE.mark, {
+            size: 26,
+            alpha: aa,
+          }),
+        );
+      } else if (showNowTime.value > 0.5) {
+        nodes.push(
+          line([obsX, tlY], [nowX, tlY], { stroke: ROLE.mark, width: 5, dash: [8, 6] }).opacity(
+            showNowTime.value * alpha,
+          ),
+          txt('?', (obsX + nowX) / 2, tlY - 40, 32, ROLE.mark, 'mono', 'center').opacity(
+            showNowTime.value * alpha * (0.75 + 0.25 * pulse),
+          ),
+        );
+      }
+
+      // Bottom readout / prediction prompt
+      const capY = 335;
+      if (revealAge.value > 0.5 || showClaim.value > 0.5) {
+        nodes.push(
+          glowPill('Report: "job-1 was queued 10s ago" (save t = 990s)', 0, capY, ROLE.sure, {
+            size: 28,
+            alpha: Math.max(revealAge.value, showClaim.value) * alpha,
+          }),
+        );
+      } else if (showNowTime.value > 0.5) {
+        nodes.push(
+          txt('How old is that observation?', 0, capY, 34, ROLE.mark, 'serif', 'center')
+            .glow(7, ROLE.mark)
+            .opacity(showNowTime.value * alpha),
+        );
+      } else {
+        nodes.push(
+          txt(
+            'A durable checkpoint keeps the operation key across process restarts.',
+            0,
+            capY,
+            27,
+            COSMOS.muted,
+            'sans',
+            'center',
+          ).opacity(alpha),
+        );
+      }
+
+      nodes.push(
+        lowerFooter(
+          `CHECKPOINT: ${OP.key} -> LEDGER LOOKUP`,
+          revealAge.value > 0.5 ? 'DATED: QUEUED 10s AGO (990s)' : 'RECONCILE & DATE OBSERVATION',
+          { accent: revealAge.value > 0.5 ? ROLE.sure : ROLE.agent, alpha },
+        ),
+      );
+
+      return nodes;
     },
   );
-  const reportName = note('report');
-  beside(row([reportName, report]), b.view, 'under', 'normal', 'left');
 
-  s.add(heading(c.title), b.base, broken, checkpoint);
-  b.close(c);
-  c.show('pending-identity', [key, pending]);
-  c.show('verified-inputs', [target, approved]);
-  c.show('job-question', [hidden, unknown]);
+  s.add(cinemaAtmosphere(ROLE.violet, ROLE.sure), title, layer);
 
-  // Resume: the key finds its row, and a read finds the job as it is now.
-  c.hide('reconcile-controller', broken);
-  c.on('reconcile-controller', () =>
-    s.play(
-      seq(
-        travel(lookup, docked(lookup, b.door), { duration: 1 }),
-        b.absorb(lookup),
-        par(fadeOut(hidden[0], { duration: 0.2 }), fadeOut(unknown, { duration: 0.2 })),
-        fadeIn(ledger, { duration: 0.3 }),
-        b.arrive(answer, { duration: 1.2 }),
-      ),
-    ),
-  );
-  c.on('check-state', () =>
-    s.play(
-      seq(
-        travel(read, docked(read, b.door), { duration: 0.9 }),
-        b.absorb(read),
-        fadeOut(hidden[1], { duration: 0.2 }),
-        fadeIn(job, { duration: 0.3 }),
-      ),
-    ),
-  );
-  c.on('current-status', () =>
-    s.play(
-      seq(
-        travel(seen, docked(seen, b.home, 'right'), { duration: 1 }),
-        fadeOut(answer, { duration: 0.2 }),
-        moveTo(seen, b.viewBox.point(), { duration: 0.35 }),
-      ),
-    ),
-  );
-  c.show('observed-at', then);
-  c.show('current-time', current);
-  c.show('age', age);
-  c.show('bounded-claim', [reportName, report]);
-  c.keep([...b.base.filter((node) => node !== b.request && node !== b.reply), ledger, job, seen]);
+  playCue(s, c, 'pending-identity', (d) => s.play(showCheckpoint.to(0.6, { duration: d })), {
+    dur: 0.45,
+  });
+  playCue(s, c, 'verified-inputs', (d) => s.play(showCheckpoint.to(1, { duration: d })), {
+    dur: 0.4,
+  });
+  playCue(s, c, 'job-question', (d) => s.play(askJob.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'reconcile-controller', (d) => s.play(lookupProg.to(1, { duration: d })), {
+    dur: 0.75,
+  });
+  playCue(s, c, 'check-state', (d) => s.play(showJob1.to(0.6, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'current-status', (d) => s.play(showJob1.to(1, { duration: d })), { dur: 0.4 });
+  playCue(s, c, 'observed-at', (d) => s.play(showObsTime.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'current-time', (d) => s.play(showNowTime.to(1, { duration: d })), { dur: 0.45 });
+  // Strict prediction withholding: reveal 10s age ONLY AFTER 'age'!
+  playCue(s, c, 'age', (d) => s.play(revealAge.to(1, { duration: d })), { after: true, dur: 0.45 });
+  playCue(s, c, 'bounded-claim', (d) => s.play(showClaim.to(1, { duration: d })), { dur: 0.45 });
 }

@@ -69,7 +69,7 @@ $$
 h = W_0 x + \frac{\alpha}{r} B(Ax)
 $$
 
-Parenthesizing $B(Ax)$ executes two thin matvecs (~262K FLOPs/token vs 33.5M for $W_0 x$, ~0.78% overhead) without ever materializing dense $BA$.
+Parenthesizing $B(Ax)$ executes two thin matvecs (~262K FLOPs/token vs 33.6M for $W_0 x$, ~0.78% overhead) without ever materializing dense $BA$.
 
 ### Why the product is low rank
 
@@ -346,7 +346,7 @@ $$
 V = W_0 + \frac{\alpha}{r}BA, \qquad W_{\text{DoRA}} = m \odot \frac{V}{\|V\|_{\text{row}}}
 $$
 
-Step-zero identity holds ($B=0 \implies W^{(0)} = W_0$), magnitude adds $1/(2r)$ parameters over LoRA, and PEFT enables it via `use_dora=True`.[^huggingface2026peftdora] To save memory, both DoRA and PEFT detach $\|V\|_{\text{row}}$ during backward: for $V=(3, 4), m=5, x=(1, 0)$, full differentiation subtracts the projection along $V$ to give `[0.64, -0.48]`, while PEFT's detached-norm backward gives `[1.0, 0.0]`:
+Step-zero identity holds ($B=0 \implies W^{(0)} = W_0$), on square projections magnitude adds $1/(2r)$ parameters over LoRA ($d_{\text{out}} / [r(d_{\text{in}} + d_{\text{out}})]$ in general), and PEFT enables it via `use_dora=True`.[^huggingface2026peftdora] To save memory, both DoRA and PEFT detach $\|V\|_{\text{row}}$ during backward: for $V=(3, 4), m=5, x=(1, 0)$, full differentiation subtracts the projection along $V$ to give `[0.64, -0.48]`, while PEFT's detached-norm backward gives `[1.0, 0.0]`:
 
 <!-- leetllm: test, deps=torch==2.13.0,transformers==5.16.1,peft==0.20.0, output=show, output_title="DoRA backward check" -->
 ```python title="dora-backward-check.py"

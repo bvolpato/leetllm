@@ -1,179 +1,491 @@
-import { assertEqual, column, line, place, rect, to } from 'vizmatic/stage';
-import { area, heading, label, mono, namedBox, note } from '../../kit-narrated.mjs';
-import { modelMix, riskDesk } from '../desk.mjs';
-import { evidenceValue, reviewValue } from '../parts.mjs';
-
-const speedScores = [
-  { action: 'Approve', points: 100, color: 'pink' },
-  { action: 'Ask for proof', points: 45, color: 'green' },
-  { action: 'Human review', points: 15, color: 'blue' },
-];
-
-function checkProposal(action, verified) {
-  if (action === 'Approve' && !verified) return { allowed: false, execute: 'Human review' };
-  return { allowed: true, execute: action };
-}
+// Scene 13: reward-design - "Back at the routing desk" (FINALE!)
+// View 1: 4% -> 5% knife-edge abandonment flip (54.48 -> 53.35 across Review 54) on the 100-orb
+//         probability constellation & glowing return ruler, strictly withholding 53.35 on 'predict'.
+// View 2: Speed-score reward hacking (Approve 100 vs Ask 45 vs Review 15) confronting the P-7
+//         authorization gate twice (empty proof -> rejected to Human review; verified proof -> allowed),
+//         strictly withholding both predictions ('predict-speed', 'predict-gate'), closing on clean 09:00 evaluation.
+import {
+  COSMOS,
+  ROLE,
+  cinemaAtmosphere,
+  evidenceValue,
+  glowArcArrow,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  playCue,
+  rule,
+  swapVis,
+  txt,
+} from '../parts.mjs';
+import { drawReturnRuler, drawRiskConstellation, modelMix } from '../desk.mjs';
 
 export default function rewardDesign(s, c) {
-  const b = riskDesk(s, { initial: 4, min: 52, max: 56, ticks: [52, 53, 54, 55, 56] });
-  const title = heading(c.title);
-  const message = (words, color = 'yellow') => place(label(words, { color }), b.foot);
-  const payoffs = (percent) =>
-    place(
-      column(
-        [
-          mono('Verified reply  +59', { color: 'green' }),
-          mono('Leave  −54', { color: 'pink' }),
-          mono(modelMix(percent), { size: 40 }),
-        ],
-        { gap: 'normal' },
+  const title = heroTitle(['Back at the', 'routing desk'], {
+    x: -855,
+    y: -440,
+    size: 52,
+    lineHeight: 60,
+    accent: ROLE.gold,
+  });
+
+  const vRisk = s.value(1);
+  const vGate = s.value(0);
+
+  // View 1 state (4% -> 5% knife-edge flip)
+  const p = s.value(4);
+  const showFour = s.value(0);
+  const showMarker = s.value(0);
+  const showFirstChoice = s.value(0);
+  const isFifth = s.value(0);
+  const showPredFlip = s.value(0);
+  const showDiff = s.value(0);
+  const showNewMean = s.value(0);
+  const showSafeChoice = s.value(0);
+
+  // View 2 state (Speed reward hacking vs P-7 authorization gate)
+  const spApp = s.value(0);
+  const spAsk = s.value(0);
+  const spRev = s.value(0);
+  const showPredSpeed = s.value(0);
+  const showProp = s.value(0);
+  const gatePos = s.value(0); // 0 = Proposal, 1 = P-7 Gate, 2 = Executed
+  const flashEmpty = s.value(0);
+  const showDenied = s.value(0);
+  const isFallback = s.value(0);
+
+  // Replay mode (verified proof)
+  const isReplay = s.value(0);
+  const isVerified = s.value(0);
+  const replayPos = s.value(0); // 0 = Proposal, 1 = P-7 Gate, 2 = Executed
+  const showPredGate = s.value(0);
+  const showAllow = s.value(0);
+  const showAudit = s.value(0);
+
+  const firstReturn = evidenceValue(0.04); // 54.48
+
+  // VIEW 1: 4% vs 5% Knife-Edge Flip
+  const riskLayer = guardedDynamic(vRisk, (alpha) => {
+    const pv = p.value;
+    const fifth = isFifth.value > 0.5;
+    const markerVisible = fifth ? showNewMean.value > 0.5 : showMarker.value > 0.5;
+
+    const nodes = [
+      txt('Chance after asking for proof', -465, -265, 30, ROLE.state, 'sans', 'center').opacity(
+        alpha,
       ),
-      b.arithmetic,
+      ...drawRiskConstellation(pv, {
+        cx: -465,
+        cy: 40,
+        spacing: 52,
+        orbRadius: 14,
+        highlightIndex: fifth ? 4 : -1,
+        alpha,
+      }),
+      rule(-65, -280, -65, 420, COSMOS.rule, 1.8).opacity(0.6 * alpha),
+    ];
+
+    const rx = 435;
+    nodes.push(
+      txt('Expected return at the desk', rx, -340, 32, COSMOS.ink, 'serif', 'center').opacity(
+        alpha,
+      ),
     );
-  const before = payoffs(4),
-    after = payoffs(5);
-  const [firstReturn, nextReturn] = [4, 5].map((percent) => evidenceValue(percent / 100));
-  assertEqual(firstReturn.toFixed(2), '54.48', '4 percent abandonment');
-  assertEqual(nextReturn.toFixed(2), '53.35', '5 percent abandonment');
-  assertEqual((firstReturn - nextReturn).toFixed(2), '1.13', 'return cost of one percentage point');
-  assertEqual(
-    nextReturn < reviewValue && reviewValue < firstReturn,
-    true,
-    'one mark reverses the decision',
-  );
-  const fifth = b.tray.cells[4];
-  const highlight = rect(fifth.width + 5, fifth.height + 5, {
-    radius: 6,
-    fill: null,
-    stroke: 'yellow',
-    width: 4,
-  }).moveTo(fifth.point('center'));
-  const [oldX, oldY] = b.ruler.point(firstReturn);
-  const oldTick = line([oldX, oldY - 8], [oldX, oldY + 11], { stroke: 'dim', width: 4 });
-  const previous = mono('At 4%   ' + firstReturn.toFixed(2), { color: 'dim', size: 32 }).moveTo([
-    oldX,
-    oldY - 151,
-  ]);
-  const previousChoice = message('At 4%, ask for proof.', 'green');
-  const pick = message('At 5%, ask for proof or send to review?');
-  const difference = message('One change per hundred costs (59 + 54) / 100 = 1.13 points.');
-  const newChoice = message('At 5%, send to review.', 'blue');
 
-  const [header, scoreLabel, scoresRegion, stations, track, check, foot] = area.rows(
-    [1, 0.55, 1.6, 0.65, 1.2, 0.8, 1.1],
-    'normal',
-  );
-  const [idArea, evidenceArea] = header.columns([1, 1], 'wide');
-  const id = place(mono('REQ-10234', { color: 'cyan' }), idArea, 'left');
-  const field = (words) =>
-    place(namedBox(words, { width: 665, height: 92, color: 'yellow' }), evidenceArea, 'right');
-  const emptyField = field('Verified evidence  [ empty ]');
-  const fullField = field('Verified evidence  [ present ]');
-  const speedHeading = place(note('Simulator objective  ·  speed of closure'), scoreLabel);
-  const speedCells = scoresRegion.columns(3, 'wide');
-  const scores = speedScores.map(({ action, points, color }, i) => {
-    const [name, value] = speedCells[i].rows([1, 1.3], 4);
-    return {
-      name: place(label(action, { color }), name),
-      value: place(mono(String(points), { size: 60, color }), value),
-    };
-  });
-  const proposal = speedScores.reduce((best, candidate) =>
-    candidate.points > best.points ? candidate : best,
-  ).action;
-  const original = checkProposal(proposal, false);
-  const replay = checkProposal(proposal, true);
-  assertEqual(proposal, 'Approve', 'speed score proposes approval');
-  assertEqual(original.allowed, false, 'unverified proposal is rejected');
-  assertEqual(original.execute, 'Human review', 'fallback for missing proof');
-  assertEqual(
-    replay.allowed && replay.execute === proposal,
-    true,
-    'same proposal with verified proof',
-  );
-  const labels = stations
-    .columns(3, 'loose')
-    .map((box, i) => place(note(['Proposal', 'P-7 checks proof', 'Executed action'][i]), box));
-  const bays = track.columns(3, 'loose');
-  const points = bays.map((bay) => bay.point('center'));
-  const rails = [0, 1].map((i) =>
-    line([points[i][0] + 155, points[i][1]], [points[i + 1][0] - 155, points[i + 1][1]], {
-      stroke: 'faint',
-      width: 3,
-    }),
-  );
-  const token = (name, i, color) =>
-    place(namedBox(name, { width: 300, height: 94, color }), bays[i]);
-  const firstToken = token(proposal, 0, 'pink');
-  const fallback = token(original.execute, 1, 'blue');
-  const replayToken = token(replay.execute, 0, 'pink');
-  const prompt = (words) => place(label(words, { color: 'yellow' }), foot);
-  const speedPrompt = prompt('Which action earns the highest speed score?');
-  const rejected = place(label('Approval rejected  ·  proof missing', { color: 'pink' }), check);
-  const held = place(label('Human review receives the ticket.', { color: 'blue' }), foot);
-  const oldReceipt = place(
-    column(
-      [
-        note('09:00  ·  Before verification'),
-        mono('No proof    →    Human review', { color: 'blue' }),
-      ],
-      { gap: 'tight' },
-    ),
-    scoresRegion,
-  );
-  const same = prompt('Same approval proposal. What executes with verified proof?');
-  const passed = place(label('Proof verified  ·  approval permitted', { color: 'green' }), check);
-  const audit = place(
-    label('Score the 09:00 decision with the 09:00 evidence.', { color: 'yellow' }),
-    foot,
-  );
+    if (showFour.value > 0.05) {
+      nodes.push(
+        txt(
+          'Verified reply +59   ·   Leave -54',
+          rx,
+          -235,
+          30,
+          COSMOS.muted,
+          'mono',
+          'center',
+        ).opacity(showFour.value * alpha),
+        txt(
+          modelMix(fifth ? 5 : 4),
+          rx,
+          -165,
+          34,
+          fifth ? ROLE.gold : ROLE.evidence,
+          'mono',
+          'center',
+        )
+          .glow(6, fifth ? ROLE.gold : ROLE.evidence)
+          .opacity(showFour.value * alpha),
+      );
+    }
 
-  s.add(title, b.nodes, b.fixed);
-  c.show('four', before, { after: true });
-  c.show('first-mean', b.marker, { after: true });
-  c.show('first-choice', previousChoice, { after: true });
-  c.swap('fifth', [previousChoice, before, b.marker], [after, oldTick, previous], {
-    fade: 0.12,
-    lead: 0,
+    nodes.push(
+      ...drawReturnRuler(pv, {
+        x0: 40,
+        x1: 830,
+        y: 165,
+        min: 52,
+        max: 56,
+        ticks: [52, 53, 54, 55, 56],
+        showReview: true,
+        showMarker: markerVisible,
+        prevValue: fifth ? firstReturn : null,
+        prevLabel: fifth ? `At 4%: ${firstReturn.toFixed(2)}` : '',
+        alpha,
+      }),
+    );
+
+    // Strictly one bottom message at a time
+    if (showSafeChoice.value > 0.5) {
+      nodes.push(
+        txt('At 5%, send to review (54 beats 53.35).', rx, 390, 34, ROLE.review, 'serif', 'center')
+          .glow(8, ROLE.review)
+          .opacity(showSafeChoice.value * alpha),
+      );
+    } else if (showDiff.value > 0.5) {
+      nodes.push(
+        txt('One extra leave per 100 costs 1.13 points.', rx, 390, 30, ROLE.gold, 'mono', 'center')
+          .glow(6, ROLE.gold)
+          .opacity(showDiff.value * alpha),
+      );
+    } else if (showPredFlip.value > 0.5 && fifth) {
+      nodes.push(
+        txt('At 5%, ask for proof or send to review?', rx, 390, 36, ROLE.gold, 'serif', 'center')
+          .glow(8, ROLE.gold)
+          .opacity(showPredFlip.value * alpha),
+      );
+    } else if (showFirstChoice.value > 0.5 && !fifth) {
+      nodes.push(
+        txt(
+          'At 4%, ask for proof (54.48 edges out 54).',
+          rx,
+          390,
+          32,
+          ROLE.evidence,
+          'serif',
+          'center',
+        )
+          .glow(7, ROLE.evidence)
+          .opacity(showFirstChoice.value * alpha),
+      );
+    }
+
+    return nodes;
   });
-  c.after('fifth', () => s.play(b.p.to(5, { duration: 0.5 })));
-  c.show('fifth', highlight, { after: true });
-  c.show('predict', pick);
-  c.swap('difference', pick, difference, { after: true });
-  c.show('new-mean', b.marker, { after: true });
-  c.swap('safe-choice', difference, newChoice, { after: true });
-  c.swap(
-    'speed',
-    [b.nodes, b.fixed, b.marker, after, oldTick, previous, highlight, newChoice],
-    [id, emptyField, speedHeading, scores.map((x) => x.name), labels, rails],
+
+  // VIEW 2: Speed Score Reward Hacking vs P-7 Authorization Gate & Verified Replay
+  const gateLayer = guardedDynamic(vGate, (alpha) => {
+    const rep = isReplay.value > 0.5;
+    const ver = isVerified.value > 0.5;
+    const nodes = [
+      // Top live ticket header + evidence status ring (zero rectangular box!)
+      txt('REQ-10234', -145, -365, 34, ROLE.state, 'mono', 'center').opacity(alpha),
+      txt(
+        ver ? 'Verified evidence: [ PRESENT ]' : 'Verified evidence: [ EMPTY ]',
+        420,
+        -365,
+        32,
+        ver ? ROLE.evidence : flashEmpty.value > 0.5 ? ROLE.approve : ROLE.gold,
+        'mono',
+        'center',
+      )
+        .glow(ver || flashEmpty.value > 0.5 ? 9 : 4, ver ? ROLE.evidence : ROLE.approve)
+        .opacity(alpha),
+      rule(-840, -295, 840, -295, COSMOS.rule, 1.6).opacity(0.6 * alpha),
+    ];
+
+    // Middle zone: Speed-of-closure bars (before replay) OR 09:00 memory trace (during replay)
+    if (!rep) {
+      nodes.push(
+        txt(
+          'Simulator objective: speed of closure',
+          0,
+          -245,
+          28,
+          COSMOS.muted,
+          'mono',
+          'center',
+        ).opacity(alpha),
+      );
+      const speedItems = [
+        { cx: -545, name: 'Approve', pts: 100, vis: spApp.value, col: ROLE.approve },
+        { cx: 0, name: 'Ask for proof', pts: 45, vis: spAsk.value, col: ROLE.evidence },
+        { cx: 545, name: 'Human review', pts: 15, vis: spRev.value, col: ROLE.review },
+      ];
+      speedItems.forEach((it) => {
+        nodes.push(txt(it.name, it.cx, -185, 32, it.col, 'serif', 'center').opacity(alpha));
+        if (it.vis > 0.05) {
+          const bw = (it.pts / 100) * 260 * it.vis;
+          nodes.push(
+            lumBar(it.cx, -120, bw, 36, {
+              color: it.col,
+              fillOpacity: 0.42,
+              glow: 8,
+              opacity: it.vis * alpha,
+            }),
+            txt(String(it.pts), it.cx, -62, 36, it.col, 'mono', 'center')
+              .glow(6, it.col)
+              .opacity(it.vis * alpha),
+          );
+        }
+      });
+    } else {
+      nodes.push(
+        txt(
+          '09:00 Memory (before verification):',
+          0,
+          -210,
+          28,
+          COSMOS.muted,
+          'mono',
+          'center',
+        ).opacity(alpha),
+        txt(
+          'Approve proposed with empty proof  →  P-7 routed to Human review',
+          0,
+          -145,
+          32,
+          ROLE.review,
+          'sans',
+          'center',
+        )
+          .glow(6, ROLE.review)
+          .opacity(alpha),
+      );
+    }
+
+    // Bottom zone: 3-station Execution Conduit (Proposal -> P-7 Gate -> Executed)
+    const sy = 165;
+    const xs = [-585, 0, 585];
+    const stNames = ['1. Proposal', '2. P-7 Gate', '3. Executed'];
+
+    nodes.push(
+      glowArcArrow([xs[0] + 108, sy], [xs[1] - 108, sy], 0, {
+        color: COSMOS.muted,
+        width: 3.2,
+        glow: 5,
+        opacity: 0.8 * alpha,
+      }),
+      glowArcArrow([xs[1] + 108, sy], [xs[2] - 108, sy], 0, {
+        color: COSMOS.muted,
+        width: 3.2,
+        glow: 5,
+        opacity: 0.8 * alpha,
+      }),
+    );
+
+    xs.forEach((sx, i) => {
+      const gateCol =
+        i === 1
+          ? rep
+            ? showAllow.value > 0.5
+              ? ROLE.evidence
+              : ROLE.gold
+            : showDenied.value > 0.5
+              ? ROLE.approve
+              : ROLE.gold
+          : COSMOS.dim;
+      nodes.push(
+        txt(
+          stNames[i],
+          sx,
+          sy - 130,
+          28,
+          i === 1 ? gateCol : COSMOS.muted,
+          'mono',
+          'center',
+        ).opacity(alpha),
+        glowRing(sx, sy, 98, gateCol, {
+          width: i === 1 ? 3.8 : 2.6,
+          glow: i === 1 ? 11 : 4,
+          dash: i === 1 ? undefined : [9, 7],
+        }).opacity(alpha),
+      );
+    });
+
+    // Moving execution orb (opaque fillOpacity=1 + radius 84 cleanly covers underlying rail during flight!)
+    if (!rep && showProp.value > 0.05) {
+      const gp = gatePos.value; // 0 -> 1 -> 2
+      const ox = gp <= 1 ? xs[0] + (xs[1] - xs[0]) * gp : xs[1] + (xs[2] - xs[1]) * (gp - 1);
+      const fb = isFallback.value > 0.5;
+      const oCol = fb ? ROLE.review : ROLE.approve;
+      nodes.push(
+        glowRing(ox, sy, 84, oCol, { fillOpacity: 1, width: 4.2, glow: 14 }).opacity(
+          showProp.value * alpha,
+        ),
+        txt(fb ? 'Review' : 'Approve', ox, sy, 28, oCol, 'mono', 'center')
+          .glow(7, oCol)
+          .opacity(showProp.value * alpha),
+      );
+      if (showDenied.value > 0.05) {
+        nodes.push(
+          txt('Rejected: proof missing', 0, sy + 132, 30, ROLE.approve, 'sans', 'center')
+            .glow(7, ROLE.approve)
+            .opacity(showDenied.value * alpha),
+        );
+      }
+    } else if (rep) {
+      const rp = replayPos.value; // 0 -> 1 -> 2
+      const ox = rp <= 1 ? xs[0] + (xs[1] - xs[0]) * rp : xs[1] + (xs[2] - xs[1]) * (rp - 1);
+      const ok = showAllow.value > 0.5;
+      const oCol = ok ? ROLE.evidence : ROLE.approve;
+      nodes.push(
+        glowRing(ox, sy, 84, oCol, { fillOpacity: 1, width: 4.2, glow: 14 }).opacity(alpha),
+        txt('Approve', ox, sy, 28, oCol, 'mono', 'center').glow(7, oCol).opacity(alpha),
+      );
+      if (ok) {
+        nodes.push(
+          txt(
+            'Proof verified · Approval permitted',
+            0,
+            sy + 132,
+            30,
+            ROLE.evidence,
+            'sans',
+            'center',
+          )
+            .glow(7, ROLE.evidence)
+            .opacity(showAllow.value * alpha),
+        );
+      }
+    }
+
+    // Bottom prompt / verdict / finale takeaway (one line at a time!)
+    if (showAudit.value > 0.5) {
+      nodes.push(
+        txt(
+          'Evaluate the 09:00 decision using only the 09:00 evidence.',
+          0,
+          405,
+          36,
+          ROLE.gold,
+          'serif',
+          'center',
+        )
+          .glow(9, ROLE.gold)
+          .opacity(showAudit.value * alpha),
+      );
+    } else if (rep && showPredGate.value > 0.5 && showAllow.value < 0.5) {
+      nodes.push(
+        txt(
+          'Same approval proposal with verified proof: what executes now?',
+          0,
+          405,
+          34,
+          ROLE.gold,
+          'serif',
+          'center',
+        )
+          .glow(8, ROLE.gold)
+          .opacity(showPredGate.value * alpha),
+      );
+    } else if (!rep && isFallback.value > 0.5) {
+      nodes.push(
+        txt(
+          'Speed score changes the proposal; P-7 decides what executes.',
+          0,
+          405,
+          32,
+          ROLE.review,
+          'serif',
+          'center',
+        ).opacity(isFallback.value * alpha),
+      );
+    } else if (!rep && showPredSpeed.value > 0.5 && showProp.value < 0.5) {
+      nodes.push(
+        txt('Which action will the speed score propose?', 0, 405, 36, ROLE.gold, 'serif', 'center')
+          .glow(8, ROLE.gold)
+          .opacity(showPredSpeed.value * alpha),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(cinemaAtmosphere(ROLE.gold, ROLE.evidence), title, riskLayer, gateLayer);
+
+  // View 1: 4% -> 5% knife-edge flip
+  playCue(s, c, 'four', (d) => s.play(showFour.to(1, { duration: d })), { after: true, dur: 0.35 });
+  playCue(s, c, 'first-mean', (d) => s.play(showMarker.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(s, c, 'first-choice', (d) => s.play(showFirstChoice.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(
+    s,
+    c,
+    'fifth',
+    (d) => s.play(isFifth.to(1, { duration: 0.2 }), p.to(5, { duration: d })),
+    { after: true, dur: 0.55 },
   );
-  for (const [i, cue] of ['speed-approve', 'speed-ask', 'speed-review'].entries()) {
-    c.show(cue, scores[i].value, { after: true });
-  }
-  c.show('predict-speed', speedPrompt);
-  c.swap('propose', speedPrompt, firstToken, { after: true });
-  c.on('gate', () => s.play(to(firstToken, (n) => n.moveTo(points[1]), { duration: 0.85 })));
-  c.on('empty', () => s.play(to(emptyField.frame, (n) => n.stroke('pink'), { duration: 0.3 })));
-  c.show('denied', rejected, { after: true });
-  c.swap('fallback', firstToken, fallback, { after: true, fade: 0.13 });
-  c.after(
+  playCue(s, c, 'predict', (d) => s.play(showPredFlip.to(1, { duration: d })), { dur: 0.35 });
+  playCue(s, c, 'difference', (d) => s.play(showDiff.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(s, c, 'new-mean', (d) => s.play(showNewMean.to(1, { duration: d })), {
+    after: true,
+    dur: 0.4,
+  });
+  playCue(s, c, 'safe-choice', (d) => s.play(showSafeChoice.to(1, { duration: d })), {
+    after: true,
+    dur: 0.4,
+  });
+
+  // View 2: Speed score & P-7 authorization gate
+  playCue(s, c, 'speed', (d) => s.play(swapVis(vRisk, vGate, d)), { dur: 0.65 });
+  playCue(s, c, 'speed-approve', (d) => s.play(spApp.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(s, c, 'speed-ask', (d) => s.play(spAsk.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(s, c, 'speed-review', (d) => s.play(spRev.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(s, c, 'predict-speed', (d) => s.play(showPredSpeed.to(1, { duration: d })), {
+    dur: 0.35,
+  });
+  playCue(s, c, 'propose', (d) => s.play(showProp.to(1, { duration: d })), {
+    after: true,
+    dur: 0.4,
+  });
+  playCue(s, c, 'gate', (d) => s.play(gatePos.to(1, { duration: d })), { dur: 0.75 });
+  playCue(s, c, 'empty', (d) => s.play(flashEmpty.to(1, { duration: d })), { dur: 0.35 });
+  playCue(s, c, 'denied', (d) => s.play(showDenied.to(1, { duration: d })), {
+    after: true,
+    dur: 0.35,
+  });
+  playCue(
+    s,
+    c,
     'fallback',
-    () => s.play(to(fallback, (n) => n.moveTo(points[2]), { duration: 0.7 })),
-    0.48,
+    (d) => s.play(isFallback.to(1, { duration: 0.25 }), gatePos.to(2, { duration: d })),
+    { after: true, dur: 0.75 },
   );
-  c.show('fallback', held, { after: true, lead: -1.25 });
-  c.swap(
-    'replay',
-    [speedHeading, scores.flatMap((x) => [x.name, x.value]), rejected, held, fallback],
-    oldReceipt,
+
+  // Replay with verified evidence
+  playCue(s, c, 'replay', (d) => s.play(isReplay.to(1, { duration: d })), { dur: 0.45 });
+  playCue(s, c, 'verified', (d) => s.play(isVerified.to(1, { duration: d })), {
+    after: true,
+    dur: 0.4,
+  });
+  playCue(s, c, 'same-proposal', (d) => s.play(replayPos.to(1, { duration: d })), {
+    after: true,
+    dur: 0.65,
+  });
+  playCue(s, c, 'predict-gate', (d) => s.play(showPredGate.to(1, { duration: d })), { dur: 0.35 });
+  playCue(
+    s,
+    c,
+    'allow',
+    (d) => s.play(showAllow.to(1, { duration: 0.3 }), replayPos.to(2, { duration: d })),
+    { after: true, dur: 0.75 },
   );
-  c.swap('verified', emptyField, fullField, { after: true });
-  c.show('same-proposal', replayToken);
-  c.after('same-proposal', () =>
-    s.play(to(replayToken, (n) => n.moveTo(points[1]), { duration: 0.6 })),
-  );
-  c.show('predict-gate', same);
-  c.swap('allow', same, passed, { after: true });
-  c.after('allow', () => s.play(to(replayToken, (n) => n.moveTo(points[2]), { duration: 0.85 })));
-  c.show('audit', audit);
+  playCue(s, c, 'audit', (d) => s.play(showAudit.to(1, { duration: d })), { dur: 0.45 });
 }

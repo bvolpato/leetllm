@@ -1,171 +1,387 @@
+// Scene 23: nested-loss - "Train the selected prefixes rather than merely cutting them"
+// Pure Cinema: View 1 shows 6-d Q & D embeddings; View 2 fans them into 3 nested Matryoshka lanes
+// (widths 2, 4, 6) computing separate L2 norms, 2x2 cosine matrices, and losses (0.0088 / 0.0147 / 0.0225);
+// View 3 compares 10M float32 payload (2.56 GB vs 30.72 GB) above a visual shortlist gate.
+import { arrow } from 'vizmatic/stage';
 import {
-  assertEqual,
-  column,
-  heatmap,
-  indicate,
-  place,
-  rect,
-  arrow,
-  boxOf,
-  row,
-} from 'vizmatic/stage';
-import { area, heading, label, mono, note, namedBox } from '../../kit-narrated.mjs';
-import { NESTED_Q, NESTED_D } from '../../../films/contrastive-learning/fixtures.mjs';
-import { nestedLoss, finiteUnit } from '../../../films/contrastive-learning/arithmetic.mjs';
+  COSMOS,
+  NESTED_D,
+  NESTED_Q,
+  ROLE,
+  cinemaAtmosphere,
+  finiteUnit,
+  glowMatrix,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  nestedLoss,
+  playAfter,
+  playOn,
+  rule,
+  swapVis,
+  txt,
+  verifyApprox,
+} from '../parts.mjs';
+
 export default function nestedLossScene(s, c) {
-  const [body, foot] = area.rows([7, 1], 'normal');
-  const sides = body.columns(2, 'loose');
-  const grids = [NESTED_Q, NESTED_D].map((v, i) =>
-    place(
-      heatmap(v, {
-        size: 34,
-        cellWidth: 95,
-        cellHeight: 85,
-        values: true,
-        rowLabels: i ? ['d A', 'd B'] : ['q A', 'q B'],
-        format: (x) => x.toFixed(2),
-      }),
-      sides[i],
-    ),
-  );
-  const widths = [2, 4, 6],
-    losses = widths.map(nestedLoss);
-  const lanes = body.rows(3, 'normal');
-  const routes = widths.map((width, i) => {
-    const [wRegion, normRegion, scoreRegion, lossRegion] = lanes[i].columns([1, 3, 2, 1], 'loose');
-    const q = NESTED_Q.map((v) => v.slice(0, width)),
-      d = NESTED_D.map((v) => v.slice(0, width));
-    const qn = q.map(finiteUnit),
-      dn = d.map(finiteUnit);
-    const scores = qn.map((v) => dn.map((w) => v.reduce((sum, x, j) => sum + x * w[j], 0)));
-    const widthLabel = place(label('width ' + width, { size: 34, color: 'cyan' }), wRegion);
-    const normalization = place(
-      column(
-        [
-          note('separate prefix normalization'),
-          mono('q ÷ [' + q.map((v) => Math.hypot(...v).toFixed(3)).join(', ') + ']', {
-            size: 34,
-            color: 'cyan',
-          }),
-          mono('d ÷ [' + d.map((v) => Math.hypot(...v).toFixed(3)).join(', ') + ']', {
-            size: 34,
-            color: 'green',
-          }),
-        ],
-        { gap: 'tight', align: 'center' },
-      ),
-      normRegion,
-    );
-    const matrix = heatmap(scores, {
-      cellWidth: 120,
-      cellHeight: 70,
-      size: 34,
-      values: true,
-      domain: [0, 1],
-      format: (v) => v.toFixed(3),
+  const widths = [2, 4, 6];
+  const losses = widths.map(nestedLoss);
+  const meanLoss = losses.reduce((a, b) => a + b, 0) / losses.length;
+
+  const laneData = widths.map((w, idx) => {
+    const q = NESTED_Q.map((r) => r.slice(0, w));
+    const d = NESTED_D.map((r) => r.slice(0, w));
+    const qn = q.map(finiteUnit);
+    const dn = d.map(finiteUnit);
+    const cos = qn.map((v) => dn.map((u) => v.reduce((acc, x, j) => acc + x * u[j], 0)));
+    return {
+      width: w,
+      qNorms: q.map((v) => Math.hypot(...v).toFixed(2)),
+      dNorms: d.map((v) => Math.hypot(...v).toFixed(2)),
+      cos,
+      loss: losses[idx],
+    };
+  });
+
+  verifyApprox(meanLoss, 0.0153, 0.0002, 'Matryoshka mean loss ~0.0153');
+
+  const vRaw = s.value(1);
+  const vLanes = s.value(0);
+  const vSearch = s.value(0);
+  const showNorm = s.value(0);
+  const showCos = s.value(0);
+  const showL2 = s.value(0);
+  const showL4 = s.value(0);
+  const showL6 = s.value(0);
+  const showMean = s.value(0);
+  const showBytes = s.value(0);
+  const showMissing = s.value(0);
+
+  const title = heroTitle(['Matryoshka training:', 'supervise every nested prefix'], {
+    x: -860,
+    y: -450,
+    size: 46,
+    lineHeight: 54,
+    accent: ROLE.anchor,
+  });
+
+  // View 1: Full 6-coordinate Q and D embeddings before slicing
+  const rawLayer = guardedDynamic(vRaw, (alpha) => [
+    txt(
+      'FULL 6-DIMENSIONAL EMBEDDINGS  (Q & D)',
+      0,
+      -245,
+      30,
+      ROLE.anchor,
+      'mono',
+      'center',
+    ).opacity(alpha),
+    glowMatrix({
+      cx: -435,
+      cy: 20,
+      rows: 2,
+      cols: 6,
+      cellW: 112,
+      cellH: 92,
+      gap: 10,
+      values: NESTED_Q.map((r) => r.map((v) => v.toFixed(2))),
+      rowLabels: ['qA', 'qB'],
+      colLabels: ['1', '2', '3', '4', '5', '6'],
+      colors: NESTED_Q.map(() => [
+        ROLE.anchor,
+        ROLE.anchor,
+        ROLE.unrelated,
+        ROLE.unrelated,
+        ROLE.violet,
+        ROLE.violet,
+      ]),
+      fontSize: 28,
+      opacity: alpha,
+    }),
+    glowMatrix({
+      cx: 455,
+      cy: 20,
+      rows: 2,
+      cols: 6,
+      cellW: 112,
+      cellH: 92,
+      gap: 10,
+      values: NESTED_D.map((r) => r.map((v) => v.toFixed(2))),
+      rowLabels: ['dA', 'dB'],
+      colLabels: ['1', '2', '3', '4', '5', '6'],
+      colors: NESTED_D.map(() => [
+        ROLE.positive,
+        ROLE.positive,
+        ROLE.unrelated,
+        ROLE.unrelated,
+        ROLE.violet,
+        ROLE.violet,
+      ]),
+      fontSize: 28,
+      opacity: alpha,
+    }),
+    txt(
+      'Color bands mark nested prefix widths:  d = 2 (front)  ⊂  d = 4  ⊂  d = 6 (full)',
+      0,
+      290,
+      30,
+      COSMOS.muted,
+      'sans',
+      'center',
+    ).opacity(alpha),
+  ]);
+
+  // View 2: 3 Parallel Matryoshka Prefix Lanes (width 2, 4, 6)
+  const lanesLayer = guardedDynamic(vLanes, (alpha) => {
+    const sn = showNorm.value;
+    const sc = showCos.value;
+    const lsVals = [showL2.value, showL4.value, showL6.value];
+    const sm = showMean.value;
+    const nodes = [];
+    const ys = [-210, 0, 210];
+    const cols = [ROLE.anchor, ROLE.unrelated, ROLE.violet];
+
+    laneData.forEach((ld, i) => {
+      const y = ys[i];
+      const col = cols[i];
+      nodes.push(
+        lumBar(-745, y, 185, 72, {
+          color: col,
+          fillAlpha: 0.24,
+          glow: 8,
+          radius: 10,
+          opacity: alpha,
+        }),
+        txt(`width ${ld.width}`, -745, y, 30, col, 'mono', 'center').opacity(alpha),
+        arrow([-640, y], [-545, y], { stroke: '#6279ad', width: 2.8, tip: 10 }).opacity(alpha),
+      );
+
+      // Prefix L2 normalization column
+      if (sn > 0.05) {
+        nodes.push(
+          txt(
+            `q ÷ [${ld.qNorms.join(', ')}]`,
+            -310,
+            y - 22,
+            28,
+            ROLE.anchor,
+            'mono',
+            'center',
+          ).opacity(sn * alpha),
+          txt(
+            `d ÷ [${ld.dNorms.join(', ')}]`,
+            -310,
+            y + 22,
+            28,
+            ROLE.positive,
+            'mono',
+            'center',
+          ).opacity(sn * alpha),
+        );
+      } else {
+        nodes.push(
+          txt('normalize prefix', -310, y, 26, COSMOS.dim, 'mono', 'center').opacity(alpha),
+        );
+      }
+
+      nodes.push(
+        arrow([-95, y], [10, y], { stroke: '#6279ad', width: 2.8, tip: 10 }).opacity(alpha),
+      );
+
+      // 2x2 Cosine matrix
+      nodes.push(
+        glowMatrix({
+          cx: 215,
+          cy: y,
+          rows: 2,
+          cols: 2,
+          cellW: 118,
+          cellH: 52,
+          gap: 10,
+          values:
+            sc > 0.3
+              ? ld.cos.map((r) => r.map((v) => v.toFixed(3)))
+              : [
+                  ['·', '·'],
+                  ['·', '·'],
+                ],
+          colors: [
+            [ROLE.positive, ROLE.competitor],
+            [ROLE.competitor, ROLE.positive],
+          ],
+          highlight: (r, k) => sc > 0.3 && r === k,
+          fontSize: 26,
+          opacity: alpha,
+        }),
+        arrow([380, y], [490, y], { stroke: '#6279ad', width: 2.8, tip: 10 }).opacity(alpha),
+        txt(`L_${ld.width}`, 570, y - 24, 26, COSMOS.muted, 'mono', 'left').opacity(alpha),
+      );
+
+      if (lsVals[i] > 0.05) {
+        nodes.push(
+          txt(ld.loss.toFixed(4), 680, y + 18, 36, ROLE.focus, 'mono', 'left')
+            .glow(7, ROLE.focus)
+            .opacity(lsVals[i] * alpha),
+        );
+      }
     });
-    const score = place(
-      column([note('Q̂ D̂ᵀ · τ = 0.2'), matrix], { gap: 'tight', align: 'center' }),
-      scoreRegion,
-    );
-    const result = place(
-      column([note('InfoNCE'), mono(losses[i].toFixed(4), { color: 'yellow' })], {
-        gap: 'normal',
-        align: 'center',
+
+    nodes.push(rule(-850, 320, 850, 320, COSMOS.rule, 1.6).opacity(0.55 * alpha));
+    if (sm > 0.05) {
+      nodes.push(
+        txt(
+          `Equal-weighted Matryoshka loss:  (L₂ + L₄ + L₆) / 3  =  ${meanLoss.toFixed(4)}`,
+          0,
+          380,
+          36,
+          ROLE.focus,
+          'mono',
+          'center',
+        )
+          .glow(8, ROLE.focus)
+          .opacity(sm * alpha),
+      );
+    } else {
+      nodes.push(
+        txt(
+          'Each prefix width computes its own normalized InfoNCE loss (τ = 0.20)',
+          0,
+          380,
+          28,
+          COSMOS.muted,
+          'sans',
+          'center',
+        ).opacity(alpha),
+      );
+    }
+    return nodes;
+  });
+
+  // View 3: 10M Float32 Storage Bars + Hierarchical Shortlist Gate
+  const searchLayer = guardedDynamic(vSearch, (alpha) => {
+    const sb = showBytes.value;
+    const sm = showMissing.value;
+    const barLeft = -780;
+    const fullW = 1140;
+    const narrowW = (64 / 768) * fullW;
+    const nodes = [
+      txt(
+        '10M FLOAT32 VECTORS: RAW PAYLOAD (WIDTH 64 vs 768)',
+        0,
+        -290,
+        28,
+        ROLE.anchor,
+        'mono',
+        'center',
+      ).opacity(alpha),
+      // Narrow 64-d track & bar
+      lumBar(barLeft + fullW / 2, -185, fullW, 48, {
+        color: '#33456e',
+        fillAlpha: 0.14,
+        strokeWidth: 1.4,
+        glow: 0,
+        opacity: alpha,
       }),
-      lossRegion,
+      lumBar(barLeft + fullW / 2, -65, fullW, 48, {
+        color: '#33456e',
+        fillAlpha: 0.14,
+        strokeWidth: 1.4,
+        glow: 0,
+        opacity: alpha,
+      }),
+    ];
+
+    if (sb > 0.05) {
+      nodes.push(
+        lumBar(barLeft + (narrowW * sb) / 2, -185, Math.max(8, narrowW * sb), 48, {
+          color: ROLE.anchor,
+          fillAlpha: 0.55,
+          glow: 9,
+          opacity: sb * alpha,
+        }),
+        txt('64-d:  2.56 GB raw', barLeft + narrowW + 26, -185, 32, ROLE.anchor, 'mono', 'left')
+          .glow(5, ROLE.anchor)
+          .opacity(sb * alpha),
+        lumBar(barLeft + (fullW * sb) / 2, -65, Math.max(8, fullW * sb), 48, {
+          color: ROLE.unrelated,
+          fillAlpha: 0.45,
+          glow: 8,
+          opacity: sb * alpha,
+        }),
+        txt(
+          '768-d:  30.72 GB raw',
+          barLeft + fullW + 26,
+          -65,
+          32,
+          ROLE.unrelated,
+          'mono',
+          'left',
+        ).opacity(sb * alpha),
+      );
+    }
+
+    // Hierarchical shortlist gate below
+    nodes.push(
+      rule(-850, 22, 850, 22, COSMOS.rule, 1.6).opacity(0.55 * alpha),
+      lumBar(-380, 175, 760, 185, {
+        color: ROLE.focus,
+        fillAlpha: 0.1,
+        strokeWidth: 2.8,
+        glow: 8,
+        radius: 14,
+        opacity: alpha,
+      }),
+      txt(
+        'SHORT-PREFIX SHORTLIST  (RESCORED AT 768-d)',
+        -380,
+        125,
+        26,
+        ROLE.focus,
+        'mono',
+        'center',
+      ).opacity(alpha),
+      txt(
+        'd₁,  d₂   ->   full-width rescoring',
+        -380,
+        195,
+        34,
+        ROLE.positive,
+        'mono',
+        'center',
+      ).opacity(alpha),
+      txt('OUTSIDE SHORTLIST', 430, 125, 26, ROLE.competitor, 'mono', 'center').opacity(alpha),
+      txt('required d₃ stays omitted', 430, 195, 34, ROLE.competitor, 'sans', 'center')
+        .glow(sm > 0.3 ? 8 : 0, ROLE.competitor)
+        .opacity(alpha),
     );
-    const links = [
-      [widthLabel, normalization],
-      [normalization, score],
-      [score, result],
-    ].map(([a, b]) =>
-      arrow(boxOf(a).point('right'), boxOf(b).point('left'), { stroke: 'dim', width: 3, pad: 15 }),
-    );
-    matrix.numbers.flat().forEach((n) => n.set('visible', false));
-    return { widthLabel, normalization, score, matrix, result, links };
+
+    if (sm > 0.05) {
+      nodes.push(
+        txt(
+          'Full-width rescoring cannot rescue an omitted passage · IDs, graph links, and full vectors add storage',
+          0,
+          365,
+          28,
+          ROLE.competitor,
+          'sans',
+          'center',
+        ).opacity(sm * alpha),
+      );
+    }
+    return nodes;
   });
-  const mean = losses.reduce((a, b) => a + b, 0) / losses.length;
-  const average = place(mono('(L₂ + L₄ + L₆) / 3 = ' + mean.toFixed(4), { color: 'yellow' }), foot);
-  const count = 10_000_000,
-    bytes = 4,
-    narrow = 64,
-    wide = 768;
-  const [storageRegion, shortlistRegion] = body.rows([3, 2], 'loose');
-  const storageRows = storageRegion.rows(2, 'loose');
-  const tracks = storageRows.map((r) =>
-    place(rect(r.width, 45, { fill: 'surface', stroke: 'dim', width: 1 }), r, 'bottom'),
-  );
-  const bars = [narrow, wide].map((width, i) => {
-    const r = storageRows[i],
-      w = (r.width * width) / wide;
-    return rect(w, 45, { fill: i ? 'blue' : 'cyan', stroke: null }).moveTo([
-      r.left + w / 2,
-      boxOf(tracks[i]).cy,
-    ]);
-  });
-  const labels = [narrow, wide].map((width, i) =>
-    place(
-      mono(
-        '10M × ' + width + ' × float32 = ' + ((count * width * bytes) / 1e9).toFixed(2) + ' GB raw',
-        { color: i ? 'blue' : 'cyan', size: 34 },
-      ),
-      storageRows[i],
-      'top left',
-    ),
-  );
-  const [inside, outside] = shortlistRegion.columns([1, 1], 'loose');
-  const boundary = place(
-    rect(inside.width, inside.height, { fill: null, stroke: 'yellow', width: 3 }),
-    inside,
-  );
-  const shortlist = place(
-    column(
-      [
-        note('Short-prefix shortlist'),
-        label('d₁, d₂ → full-width rescoring', { size: 34, color: 'cyan' }),
-      ],
-      { gap: 'normal', align: 'center' },
-    ),
-    inside,
-  );
-  const omitted = place(
-    column(
-      [
-        note('Outside the selected set'),
-        label('required d₃ stays omitted', { size: 34, color: 'red' }),
-      ],
-      { gap: 'normal', align: 'center' },
-    ),
-    outside,
-  );
-  const missing = place(note('Full-width scoring applies only to selected candidates'), foot);
-  assertEqual(count * narrow * bytes, 2_560_000_000, 'short-prefix raw bytes');
-  const skeleton = routes.flatMap((r) => [r.widthLabel, r.score, r.result.nodes[0], r.links]);
-  s.add(heading(c.title), grids);
-  c.swap('cl-nested-loss-slice', grids, skeleton);
-  c.show(
-    'repair-nested-normalize',
-    routes.map((r) => r.normalization),
-    { after: true },
-  );
-  c.show(
-    'cl-nested-loss-loss',
-    routes.map((r) => r.matrix.numbers.flat()),
-    { after: true },
-  );
-  for (const [i, cue] of [
-    'cl-nested-loss-two',
-    'cl-nested-loss-four',
-    'cl-nested-loss-six',
-  ].entries())
-    c.show(cue, routes[i].result.nodes[1], { after: true });
-  c.show('cl-nested-loss-mean', average, { after: true });
-  c.swap(
-    'repair-nested-search',
-    [skeleton, routes.map((r) => r.normalization), routes.map((r) => r.result.nodes[1]), average],
-    [tracks, boundary, shortlist, omitted],
-  );
-  c.show('cl-nested-loss-bytes', [bars, labels], { after: true });
-  c.show('cl-nested-loss-missing', missing);
+
+  s.add(cinemaAtmosphere(ROLE.anchor, ROLE.violet), title, rawLayer, lanesLayer, searchLayer);
+
+  playOn(s, c, 'cl-nested-loss-slice', (d) => swapVis(vRaw, vLanes, d), 0.65);
+  playAfter(s, c, 'repair-nested-normalize', (d) => showNorm.to(1, { duration: d }), 0.45);
+  playAfter(s, c, 'cl-nested-loss-loss', (d) => showCos.to(1, { duration: d }), 0.45);
+  playAfter(s, c, 'cl-nested-loss-two', (d) => showL2.to(1, { duration: d }), 0.35);
+  playAfter(s, c, 'cl-nested-loss-four', (d) => showL4.to(1, { duration: d }), 0.35);
+  playAfter(s, c, 'cl-nested-loss-six', (d) => showL6.to(1, { duration: d }), 0.35);
+  playAfter(s, c, 'cl-nested-loss-mean', (d) => showMean.to(1, { duration: d }), 0.45);
+
+  playOn(s, c, 'repair-nested-search', (d) => swapVis(vLanes, vSearch, d), 0.7);
+  playAfter(s, c, 'cl-nested-loss-bytes', (d) => showBytes.to(1, { duration: d }), 0.65);
+  playOn(s, c, 'cl-nested-loss-missing', (d) => showMissing.to(1, { duration: d }), 0.5);
 }

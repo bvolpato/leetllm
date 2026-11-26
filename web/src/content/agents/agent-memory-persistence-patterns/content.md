@@ -53,7 +53,7 @@ Everything the model reads during a single forward pass must sit inside its **<s
 It helps to separate **working memory** from **inference KV caching**. Attention runtimes such as <span data-glossary="pagedattention">PagedAttention</span> and <span data-glossary="radixattention">RadixAttention</span> cache key and value tensors across shared token prefixes to speed up decoding and time-to-first-token [^kwon2023] [^zheng2024sglang] [^dao2022]. That <span data-glossary="kv-cache">KV cache</span> optimizes tensor reuse for identical prompt prefixes; it cannot run semantic queries, honor document ACL revocations, or survive across independent hosts as a structured store. Semantic persistence always lives in external databases, indexes, or files owned by the agent runtime.
 
 <figure>
-  <img src="illustrations/_generated/memory_tiers_dark.png" alt="Memory hierarchy comparing four agent storage tiers across capacity, access latency, and durability. Procedural rules sit at small KB scale with near-instant 1 ms pinned access. Working context holds prompt tokens (~256 KB) at ~5 ms latency but is volatile per call. Episodic logs hold tens of MB of session traces at ~22 ms. Semantic vector stores hold GB-scale durable facts at ~50 ms and require ACL and TTL filtering before recall." />
+  <img src="illustrations/_generated/memory_tiers_dark.png" alt="Memory hierarchy comparing four agent storage tiers across capacity, access latency, and durability. Procedural rules sit at small KB scale with near-instant ~2 ms pinned access. Working context holds prompt tokens at ~9 ms latency but is volatile per call. Episodic logs hold MB-scale session traces at ~23 ms. Semantic vector stores hold GB-scale durable facts at ~50 ms and require ACL and TTL filtering before recall." />
   <figcaption>Agent memory spans four tiers trading capacity and durability against access latency: pinned procedural rules and volatile working context sit at millisecond scale, while episodic logs and semantic stores persist externally behind ACL and TTL filters.</figcaption>
 </figure>
 
@@ -328,7 +328,7 @@ print("t=200 exclusive expiry:", recall(db, "dev-a", "kernels/attn", "test_cmd",
 
 with db:
     db.execute("UPDATE source_records SET version = 3, tombstoned = 1 WHERE record_id = 't3'")
-print("t=201 after tombstone:", recall(db, "dev-a", "kernels/attn", "test_cmd", now=150))
+print("t=151 after tombstone:", recall(db, "dev-a", "kernels/attn", "test_cmd", now=151))
 print("late sync on tombstoned source rejected:", sync_projection(db, "t3", proj_ver=2, val="old"))
 ```
 
@@ -338,7 +338,7 @@ t=101 synced recall: ['pytest -q tests/attn.py']
 t=102 stale projection: []
 t=150 updated recall: ['pytest -q -k fp16']
 t=200 exclusive expiry: []
-t=201 after tombstone: []
+t=151 after tombstone: []
 late sync on tombstoned source rejected: False
 ```
 <!-- leetllm: output:end -->

@@ -162,19 +162,19 @@ export function create(theme: ThemeMode = 'dark') {
     })
 
     // Key legend strip on bottom right
-    fig.rect(rx, 318, width - rx - 28, 72, {
+    fig.rect(rx, 318, width - rx - 14, 72, {
         fill: tint(green, c.bg, 0.08),
         stroke: c.borderSubtle,
         strokeWidth: 1,
         radius: 8,
     })
-    fig.text(rx + 14, 338, 'Symmetric Gram matrix', {
+    fig.text(rx + 12, 338, 'Symmetric Gram matrix', {
         size: 13,
         weight: 600,
         color: green,
     })
-    fig.text(rx + 14, 362, 'Orthogonal axes stretch by λᵢ = σᵢ²', {
-        size: 13,
+    fig.text(rx + 12, 362, 'Orthogonal axes stretch by λᵢ = σᵢ²', {
+        size: 12,
         color: c.textSecondary,
     })
 

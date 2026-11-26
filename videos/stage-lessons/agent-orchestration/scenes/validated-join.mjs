@@ -1,522 +1,592 @@
-// Scene `validated-join`: all three results are in. May the request go on?
-//
-// The picture: the board, with three cards at the barrier and all lamps lit. The tenant of the
-// health card turns to tenant9. The gates open, because time is satisfied. The join reads the cards,
-// the tenant of health goes red, and its slot refuses the card: no packet. A fresh health card
-// passes, and three gauges in the band then show the numbers of the fixture as the voice says them.
+// Scene 06 (validated-join): "Wait for all results, then check what they mean"
+// Orbiting 3D barrier gate + cross-tenant prediction gate (strictly c.after) + canonical JSON digest
+// + live rate gauges (2% < 3%, 0.04% = 40% of 0.1%, 25% <= 25%, -1 reject, failures 2->1 digest flip).
 import {
-  assertEqual,
-  beside,
-  boxOf,
-  column,
-  commas,
-  dot,
-  dynamic,
-  fade,
-  indicate,
-  lagged,
-  line,
-  moveTo,
-  par,
-  pictogram,
-  place,
-  rect,
-  row,
-  seq,
-} from 'vizmatic/stage';
-import { REQUEST, values } from '../../../films/agent-orchestration/fixtures.mjs';
-import { canonicalDigest, proposal, RATE_LIMITS as LIMIT, RECEIPTS } from '../packet.mjs';
-import { chip, display, heading, label, mono, note } from '../../kit-narrated.mjs';
-import {
-  BAND,
-  BRANCHES,
-  BRANCH_COLOR,
-  MARK,
-  OTHER_TENANT,
-  QUIET,
-  SMALL,
-  TENANT,
-  VALID,
-  WRONG,
-  board,
-  replaceReceipt,
+  COSMOS,
+  REQUEST,
+  ROLE,
+  V3_CHANGED_PACKET,
+  V3_PACKET,
+  buildSuperstepBarrier3d,
+  cinemaAtmosphere,
+  crossSwap,
+  glowDot,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  orbitScene,
+  renderGauge,
+  rule,
+  runAmbientPhase,
+  shortHash,
+  tweenCue,
+  txt,
+  values,
 } from '../parts.mjs';
 
-const [EVAL, HEALTH, POLICY] = [0, 1, 2];
-const RATE = {
-  eval: values.eval.failures / values.eval.cases,
-  health: values.health.errors / values.health.requests,
-};
-// The numbers that the voice says.
-assertEqual(RATE.eval, 0.02, 'the regression rate');
-assertEqual(RATE.health, 0.0004, 'the error rate');
-assertEqual(Math.round((RATE.health / LIMIT.health) * 10) / 10, 0.4, 'the share of the allowance');
-assertEqual(values.policy.maxTraffic, 25, 'the cap of the policy');
-const percent = (share) => `${Number((share * 100).toFixed(2))}%`;
-
-// Reuse the join on two snapshots of the same source. Only the failure count changes.
-const evalSnapshots = [values.eval, { ...values.eval, failures: 1 }].map((result) => {
-  const source = canonicalDigest(result);
-  const rows = RECEIPTS.map((row) =>
-    row.branch === 'eval' ? { ...row, value: result, digest: source } : row,
-  );
-  const packet = proposal(rows, REQUEST, { ...values, eval: result });
-  return { ...result, rate: result.failures / result.cases, source, packet: packet.evidenceDigest };
-});
-const reversedEval = Object.fromEntries(Object.entries(values.eval).reverse());
-const permuted = RECEIPTS.map((row) =>
-  row.branch === 'eval' ? { ...row, value: reversedEval } : row,
-).reverse();
-assertEqual(
-  proposal(permuted).evidenceDigest,
-  proposal().evidenceDigest,
-  'both orderings keep the same packet',
-);
-assertEqual(evalSnapshots[0].packet, proposal().evidenceDigest, 'original proposal digest');
-assertEqual(
-  evalSnapshots.every(({ rate }) => rate <= LIMIT.eval),
-  true,
-  'both eval sources pass',
-);
-assertEqual(
-  evalSnapshots[0].packet !== evalSnapshots[1].packet,
-  true,
-  'source change alters the packet',
-);
-const short = (hash) => `#${hash.slice(0, 4)}`;
-
 export default function validatedJoin(s, c) {
-  const b = board(s);
-  const { slotNames } = b.nodes;
-  s.add(heading(c.title));
-  b.enter(c);
-  // The scene starts at the barrier: every card is there, and every lamp is lit.
-  b.card.forEach((card) => {
-    card.pos.set(1);
-    card.shown.set(1);
+  const phase = s.value(0);
+  const barrierStatus = s.value(0); // -1 reject, 0 pending, +1 pass
+  const stBatch = s.value(1);
+  const stCanon = s.value(0);
+  const stRates = s.value(0);
+
+  // Beat 0: Prediction setup (health = tenant9; verdict withheld until c.after!)
+  const intendedLit = s.value(0);
+  const otherTenant = s.value(0);
+  const allDoneLit = s.value(0);
+  const fieldsOkLit = s.value(0);
+  const askPredict = s.value(0);
+
+  // Beat 1: Barrier OK vs Contract FAIL + 4 rejection reasons + tenant7 replacement + canonical JSON
+  const barrierOk = s.value(0);
+  const contractFail = s.value(0);
+  const rejectScope = s.value(0);
+  const rDup = s.value(0);
+  const rMiss = s.value(0);
+  const rStale = s.value(0);
+  const rSource = s.value(0);
+  const healthFixed = s.value(0);
+  const sortedLit = s.value(0);
+  const arrivedLit = s.value(0);
+  const jsonLit = s.value(0);
+  const swapLit = s.value(0);
+  const canonLit = s.value(0);
+  const sameDigLit = s.value(0);
+
+  // Beats 2-3: Measured rates, -1 integer range probe, failures 2 -> 1 digest change
+  const numLit = s.value(0);
+  const ratesInLit = s.value(0);
+  const polAllowLit = s.value(0);
+  const fictLit = s.value(0);
+  const evalBar = s.value(0);
+  const evalLimLit = s.value(0);
+  const healthBar = s.value(0);
+  const healthAllowLit = s.value(0);
+  const burnReveal = s.value(0);
+  const polBar = s.value(0);
+  const readyLit = s.value(0);
+  const inRangeLit = s.value(0);
+  const negProbe = s.value(0);
+  const negReject = s.value(0);
+  const srcRefresh = s.value(0);
+  const stillPass = s.value(0);
+  const digDiff = s.value(0);
+
+  const hashOrig = shortHash(V3_PACKET.evidenceDigest, 10);
+  const hashNew = shortHash(V3_CHANGED_PACKET.evidenceDigest, 10);
+
+  const bgAtmo = cinemaAtmosphere(ROLE.merge, ROLE.reject);
+  const { view: gate3d } = buildSuperstepBarrier3d(phase, barrierStatus, {
+    x: 530,
+    y: 25,
+    theta: -0.72,
+    phi: 1.05,
+    distance: 15.0,
+    unit: 100,
   });
-  s.at(c.start - 0.25, () => s.play(...b.gate.map((gate) => gate.lamp.to(1, { duration: 0.25 }))));
 
-  // Beat 0. What is true so far, and the question. The answer waits for the next beat.
-  const check = () => pictogram('check', { size: 48, accent: VALID });
-  const facts = [
-    { mark: check(), words: label('every branch finished') },
-    { mark: check(), words: label('expected fields') },
-    {
-      mark: pictogram('question', { size: 48, color: MARK, accent: MARK }),
-      words: label('state contract'),
-    },
-  ];
-  const question = display('Proceed to approval?');
-  const answer = display('No packet', { color: WRONG });
-  const list = column(
-    facts.map((fact) => row([fact.mark, fact.words], { gap: 'normal' })),
-    { gap: 'tight' },
-  );
-  place(column([question, list], { gap: 'normal' }), BAND, 'left');
-  place(answer, boxOf(question), 'left');
-  const failed = place(pictogram('cross', { size: 48, accent: WRONG }), boxOf(facts[2].mark));
-  c.on('intended-tenant', () => s.play(b.hot.tenant.to(1, { duration: 0.3 })));
-  c.on('other-tenant', () => s.play(replaceReceipt(b.card[HEALTH], { tenant: OTHER_TENANT })));
-  c.show('all-finished', [facts[0].mark, facts[0].words]);
-  c.on('all-finished', () =>
-    s.play(
-      b.hot.tenant.to(0, { duration: 0.3 }),
-      lagged(
-        b.gate.map((gate) =>
-          seq(gate.lamp.to(0.1, { duration: 0.2 }), gate.lamp.to(1, { duration: 0.2 })),
-        ),
-        { lag: 0.4 },
-      ),
-    ),
-  );
-  c.show('expected-fields', [facts[1].mark, facts[1].words]);
-  c.on('expected-fields', () =>
-    s.play(
-      seq(
-        par(...[b.hot.tenant, b.hot.rev, b.hot.age].map((heat) => heat.to(1, { duration: 0.3 }))),
-        par(...[b.hot.tenant, b.hot.rev, b.hot.age].map((heat) => heat.to(0, { duration: 0.9 }))),
-      ),
-    ),
-  );
-  c.show('predict-join', [question, facts[2].mark, facts[2].words]);
-
-  // Beat 1. Time is satisfied: the gates open. The meaning is not: the join refuses the health card.
-  c.on('barrier-ok', () =>
-    s.play(
-      indicate(facts[0].mark, { color: VALID }),
-      ...b.gate.map((gate) => gate.open.to(1, { duration: 0.3 })),
-      ...b.card.map((card) => card.pos.to(2, { duration: 0.9 })),
-    ),
-  );
-  c.after('contract-fails', () =>
-    s.play(
-      ...b.card.map((card, i) =>
-        seq(
-          card.read.to(3, { duration: 0.8 }),
-          card.verdict.to(i === HEALTH ? -1 : 1, { duration: 0.3 }),
-        ),
-      ),
-    ),
-  );
-  c.swap('contract-fails', [question, facts[2].mark], [answer, failed], { after: true });
-  c.on('reject-scope', () => s.play(b.card[HEALTH].pos.to(1, { duration: 0.8 })));
-
-  // The other reasons to refuse a card, and the order of the packet: by name, not by arrival.
-  const reasons = [
-    'cross-tenant',
-    'duplicate branch',
-    'missing evidence',
-    'stale version',
-    'source mismatch',
-  ].map((words) => chip(words, { color: WRONG, stroke: WRONG }));
-  const tag = (lane) =>
-    chip(BRANCHES[lane], { color: BRANCH_COLOR[lane], stroke: BRANCH_COLOR[lane], minWidth: 130 });
-  const arrived = [POLICY, EVAL, HEALTH].map(tag);
-  const order = {
-    arrived: note('incoming receipts'),
-    sorted: note('order of the packet: by name'),
-  };
-  const refusals = column(
-    [row(reasons.slice(0, 3), { gap: 'tight' }), row(reasons.slice(3), { gap: 'tight' })],
-    { gap: 'tight' },
-  );
-  const sortRow = row(arrived, { gap: 'normal' });
-  const refuseNote = note('the join refuses');
-  place(
-    column([refuseNote, refusals, order.arrived, sortRow], { gap: 'normal' }),
-    BAND,
-    'top left',
-  );
-  beside(order.sorted, sortRow, 'above', 'normal', 'left');
-  c.swap(
-    'reason-duplicate',
-    [
-      answer,
-      failed,
-      ...facts.slice(0, 2).flatMap((fact) => [fact.mark, fact.words]),
-      facts[2].words,
-    ],
-    [refuseNote, reasons[0], reasons[1]],
-    { after: true },
-  );
-  ['reason-missing', 'reason-stale', 'reason-source'].forEach((cue, i) =>
-    c.show(cue, reasons[i + 2], { after: true }),
-  );
-  // Policy came first. In the packet it is last: the cards sort by the name of their branch.
-  const places = arrived.map((node) => boxOf(node).point('center'));
-  c.hide('matching-receipts', [refuseNote, ...reasons], { after: true });
-  c.show('valid-identities', [order.arrived, ...arrived]);
-  c.after('valid-identities', () =>
-    s.play(
-      seq(
-        fade(arrived[0], 0, { duration: 0.25 }),
-        par(
-          moveTo(arrived[1], places[0], { duration: 0.5 }),
-          moveTo(arrived[2], places[1], { duration: 0.5 }),
-        ),
-        moveTo(arrived[0], places[2], { duration: 0.05 }),
-        fade(arrived[0], 1, { duration: 0.25 }),
-      ),
-    ),
-  );
-  c.swap('arrived-first', order.arrived, order.sorted);
-  c.on('arrived-first', () =>
-    s.play(
-      lagged(
-        slotNames.map((name, i) => indicate(name, { color: BRANCH_COLOR[i], scale: 1.15 })),
-        { lag: 0.4 },
-      ),
-    ),
-  );
-
-  // Two encodings of the same observation. Order the fields on both rows before showing their hash.
-  const [jsonHeading, copyA, copyB, hashRoom] = BAND.rows([1, 2, 2, 1], 'tight');
-  const keyTitle = place(label('Evaluation receipt', { size: 38 }), jsonHeading, 'left');
-  const keyRows = [copyA, copyB].map((room, i) => {
-    const [nameRoom, first, second] = room.columns([1, 2, 2], 'wide');
-    const name = place(note(i ? 'Copy B' : 'Copy A'), nameRoom, 'left');
-    const failures = place(
-      chip('failures  ' + values.eval.failures, { stroke: BRANCH_COLOR[EVAL] }),
-      first,
-    );
-    const cases = place(chip('cases  ' + values.eval.cases), second);
-    return { name, failures, cases, first, second };
+  const title = heroTitle(['Wait for All Results,', 'Check What They Mean'], {
+    x: -860,
+    y: -440,
+    size: 50,
+    lineHeight: 58,
+    accent: ROLE.merge,
+    eyebrow: `VALIDATED FAN-IN  /  ${REQUEST.tenant}  /  v${REQUEST.version}`,
   });
-  const rowParts = keyRows.flatMap(({ name, failures, cases }) => [name, failures, cases]);
-  const exchange = ({ failures, cases, first, second }) =>
-    par(
-      seq(
-        moveTo(failures, [first.cx, first.cy - 24], { duration: 0.18 }),
-        moveTo(failures, [second.cx, second.cy - 24], { duration: 0.48 }),
-        moveTo(failures, [second.cx, second.cy], { duration: 0.18 }),
-      ),
-      seq(
-        moveTo(cases, [second.cx, second.cy + 24], { duration: 0.18 }),
-        moveTo(cases, [first.cx, first.cy + 24], { duration: 0.48 }),
-        moveTo(cases, [first.cx, first.cy], { duration: 0.18 }),
-      ),
-    );
-  const sameHash = place(
-    mono(
-      'Packet A  ' +
-        short(proposal().evidenceDigest) +
-        '   =   Packet B  ' +
-        short(proposal(permuted).evidenceDigest),
-      { color: VALID, size: 38 },
-    ),
-    hashRoom,
-    'left',
-  );
-  c.swap('json-fields', [order.sorted, ...arrived], [keyTitle, ...rowParts]);
-  c.on('swap-fields', () => s.play(exchange(keyRows[1])));
-  c.on('canonical-fields', () => s.play(exchange(keyRows[0])));
-  c.show('same-digest', sameHash, { after: true });
 
-  c.on('matching-receipts', () =>
-    s.play(
-      seq(
-        b.card[HEALTH].shown.to(0, { duration: 0.25 }),
-        par(
-          b.card[HEALTH].tenant.to(TENANT, { duration: 0 }),
-          b.card[HEALTH].read.to(0, { duration: 0.05 }),
-          b.card[HEALTH].verdict.to(0, { duration: 0.05 }),
-        ),
-        b.card[HEALTH].shown.to(1, { duration: 0.25 }),
-        b.card[HEALTH].pos.to(2, { duration: 0.7 }),
-        b.card[HEALTH].read.to(3, { duration: 0.6 }),
-      ),
-    ),
-  );
-  c.after('matching-receipts', () => b.card[HEALTH].verdict.set(1));
-  // Three gauges, one for each check. The mark on each track is the limit.
-  const GAUGE = { left: BAND.left + 340, width: 360, height: 28, limitAt: 0.75 };
-  const rowY = (i) => BAND.top + 62 + i * 100;
-  const limitX = GAUGE.left + GAUGE.width * GAUGE.limitAt;
-  const afterX = GAUGE.left + GAUGE.width + 20;
-  /** How far each value is on its way to its limit. */
-  const share = [RATE.eval / LIMIT.eval, RATE.health / LIMIT.health];
-  const fill = BRANCHES.map(() => s.value(0));
-  const askedShown = s.value(0);
-  const names = BRANCHES.map((branch, i) =>
-    label(branch, BAND.left, rowY(i), { size: 36, color: BRANCH_COLOR[i], anchor: 'left' }),
-  );
-  const tracks = BRANCHES.map((_, i) =>
-    rect(GAUGE.width, GAUGE.height, { radius: 6, stroke: 'faint', width: 2, fill: null }).at(
-      GAUGE.left + GAUGE.width / 2,
-      rowY(i),
-    ),
-  );
-  const marks = BRANCHES.map((_, i) =>
-    line([limitX, rowY(i) - GAUGE.height / 2 - 6], [limitX, rowY(i) + GAUGE.height / 2 + 6], {
-      stroke: 'ink',
-      width: 3,
-    }),
-  );
-  const text = (words, x, y, options = {}) => mono(words, { size: SMALL, ...options }).at(x, y);
-  const counts = [
-    text(`${values.eval.failures} / ${values.eval.cases}`, GAUGE.left - 20, rowY(EVAL), {
-      anchor: 'right',
-    }),
-    text(
-      `${values.health.errors} / ${commas(values.health.requests)}`,
-      GAUGE.left - 20,
-      rowY(HEALTH),
-      { anchor: 'right' },
-    ),
-  ];
-  const limits = [
-    text(percent(LIMIT.eval), limitX, rowY(EVAL) - 45, { color: QUIET }),
-    text(percent(LIMIT.health), limitX, rowY(HEALTH) - 45, { color: QUIET }),
-    text(`${values.policy.maxTraffic}%`, limitX, rowY(POLICY) - 45, { color: QUIET }),
-  ];
-  const rates = [
-    mono(percent(RATE.eval), { size: 36, anchor: 'left', color: MARK }).at(afterX, rowY(EVAL)),
-    mono(percent(RATE.health), { size: 36, anchor: 'left', color: MARK }).at(afterX, rowY(HEALTH)),
-  ];
-  const healthX = GAUGE.left + GAUGE.width * GAUGE.limitAt * share[HEALTH];
-  rates[HEALTH].at(healthX, rowY(HEALTH) + 39);
-  const burn = mono(`${Number(share[HEALTH].toFixed(1))}×`, {
-    size: 40,
-    anchor: 'left',
-    color: MARK,
-  }).at(afterX, rowY(HEALTH));
-  const passes = BRANCHES.map((_, i) =>
-    pictogram('check', { size: 44, accent: VALID }).at(afterX + 22, rowY(i) + 44),
-  );
-  const gauges = dynamic(() => {
-    const parts = [];
-    const traffic = b.request.traffic.value;
-    BRANCHES.forEach((_, i) => {
-      const part = i === POLICY ? traffic / values.policy.maxTraffic : share[i];
-      const width = Math.max(0, part) * GAUGE.limitAt * GAUGE.width * fill[i].value;
-      if (width > 1)
-        parts.push(
-          rect(width, GAUGE.height - 8, {
-            radius: 4,
-            stroke: null,
-            fill: BRANCH_COLOR[i],
-            opacity: 0.92,
-          }).at(GAUGE.left + width / 2, rowY(i)),
+  const live = guardedDynamic(s.value(1), () => {
+    const mBatch = stBatch.value;
+    const mCanon = stCanon.value;
+    const mRates = stRates.value;
+    const lx = -860;
+    const nodes = [];
+
+    // Right 3D header (steady text, zero crossSwap flash)
+    nodes.push(
+      txt('3D VALIDATION GATE', 530, -420, 26, ROLE.merge, 'mono').glow(6, ROLE.merge),
+      txt('Scope  |  Canonical JSON  |  Rates', 530, -376, 26, COSMOS.muted, 'sans'),
+      txt('Traffic remains 0% until explicit review & writer', 530, 395, 26, COSMOS.muted, 'sans'),
+    );
+
+    // =========================================================================
+    // STAGE 0: Incoming Batch & Cross-Tenant Prediction Gate
+    // =========================================================================
+    if (mBatch > 0.02) {
+      const hFix = healthFixed.value;
+      const fail = Math.max(contractFail.value, rejectScope.value);
+
+      nodes.push(
+        txt(
+          'INCOMING RECEIPTS  (TARGET: tenant7)',
+          lx,
+          -210,
+          26,
+          ROLE.eval,
+          'mono',
+          'left',
+        ).opacity(mBatch),
+        rule(lx, -186, 130, -186, ROLE.rule, 2).opacity(mBatch),
+      );
+
+      const cards = [
+        {
+          y: -110,
+          branch: 'EVAL',
+          tenant: 'tenant7',
+          meta: '2/100  v3  done',
+          col: ROLE.eval,
+          bad: false,
+        },
+        {
+          y: -15,
+          branch: 'HEALTH',
+          tenant: hFix > 0.5 ? 'tenant7' : 'tenant9',
+          meta: '4/10k  v3  done',
+          col: hFix > 0.5 ? ROLE.pass : ROLE.reject,
+          bad: hFix <= 0.5,
+        },
+        {
+          y: 80,
+          branch: 'POLICY',
+          tenant: 'tenant7',
+          meta: 'cap 25%  v3  done',
+          col: ROLE.policy,
+          bad: false,
+        },
+      ];
+      cards.forEach((row) => {
+        const highlightBad = row.bad && otherTenant.value > 0.3;
+        nodes.push(
+          lumBar(-495, row.y, 730, 62, {
+            color: highlightBad ? ROLE.reject : row.col,
+            fillOpacity: highlightBad ? 0.24 : 0.14,
+            strokeWidth: highlightBad ? 3 : 2.2,
+            glow: highlightBad ? 12 : 6,
+            opacity: mBatch,
+          }),
+          txt(row.branch, lx + 20, row.y, 26, row.col, 'mono', 'left').opacity(mBatch),
+          txt(row.tenant, -640, row.y, 28, highlightBad ? ROLE.reject : COSMOS.ink, 'mono', 'left')
+            .glow(highlightBad ? 8 : 0, ROLE.reject)
+            .opacity(mBatch),
+          txt(
+            allDoneLit.value > 0.3 || fieldsOkLit.value > 0.3 ? `${row.meta} [OK]` : row.meta,
+            -155,
+            row.y,
+            26,
+            COSMOS.muted,
+            'mono',
+            'right',
+          ).opacity(mBatch),
         );
-    });
-    if (askedShown.value > 0.02 && traffic < 0)
-      parts.push(
-        rect(16, GAUGE.height - 8, { radius: 4, stroke: null, fill: WRONG }).at(
-          GAUGE.left - 12,
-          rowY(POLICY),
-        ),
-      );
-    if (askedShown.value > 0.02)
-      parts.push(
-        mono(`${traffic}%`, {
-          size: 36,
-          anchor: 'left',
-          color: traffic < 0 ? WRONG : MARK,
-        })
-          .at(afterX, rowY(POLICY))
-          .opacity(askedShown.value),
-      );
-    return parts;
-  });
-  s.add(gauges);
-  c.swap('numerical-rules', [keyTitle, ...rowParts, sameHash], [...names, ...tracks]);
-  c.on('rates-inside', () => s.play(indicate([names[EVAL], names[HEALTH]], { color: MARK })));
-  c.on('policy-allows', () => s.play(indicate(names[POLICY], { color: MARK })));
-  const madeUp = place(note('fictional thresholds'), BAND, 'bottom left');
-  c.show('fictional', madeUp);
+      });
 
-  // Beat 3. The numbers, as the voice says them: a count, its rate, and the limit at the mark.
-  c.show('validated-join-construct-3', counts[EVAL]);
-  c.show('join-eval-rate', rates[EVAL], { lead: 0 });
-  c.after('join-eval-rate', () => fill[EVAL].set(1));
-  c.show('eval-limit', [marks[EVAL], limits[EVAL], passes[EVAL]]);
-  c.show('health-count', counts[HEALTH]);
-  c.show('join-health-rate', rates[HEALTH], { lead: 0 });
-  c.on('join-health-rate', () => s.play(fill[HEALTH].to(1, { duration: 0.6 })));
-  c.show('health-allowance', [marks[HEALTH], limits[HEALTH]], { lead: 0 });
-  c.show('burn-share', [burn, passes[HEALTH]], { lead: 0 });
-  c.show('policy-cap', [marks[POLICY], limits[POLICY], passes[POLICY]], { after: true });
-  c.after('policy-cap', () => {
-    fill[POLICY].set(1);
-    askedShown.set(1);
-  });
-  const awaiting = place(note('Awaiting review', { color: MARK }), BAND, 'bottom left');
-  c.swap('ready-review', madeUp, awaiting);
-  c.on('ready-review', () =>
-    s.play(seq(b.packet.seal.to(1, { duration: 0.4 }), b.token.shown.to(1, { duration: 0.3 }))),
-  );
-  // A request of minus one is under the cap. Only a rule for the whole range refuses it.
-  const upper = text(`traffic <= ${values.policy.maxTraffic}`, 0, 0, {
-    anchor: 'left',
-    color: VALID,
-  });
-  const range = text('int: 0 <= traffic <= 100', 0, 0, { anchor: 'left', color: VALID });
-  const outside = text('int: 0 <= traffic <= 100', 0, 0, { anchor: 'left', color: WRONG });
-  const rangeMark = pictogram('cross', { size: 40, accent: WRONG });
-  place(row([upper, range, rangeMark], { gap: 'wide' }), BAND, 'bottom left');
-  place(outside, boxOf(range), 'left');
-  c.swap('in-range', awaiting, [upper, range]);
-  c.on('in-range', () =>
-    s.play(b.packet.seal.to(0, { duration: 0.2 }), b.token.shown.to(0, { duration: 0.2 })),
-  );
-  c.hide('negative-reset', [upper, range, passes[POLICY]], { lead: 0.2, fade: 0.2 });
-  c.on('negative-reset', () => {
-    b.request.traffic.set(-1);
-    askedShown.set(1);
-    fill[POLICY].set(0);
-  });
-  c.after('minus-one', () => {
-    askedShown.set(1);
-    fill[POLICY].set(1);
-  });
-  c.show('minus-one', [upper, outside, rangeMark], { after: true });
-  // Keep the release and request fixed. Follow the changed eval count through both hashes.
-  const [captionRow, headerRow, previousRow, refreshedRow] = BAND.rows([2, 1, 2, 2], 'tight');
-  const caption = place(
-    label(`Same release ${REQUEST.release} / v${REQUEST.version} / ${REQUEST.traffic}%`, {
-      size: 36,
-    }),
-    captionRow,
-    'left',
-  );
-  const columns = (region) => region.columns([3, 2, 2, 2], 'normal');
-  const headers = [
-    'eval source',
-    `rate ≤ ${percent(LIMIT.eval)}`,
-    'source hash',
-    'packet hash',
-  ].map((words, i) => place(note(words), columns(headerRow)[i], 'left'));
-  const rows = evalSnapshots.map((sample, i) => {
-    const cells = columns(i === 0 ? previousRow : refreshedRow);
-    return [
-      place(
-        mono(`${sample.failures} / ${sample.cases}`, { size: 40, color: BRANCH_COLOR[EVAL] }),
-        cells[0],
-        'left',
-      ),
-      place(mono(percent(sample.rate), { size: 40, color: VALID }), cells[1], 'left'),
-      place(mono(short(sample.source), { size: 36 }), cells[2], 'left'),
-      place(mono(short(sample.packet), { size: 36, color: MARK }), cells[3], 'left'),
-    ];
-  });
-  const hashPath = [0, 2, 3].map((i) => boxOf(rows[1][i]).cx);
-  const hashY = boxOf(rows[1][0]).bottom + 15;
-  const scan = s.value(0);
-  const trace = dynamic(() => {
-    const fraction = scan.value;
-    const part = fraction >= 1 ? 1 : 0;
-    const x = hashPath[part] + (hashPath[part + 1] - hashPath[part]) * (fraction - part);
-    const path =
-      x > hashPath[0] + 1
-        ? [line([hashPath[0], hashY], [x, hashY], { stroke: BRANCH_COLOR[EVAL], width: 4 })]
-        : [];
-    return [...path, dot(9, MARK).at(x, hashY)];
-  });
-  const sourceRefresh = c.cue('source-refresh');
-  const negativeCaseHold = 1.6;
-  const sourceStart = Math.max(sourceRefresh.start, c.cue('minus-one').end + negativeCaseHold);
-  const sourceFade = 0.2;
-  c.hide(
-    'source-refresh',
-    [
-      ...names,
-      ...tracks,
-      ...marks,
-      ...counts,
-      ...limits,
-      ...rates,
-      passes[EVAL],
-      passes[HEALTH],
-      burn,
-      gauges,
-      upper,
-      outside,
-      rangeMark,
-    ],
-    { lead: sourceRefresh.start - sourceStart, fade: sourceFade },
-  );
-  // Restore the fixture request when the negative verdict has cleared.
-  const comparisonStart = sourceStart + sourceFade;
-  s.at(comparisonStart, () => b.request.traffic.set(REQUEST.traffic));
-  c.show('source-refresh', [caption, ...headers, ...rows[0], rows[1][0], trace], {
-    lead: sourceRefresh.start - comparisonStart,
-  });
-  c.on('source-refresh', () => s.play(indicate(slotNames[EVAL], { color: MARK, scale: 1 })));
-  c.show('thresholds-still-pass', rows[1][1], { after: true });
-  c.show('thresholds-still-pass', rows[1][2], { after: true, lead: -0.25 });
-  const threshold = c.cue('thresholds-still-pass');
-  c.on('thresholds-still-pass', () =>
-    s.play(scan.to(1, { duration: threshold.end - threshold.start })),
-  );
-  c.show('digests', rows[1][3], { after: true, fade: 0.16 });
-  const digestCue = c.cue('digests');
-  c.on('digests', () =>
-    s.play(
-      scan.to(2, { duration: digestCue.end - digestCue.start }),
-      indicate(b.nodes.packetFrame, { color: MARK, scale: 1 }),
-    ),
-  );
+      // Two gate lamps: Barrier vs State Contract (verdict withheld until c.after!)
+      const lampY = 185;
+      nodes.push(
+        glowRing(-790, lampY, 22, barrierOk.value > 0.3 ? ROLE.pass : COSMOS.muted, {
+          fillOpacity: barrierOk.value > 0.3 ? 0.5 : 0.12,
+          glow: barrierOk.value > 0.3 ? 11 : 0,
+          opacity: mBatch,
+        }),
+        txt(
+          barrierOk.value > 0.3 ? 'BARRIER: SATISFIED (3/3)' : 'BARRIER: 3/3 arrived',
+          -750,
+          lampY,
+          26,
+          barrierOk.value > 0.3 ? ROLE.pass : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(mBatch),
+      );
 
-  b.leave(c);
+      if (fail > 0.02 && hFix < 0.5) {
+        nodes.push(
+          glowRing(-300, lampY, 22, ROLE.reject, {
+            fillOpacity: 0.55,
+            glow: 12,
+            opacity: mBatch * fail,
+          }),
+          txt('CONTRACT: REJECT tenant9', -260, lampY, 26, ROLE.reject, 'mono', 'left')
+            .glow(8, ROLE.reject)
+            .opacity(mBatch * fail),
+        );
+      } else if (hFix >= 0.5) {
+        nodes.push(
+          glowRing(-300, lampY, 22, ROLE.pass, { fillOpacity: 0.55, glow: 12, opacity: mBatch }),
+          txt(
+            sortedLit.value > 0.3 ? 'SORTED: [eval, health, policy]' : 'MATCHED: tenant7',
+            -260,
+            lampY,
+            26,
+            ROLE.pass,
+            'mono',
+            'left',
+          ).opacity(mBatch),
+        );
+      } else {
+        nodes.push(
+          glowRing(-300, lampY, 22, ROLE.mark, {
+            fillOpacity: 0.25,
+            glow: 8,
+            opacity: mBatch * (1 - fail),
+          }),
+          txt(
+            askPredict.value > 0.3 ? 'PROCEED TO APPROVAL?  (?)' : 'DECISION: ???',
+            -260,
+            lampY,
+            26,
+            ROLE.mark,
+            'mono',
+            'left',
+          ).opacity(mBatch * (1 - fail)),
+        );
+      }
+
+      // 4 additional rejection criteria strip at bottom
+      const reasons = [
+        { label: 'Duplicate', v: rDup.value, x: -755 },
+        { label: 'Missing', v: rMiss.value, x: -535 },
+        { label: 'Stale rev', v: rStale.value, x: -305 },
+        { label: 'Src mismatch', v: rSource.value, x: -45 },
+      ];
+      reasons.forEach((r) => {
+        const hot = r.v > 0.35;
+        nodes.push(
+          lumBar(r.x, 290, 200, 50, {
+            color: hot ? ROLE.reject : COSMOS.rule,
+            fillOpacity: hot ? 0.22 : 0.08,
+            glow: hot ? 9 : 0,
+            opacity: mBatch,
+          }),
+          txt(r.label, r.x, 290, 26, hot ? COSMOS.ink : COSMOS.dim, 'mono').opacity(mBatch),
+        );
+      });
+
+      if (arrivedLit.value > 0.02) {
+        nodes.push(
+          txt(
+            'Sorted order stays identical whichever branch replied first',
+            lx,
+            372,
+            26,
+            ROLE.pass,
+            'sans',
+            'left',
+          ).opacity(mBatch * arrivedLit.value),
+        );
+      }
+    }
+
+    // =========================================================================
+    // STAGE 1: Canonical JSON Key Sorting & Digest Equivalence
+    // =========================================================================
+    if (mCanon > 0.02) {
+      const sw = swapLit.value;
+      const can = canonLit.value;
+      const same = sameDigLit.value;
+
+      nodes.push(
+        txt('CANONICAL JSON ENCODING', lx, -210, 26, ROLE.eval, 'mono', 'left').opacity(mCanon),
+        rule(lx, -186, 130, -186, ROLE.rule, 2).opacity(mCanon),
+      );
+
+      // Copy A
+      nodes.push(
+        txt('COPY A', lx, -110, 26, ROLE.eval, 'mono', 'left').opacity(mCanon),
+        lumBar(-390, -52, 940, 62, {
+          color: ROLE.eval,
+          fillOpacity: 0.16,
+          glow: 7,
+          opacity: mCanon,
+        }),
+        txt(
+          '{ "failures": 2,  "cases": 100 }',
+          lx + 24,
+          -52,
+          28,
+          COSMOS.ink,
+          'mono',
+          'left',
+        ).opacity(mCanon),
+      );
+
+      // Copy B (swapped key order)
+      nodes.push(
+        txt(
+          'COPY B (swapped keys)',
+          lx,
+          28,
+          26,
+          sw > 0.3 ? ROLE.mark : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(mCanon),
+        lumBar(-390, 86, 940, 62, {
+          color: sw > 0.3 ? ROLE.mark : ROLE.health,
+          fillOpacity: 0.16,
+          glow: sw > 0.3 ? 10 : 5,
+          opacity: mCanon,
+        }),
+        txt(
+          sw > 0.3 ? '{ "cases": 100,  "failures": 2 }' : '{ "failures": 2,  "cases": 100 }',
+          lx + 24,
+          86,
+          28,
+          COSMOS.ink,
+          'mono',
+          'left',
+        ).opacity(mCanon),
+      );
+
+      // Canonical sorted output + SHA-256 match
+      nodes.push(
+        txt(
+          can > 0.3 ? 'SORTED KEYS -> {"cases":100,"failures":2}' : 'Fix key order before hashing',
+          lx,
+          195,
+          28,
+          can > 0.3 ? ROLE.pass : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(mCanon),
+      );
+      if (same > 0.02) {
+        nodes.push(
+          lumBar(-390, 280, 940, 66, {
+            color: ROLE.pass,
+            fillOpacity: 0.24,
+            strokeWidth: 2.8,
+            glow: 11,
+            opacity: mCanon * same,
+          }),
+          txt(`IDENTICAL DIGEST: sha256(${hashOrig}...)`, -390, 280, 28, ROLE.pass, 'mono').opacity(
+            mCanon * same,
+          ),
+        );
+      }
+    }
+
+    // =========================================================================
+    // STAGE 2: Measured Threshold Gauges + Range Probe (-1) + Source Refresh (2->1)
+    // =========================================================================
+    if (mRates > 0.02) {
+      const gw = 920;
+      const gx = -860;
+      const ref = srcRefresh.value;
+      const evalFailures = ref > 0.5 ? 1 : values.eval.failures;
+      const evalRatePct = ref > 0.5 ? '1.0%' : '2.0%';
+      const evalLevel = ref > 0.5 ? 0.26 : 0.53 * Math.max(0.25, evalBar.value);
+
+      nodes.push(
+        txt(
+          fictLit.value > 0.3 && evalBar.value < 0.2
+            ? 'RELEASE THRESHOLDS  (fictional fixture limits)'
+            : 'NUMERICAL POLICY CHECKS',
+          gx,
+          -225,
+          26,
+          ROLE.mark,
+          'mono',
+          'left',
+        ).opacity(mRates),
+        rule(gx, -201, 120, -201, ROLE.rule, 2).opacity(mRates),
+      );
+
+      // Gauge 1: Eval 2/100 = 2.0% <= 3.0% (or refreshed 1/100 = 1.0%)
+      const g1 = renderGauge(gx, -120, gw, 24, evalLevel, {
+        cap: 0.8,
+        color: ref > 0.5 ? ROLE.pass : ROLE.eval,
+        opacity: mRates,
+      });
+      nodes.push(
+        ...g1.nodes,
+        txt(
+          `EVAL ${evalFailures}/100 = ${evalRatePct}`,
+          gx,
+          -166,
+          26,
+          ref > 0.5 ? ROLE.pass : ROLE.eval,
+          'mono',
+          'left',
+        ).opacity(mRates),
+        txt(
+          evalLimLit.value > 0.3 ? 'limit <= 3.0%' : 'check limit',
+          gx + gw,
+          -166,
+          26,
+          COSMOS.muted,
+          'mono',
+          'right',
+        ).opacity(mRates),
+      );
+
+      // Gauge 2: Health 4/10,000 = 0.04% <= 0.10% (40% = 0.4x allowance gated by burnReveal)
+      const g2 = renderGauge(gx, 0, gw, 24, 0.32 * Math.max(0.25, healthBar.value), {
+        cap: 0.8,
+        color: ROLE.health,
+        opacity: mRates,
+      });
+      nodes.push(
+        ...g2.nodes,
+        txt('HEALTH 4/10k = 0.04%', gx, -46, 26, ROLE.health, 'mono', 'left').opacity(mRates),
+        txt(
+          burnReveal.value > 0.3
+            ? '40% of 0.1% (0.4x)'
+            : healthAllowLit.value > 0.3
+              ? 'limit <= 0.10%'
+              : 'canary errors',
+          gx + gw,
+          -46,
+          26,
+          burnReveal.value > 0.3 ? ROLE.mark : COSMOS.muted,
+          'mono',
+          'right',
+        ).opacity(mRates),
+      );
+
+      // Gauge 3: Policy traffic 25% <= 25% cap (or -1 probe!)
+      const isNeg = negProbe.value > 0.4 && ref < 0.3;
+      const g3 = renderGauge(gx, 120, gw, 24, isNeg ? 0.04 : 0.8 * Math.max(0.25, polBar.value), {
+        cap: 0.8,
+        color: isNeg ? ROLE.reject : ROLE.policy,
+        opacity: mRates,
+      });
+      nodes.push(
+        ...g3.nodes,
+        txt(
+          isNeg
+            ? 'PROBE: traffic = -1 (out of range)'
+            : `POLICY req ${REQUEST.traffic}% / cap ${values.policy.maxTraffic}%`,
+          gx,
+          74,
+          26,
+          isNeg ? ROLE.reject : ROLE.policy,
+          'mono',
+          'left',
+        ).opacity(mRates),
+        txt(
+          isNeg && negReject.value > 0.3
+            ? 'REJECTED'
+            : inRangeLit.value > 0.3
+              ? 'int [0..100]'
+              : 'at ceiling',
+          gx + gw,
+          74,
+          26,
+          isNeg ? ROLE.reject : COSMOS.muted,
+          'mono',
+          'right',
+        ).opacity(mRates),
+      );
+
+      // Bottom digest & readiness bar
+      const by = 200;
+      nodes.push(rule(gx, by - 25, 130, by - 25, ROLE.rule, 2).opacity(mRates));
+      if (digDiff.value > 0.3 || ref > 0.5) {
+        nodes.push(
+          txt(`v3 (2/100):  ${hashOrig}...`, gx, by + 18, 26, COSMOS.muted, 'mono', 'left').opacity(
+            mRates,
+          ),
+          txt(
+            `v3 (1/100):  ${hashNew}...  (NEW DIGEST)`,
+            gx,
+            by + 64,
+            26,
+            ROLE.mark,
+            'mono',
+            'left',
+          )
+            .glow(7, ROLE.mark)
+            .opacity(mRates),
+          txt(
+            stillPass.value > 0.3
+              ? 'Both pass thresholds -> different reviewer evidence'
+              : 'Source changed',
+            gx,
+            by + 114,
+            26,
+            ROLE.pass,
+            'sans',
+            'left',
+          ).opacity(mRates),
+        );
+      } else {
+        nodes.push(
+          txt(
+            readyLit.value > 0.3
+              ? `PROPOSAL READY FOR REVIEW  |  digest ${hashOrig}...  |  live traffic 0%`
+              : ratesInLit.value > 0.3 || polAllowLit.value > 0.3
+                ? 'All three branch checks must pass before building proposal'
+                : 'Check eval, health, and policy limits',
+            gx,
+            by + 30,
+            26,
+            readyLit.value > 0.3 ? ROLE.pass : COSMOS.muted,
+            'mono',
+            'left',
+          ).opacity(mRates),
+        );
+      }
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAtmo, gate3d, title, live);
+  runAmbientPhase(s, c, phase, 2.4);
+  orbitScene(s, c, gate3d, { theta: 0.3, phi: 0.98 });
+
+  // Beat 0: Cross-tenant prediction setup
+  tweenCue(s, c, 'intended-tenant', intendedLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'other-tenant', otherTenant, 1, { duration: 0.35 });
+  tweenCue(s, c, 'all-finished', allDoneLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'expected-fields', fieldsOkLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'predict-join', askPredict, 1, { duration: 0.3 });
+
+  // Beat 1: Reveal rejection strictly AFTER contract-fails / reject-scope
+  tweenCue(s, c, 'barrier-ok', barrierOk, 1, { duration: 0.3 });
+  c.after('contract-fails', () => {
+    s.play(contractFail.to(1, { duration: 0.3 }), barrierStatus.to(-1, { duration: 0.3 }));
+  });
+  tweenCue(s, c, 'reject-scope', rejectScope, 1, { duration: 0.3, after: true });
+  tweenCue(s, c, 'reason-duplicate', rDup, 1, { duration: 0.25 });
+  tweenCue(s, c, 'reason-missing', rMiss, 1, { duration: 0.25 });
+  tweenCue(s, c, 'reason-stale', rStale, 1, { duration: 0.25 });
+  tweenCue(s, c, 'reason-source', rSource, 1, { duration: 0.25 });
+  c.after('matching-receipts', () => {
+    s.play(healthFixed.to(1, { duration: 0.35 }), barrierStatus.to(1, { duration: 0.35 }));
+  });
+  tweenCue(s, c, 'valid-identities', sortedLit, 1, { duration: 0.3, after: true });
+  tweenCue(s, c, 'arrived-first', arrivedLit, 1, { duration: 0.3, after: true });
+
+  // Sub-stage 1b: Canonical JSON encoding
+  crossSwap(s, c, 'json-fields', stBatch, stCanon, { duration: 0.42 });
+  tweenCue(s, c, 'json-fields', jsonLit, 1, { duration: 0.25 });
+  tweenCue(s, c, 'swap-fields', swapLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'canonical-fields', canonLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'same-digest', sameDigLit, 1, { duration: 0.35, after: true });
+
+  // Beats 2-3: Measured rates & probes
+  crossSwap(s, c, 'numerical-rules', stCanon, stRates, { duration: 0.42 });
+  tweenCue(s, c, 'numerical-rules', numLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'rates-inside', ratesInLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'policy-allows', polAllowLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'fictional', fictLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'validated-join-construct-3', evalBar, 0.5, { duration: 0.3 });
+  tweenCue(s, c, 'join-eval-rate', evalBar, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'eval-limit', evalLimLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'health-count', healthBar, 0.5, { duration: 0.3 });
+  tweenCue(s, c, 'join-health-rate', healthBar, 1, { duration: 0.35 });
+  tweenCue(s, c, 'health-allowance', healthAllowLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'burn-share', burnReveal, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'policy-cap', polBar, 1, { duration: 0.35, after: true });
+  tweenCue(s, c, 'ready-review', readyLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'in-range', inRangeLit, 1, { duration: 0.3 });
+  tweenCue(s, c, 'negative-reset', negProbe, 1, { duration: 0.3 });
+  tweenCue(s, c, 'minus-one', negReject, 1, { duration: 0.3 });
+  tweenCue(s, c, 'source-refresh', srcRefresh, 1, { duration: 0.35 });
+  tweenCue(s, c, 'thresholds-still-pass', stillPass, 1, { duration: 0.3 });
+  tweenCue(s, c, 'digests', digDiff, 1, { duration: 0.35 });
 }

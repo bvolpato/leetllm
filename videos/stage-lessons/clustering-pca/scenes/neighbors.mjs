@@ -1,157 +1,214 @@
+// Scene 02 (neighbors): "Build a distance from two coordinate changes"
+// Glowing right-triangle dx/dy legs from A(1.0,1.0) to B(1.2,1.8) -> sqrt(0.68)=0.825 vs C(4.0,4.2)=4.386 -> 3 pairs.
+import { line } from 'vizmatic/stage';
 import {
-  place,
-  column,
-  row,
-  grid,
-  beside,
-  boxOf,
-  line,
-  arrow,
-  circle,
-  dot,
-  rect,
-  group,
-  dynamic,
-  to,
-  draw,
-  indicate,
-  recolor,
-  fade,
-  matrix,
-  tex,
-  stateGrid,
-  appear,
-  decimal,
-  barChart,
-  scatter,
-} from 'vizmatic/stage';
-import {
-  area,
-  heading,
-  label,
-  note,
-  mono,
-  para,
-  namedBox,
-  chip,
-  tint,
-} from '../../kit-narrated.mjs';
-import {
-  IDS,
-  COLORS,
-  STATE,
-  left,
-  right,
-  ribbon,
-  body,
-  foot,
-  cloud,
-  identity,
-  messageKey,
-  rings,
-  links,
-  scoreBars,
-  liveNumber,
-  xy,
-  messages,
-  labels,
-  seeds,
-  centroids,
-  pca,
-  query,
-  clusterTrials,
-  transferDocuments,
-  transferQuery,
-  scaleFixture,
-  means,
-  stds,
-  inertia,
-  initialInertia,
-  updatedInertia,
-  coarseDistances,
+  COSMOS,
+  GROUP_COLOR,
+  LETTERS,
+  QUERY_COLOR,
+  aura,
   distance,
-  mix,
-  silhouette,
-  lloyd,
-  seedMass,
-  emptyCenterRepair,
-  energyRows,
-  scaleCalculation,
-  cosine,
-  validateModel,
+  glowDot,
+  glowTex,
+  glowingTrail,
+  guardedDynamic,
+  heroTitle,
+  labels,
+  makePlot,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+  withinGroupDistances,
+  xy,
 } from '../parts.mjs';
 
-export default function scene(s, c) {
-  const m = cloud();
-  c.take(m.chart);
-  const [top, mid, bottom] = right.rows([3, 1, 1], 'normal');
-  const dx = xy[1][0] - xy[0][0],
-    dy = xy[1][1] - xy[0][1];
-  const unit = (top.height * 0.65) / dy;
-  const origin = top.inset('loose').point('bottom left');
-  const a = origin,
-    corner = [a[0] + dx * unit, a[1]],
-    b = [corner[0], a[1] - dy * unit];
-  const ends = [dot(12, 'ink').moveTo(a), dot(12, 'ink').moveTo(b)];
-  const names = [
-    beside(label('A', { size: 36 }), ends[0], 'left', 'normal'),
-    beside(label('B', { size: 36 }), ends[1], 'right', 'normal'),
-  ];
-  const enlarged = place(note('A–B: enlarged, equal units'), top, 'top');
-  const lx = line(a, corner, { stroke: 'yellow', width: 5 }).zIndex(-2);
-  const ly = line(corner, b, { stroke: 'yellow', width: 5 }).zIndex(-2);
-  const diagonal = line(a, b, { stroke: 'cyan', width: 6 }).zIndex(-2);
-  const dxName = beside(mono('Δx = ' + dx.toFixed(1), { size: 34 }), lx, 'under', 'normal');
-  const dyName = beside(mono('Δy = ' + dy.toFixed(1), { size: 34 }), ly, 'right', 'normal');
-  const calc = place(
-    column(
-      [
-        row(
-          [
-            mono(`${dx.toFixed(1)}² = ${(dx * dx).toFixed(2)}`, { size: 34 }),
-            mono(`${dy.toFixed(1)}² = ${(dy * dy).toFixed(2)}`, { size: 34 }),
-          ],
-          { gap: 'normal' },
+const DIST_AB = withinGroupDistances[0]; // sqrt(0.68) = 0.8246
+const DIST_AC = distance(xy[0], xy[2]); // sqrt(9 + 10.24) = 4.386
+
+export default function neighbors(s, c) {
+  const phase = s.value(0);
+  const legX = s.value(0);
+  const legY = s.value(0);
+  const showSq = s.value(0);
+  const showRoot = s.value(0);
+  const showCompete = s.value(0);
+  const showWinner = s.value(0);
+  const showPairs = s.value(0);
+
+  const bgAura = aura(320, 20, 560, '#133a4a34', '#1d225216');
+  const title = heroTitle(['Build Distance From', 'Two Coordinate Steps'], {
+    x: -855,
+    y: -430,
+    size: 52,
+    lineHeight: 60,
+    accent: COSMOS.cyan,
+    eyebrow: 'EUCLIDEAN METRIC',
+  });
+
+  const eqDist = glowTex(
+    'd(A, B) = \\sqrt{(\\Delta x)^2 + (\\Delta y)^2} = \\sqrt{0.68} \\approx 0.82',
+    {
+      x: -430,
+      y: -215,
+      size: 32,
+      color: QUERY_COLOR,
+      glow: 6,
+    },
+  );
+
+  const live = guardedDynamic(s.value(1), () => {
+    const plot = makePlot(80, -290, 770, 580, { x: [0, 10], y: [0, 5.2] });
+    const aPt = plot.pt(xy[0]);
+    const bPt = plot.pt(xy[1]);
+    const cPt = plot.pt(xy[2]);
+    const corner = [bPt[0], aPt[1]];
+
+    const nodes = [
+      ...plot.axesNodes(0.85),
+      txt('COORDINATE PLANE (6 MESSAGES)', 465, -330, 26, COSMOS.cyan, 'mono'),
+    ];
+
+    // Right-triangle construction A -> corner -> B
+    if (legX.value > 0.02) {
+      const mx = aPt[0] + (corner[0] - aPt[0]) * legX.value;
+      nodes.push(
+        glowingTrail([aPt, [mx, aPt[1]]], {
+          color: COSMOS.cyan,
+          width: 4.5,
+          glow: 9,
+          opacity: legX.value,
+        }),
+        txt('Δx = 0.2', -855, -105, 30, COSMOS.cyan, 'mono', 'left').opacity(legX.value),
+      );
+    }
+    if (legY.value > 0.02) {
+      const my = aPt[1] + (bPt[1] - aPt[1]) * legY.value;
+      nodes.push(
+        glowingTrail([corner, [corner[0], my]], {
+          color: COSMOS.emerald,
+          width: 4.5,
+          glow: 9,
+          opacity: legY.value,
+        }),
+        txt('Δy = 0.8', -855, -45, 30, COSMOS.emerald, 'mono', 'left').opacity(legY.value),
+      );
+    }
+    if (showSq.value > 0.02) {
+      nodes.push(
+        txt(
+          '(0.2)² + (0.8)² = 0.04 + 0.64 = 0.68',
+          -855,
+          25,
+          28,
+          QUERY_COLOR,
+          'mono',
+          'left',
+        ).opacity(showSq.value),
+      );
+    }
+    if (showRoot.value > 0.02) {
+      nodes.push(
+        glowingTrail([aPt, bPt], {
+          color: QUERY_COLOR,
+          width: 4.5,
+          glow: 11,
+          opacity: showRoot.value,
+        }),
+        txt(`d(A, B) = √0.68 = ${DIST_AB.toFixed(3)}`, -855, 92, 32, QUERY_COLOR, 'mono', 'left')
+          .glow(7, QUERY_COLOR)
+          .opacity(showRoot.value),
+      );
+    }
+    if (showCompete.value > 0.02) {
+      nodes.push(
+        line(aPt, cPt, { stroke: COSMOS.rose, width: 3.0, dash: [10, 7] }).opacity(
+          showCompete.value,
         ),
-        mono(
-          `${(dx * dx).toFixed(2)} + ${(dy * dy).toFixed(2)} = ${(dx * dx + dy * dy).toFixed(2)}`,
-          { size: 34 },
+        txt(
+          `d(A, C) = ${DIST_AC.toFixed(3)} (login message)`,
+          -855,
+          175,
+          28,
+          COSMOS.rose,
+          'mono',
+          'left',
+        ).opacity(showCompete.value),
+      );
+    }
+    if (showWinner.value > 0.02) {
+      nodes.push(
+        txt(
+          '0.825 < 4.386  ⇒  billing partner B is 5.3× closer',
+          -855,
+          240,
+          28,
+          COSMOS.emerald,
+          'mono',
+          'left',
+        )
+          .glow(6, COSMOS.emerald)
+          .opacity(showWinner.value),
+      );
+    }
+    if (showPairs.value > 0.02) {
+      const pairs = [
+        [0, 1],
+        [2, 3],
+        [4, 5],
+      ];
+      pairs.forEach(([u, v], k) => {
+        nodes.push(
+          glowingTrail([plot.pt(xy[u]), plot.pt(xy[v])], {
+            color: GROUP_COLOR[k],
+            width: 4.0,
+            glow: 9,
+            opacity: showPairs.value,
+          }),
+        );
+      });
+      nodes.push(
+        txt(
+          'Algorithm sees only coordinates & distance (human labels come later)',
+          -855,
+          340,
+          26,
+          COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(showPairs.value),
+      );
+    }
+
+    // Plot all 6 points
+    xy.forEach((p, i) => {
+      const [px, py] = plot.pt(p);
+      const col =
+        showPairs.value > 0.5 ? GROUP_COLOR[labels[i]] : i < 2 ? COSMOS.cyan : COSMOS.muted;
+      nodes.push(
+        glowDot(px, py, { radius: 8, color: col, glow: 10 }),
+        txt(
+          LETTERS[i],
+          px + (i === 0 ? -24 : i === 4 ? -28 : 0),
+          py + (i === 0 ? 30 : -32),
+          28,
+          col,
+          'mono',
         ),
-      ],
-      { gap: 'tight' },
-    ),
-    mid,
-  );
-  const result = place(
-    mono('√' + (dx * dx + dy * dy).toFixed(2) + ' = ' + distance(xy[0], xy[1]).toFixed(3), {
-      color: 'yellow',
-      size: 38,
-    }),
-    mid,
-  );
-  const other = place(mono('d(A,C) = ' + distance(xy[0], xy[2]).toFixed(3), { size: 36 }), bottom);
-  const cloudDiagonal = line(m.p(xy[0]), m.p(xy[1]), { stroke: 'cyan', width: 5 }).zIndex(-2);
-  s.add(
-    heading(c.title),
-    identity(),
-    ends,
-    names,
-    enlarged,
-    place(note('Two coordinate changes → one distance'), foot),
-  );
-  c.show('x', [draw(lx), dxName]);
-  c.show('y', [draw(ly), dyName]);
-  c.show('square', calc, { after: true });
-  c.show('root', [draw(diagonal), draw(cloudDiagonal)]);
-  c.swap('root', calc, result, { after: true });
-  c.show('compete', other, { after: true });
-  c.on('compete', () => s.play(m.chart.nearest('A', 2, { among: ['B', 'C'], color: 'yellow' })));
-  c.on('winner', () => s.play(m.chart.nearest('A', 1, { among: ['B', 'C'], color: 'yellow' })));
-  c.on('pairs', () =>
-    s.play(
-      m.chart.nearest('A', 0),
-      ...[0, 1, 2].map((k) => m.chart.assign([IDS[2 * k], IDS[2 * k + 1]], 'g' + k)),
-    ),
-  );
-  c.keep(m.chart);
+      );
+    });
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.0);
+
+  tweenCue(s, c, 'x', legX, 1, { duration: 0.55 });
+  tweenCue(s, c, 'y', legY, 1, { duration: 0.55 });
+  tweenCue(s, c, 'square', showSq, 1, { duration: 0.45 });
+  tweenCue(s, c, 'root', showRoot, 1, { duration: 0.5 });
+  c.show('root', eqDist);
+  tweenCue(s, c, 'compete', showCompete, 1, { duration: 0.5 });
+  tweenCue(s, c, 'winner', showWinner, 1, { duration: 0.45 });
+  tweenCue(s, c, 'pairs', showPairs, 1, { duration: 0.55 });
 }

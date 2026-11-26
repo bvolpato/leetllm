@@ -1,231 +1,362 @@
+// Scene 14 (solver-contract): "How much spread runs along each axis?"
+// Squared singular value strips σ₁², σ₂² split into n-1=5 sample-variance pieces -> 100×1536 direct SVD vs squared covariance condition!
 import {
-  assertEqual,
-  circle,
-  column,
-  dynamic,
-  group,
-  line,
-  matrix,
-  place,
-  rect,
-} from 'vizmatic/stage';
-import { heading, label, mono, note } from '../../kit-narrated.mjs';
-import { body, energyRows, foot, left, pca, ribbon, right } from '../parts.mjs';
+  COSMOS,
+  DANGER_COLOR,
+  DISCARDED_ENERGY,
+  QUERY_COLOR,
+  RETAINED_ENERGY,
+  TOTAL_ENERGY,
+  aura,
+  crossSwap,
+  glowRing,
+  glowTex,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  rule,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
 
-export default function scene(s, c) {
-  const rows = energyRows();
-  const divisor = rows.length - 1;
-  const cov = [0, 1].map((j) =>
-    [0, 1].map(
-      (k) => rows.reduce((sum, row) => sum + row.centered[j] * row.centered[k], 0) / divisor,
-    ),
-  );
-  const trace = cov[0][0] + cov[1][1];
-  const gap = Math.hypot(cov[0][0] - cov[1][1], 2 * cov[0][1]);
-  const eigenvalues = [(trace + gap) / 2, (trace - gap) / 2];
-  const energies = ['retained', 'discarded'].map((key) =>
-    rows.reduce((sum, row) => sum + row[key], 0),
-  );
-  energies.forEach((energy, i) =>
-    assertEqual(
-      Math.abs(energy / divisor - eigenvalues[i]) < 1e-10,
-      true,
-      'score energy equals sample eigenvalue times n − 1',
-    ),
-  );
-  const [strips, detail] = body.columns([1.55, 1], 'loose');
-  const tracks = strips.inset('normal').rows(2, 'wide');
-  const colors = ['cyan', 'pink'];
-  const stripsData = energies.map((energy, i) => {
-    const [nameSpace, stripSpace, valueSpace] = tracks[i].rows([1, 1, 1], 'tight');
-    const name = place(
-      label(`Principal axis ${i + 1}`, { size: 38, color: colors[i] }),
-      nameSpace,
-      'bottom left',
-    );
-    const length = (stripSpace.width * 0.94 * energy) / energies[0];
-    const x = stripSpace.left,
-      y = stripSpace.cy;
-    const direction = i === 0 ? pca.vector : [-pca.vector[1], pca.vector[0]];
-    const scoreX = (score) => stripSpace.cx + (score * stripSpace.width) / 10;
-    const scoreRuler = [
-      line([scoreX(-5), y], [scoreX(5), y], { stroke: 'dim', width: 3 }),
-      line([scoreX(0), y - 18], [scoreX(0), y + 18], { stroke: 'ink', width: 3 }),
-      ...rows.map(({ centered }) => {
-        const score = centered[0] * direction[0] + centered[1] * direction[1];
-        const at = scoreX(score);
-        return line([at, y - 14], [at, y + 14], { stroke: colors[i], width: 6 });
-      }),
-      ...[-5, 0, 5].map((v) => mono(String(v), { size: 29 }).moveTo([scoreX(v), y + 44])),
-    ];
-    const segment = (width, offset, opacity) =>
-      rect(width, 46, { fill: colors[i], stroke: colors[i], width: 1, opacity }).moveTo([
-        x + offset + width / 2,
-        y,
-      ]);
-    const full = segment(length, 0, 0.85);
-    const unit = length / divisor;
-    const cuts = Array.from({ length: divisor - 1 }, (_, j) => {
-      const cutX = x + (j + 1) * unit;
-      return line([cutX, y - 28], [cutX, y + 28], { stroke: 'ink', width: 3 }).zIndex(1);
-    });
-    const sample = segment(unit, 0, 1);
-    const rest = segment(length - unit, unit, 0.24);
-    const total = place(mono(`Σ score² ≈ ${energy.toFixed(4)}`, { size: 35 }), valueSpace, 'left');
-    const variance = place(
-      mono(`${energy.toFixed(4)} / ${divisor} ≈ ${eigenvalues[i].toFixed(4)}`, { size: 34 }),
-      valueSpace,
-      'left',
-    );
-    return { name, scoreRuler, full, cuts, sample, rest, total, variance };
+export default function solverContract(s, c) {
+  const phase = s.value(0);
+  const vStrips = s.value(1);
+  const vMatrix = s.value(0);
+
+  const showEnergy = s.value(0);
+  const showSvd = s.value(0);
+  const showSquare = s.value(0);
+  const showPredict = s.value(0);
+  const splitPieces = s.value(0);
+  const showPiece = s.value(0);
+  const showCov = s.value(0);
+  const showShare = s.value(0);
+  const showZero = s.value(0);
+
+  const showGram = s.value(0);
+  const showRank = s.value(0);
+  const showRatio = s.value(0);
+  const showSolver = s.value(0);
+  const showTie = s.value(0);
+  const rotPlane = s.value(0);
+
+  const bgAura = aura(0, 20, 620, '#133a4a30', '#2a1c4f18');
+  const title = heroTitle(['SVD vs Covariance', '& Sample Variance'], {
+    x: -855,
+    y: -430,
+    size: 52,
+    lineHeight: 60,
+    accent: COSMOS.cyan,
+    eyebrow: 'PCA SOLVERS & NUMERICAL CONDITIONING',
   });
-  const header = heading(c.title);
-  const corpus = place(note('Six centered messages'), ribbon);
-  const [upper, lower] = detail.rows(2, 'wide');
-  const svd = place(
-    column(
-      [
-        label('SVD of centered rows', { size: 38 }),
-        mono('Xc = U Σ Vᵀ', { size: 43 }),
-        note('Right singular vectors give the axes'),
-      ],
-      { gap: 'normal' },
-    ),
-    upper,
-  );
-  const sigma = place(
-    column(
-      energies.map((v, i) =>
-        mono(`σ${i + 1}² ≈ ${Math.sqrt(v).toFixed(4)}²`, { size: 34, color: colors[i] }),
-      ),
-      { gap: 'normal' },
-    ),
-    lower,
-  );
-  const question = place(
-    label('Six rows. How many equal pieces?', { size: 39, color: 'yellow' }),
-    foot,
-  );
-  const sampleCount = place(mono(`n − 1 = ${rows.length} − 1 = ${divisor}`, { size: 40 }), foot);
-  const covariance = place(
-    column(
-      [
-        label('Sample covariance', { size: 38 }),
-        mono(`C = Xcᵀ Xc / ${divisor}`, { size: 38 }),
-        matrix(
-          cov.map((r) => r.map((v) => v.toFixed(3))),
-          { size: 34 },
-        ),
-        note('Eigenvalues match the two pieces'),
-      ],
-      { gap: 'normal' },
-    ),
-    detail,
-  );
-  const share = place(
-    mono(`PC1 share  ${((100 * energies[0]) / (energies[0] + energies[1])).toFixed(1)}%`, {
-      size: 41,
-      color: 'cyan',
-    }),
-    foot,
-  );
-  const zero = place(
-    note('Identical rows    ·    zero total spread    ·    ratio undefined'),
-    foot,
-  );
-  const [matrixLeft, matrixRight] = body.columns([1, 1], 'wide');
-  const width = Math.min(matrixRight.width * 0.8, body.height * 0.58);
-  const n = 100,
-    features = 1536;
-  const input = place(
-    column(
-      [
-        rect(width, (width * n) / features, { fill: 'cyan', stroke: 'cyan' }),
-        mono(`${n} × ${features}`, { size: 38 }),
-        note('Centered input'),
-      ],
-      { gap: 'normal' },
-    ),
-    matrixLeft,
-  );
-  const gram = place(
-    column(
-      [
-        rect(width, width, { fill: 'surface', stroke: 'pink', width: 4 }),
-        mono(`${features} × ${features}`, { size: 38 }),
-        note('Sample covariance'),
-      ],
-      { gap: 'normal' },
-    ),
-    matrixRight,
-  );
-  const rank = place(
-    label(`Centered rank ≤ ${n - 1}    ·    Covariance is singular`, { size: 36 }),
-    foot,
-  );
-  const ratio = place(
-    note('Positive spectrum    ·    Singular-value ratio r becomes eigenvalue ratio r²'),
-    ribbon,
-  );
-  const solver = place(note('Direct SVD operates on the centered input'), matrixLeft, 'bottom');
-  const tied = place(label('Two equal variances', { size: 40 }), ribbon);
-  const radius = left.height * 0.35;
-  const frame = circle(radius, { stroke: 'dim', width: 4 }).moveTo(left.point('center'));
-  const angle = s.value(0);
-  const axes = dynamic(() =>
-    group(
-      ...colors.map((color, i) => {
-        const a = angle.value + (i * Math.PI) / 2;
-        const dx = radius * Math.cos(a),
-          dy = radius * Math.sin(a);
-        return line([left.cx - dx, left.cy - dy], [left.cx + dx, left.cy + dy], {
-          stroke: color,
-          width: 6,
-        });
-      }),
-    ),
-  );
-  const tieText = place(
-    column(
-      [
-        mono('λ₁ = λ₂', { size: 48 }),
-        note('Every line in this plane'),
-        note('captures the same variance.'),
-      ],
-      { gap: 'tight' },
-    ),
-    right,
-  );
 
-  s.add(header, corpus, ...stripsData.flatMap((r) => [r.name, r.scoreRuler]));
-  c.swap(
-    'energy',
-    stripsData.flatMap((r) => r.scoreRuler),
-    stripsData.flatMap((r) => [r.full, r.total]),
-  );
-  c.show('svd', svd);
-  c.show('square', sigma);
-  c.show('predict', question);
-  c.show(
-    'split',
-    stripsData.flatMap((r) => r.cuts),
-    { after: true },
-  );
-  c.swap('split', question, sampleCount, { after: true });
-  c.swap(
-    'piece',
-    stripsData.flatMap((r) => [r.full, r.total]),
-    stripsData.flatMap((r) => [r.rest, r.sample, r.variance]),
-    { after: true },
-  );
-  c.swap('cov', [svd, sigma], covariance);
-  c.swap('share', sampleCount, share, { after: true });
-  c.swap('zero', share, zero, { after: true });
-  c.swapAll('wide', input, { keep: [header] });
-  c.show('gram', gram);
-  c.show('rank', rank, { after: true });
-  c.show('ratio', ratio);
-  c.show('solver', solver);
-  c.swapAll('tie', [tied, frame, axes, tieText], { keep: [header] });
-  c.on('rotate', () => s.play(angle.to(Math.PI / 3, { duration: 1.8 })));
+  const eqVar = glowTex('\\lambda_k = \\frac{\\sigma_k^2}{n - 1} = \\frac{\\sigma_k^2}{5}', {
+    x: 470,
+    y: -255,
+    size: 40,
+    color: QUERY_COLOR,
+    glow: 7,
+  });
+
+  // View 1: Squared singular value strips partitioned into n - 1 = 5 equal pieces
+  const viewStrips = guardedDynamic(vStrips, (a) => {
+    const sp = splitPieces.value;
+    const pc = showPiece.value;
+    const w1 = 920;
+    const w2 = (DISCARDED_ENERGY / RETAINED_ENERGY) * w1;
+    const left = -855;
+
+    const nodes = [
+      txt(
+        'SQUARED SPREAD ALONG TWO PRINCIPAL AXES (n = 6)',
+        left,
+        -245,
+        26,
+        COSMOS.cyan,
+        'mono',
+        'left',
+      ).opacity(a),
+      txt(
+        `PC1:  σ₁² = ${RETAINED_ENERGY.toFixed(2)}`,
+        left,
+        -152,
+        28,
+        COSMOS.emerald,
+        'mono',
+        'left',
+      ).opacity(0.45 + 0.55 * showEnergy.value * a),
+      lumBar(left + w1 / 2, -92, w1, 56, {
+        color: COSMOS.emerald,
+        fillOpacity: 0.7,
+        glow: 9,
+        opacity: a,
+      }),
+      txt(
+        `PC2:  σ₂² = ${DISCARDED_ENERGY.toFixed(2)}`,
+        left,
+        8,
+        28,
+        COSMOS.violet,
+        'mono',
+        'left',
+      ).opacity(0.45 + 0.55 * showEnergy.value * a),
+      lumBar(left + w2 / 2, 68, w2, 56, {
+        color: COSMOS.violet,
+        fillOpacity: 0.72,
+        glow: 9,
+        opacity: a,
+      }),
+      rule(left, 145, 855, 145, COSMOS.cyan, 2.2).opacity(0.6 * a),
+      txt(
+        `TOTAL SQUARED SPREAD = ${TOTAL_ENERGY.toFixed(2)}   ·   DEGREES OF FREEDOM = n − 1 = 5`,
+        left,
+        420,
+        26,
+        COSMOS.muted,
+        'mono',
+        'left',
+      ).opacity(a),
+    ];
+
+    // Cut into 5 equal pieces strictly after `split`
+    if (sp > 0.02) {
+      for (let k = 1; k < 5; k++) {
+        const x1 = left + (k / 5) * w1;
+        const x2 = left + (k / 5) * w2;
+        nodes.push(
+          rule(x1, -120, x1, -64, COSMOS.bg, 3.5).opacity(sp * a),
+          rule(x2, 40, x2, 96, COSMOS.bg, 3.5).opacity(sp * a),
+        );
+      }
+      if (pc > 0.02) {
+        nodes.push(
+          txt(
+            `1 piece = λ₁ = ${(RETAINED_ENERGY / 5).toFixed(2)}`,
+            left + w1 + 24,
+            -92,
+            28,
+            COSMOS.emerald,
+            'mono',
+            'left',
+          ).opacity(pc * a),
+          txt(
+            `1 piece = λ₂ = ${(DISCARDED_ENERGY / 5).toFixed(2)}`,
+            left + w2 + 24,
+            68,
+            28,
+            COSMOS.violet,
+            'mono',
+            'left',
+          ).opacity(pc * a),
+        );
+      }
+    }
+
+    // Prediction prompt -> 5 pieces answer -> explained variance ratio
+    const pOp = showPredict.value * Math.max(0, 1 - sp * 2.6) * a;
+    if (pOp > 0.02) {
+      nodes.push(
+        txt(
+          '6 centered rows sum to 0 (5 free). Into how many pieces do we cut each strip?',
+          left,
+          198,
+          30,
+          QUERY_COLOR,
+          'serif',
+          'left',
+        )
+          .glow(6, QUERY_COLOR)
+          .opacity(pOp),
+      );
+    }
+
+    const ansOp = Math.max(0, (sp - 0.45) / 0.55) * a;
+    if (ansOp > 0.02) {
+      nodes.push(
+        txt(
+          showCov.value > 0.5
+            ? '5 pieces (n − 1): matches sample covariance eigenvalues identically!'
+            : '5 equal pieces (n − 1 = 5 degrees of freedom)',
+          left,
+          198,
+          30,
+          COSMOS.emerald,
+          'mono',
+          'left',
+        )
+          .glow(6, COSMOS.emerald)
+          .opacity(ansOp),
+      );
+    }
+
+    if (showShare.value > 0.02) {
+      nodes.push(
+        txt(
+          `Explained variance ratio:  ${RETAINED_ENERGY.toFixed(1)} / ${TOTAL_ENERGY.toFixed(1)} = ${((RETAINED_ENERGY / TOTAL_ENERGY) * 100).toFixed(1)}%`,
+          left,
+          285,
+          30,
+          QUERY_COLOR,
+          'mono',
+          'left',
+        ).opacity(showShare.value * a),
+      );
+    }
+    if (showZero.value > 0.02) {
+      nodes.push(
+        txt(
+          'If every row is identical: total spread = 0 → ratio is 0/0 (undefined)',
+          left,
+          350,
+          26,
+          DANGER_COLOR,
+          'mono',
+          'left',
+        ).opacity(showZero.value * a),
+      );
+    }
+
+    return nodes;
+  });
+
+  // View 2: Wide matrix (100 x 1536) vs giant Covariance (1536 x 1536), rank <= 99, condition kappa^2, tied-plane rotation
+  const viewMatrix = guardedDynamic(vMatrix, (a) => {
+    const rot = rotPlane.value;
+    const nodes = [
+      txt(
+        'WIDE EMBEDDING MATRIX:  n = 100,  d = 1,536',
+        -855,
+        -245,
+        28,
+        COSMOS.cyan,
+        'mono',
+        'left',
+      ).opacity(a),
+      // Thin 100 x 1536 input rectangle
+      lumBar(-540, -145, 580, 54, { color: COSMOS.cyan, fillOpacity: 0.35, glow: 8, opacity: a }),
+      txt('X_c  (100 × 1,536)', -540, -145, 28, COSMOS.ink, 'mono').opacity(a),
+      rule(-855, 418, 855, 418, COSMOS.cyan, 2.2).opacity(0.6 * a),
+      txt(
+        'PREFER DIRECT SVD ON CENTERED X_c OVER FORMING COVARIANCE XᵀX',
+        -855,
+        454,
+        26,
+        COSMOS.muted,
+        'mono',
+        'left',
+      ).opacity(a),
+    ];
+
+    nodes.push(
+      lumBar(-540, 125, 360, 360, {
+        color: DANGER_COLOR,
+        fillOpacity: 0.16,
+        dash: [10, 7],
+        glow: 8,
+        opacity: (0.4 + 0.6 * showGram.value) * a,
+      }),
+      txt('Covariance XᵀX', -540, 95, 30, DANGER_COLOR, 'mono').opacity(
+        (0.4 + 0.6 * showGram.value) * a,
+      ),
+      txt('1,536 × 1,536', -540, 150, 34, DANGER_COLOR, 'mono').opacity(
+        (0.4 + 0.6 * showGram.value) * a,
+      ),
+    );
+
+    const rx = 50;
+    nodes.push(
+      txt('rank ≤ 99  ⇒  ordinary κ = ∞', rx, -155, 30, DANGER_COLOR, 'mono', 'left')
+        .glow(6, DANGER_COLOR)
+        .opacity((0.45 + 0.55 * showRank.value) * a),
+      txt(
+        'Forming XᵀX SQUARES condition number:  κ → κ²',
+        rx,
+        -72,
+        28,
+        QUERY_COLOR,
+        'mono',
+        'left',
+      ).opacity((0.45 + 0.55 * showRatio.value) * a),
+      txt(
+        'Direct SVD avoids forming XᵀX (preserves small σ)',
+        rx,
+        10,
+        28,
+        COSMOS.emerald,
+        'mono',
+        'left',
+      )
+        .glow(6, COSMOS.emerald)
+        .opacity((0.45 + 0.55 * showSolver.value) * a),
+      txt(
+        'Randomized SVD: tune oversampling & power iterations',
+        rx,
+        72,
+        26,
+        COSMOS.muted,
+        'sans',
+        'left',
+      ).opacity((0.45 + 0.55 * showSolver.value) * a),
+    );
+
+    if (showTie.value > 0.02) {
+      const cx = 440;
+      const cy = 242;
+      const ang = rot * 1.1;
+      nodes.push(
+        glowRing(cx, cy, 82, COSMOS.cyan, { width: 2.5, glow: 8, opacity: showTie.value * a }),
+        rule(
+          cx - 78 * Math.cos(ang),
+          cy - 78 * Math.sin(ang),
+          cx + 78 * Math.cos(ang),
+          cy + 78 * Math.sin(ang),
+          QUERY_COLOR,
+          3.5,
+        ).opacity(showTie.value * a),
+        rule(
+          cx + 78 * Math.sin(ang),
+          cy - 78 * Math.cos(ang),
+          cx - 78 * Math.sin(ang),
+          cy + 78 * Math.cos(ang),
+          COSMOS.emerald,
+          3.5,
+        ).opacity(showTie.value * a),
+        txt(
+          'Tied eigenvalues: axes rotate freely in plane',
+          440,
+          362,
+          26,
+          QUERY_COLOR,
+          'mono',
+        ).opacity(showTie.value * a),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAura, title, viewStrips, viewMatrix);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  tweenCue(s, c, 'energy', showEnergy, 1, { duration: 0.45 });
+  tweenCue(s, c, 'svd', showSvd, 1, { duration: 0.4 });
+  tweenCue(s, c, 'square', showSquare, 1, { duration: 0.4 });
+  tweenCue(s, c, 'predict', showPredict, 1, { duration: 0.45 });
+  tweenCue(s, c, 'split', splitPieces, 1, { duration: 0.55, after: true });
+  c.show('split', eqVar, { after: true });
+  tweenCue(s, c, 'piece', showPiece, 1, { duration: 0.45 });
+  tweenCue(s, c, 'cov', showCov, 1, { duration: 0.45 });
+  tweenCue(s, c, 'share', showShare, 1, { duration: 0.45 });
+  tweenCue(s, c, 'zero', showZero, 1, { duration: 0.45 });
+
+  c.hide('wide', eqVar);
+  crossSwap(s, c, 'wide', vStrips, vMatrix, { duration: 0.55 });
+  tweenCue(s, c, 'gram', showGram, 1, { duration: 0.45 });
+  tweenCue(s, c, 'rank', showRank, 1, { duration: 0.45 });
+  tweenCue(s, c, 'ratio', showRatio, 1, { duration: 0.45 });
+  tweenCue(s, c, 'solver', showSolver, 1, { duration: 0.45 });
+  tweenCue(s, c, 'tie', showTie, 1, { duration: 0.45 });
+  tweenCue(s, c, 'rotate', rotPlane, 1, { duration: 0.9 });
 }

@@ -1,337 +1,549 @@
-// Scene `subject-intro`: the whole route of one release request, in one pass.
-//
-// Three checks return receipts at different times. The join reads them and sends one packet
-// for review. Live traffic stays at zero. The last beat compares three kinds of work.
+// Scene 01 (subject-intro): "Can the new search ranker take more traffic?"
+// Full-bleed orbiting 3D multi-agent DAG + live rollout dial + parallel branch meters + cost decision tracks.
 import {
-  dot,
-  dynamic,
-  fade,
-  fadeIn,
-  group,
-  indicate,
-  lagged,
+  COSMOS,
+  DURATIONS,
+  INITIAL_AGE_S,
+  REQUEST,
+  ROLE,
+  buildOrchestrationDag3d,
+  cinemaAtmosphere,
+  crossSwap,
+  glowArrow,
+  glowDot,
+  guardedDynamic,
+  heroTitle,
   line,
-  linear,
-  pictogram,
-  par,
-  place,
-  polygon,
-  polyline,
-  pulse,
-  rect,
-  row,
-  seq,
-} from 'vizmatic/stage';
-import { readSchedule } from '../../../films/agent-orchestration/arithmetic.mjs';
-import { REQUEST, values } from '../../../films/agent-orchestration/fixtures.mjs';
-import { area, chipRow, display, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { RATE_LIMITS } from '../packet.mjs';
-import { BAND, BRANCH_COLOR, MARK, QUIET, VALID, board, laneRoom } from '../parts.mjs';
-
-/** The seconds of each read, from the model: eval, health, policy. */
-const SECONDS = readSchedule(0).branches.map((branch) => branch.duration);
-
-function rolloutRequest(s) {
-  const [dialRoom, receipts] = area.inset(52, 64).columns([5, 7], 96);
-  const radius = dialRoom.width * 0.43;
-  const point = (fraction, r = radius) => {
-    const angle = Math.PI * (0.75 + 1.5 * fraction);
-    return [dialRoom.cx + r * Math.cos(angle), dialRoom.cy + r * Math.sin(angle)];
-  };
-  const arc = (fraction, color) =>
-    polyline(Array.from({ length: 65 }, (_, i) => point(fraction * i / 64)), {
-      stroke: color, width: 23,
-    });
-  const share = REQUEST.traffic / 100;
-  const sweep = s.value(0);
-  const dial = group(
-    arc(1, 'gridStrong'), arc(share, MARK),
-    ...Array.from({ length: 17 }, (_, i) =>
-      line(point(i / 16, radius + 22), point(i / 16, radius + (i % 4 ? 32 : 50)), {
-        stroke: i / 16 <= share ? MARK : QUIET, width: i % 4 ? 3 : 5,
-      }),
-    ),
-    dot(19, MARK).at(...point(share)),
-    dynamic(() => sweep.value > 0 && sweep.value < 1
-      ? dot(12, 'ink').at(...point(share * sweep.value))
-      : []),
-    label(`${REQUEST.traffic}%`, { size: 142, color: MARK }).at(dialRoom.cx, dialRoom.cy - 18),
-    label('requested traffic', { size: 43 }).at(dialRoom.cx, dialRoom.cy + 96),
-  );
-  const { eval: evaluation, health, policy } = values;
-  const readings = [
-    ['Evaluation', `${evaluation.failures} regressions / ${evaluation.cases} cases`, evaluation.failures / evaluation.cases <= RATE_LIMITS.eval],
-    ['Canary', `${health.errors} errors / ${health.requests.toLocaleString('en-US')} requests`, health.errors / health.requests <= RATE_LIMITS.health],
-    ['Rollout policy', `${policy.maxTraffic}% traffic ceiling`, REQUEST.traffic <= policy.maxTraffic],
-  ];
-  const slips = receipts.rows(3, 42).map((room, i) => {
-    const [name, result, passed] = readings[i];
-    const edge = Array.from({ length: 21 }, (_, j) => [
-      room.right - (j % 2) * 12, room.top + room.height * j / 20,
-    ]);
-    const tear = room.right - 130;
-    const paper = polygon([[room.left, room.top], ...edge, [room.left, room.bottom]], {
-      fill: BRANCH_COLOR[i], stroke: null,
-    });
-    const ink = { color: 'bg', anchor: 'left' };
-    const number = mono(result, { ...ink, size: 39 }).at(room.left + 36, room.cy + 35);
-    const slip = group(
-      paper,
-      label(name, { ...ink, size: 54 }).at(room.left + 36, room.cy - 46),
-      number,
-      line([tear, room.top + 16], [tear, room.bottom - 16], { stroke: 'bg', width: 2, dash: [7, 9] }),
-    );
-    const stamp = pictogram(passed ? 'check' : 'cross', { size: 74, color: 'bg', accent: 'bg' })
-      .at((tear + room.right) / 2 - 4, room.cy);
-    return { slip, stamp };
-  });
-  return { dial, sweep, slips };
-}
+  lumBar,
+  orbitScene,
+  renderArcDial,
+  renderGauge,
+  rule,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+  values,
+} from '../parts.mjs';
 
 export default function subjectIntro(s, c) {
-  const b = board(s);
-  const { fan, ask, slots, slotNames, steps, writer } = b.nodes;
+  const phase = s.value(0);
+  const modeRollout = s.value(1);
+  const modeCost = s.value(0);
 
-  const question = place(display(`${REQUEST.traffic}% of traffic to ${REQUEST.release}?`), BAND);
-  const { dial, sweep, slips } = rolloutRequest(s);
-  const opening = [heading(c.title), dial, slips[0].slip, slips[1].slip];
-  s.add(...opening, ...b.moving);
-  // Cut straight to the request. The dial and the two readings are present on frame zero.
-  s.play(fadeIn(opening, { duration: 0 }));
-  const requested = c.cue('requested-share');
-  c.on('requested-share', () => s.play(sweep.to(1, { duration: requested.end - requested.start, ease: linear })));
-  c.show('eval-question', slips[0].stamp, { after: true });
-  c.show('health-question', slips[1].stamp, { after: true });
-  c.show('policy-answer', [slips[2].slip, slips[2].stamp], { lead: 0 });
-  c.swap('trace-workers', [dial, ...slips.flatMap(({ slip, stamp }) => [slip, stamp])],
-    [question, ...b.leftSide, ...b.liveGauge], { lead: 0 });
-  c.show(
-    'receipts-reunite',
-    b.rightSide.filter((node) => !b.liveGauge.includes(node)),
-    { lead: 0 },
-  );
+  // Beat 0: Rollout question + two known receipts + withheld policy ceiling
+  const dialLevel = s.value(0.25);
+  const evalLit = s.value(0);
+  const healthLit = s.value(0);
+  const policyReveal = s.value(0);
 
-  const travelWindow = c.cue('receipts-reunite').start - c.cue('read-branches').start;
-  const secondsToScreen = (travelWindow * 0.82) / Math.max(...SECONDS);
-  c.on('read-branches', () =>
-    s.play(
-      ...b.card.map((card) => card.shown.to(1, { duration: 0.2 })),
-      ...b.card.map((card, i) =>
-        seq(
-          card.pos.to(1, { duration: SECONDS[i] * secondsToScreen, ease: linear }),
-          b.gate[i].lamp.to(1, { duration: travelWindow * 0.05 }),
-        ),
-      ),
-    ),
-  );
-  c.on('receipts-reunite', () =>
-    s.play(
-      seq(
-        par(...b.gate.map((gate) => gate.open.to(1, { duration: 0.3 }))),
-        par(...b.card.map((card) => card.pos.to(2, { duration: 0.8 }))),
-      ),
-    ),
-  );
-  // Read two fields of the receipts while they sit together in the packet.
-  c.on('danger-mixed', () => s.play(b.hot.rev.to(1, { duration: 0.3 })));
-  c.on('danger-stale', () =>
-    s.play(b.hot.rev.to(0, { duration: 0.3 }), b.hot.age.to(1, { duration: 0.3 })),
-  );
+  // Beat 1: DAG flow highlights
+  const dagStage = s.value(0);
+  const traceWorkers = s.value(0);
+  const branchesLit = s.value(0);
+  const reuniteLit = s.value(0);
+  const revAgeLit = s.value(0);
+  const staleWarn = s.value(0);
+  const ownedLit = s.value(0);
+  const arrowsLit = s.value(0);
+  const joinWaits = s.value(0);
+  const validatedLit = s.value(0);
+  const proposalLit = s.value(0);
+  const writerLit = s.value(0);
+  const approvalLit = s.value(0);
 
-  // Beat 1. The same picture, named part by part: edges, owned slots, the join, one proposal.
-  c.on('explicit', () =>
-    s.play(
-      ask.pulse({ color: MARK }),
-      ...fan.map((edge) => edge.pulse({ color: MARK })),
-      indicate(slots, { color: MARK }),
-    ),
-  );
-  c.on('owned-results', () =>
-    s.play(
-      b.hot.age.to(0, { duration: 0.3 }),
-      lagged(
-        slotNames.map((name, i) => indicate(name, { color: BRANCH_COLOR[i], scale: 1.15 })),
-        { lag: 0.6 },
-      ),
-    ),
-  );
-  c.on('join-waits', () => s.play(indicate(b.nodes.packetFrame, { color: MARK, scale: 1 })));
-  c.on('validated-join', () => s.play(...b.card.map((card) => card.read.to(3, { duration: 0.9 }))));
-  c.after('one-proposal', () =>
-    s.play(
-      seq(
-        par(...b.card.map((card) => card.verdict.to(1, { duration: 0.3 }))),
-        b.packet.seal.to(1, { duration: 0.5 }),
-        pulse(steps[0], { color: VALID }),
-        b.token.shown.to(1, { duration: 0.3 }),
-      ),
-    ),
-  );
-  // The proposal waits for approval. The live gauge stays at zero.
-  c.on('separate-boundary', () => s.play(indicate([writer.frame, writer.title], { color: MARK })));
-  c.after('after-review', () => s.play(indicate(b.nodes.approval.title, { color: MARK })));
+  // Beat 2: Timing + revision check
+  const timingLit = s.value(0);
+  const revV3Lit = s.value(0);
 
-  // Beat 2. The two examples of the lesson: time on the lanes, and one identity on every card.
-  c.on('traffic-proposal', () =>
-    s.play(b.hot.traffic.to(1, { duration: 0.3 }), indicate(question.find('25%'), { color: MARK })),
-  );
-  const preview = { grown: s.value(0), shown: s.value(0) };
-  const bars = dynamic(() => {
-    if (preview.shown.value < 0.02) return [];
-    return SECONDS.map((seconds, i) => {
-      const room = laneRoom(i);
-      const width =
-        ((room.right - room.left - 40) * seconds * preview.grown.value) / Math.max(...SECONDS);
-      return rect(Math.max(width, 1), room.height - 44, {
-        radius: 8,
-        stroke: null,
-        fill: BRANCH_COLOR[i],
-        opacity: 0.86 * preview.shown.value,
-      }).at(room.left + 20 + width / 2, room.cy);
-    });
+  // Beat 3: Earn-their-cost decision tracks
+  const caseResearch = s.value(0);
+  const resResearch = s.value(0);
+  const caseEtl = s.value(0);
+  const etlDeadline = s.value(0);
+  const resEtl = s.value(0);
+  const caseCoupled = s.value(0);
+  const resCoupled = s.value(0);
+  const costWarn = s.value(0);
+  const measureLit = s.value(0);
+
+  const bgAtmo = cinemaAtmosphere(ROLE.eval, ROLE.health);
+  const { view: dag3d } = buildOrchestrationDag3d(phase, dagStage, {
+    x: 470,
+    y: -35,
+    theta: -0.7,
+    phi: 1.05,
+    distance: 15.0,
+    unit: 106,
   });
-  s.add(bars);
-  c.on('timing-example', () =>
-    s.play(
-      b.hot.traffic.to(0, { duration: 0.3 }),
-      preview.shown.to(1, { duration: 0.2 }),
-      preview.grown.to(1, { duration: 1.6 }),
-    ),
-  );
-  c.on('same-action', () =>
-    s.play(
-      preview.shown.to(0, { duration: 0.4 }),
-      b.hot.tenant.to(1, { duration: 0.4 }),
-      b.hot.rev.to(1, { duration: 0.4 }),
-    ),
-  );
 
-  // Beat 3. Keep the three dependencies together while their work moves.
-  const [comparison, costRoom] = BAND.rows([4, 1], 'normal');
-  const kinds = [
-    { work: 'independent research', fits: 'specialists' },
-    { work: 'deterministic ETL', fits: 'parallel code' },
-    { work: 'coupled edits', fits: 'one scoped agent' },
-  ].map((kind, i) => {
-    const room = comparison.rows(3, 'tight')[i];
-    const [nameRoom, mechanism, fitRoom] = room.columns([3, 2.5, 2.5], 'normal');
-    return {
-      work: place(label(kind.work, { size: 35 }), nameRoom, 'left'),
-      fits: place(label(kind.fits, { size: 36, color: MARK }), fitRoom, 'left'),
-      room: mechanism.inset('tight'),
-      progress: s.value(0),
-    };
+  const title = heroTitle(['Can the Search Ranker', 'Take More Traffic?'], {
+    x: -860,
+    y: -440,
+    size: 54,
+    lineHeight: 62,
+    accent: ROLE.eval,
+    eyebrow: `AGENT ORCHESTRATION  /  ${REQUEST.request}  /  ${REQUEST.tenant}`,
   });
-  const together = s.value(0);
-  const deadline = s.value(0);
-  const mechanisms = kinds.map((kind, i) =>
-    dynamic(() => {
-      const r = kind.room;
-      const p = kind.progress.value;
-      const left = r.left + 8;
-      const right = r.right - 8;
-      const pitch = Math.min(24, r.height / 3);
-      const levels = [-1, 0, 1].map((j) => r.cy + j * pitch);
-      if (i === 0) {
-        // Independent questions fan out, then bring their results together.
-        return levels.flatMap((y, branch) => {
-          const mid = r.cx;
-          const x = p < 0.5 ? left + (mid - left) * p * 2 : mid + (right - mid) * (p - 0.5) * 2;
-          const movingY = p < 0.5 ? r.cy + (y - r.cy) * p * 2 : y + (r.cy - y) * (p - 0.5) * 2;
-          return [
-            line([left, r.cy], [mid, y], { stroke: QUIET, width: 2 }),
-            line([mid, y], [right, r.cy], { stroke: QUIET, width: 2 }),
-            dot(9, BRANCH_COLOR[branch]).at(mid, y),
-            dot(6, BRANCH_COLOR[branch]).at(x, movingY),
-          ];
-        });
+
+  const live = guardedDynamic(s.value(1), () => {
+    const m0 = modeRollout.value;
+    const m1 = modeCost.value;
+    const nodes = [];
+
+    // Right column persistent 3D DAG legend & status strip (always populated from t=0)
+    nodes.push(
+      txt('3D MULTI-AGENT DAG TOPOLOGY', 470, -425, 26, ROLE.eval, 'mono').glow(6, ROLE.eval),
+      txt(
+        'Triage -> Eval / Health / Policy -> Merge -> Review -> Writer',
+        470,
+        -380,
+        26,
+        COSMOS.muted,
+        'sans',
+      ),
+    );
+
+    if (m0 > 0.02) {
+      const lx = -860;
+      const pRev = policyReveal.value;
+      const eLit = evalLit.value;
+      const hLit = healthLit.value;
+
+      // Top-left dial: 25% requested traffic share + withheld policy cap marker
+      const dialCx = -715;
+      const dialCy = -75;
+      nodes.push(
+        ...renderArcDial(dialCx, dialCy, 112, dialLevel.value, {
+          color: proposalLit.value > 0.4 ? ROLE.mark : ROLE.eval,
+          capFraction: pRev > 0.2 ? 0.25 : null,
+          capColor: ROLE.policy,
+          opacity: m0,
+        }),
+        txt(`${REQUEST.traffic}%`, dialCx, dialCy - 10, 48, COSMOS.ink, 'mono')
+          .glow(8, ROLE.eval)
+          .opacity(m0),
+        txt('REQUESTED', dialCx, dialCy + 42, 26, COSMOS.muted, 'mono').opacity(m0),
+      );
+      if (pRev > 0.02) {
+        nodes.push(
+          txt('CAP 25%', dialCx, dialCy + 96, 26, ROLE.policy, 'mono')
+            .glow(6, ROLE.policy)
+            .opacity(m0 * pRev),
+        );
+      } else {
+        nodes.push(
+          txt('LIMIT ?', dialCx, dialCy + 96, 26, ROLE.mark, 'mono')
+            .glow(6, ROLE.mark)
+            .opacity(m0 * (1 - pRev)),
+        );
       }
-      if (i === 1) {
-        const total = SECONDS.reduce((sum, seconds) => sum + seconds, 0);
-        const unit = (right - left) / total;
-        const bars = levels.flatMap((y, j) => {
-          const serialStart = SECONDS.slice(0, j).reduce((sum, seconds) => sum + seconds, 0);
-          const start = serialStart * (1 - together.value);
-          const width = SECONDS[j] * unit * p;
-          return [
-            line([left, y], [right, y], { stroke: QUIET, width: 2 }),
-            ...(width < 1
-              ? []
-              : [
-                  rect(width, 12, { radius: 3, stroke: null, fill: BRANCH_COLOR[j] }).at(
-                    left + start * unit + width / 2,
-                    y,
-                  ),
-                ]),
-          ];
+
+      // Three branch receipt gauges to the right of the dial
+      const gx = -545;
+      const gw = 580;
+      const rows = [
+        {
+          y: -185,
+          label: `EVAL ${values.eval.failures}/${values.eval.cases} (2%)`,
+          sub: timingLit.value > 0.3 ? '2.0 s' : revV3Lit.value > 0.3 ? 'v3  10 s' : 'PASS <= 3%',
+          level: 0.56,
+          cap: 0.84,
+          col: ROLE.eval,
+          lit: Math.max(eLit, branchesLit.value, ownedLit.value),
+        },
+        {
+          y: -60,
+          label: `HEALTH ${values.health.errors}/10k (0.04%)`,
+          sub: timingLit.value > 0.3 ? '3.0 s' : revV3Lit.value > 0.3 ? 'v3  10 s' : 'PASS <= 0.1%',
+          level: 0.34,
+          cap: 0.84,
+          col: ROLE.health,
+          lit: Math.max(hLit, branchesLit.value, ownedLit.value),
+        },
+        {
+          y: 65,
+          label: pRev > 0.3 ? `POLICY cap ${values.policy.maxTraffic}%` : 'POLICY ???',
+          sub:
+            pRev > 0.3
+              ? timingLit.value > 0.3
+                ? '1.0 s'
+                : revV3Lit.value > 0.3
+                  ? 'v3  10 s'
+                  : 'EXACT CAP'
+              : 'What limits rollout?',
+          level: pRev > 0.3 ? 0.84 : 0.08,
+          cap: 0.84,
+          col: pRev > 0.3 ? ROLE.policy : ROLE.mark,
+          lit: Math.max(pRev, branchesLit.value, ownedLit.value),
+        },
+      ];
+      rows.forEach((r) => {
+        const g = renderGauge(gx, r.y, gw, 24, r.level, {
+          cap: r.cap,
+          color: r.col,
+          limitColor: r.lit > 0.4 ? COSMOS.ink : COSMOS.muted,
+          opacity: m0,
         });
-        if (deadline.value > 0.01)
-          bars.push(
-            line([left + 4 * unit, levels[0] - 10], [left + 4 * unit, levels[2] + 10], {
-              stroke: MARK,
-              width: 4,
-              opacity: deadline.value,
+        nodes.push(
+          ...g.nodes,
+          txt(r.label, gx, r.y - 46, 26, r.lit > 0.4 ? r.col : COSMOS.ink, 'mono', 'left')
+            .glow(r.lit > 0.4 ? 6 : 0, r.col)
+            .opacity(m0),
+          txt(r.sub, gx + gw, r.y - 46, 26, COSMOS.muted, 'mono', 'right').opacity(m0),
+        );
+      });
+
+      // Bottom-left pipeline strip: Workers -> Join -> Proposal -> Review -> Writer
+      const py = 250;
+      const stages = [
+        {
+          x: -785,
+          label: '3 READS',
+          sub: traceWorkers.value > 0.3 ? 'independent' : 'v3',
+          col: ROLE.eval,
+          hot: Math.max(traceWorkers.value, branchesLit.value, ownedLit.value),
+        },
+        {
+          x: -505,
+          label: 'JOIN',
+          sub:
+            validatedLit.value > 0.3
+              ? 'validated'
+              : joinWaits.value > 0.3
+                ? 'waits all 3'
+                : 'fan-in',
+          col: validatedLit.value > 0.3 ? ROLE.pass : ROLE.merge,
+          hot: Math.max(reuniteLit.value, joinWaits.value, validatedLit.value),
+        },
+        {
+          x: -225,
+          label: 'PROPOSAL',
+          sub: proposalLit.value > 0.3 ? '25% / v3' : '1 packet',
+          col: ROLE.mark,
+          hot: proposalLit.value,
+        },
+        {
+          x: 65,
+          label: 'REVIEW',
+          sub: approvalLit.value > 0.3 ? 'approved' : 'human gate',
+          col: ROLE.review,
+          hot: approvalLit.value,
+        },
+        {
+          x: 365,
+          label: 'WRITER',
+          sub: writerLit.value > 0.3 ? 'traffic only' : 'isolated',
+          col: ROLE.writer,
+          hot: Math.max(writerLit.value, approvalLit.value),
+        },
+      ];
+      stages.forEach((st, i) => {
+        const active = st.hot > 0.35;
+        nodes.push(
+          lumBar(st.x, py, 204, 72, {
+            color: st.col,
+            fillOpacity: active ? 0.24 : 0.1,
+            strokeWidth: active ? 3 : 2,
+            glow: active ? 11 : 4,
+            opacity: m0,
+          }),
+          txt(st.label, st.x, py, 26, active ? COSMOS.ink : st.col, 'mono').opacity(m0),
+          txt(st.sub, st.x, py + 58, 26, COSMOS.muted, 'sans').opacity(m0),
+        );
+        if (i < stages.length - 1) {
+          const arrCol = arrowsLit.value > 0.4 ? ROLE.mark : COSMOS.muted;
+          nodes.push(
+            glowArrow([st.x + 110, py], [stages[i + 1].x - 110, py], arrCol, {
+              width: arrowsLit.value > 0.4 ? 4 : 2.6,
+              glow: arrowsLit.value > 0.4 ? 9 : 3,
+              opacity: m0,
             }),
           );
-        return bars;
-      }
-      // Coupled edits share one trace. Each edit extends the preceding state.
-      const segment = (right - left) / 3;
-      const lengths = [0, 1, 2].map((j) => Math.max(0, Math.min(1, p * 3 - j)));
-      return [
-        line([left, r.cy], [right, r.cy], { stroke: QUIET, width: 2 }),
-        ...lengths.flatMap((length, j) =>
-          length > 0.005
-            ? [
-                line([left + j * segment, r.cy], [left + (j + length) * segment, r.cy], {
-                  stroke: MARK,
-                  width: 7,
-                }),
-              ]
-            : [],
-        ),
-        pictogram('agent', { size: 34, color: QUIET, accent: MARK }).at(
-          left + (right - left) * p,
-          r.cy - 26,
-        ),
-      ];
-    }),
-  );
-  const table = kinds.flatMap((kind, i) => [kind.work, mechanisms[i]]);
-  const costs = chipRow(['token cost', 'coordination', 'review']);
-  const cost = row([note('each extra context adds'), costs]);
-  place(cost, costRoom, 'left');
-  const parts = kinds.map((kind) => [kind.work]);
-  const light = (lit) =>
-    parts.flatMap((nodes, i) => nodes.map((node) => fade(node, i === lit ? 1 : 0.35)));
-  c.on('subject-intro-construct-3', () =>
-    s.play(b.hot.tenant.to(0, { duration: 0.4 }), b.hot.rev.to(0, { duration: 0.4 })),
-  );
-  c.swap('subject-intro-construct-3', question, table);
-  c.on('case-research', () =>
-    s.play(...light(0), kinds[0].progress.to(1, { duration: 2.4, ease: linear })),
-  );
-  c.on('case-etl', () =>
-    s.play(...light(1), kinds[1].progress.to(1, { duration: 2.4, ease: linear })),
-  );
-  const limit = place(
-    note('4 s deadline', { color: MARK }),
-    BAND.rows([4, 1], 'normal')[1],
-    'left',
-  );
-  c.show('etl-deadline', limit, { lead: 0 });
-  c.on('etl-deadline', () => s.play(deadline.to(1, { duration: 0.2 })));
-  c.on('etl-result', () => s.play(together.to(1, { duration: 1.1 })));
-  c.hide('case-coupled', limit);
-  c.on('case-coupled', () =>
-    s.play(...light(2), kinds[2].progress.to(1, { duration: 2.4, ease: linear })),
-  );
-  ['research-result', 'etl-result', 'coupled-result'].forEach((cue, i) =>
-    c.show(cue, kinds[i].fits, { after: true }),
-  );
-  c.on('extra-cost', () => s.play(...light(0)));
-  c.show('extra-cost', cost, { stagger: true });
-  c.on('measure', () => s.play(...parts.flat().map((node) => fade(node, 1))));
+        }
+      });
 
-  b.leave(c);
+      // Bottom-left metadata / timing telemetry readout (no overlap, sequential)
+      const infoY = 395;
+      if (timingLit.value > 0.3) {
+        nodes.push(
+          txt(
+            `Parallel reads: 1 s / 2 s / 3 s  (v${REQUEST.version}, age ${INITIAL_AGE_S} s)`,
+            lx,
+            infoY,
+            28,
+            ROLE.mark,
+            'mono',
+            'left',
+          )
+            .glow(6, ROLE.mark)
+            .opacity(m0 * timingLit.value),
+        );
+      } else if (revAgeLit.value > 0.3) {
+        nodes.push(
+          txt(
+            staleWarn.value > 0.3
+              ? `Each receipt tags revision v${REQUEST.version} and age ${INITIAL_AGE_S} s`
+              : `Each receipt stamps revision v${REQUEST.version}`,
+            lx,
+            infoY,
+            28,
+            ROLE.eval,
+            'mono',
+            'left',
+          ).opacity(m0 * revAgeLit.value),
+        );
+      } else {
+        nodes.push(
+          txt(
+            'Scope: tenant7  |  release r17  |  version 3  |  target 25%',
+            lx,
+            infoY,
+            26,
+            COSMOS.muted,
+            'mono',
+            'left',
+          ).opacity(m0 * (1 - Math.max(revAgeLit.value, timingLit.value))),
+        );
+      }
+
+      // Bottom-right live status under 3D rig
+      nodes.push(
+        txt(
+          writerLit.value > 0.4
+            ? 'Writer mutates traffic only after explicit approval'
+            : 'Independent read branches feed one validated merge',
+          470,
+          395,
+          26,
+          writerLit.value > 0.4 ? ROLE.pass : COSMOS.muted,
+          'sans',
+        ).opacity(m0),
+      );
+    }
+
+    // Beat 3: "Decide whether extra agents earn their cost" (drawn tracks, zero bullet cards)
+    if (m1 > 0.02) {
+      const lx = -860;
+      const topY = -205;
+      nodes.push(
+        txt('WHEN DO EXTRA AGENTS EARN THEIR COST?', lx, topY, 28, ROLE.mark, 'mono', 'left')
+          .glow(6, ROLE.mark)
+          .opacity(m1),
+        rule(lx, topY + 26, 20, topY + 26, ROLE.rule, 2).opacity(m1),
+      );
+
+      // Track 1: Independent semantic research -> Specialists
+      const y1 = -105;
+      const r1 = caseResearch.value;
+      const a1 = resResearch.value;
+      nodes.push(
+        txt(
+          '1. Independent semantic research',
+          lx,
+          y1,
+          28,
+          r1 > 0.3 ? COSMOS.ink : COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(m1),
+        lumBar(lx + 75, y1 + 48, 150, 18, {
+          color: ROLE.eval,
+          fillOpacity: 0.65,
+          glow: 6,
+          opacity: m1 * Math.max(0.25, r1),
+        }),
+        lumBar(lx + 245, y1 + 48, 150, 18, {
+          color: ROLE.health,
+          fillOpacity: 0.65,
+          glow: 6,
+          opacity: m1 * Math.max(0.25, r1),
+        }),
+        lumBar(lx + 415, y1 + 48, 150, 18, {
+          color: ROLE.policy,
+          fillOpacity: 0.65,
+          glow: 6,
+          opacity: m1 * Math.max(0.25, r1),
+        }),
+      );
+      if (a1 > 0.02) {
+        nodes.push(
+          txt('-> Bounded specialists', -330, y1 + 48, 28, ROLE.pass, 'mono', 'left')
+            .glow(6, ROLE.pass)
+            .opacity(m1 * a1),
+        );
+      }
+
+      // Track 2: Independent deterministic ETL (6s serial vs 4s deadline) -> Parallel code
+      const y2 = 45;
+      const r2 = caseEtl.value;
+      const dl = etlDeadline.value;
+      const a2 = resEtl.value;
+      const barLeft = lx;
+      const scale = 72; // px per second
+      nodes.push(
+        txt(
+          '2. Deterministic ETL (6 s serial)',
+          lx,
+          y2,
+          28,
+          r2 > 0.3 ? COSMOS.ink : COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(m1),
+        lumBar(
+          barLeft + (DURATIONS.serialReads * scale) / 2,
+          y2 + 48,
+          DURATIONS.serialReads * scale,
+          22,
+          {
+            color: dl > 0.3 ? ROLE.reject : ROLE.triage,
+            fillOpacity: 0.55,
+            glow: 7,
+            opacity: m1 * Math.max(0.25, r2),
+          },
+        ),
+      );
+      if (dl > 0.02) {
+        const dlX = barLeft + DURATIONS.deadline * scale;
+        nodes.push(
+          line([dlX, y2 + 28], [dlX, y2 + 72], { stroke: ROLE.mark, width: 4 })
+            .glow(8, ROLE.mark)
+            .opacity(m1 * dl),
+          txt('4 s deadline', dlX + 14, y2 + 86, 26, ROLE.mark, 'mono', 'left').opacity(m1 * dl),
+        );
+      }
+      if (a2 > 0.02) {
+        nodes.push(
+          txt('-> Parallel code', -330, y2 + 48, 28, ROLE.eval, 'mono', 'left')
+            .glow(6, ROLE.eval)
+            .opacity(m1 * a2),
+        );
+      }
+
+      // Track 3: Coupled edits sharing evolving trace -> One scoped agent
+      const y3 = 205;
+      const r3 = caseCoupled.value;
+      const a3 = resCoupled.value;
+      nodes.push(
+        txt(
+          '3. Coupled edits (shared trace)',
+          lx,
+          y3,
+          28,
+          r3 > 0.3 ? COSMOS.ink : COSMOS.muted,
+          'sans',
+          'left',
+        ).opacity(m1),
+        glowDot(lx + 40, y3 + 48, {
+          radius: 9,
+          color: ROLE.policy,
+          glow: 8,
+          opacity: m1 * Math.max(0.25, r3),
+        }),
+        glowArrow([lx + 60, y3 + 48], [lx + 185, y3 + 48], ROLE.policy, {
+          width: 3,
+          opacity: m1 * Math.max(0.25, r3),
+        }),
+        glowDot(lx + 210, y3 + 48, {
+          radius: 9,
+          color: ROLE.policy,
+          glow: 8,
+          opacity: m1 * Math.max(0.25, r3),
+        }),
+        glowArrow([lx + 230, y3 + 48], [lx + 355, y3 + 48], ROLE.policy, {
+          width: 3,
+          opacity: m1 * Math.max(0.25, r3),
+        }),
+        glowDot(lx + 380, y3 + 48, {
+          radius: 9,
+          color: ROLE.policy,
+          glow: 8,
+          opacity: m1 * Math.max(0.25, r3),
+        }),
+      );
+      if (a3 > 0.02) {
+        nodes.push(
+          txt('-> One scoped agent', -330, y3 + 48, 28, ROLE.policy, 'mono', 'left')
+            .glow(6, ROLE.policy)
+            .opacity(m1 * a3),
+        );
+      }
+
+      // Bottom token cost + measurement gauge
+      const cy = 355;
+      const cGauge = renderGauge(lx, cy, 760, 26, costWarn.value > 0.3 ? 0.88 : 0.32, {
+        cap: 0.65,
+        color: ROLE.eval,
+        overColor: ROLE.reject,
+        opacity: m1,
+      });
+      nodes.push(
+        ...cGauge.nodes,
+        txt(
+          measureLit.value > 0.3
+            ? 'MEASURE: latency saved vs extra token cost'
+            : 'Extra contexts multiply prompt token cost',
+          lx,
+          cy + 46,
+          28,
+          measureLit.value > 0.3 ? ROLE.mark : costWarn.value > 0.3 ? ROLE.reject : COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(m1),
+        txt(
+          'Only split when independent work earns its overhead',
+          470,
+          395,
+          26,
+          COSMOS.muted,
+          'sans',
+        ).opacity(m1),
+      );
+    }
+
+    return nodes;
+  });
+
+  s.add(bgAtmo, dag3d, title, live);
+  runAmbientPhase(s, c, phase, 2.4);
+  orbitScene(s, c, dag3d, { theta: 0.35, phi: 0.98 });
+
+  // Beat 0: Rollout setup (withhold policy answer until c.after('policy-answer')!)
+  tweenCue(s, c, 'requested-share', dialLevel, 0.25, { duration: 0.35 });
+  tweenCue(s, c, 'eval-question', evalLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'health-question', healthLit, 1, { duration: 0.35 });
+
+  // Beat 1: Reveal policy answer AFTER cue, then trace DAG
+  tweenCue(s, c, 'policy-answer', policyReveal, 1, { duration: 0.4, after: true });
+  tweenCue(s, c, 'trace-workers', traceWorkers, 1, { duration: 0.35 });
+  tweenCue(s, c, 'read-branches', branchesLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'receipts-reunite', reuniteLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'danger-mixed', revAgeLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'danger-stale', staleWarn, 1, { duration: 0.35 });
+  tweenCue(s, c, 'owned-results', ownedLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'explicit', arrowsLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'join-waits', joinWaits, 1, { duration: 0.35 });
+  tweenCue(s, c, 'validated-join', validatedLit, 1, { duration: 0.35 });
+  c.after('one-proposal', () => {
+    s.play(proposalLit.to(1, { duration: 0.35 }), dagStage.to(1, { duration: 0.4 }));
+  });
+  tweenCue(s, c, 'separate-boundary', writerLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'after-review', approvalLit, 1, { duration: 0.35, after: true });
+
+  // Beat 2: Timing & revision check
+  tweenCue(s, c, 'traffic-proposal', dialLevel, 0.25, { duration: 0.25 });
+  tweenCue(s, c, 'timing-example', timingLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'same-action', revV3Lit, 1, { duration: 0.35 });
+
+  // Beat 3: Cross-swap to decision criteria tracks
+  crossSwap(s, c, 'subject-intro-construct-3', modeRollout, modeCost, { duration: 0.44 });
+  tweenCue(s, c, 'case-research', caseResearch, 1, { duration: 0.3 });
+  tweenCue(s, c, 'research-result', resResearch, 1, { duration: 0.3, after: true });
+  tweenCue(s, c, 'case-etl', caseEtl, 1, { duration: 0.3 });
+  tweenCue(s, c, 'etl-deadline', etlDeadline, 1, { duration: 0.3 });
+  tweenCue(s, c, 'etl-result', resEtl, 1, { duration: 0.3, after: true });
+  tweenCue(s, c, 'case-coupled', caseCoupled, 1, { duration: 0.3 });
+  tweenCue(s, c, 'coupled-result', resCoupled, 1, { duration: 0.3, after: true });
+  tweenCue(s, c, 'extra-cost', costWarn, 1, { duration: 0.35 });
+  tweenCue(s, c, 'measure', measureLit, 1, { duration: 0.35 });
 }

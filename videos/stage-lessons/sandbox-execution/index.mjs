@@ -1,5 +1,6 @@
-// The lesson `sandbox-execution` as a narrated film. One file for each scene, in the order of lesson.yaml.
-import { narratedLesson } from '../../lib/narrated-lesson.mjs';
+// Full-bleed dark-cinema 13-scene Sandbox Execution stage lesson (vizmatic@0.10.0).
+import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
+import { verifySandboxInvariants } from './parts.mjs';
 import actualWasmHost from './scenes/actual-wasm-host.mjs';
 import controlsByFailure from './scenes/controls-by-failure.mjs';
 import earnedParserCase from './scenes/earned-parser-case.mjs';
@@ -14,8 +15,10 @@ import teardownLifecycle from './scenes/teardown-lifecycle.mjs';
 import wasmBoundary from './scenes/wasm-boundary.mjs';
 import wasmFailureMatrix from './scenes/wasm-failure-matrix.mjs';
 
-export default narratedLesson({
+export default cinematicLesson({
   id: 'sandbox-execution',
+  accent: COSMOS.cyan,
+  invariants: verifySandboxInvariants,
   scenes: {
     'subject-intro': subjectIntro,
     'evidence-loop': evidenceLoop,

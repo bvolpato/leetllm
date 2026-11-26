@@ -4,12 +4,12 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 800
 export const height = 456
 export const alt =
-    'Top strip shows a three-slot padded sequence with valid tokens slow and yet reaching h_2 = [0.494, 0.641] followed by a <PAD> slot at t=3. Bottom left 2D state-space plot shows masked execution preserving [0.494, 0.641], while dashed drift arrows show a zero pad row shrinking state to [0.302, 0.367] and noise [9, -9, 9] driving state to [1.000, -0.889]. Bottom right bars compare Euclidean state drift: 0.000 masked, 0.335 zero pad, and 1.612 noise.'
+    'Top strip shows a three-slot padded sequence with valid tokens slow and yet reaching h_2 = [0.494, 0.641] followed by a <PAD> slot at t=3. Bottom left 2D state-space plot shows masked execution preserving [0.494, 0.641], while dashed drift arrows show a zero pad row shrinking state to [0.302, 0.367] and noise [9, -9, 9] driving state to [1.000, -0.889]. Bottom right bars compare Euclidean state drift: 0.000 masked, 0.335 zero pad, and 1.611 noise.'
 
 const MODES = [
     { label: 'Masked', short: 'Masked', x: 0.494, y: 0.641, drift: 0.0, tone: 'green' as const },
     { label: 'Zero pad', short: 'Zero pad', x: 0.302, y: 0.367, drift: 0.335, tone: 'warm' as const },
-    { label: '[9,−9,9]', short: 'Noise', x: 1.0, y: -0.889, drift: 1.612, tone: 'critical' as const },
+    { label: '[9,−9,9]', short: 'Noise', x: 1.0, y: -0.889, drift: 1.611, tone: 'critical' as const },
 ] as const
 
 export function create(theme: ThemeMode = 'dark') {
@@ -156,7 +156,7 @@ export function create(theme: ThemeMode = 'dark') {
         align: 'right',
         head: 5,
     })
-    fig.text(plot.px(0.8), plot.py(-0.1), 'drift = 1.612', {
+    fig.text(plot.px(0.8), plot.py(-0.1), 'drift = 1.611', {
         size: 14,
         mono: true,
         color: red,

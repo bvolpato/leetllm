@@ -640,10 +640,10 @@ Worked solutions
     "explanation": "The threshold is w₁x₁ + w₂x₂ + b = 0. No straight line separates the two alternating orange corners from both blue corners. Hidden nonlinear features change the geometry."
   },
   {
-    "question": "For x = [0.8,0.2], what does the hidden map h = [ReLU(x₁−x₂), ReLU(x₂−x₁)] produce?",
-    "options": ["[0.6,−0.6]", "[0.6,0]", "[0.8,0.2]", "[0,0.6]"],
-    "answer": "[0.6,0]",
-    "explanation": "The differences are 0.6 and −0.6. ReLU keeps 0.6 and clips −0.6 to zero. The output can now use the magnitude of the positive difference."
+    "question": "For x = [0.3,0.9], what does the hidden map h = [ReLU(x₁−x₂), ReLU(x₂−x₁)] produce?",
+    "options": ["[−0.6,0.6]", "[0,0.6]", "[0.3,0.9]", "[0.6,0]"],
+    "answer": "[0,0.6]",
+    "explanation": "The differences are x₁−x₂ = −0.6 and x₂−x₁ = 0.6. ReLU clips −0.6 to zero and keeps 0.6, giving [0,0.6]."
   },
   {
     "question": "What changes if every hidden activation in a network is replaced with the identity function?",
@@ -670,10 +670,10 @@ Worked solutions
     "explanation": "ReLU's negative branch has slope zero. The chain rule multiplies the incoming 0.4 by that zero, so this example sends no gradient through the unit."
   },
   {
-    "question": "A weight is 0.5, its loss gradient is −0.6, and the learning rate is 0.1. What is its next value under gradient descent?",
-    "options": ["0.44", "0.56", "0.06", "0.6"],
-    "answer": "0.56",
-    "explanation": "Subtract the scaled gradient: 0.5 − 0.1(−0.6) = 0.56. A negative gradient increases the parameter under gradient descent."
+    "question": "A weight is 0.4, its loss gradient is −0.5, and the learning rate is 0.2. What is its next value under gradient descent?",
+    "options": ["0.30", "0.50", "0.10", "0.90"],
+    "answer": "0.50",
+    "explanation": "Subtract the scaled gradient: 0.4 − 0.2(−0.5) = 0.50. A negative gradient increases the parameter under gradient descent."
   },
   {
     "question": "Why does the batch backward pass divide P−Y by B in this lesson's one-output network?",

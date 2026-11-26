@@ -37,7 +37,7 @@
 }
 ---
 
-A release engineer asks your assistant, "Why did the `reranker-v16` rollout fail?" In the [reasoning lesson](/learn/chain-of-thought-advanced-prompting), step-by-step prompting helped a model work through facts already in the prompt. Here, the error rate lives in a live deployment service that updated five minutes ago. A thousand tokens of chain-of-thought reasoning cannot conjure a metric that never entered the context window.
+A release engineer asks your assistant, "Why did the `reranker-v16` rollout fail?" Step-by-step prompting ([Chain-of-Thought](/learn/chain-of-thought-advanced-prompting)) and [test-time reasoning](/learn/reasoning-models-test-time-compute) help a model work through facts already in the prompt. Here, the error rate lives in a live deployment service that updated five minutes ago. A thousand tokens of chain-of-thought reasoning cannot conjure a metric that never entered the context window.
 
 <span data-glossary="tool-calling">Function calling</span> bridges that gap without handing the model direct access to production. Instead of querying deployments itself, the model emits a typed proposal: `get_release_status(release_id="reranker-v16")`. Your application runtime validates the arguments, verifies caller permissions, runs the approved lookup, and returns the observation so the model can answer from live telemetry.
 
@@ -53,7 +53,7 @@ A single-tool exchange moves through five stages:
 4. The runtime invokes the backing service with narrow, short-lived credentials.
 5. The runtime attaches the result to the matching call ID and sends it back to the model as untrusted evidence for the next turn.
 
-Use native structured call fields rather than scraping `<tool_call>` delimiters out of prose, and handle zero-call, multi-call, and refusal turns cleanly. This lesson focuses on **application-defined function tools** dispatched by your own code; hosted provider tools (web search, code execution) run inside provider infrastructure, so verify their network targets and credentials before enabling them.[^openai2026_function_calling][^anthropic2026ToolCalls]
+Use native structured call fields rather than scraping `<tool_call>` delimiters out of prose, and handle zero-call, multi-call, and refusal turns cleanly. Here we focus on **application-defined function tools** dispatched by your own code; hosted provider tools (web search, code execution) run inside provider infrastructure, so verify their network targets and credentials before enabling them.[^openai2026_function_calling][^anthropic2026ToolCalls]
 
 <figure>
   <img src="illustrations/_generated/function_calling_dark.png" alt="Six-step release-status trace across Operator, Model, Host, and API. Operator asks why reranker-v16 failed; Model calls get_release_status(reranker-v16) with status-1; Host checks release ID and session project, queries API (rollout_failed, error rate 0.081, budget 0.02), and returns untrusted function_call_output with status-1 before Turn 2 answers 0.081 exceeds 0.02." />

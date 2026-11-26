@@ -1,4 +1,6 @@
-import { narratedLesson } from '../../lib/narrated-lesson.mjs';
+// Full-bleed dark-cinema narrated stage film for `ai-lab-coding-interview-python-systems`.
+import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
+import { verifyPythonSystemsInvariants } from './parts.mjs';
 import s0 from './scenes/opening.mjs';
 import s1 from './scenes/contract-loop.mjs';
 import s2 from './scenes/state-objects.mjs';
@@ -21,28 +23,35 @@ import s18 from './scenes/parser-state.mjs';
 import s19 from './scenes/concurrency.mjs';
 import s20 from './scenes/worker-runtime.mjs';
 import s21 from './scenes/fresh-worker-plan.mjs';
+
 const scenes = {
-  'opening': s0,
+  opening: s0,
   'contract-loop': s1,
-  'claim': s5,
-  'frontier': s3,
+  claim: s5,
+  frontier: s3,
   'url-policy': s4,
   'claim-failure': s6,
   'state-objects': s2,
-  'expiry': s7,
+  expiry: s7,
   'ttl-reads': s8,
   'cas-boundary': s9,
-  'scheduler': s10,
+  scheduler: s10,
   'graph-validation': s11,
   'scheduler-workers': s12,
-  'limiter': s13,
+  limiter: s13,
   'bucket-contract': s14,
-  'ledger': s15,
+  ledger: s15,
   'ledger-lifetime': s16,
   'lock-order': s17,
   'parser-state': s18,
-  'concurrency': s19,
+  concurrency: s19,
   'worker-runtime': s20,
   'fresh-worker-plan': s21,
 };
-export default narratedLesson({ id: 'ai-lab-coding-interview-python-systems', scenes });
+
+export default cinematicLesson({
+  id: 'ai-lab-coding-interview-python-systems',
+  accent: COSMOS.cyan,
+  invariants: verifyPythonSystemsInvariants,
+  scenes,
+});

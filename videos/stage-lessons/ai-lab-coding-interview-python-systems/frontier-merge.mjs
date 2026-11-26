@@ -1,108 +1,159 @@
-import { appear, dot, place, rect, to } from 'vizmatic/stage';
-import { label, mono } from '../kit-narrated.mjs';
-import { normalizeUrl } from '../../films/ai-lab-coding-interview-python-systems/arithmetic.mjs';
-import { BOARD } from './parts.mjs';
+// Shared parent-ordered frontier merge renderer for `claim-failure` and `fresh-worker-plan`.
+// Pure dark-cinema primitives (cinematic-kit only, zero em dashes, text >= 26px).
+import { line } from 'vizmatic/stage';
+import {
+  COSMOS,
+  ROLE,
+  bufferedFrontier,
+  glowArrow,
+  glowDot,
+  glowPill,
+  hexAlpha,
+  traceFrontier,
+  txt,
+} from './parts.mjs';
 
-export function traceFrontier(parents, claimOrder) {
-  const origin = 'https://repo.example';
-  const seen = new Set(
-    ['/start', ...parents.map((parent) => parent.path)].map((path) => origin + path),
+export { bufferedFrontier, traceFrontier };
+
+/**
+ * Draw the two-parent frontier admission canvas:
+ * Left: Parent order (1, 2) with active cursor indicator.
+ * Center: Each parent's raw callback links (showing claimed / skipped / raw states).
+ * Right: Next FIFO queue slots (0 = front, 1, 2) strictly populated only when revealed!
+ */
+export function drawFrontierMerge({
+  parents,
+  alpha = 1,
+  showRow0 = false,
+  showRow1 = false,
+  row0States = ['raw', 'raw'], // 'raw' | 'claimed' | 'skip'
+  row1States = ['raw', 'raw'],
+  queueSlots = [null, null, null], // [{ path, color } | null]
+  cursorParent = -1, // -1 hidden, 0 = parent 1, 1 = parent 2
+  highlightSlot = -1,
+  modeLabel = '',
+}) {
+  const nodes = [];
+  const pCols = [ROLE.workerA, ROLE.workerB];
+  const rowYs = [-145, 75];
+
+  // Column headers (floating uppercase mono, zero box chrome)
+  nodes.push(
+    txt('PARENT ORDER', -730, -278, 26, COSMOS.muted, 'mono', 'center').opacity(alpha),
+    txt('CALLBACK LINKS', -220, -278, 26, COSMOS.muted, 'mono', 'center').opacity(alpha),
+    txt('NEXT QUEUE (FIFO)', 520, -278, 26, ROLE.focus, 'mono', 'center').opacity(alpha),
   );
-  const rows = parents.map(() => []);
-  for (const index of claimOrder) {
-    const parent = parents[index];
-    rows[index] = parent.links.map((raw, item) => {
-      const url = normalizeUrl(raw, origin + parent.path);
-      const admitted = url?.origin === origin && !seen.has(url.href);
-      if (admitted) seen.add(url.href);
-      return { raw, path: url && url.pathname + url.search, admitted, parent: index, item };
-    });
+
+  if (modeLabel) {
+    nodes.push(txt(modeLabel, 0, -342, 26, ROLE.workerB, 'mono', 'center').opacity(alpha));
   }
-  return { rows, queue: rows.flat().filter((link) => link.admitted) };
-}
 
-export function bufferedFrontier(parents, returnOrder) {
-  const returned = new Map(returnOrder.map((i) => [parents[i].path, parents[i].links]));
-  const slots = parents.map(({ path }) => ({ path, links: returned.get(path) }));
-  return traceFrontier(
-    slots,
-    slots.map((_, i) => i),
-  );
-}
+  // Parent rows and link pills
+  const rowVisible = [showRow0, showRow1];
+  const rowStates = [row0States, row1States];
 
-export function frontierBoard(parents) {
-  const [head, body] = BOARD.rows([0.65, 4.5], 'normal');
-  const widths = [1.28, 2.3, 1.5, 1.92];
-  const [nameHead, linksHead, , queueHead] = head.columns(widths, 'normal');
-  const [nameArea, linksArea, handoff, queueArea] = body.columns(widths, 'normal');
-  const inputs = [
-    place(label('Parent order', { size: 36 }), nameHead),
-    place(label('Callback links', { size: 40 }), linksHead),
-  ];
-  const colors = ['blue', 'cyan'];
-  const names = nameArea.rows(2, 'wide');
-  const lists = linksArea.rows(2, 'wide');
-  const rows = lists.map((region, i) => {
-    const cells = region.rows(2, 'tight');
-    const marker = [names[i].left + 4, names[i].cy];
-    inputs.push(
-      place(mono(i + 1 + '  ' + parents[i].path, { size: 43, color: colors[i] }), names[i]),
+  parents.forEach((p, idx) => {
+    const ry = rowYs[idx];
+    const col = pCols[idx];
+    const isActiveParent = cursorParent === idx;
+
+    // Cursor dot beside active parent
+    if (isActiveParent) {
+      nodes.push(glowDot(-852, ry, { radius: 11, color: ROLE.focus, glow: 14, opacity: alpha }));
+    }
+
+    // Parent badge
+    nodes.push(
+      glowPill(`${idx + 1}.  ${p.path}`, -715, ry, col, {
+        size: 27,
+        fixedW: 225,
+        alpha,
+        glow: isActiveParent ? 12 : 5,
+      }),
+      glowArrow(-595, ry, -495, ry, hexAlpha(col, 0.7 * alpha), { width: 3, alpha, glow: 4 }),
     );
-    for (const cell of cells) {
-      inputs.push(
-        place(
-          rect(cell.width, 108, {
-            stroke: 'grid',
-            fill: null,
-            width: 3,
-            radius: 12,
+
+    // Two link slots per parent
+    const linkYs = [ry - 42, ry + 42];
+    p.links.forEach((raw, j) => {
+      const ly = linkYs[j];
+      const st = rowStates[idx][j];
+      if (!rowVisible[idx]) {
+        nodes.push(
+          txt('waiting...', -220, ly, 26, COSMOS.dim, 'mono', 'center').opacity(0.6 * alpha),
+        );
+      } else if (st === 'skip') {
+        nodes.push(
+          glowPill(`skip  ${raw}`, -220, ly, COSMOS.dim, {
+            size: 26,
+            fixedW: 480,
+            alpha: 0.72 * alpha,
+            glow: 0,
+            textColor: COSMOS.muted,
           }),
-          cell,
-        ),
+        );
+      } else if (st === 'claimed') {
+        nodes.push(
+          glowPill(`${raw}  [claimed]`, -220, ly, ROLE.ok, {
+            size: 26,
+            fixedW: 480,
+            alpha,
+            glow: 9,
+          }),
+        );
+      } else {
+        nodes.push(
+          glowPill(raw, -220, ly, col, {
+            size: 27,
+            fixedW: 480,
+            alpha,
+            glow: 6,
+          }),
+        );
+      }
+    });
+  });
+
+  // Subtle vertical handoff separator
+  nodes.push(
+    line([110, -240], [110, 210], { stroke: '#2c3a5e', width: 2.2, dash: [8, 8] }).opacity(
+      0.7 * alpha,
+    ),
+    glowArrow(135, -35, 250, -35, ROLE.focus, { width: 3.5, alpha: 0.75 * alpha }),
+  );
+
+  // Right column: 3 FIFO queue slots
+  const qYs = [-155, -25, 105];
+  const slotTags = ['FRONT', 'SLOT 2', 'SLOT 3'];
+  qYs.forEach((qy, i) => {
+    const item = queueSlots[i];
+    const isHi = highlightSlot === i;
+    nodes.push(
+      txt(slotTags[i], 305, qy, 26, i === 0 ? ROLE.focus : COSMOS.muted, 'mono', 'center').opacity(
+        alpha,
+      ),
+    );
+    if (item) {
+      nodes.push(
+        glowPill(item.path, 575, qy, isHi ? ROLE.focus : item.color, {
+          size: 29,
+          fixedW: 360,
+          alpha,
+          glow: isHi ? 14 : 8,
+        }),
+      );
+    } else {
+      nodes.push(
+        glowPill('?', 575, qy, COSMOS.dim, {
+          size: 28,
+          fixedW: 360,
+          alpha: 0.55 * alpha,
+          glow: 0,
+          textColor: COSMOS.muted,
+        }),
       );
     }
-    const items = parents[i].links.map((raw, j) =>
-      place(mono(raw, { size: 43, color: colors[i] }), cells[j]),
-    );
-    return { cells, items, marker };
   });
-  const queueCells = queueArea.rows(3, 'wide');
-  const fixed = [...inputs, place(label('Next queue', { size: 40 }), queueHead)];
-  queueCells.forEach((cell, i) => {
-    fixed.push(
-      place(rect(cell.width, 116, { stroke: 'grid', fill: null, width: 3, radius: 12 }), cell),
-    );
-    if (i === 0)
-      fixed.push(mono('front', { size: 31, color: 'dim' }).moveTo([cell.cx, cell.cy - 85]));
-  });
-  const cursor = dot(10, 'yellow').moveTo(rows[0].marker);
-  const queueTiles = (trace) =>
-    trace.queue.map((child) =>
-      mono(child.path, { size: 44, color: colors[child.parent] }).moveTo([
-        handoff.cx,
-        rows[child.parent].cells[child.item].cy,
-      ]),
-    );
-  function enqueue(s, tile, slot) {
-    const cell = queueCells[slot];
-    s.play(appear(tile, { duration: 0.16 }));
-    s.play(to(tile, (node) => node.moveTo([handoff.cx, cell.cy]), { duration: 0.34 }));
-    s.play(to(tile, (node) => node.moveTo(cell.point('center')), { duration: 0.46 }));
-  }
-  function skip(parent, item) {
-    return place(
-      mono('skip  ' + parents[parent].links[item], { size: 37, color: 'dim' }),
-      rows[parent].cells[item],
-    );
-  }
-  return {
-    fixed,
-    inputs,
-    rows,
-    cursor,
-    queueTiles,
-    enqueue,
-    skip,
-    nextParent: () => to(cursor, (node) => node.moveTo(rows[1].marker), { duration: 0.5 }),
-  };
+
+  return nodes;
 }

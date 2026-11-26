@@ -1,76 +1,168 @@
-import { assertEqual, dot, dynamic, group, line, place } from 'vizmatic/stage';
-import { area, heading, label, mono } from '../../kit-narrated.mjs';
-import { cosine, dot as inner, l2 } from '../../../films/embedding-geometry/arithmetic.mjs';
-import { footer, guideArrows, guidePlot, guides, QUERY } from '../guide-plot.mjs';
+// Scene 03: magnitude: "Stretch just the rotation arrow"
+// Wide cinema vector field where green Rotation stretches 1x -> 4x -> 10x along its ray
+// while a luminous dot-product ruler races past stationary pink B = 4, cosine stays locked flat,
+// and the L2 endpoint chord grows to 9.22.
+import { dynamic, group, line } from 'vizmatic/stage';
+import {
+  COSMOS,
+  GUIDES,
+  QUERY,
+  ROLE,
+  cinemaAtmosphere,
+  cosine,
+  dotProd,
+  glowDot,
+  guardedDynamic,
+  heroTitle,
+  l2,
+  lumBar,
+  playCue,
+  runPhase,
+  swapVis,
+  txt,
+} from '../parts.mjs';
+import { cinemaVectorPlane, guideVectors } from '../guide-plot.mjs';
 
 export default function magnitude(s, c) {
   const scale = s.value(1);
-  const a = () => guides[0].vector.map((x) => x * scale.value);
-  const b = guides[1].vector;
-  const [body] = area.rows([7, 1], 'wide');
-  const [diagram, readout] = body.rows([3.2, 1.35], 'normal');
-  const plot = guidePlot(() => 10.6, diagram);
-  const [cosRow, reach, distance] = readout.columns([1, 2.2, 1], 'loose');
-  const live = (slot, value, color) =>
-    dynamic(() => mono(value(), { color, size: 44 }).moveTo(slot.point('center')));
-  const rail = reach.inset('normal');
-  const pos = (value) => rail.left + (value / 10) * rail.width;
-  const y = rail.cy + 21;
-  const reference = inner(QUERY, b);
-  const track = [
-    place(label('Raw dot product'), reach, 'top'),
-    line([pos(0), y], [pos(10), y], { stroke: 'dim', width: 4 }),
-    ...[0, reference, 10].flatMap((v) => [
-      line([pos(v), y - 12], [pos(v), y + 13], {
-        stroke: v === reference ? 'pink' : 'dim',
-        width: 4,
+  const phase = s.value(0);
+  const vScaleBadge = s.value(1);
+  const vAsk = s.value(0);
+  const vGap = s.value(0);
+
+  const vecA = () => GUIDES[0].vector.map((x) => x * scale.value);
+  const vecB = GUIDES[1].vector;
+  const refDot = dotProd(QUERY, vecB);
+
+  const plane = cinemaVectorPlane({
+    originX: -790,
+    originY: 95,
+    width: 1580,
+    height: 360,
+    extent: () => 10.6,
+    yPadTop: 30,
+    maxYFixed: 2.55,
+  });
+
+  const title = heroTitle(['Stretch just the', 'rotation arrow'], {
+    x: -855,
+    y: -445,
+    size: 50,
+    lineHeight: 58,
+    accent: ROLE.A,
+    eyebrow: 'MAGNITUDE SENSITIVITY',
+  });
+
+  // Lower luminous telemetry strip: Cosine (locked) | Raw Dot Ruler [0..10] | L2 Gap
+  const telemetry = dynamic(() => {
+    const curA = vecA();
+    const curDot = dotProd(QUERY, curA);
+    const curCos = cosine(QUERY, curA);
+    const curL2 = l2(QUERY, curA);
+    const p = phase.value;
+    const pulse = 0.8 + 0.2 * Math.sin(p * 3.2);
+
+    const railL = -335;
+    const railR = 315;
+    const railY = 278;
+    const posX = (val) => railL + (val / 10) * (railR - railL);
+    const axPos = posX(curDot);
+    const bxPos = posX(refDot);
+
+    const nodes = [
+      // Left: Locked Cosine gauge
+      txt('COSINE WITH A', -680, 198, 26, COSMOS.muted, 'mono'),
+      txt(curCos.toFixed(3), -680, 266, 54, ROLE.A, 'mono').glow(9, ROLE.A),
+      txt('direction unchanged', -680, 326, 26, COSMOS.dim, 'sans'),
+
+      // Center: Raw dot-product beam ruler
+      txt('RAW DOT PRODUCT RULER', (railL + railR) / 2, 198, 26, COSMOS.muted, 'mono'),
+      line([railL, railY], [railR, railY], { stroke: '#3c4f7a', width: 4 }),
+      // Filled green reach bar from 0 to curDot
+      lumBar((railL + axPos) / 2, railY, Math.max(8, axPos - railL), 14, {
+        color: ROLE.A,
+        fillAlpha: 0.45,
+        strokeWidth: 2,
+        glow: 8 * pulse,
+        radius: 6,
       }),
-      mono(v === reference ? 'B = ' + v : String(v), {
-        color: v === reference ? 'pink' : 'dim',
-        size: 30,
-      }).moveTo([pos(v), y + 45]),
-    ]),
-    dynamic(() =>
-      group(
-        dot(12, 'green').moveTo([pos(inner(QUERY, a())), y]),
-        mono('A = ' + inner(QUERY, a()).toFixed(1), { color: 'green', size: 34 }).moveTo([
-          pos(inner(QUERY, a())),
-          y - 38,
-        ]),
-      ),
-    ),
-  ];
-  const ask = place(label('At what scale does A tie B on raw dot?', { color: 'yellow' }), footer);
-  const factor = dynamic(() =>
-    mono('A scale   ×' + scale.value.toFixed(1), {
-      size: 42,
-      color: 'green',
-    }).moveTo(footer.point('center')),
+      // Tick marks 0, B=4, 10
+      ...[0, refDot, 10].flatMap((v) => {
+        const tx = posX(v);
+        const isB = v === refDot;
+        return [
+          line([tx, railY - 16], [tx, railY + 16], {
+            stroke: isB ? ROLE.B : '#5b6f9c',
+            width: isB ? 4 : 2.5,
+          }),
+          txt(isB ? `B = ${v}` : String(v), tx, railY + 46, 28, isB ? ROLE.B : COSMOS.dim, 'mono'),
+        ];
+      }),
+      // Moving green A marker
+      glowDot(axPos, railY, { radius: 10, color: ROLE.A, glow: 13 * pulse }),
+      txt(`A = ${curDot.toFixed(1)}`, axPos, railY - 38, 30, ROLE.A, 'mono').glow(6, ROLE.A),
+    ];
+
+    // Right: L2 endpoint gap (revealed on `gap`)
+    if (vGap.value > 0.02) {
+      const gOp = vGap.value;
+      const qPt = plane.p(QUERY);
+      const aPt = plane.p(curA);
+      nodes.push(
+        line(qPt, aPt, { stroke: ROLE.gold, width: 4.5, dash: [10, 8] })
+          .glow(8, ROLE.gold)
+          .opacity(gOp),
+        txt('GAP FROM q TO A', 665, 198, 26, ROLE.gold, 'mono').opacity(gOp),
+        txt(curL2.toFixed(2), 665, 266, 54, ROLE.gold, 'mono').glow(9, ROLE.gold).opacity(gOp),
+        txt('endpoint moved', 665, 326, 26, COSMOS.muted, 'sans').opacity(gOp),
+      );
+    }
+
+    return group(...nodes);
+  });
+
+  // Footer: live scale readout vs withheld prediction question
+  const scaleBadge = guardedDynamic(vScaleBadge, (a) =>
+    txt(`A scale  ×${scale.value.toFixed(1)}`, 0, 415, 42, ROLE.A, 'mono')
+      .glow(8, ROLE.A)
+      .opacity(a),
   );
-  const gap = l2(
-    QUERY,
-    guides[0].vector.map((v) => 10 * v),
+  const askBadge = guardedDynamic(vAsk, (a) =>
+    txt('At what scale will green tie pink on raw dot?', 0, 415, 40, ROLE.gold, 'serif')
+      .glow(8, ROLE.gold)
+      .opacity(a),
   );
-  assertEqual(gap.toFixed(2), '9.22', 'tenfold A endpoint gap');
+
   s.add(
-    heading(c.title),
-    plot.grid,
-    guideArrows(plot, { vectors: () => [a(), b] }),
-    ...track,
-    place(label('Cosine with A'), cosRow, 'top'),
-    live(cosRow, () => cosine(QUERY, a()).toFixed(3), 'green'),
-    factor,
+    cinemaAtmosphere(ROLE.A, ROLE.B),
+    title,
+    plane.grid,
+    ...guideVectors(plane, {
+      vectors: () => [vecA(), vecB],
+      queryOffset: [-48, 44],
+      aOffset: [38, -28],
+      bOffset: [30, -34],
+    }),
+    telemetry,
+    scaleBadge,
+    askBadge,
   );
-  c.swap('ask', factor, ask);
-  c.hide('four', ask);
-  c.show('four', factor, { after: true });
-  c.after('four', () =>
-    s.play(scale.to(reference / inner(QUERY, guides[0].vector), { duration: 1.1 })),
+
+  runPhase(s, c, phase, 8);
+
+  playCue(s, c, 'ask', (d) => s.play(swapVis(vScaleBadge, vAsk, d)), { dur: 0.55 });
+  playCue(s, c, 'four', (d) => s.play(vAsk.to(0, { duration: d })), { dur: 0.28 });
+  playCue(
+    s,
+    c,
+    'four',
+    (d) =>
+      s.play(
+        vScaleBadge.to(1, { duration: Math.min(0.35, d) }),
+        scale.to(refDot / dotProd(QUERY, GUIDES[0].vector), { duration: d }),
+      ),
+    { after: true, dur: 1.15 },
   );
-  c.on('ten', () => s.play(scale.to(10, { duration: 2.2 })));
-  c.show('gap', [
-    plot.gap(a),
-    place(label('Gap from q to A'), distance, 'top'),
-    live(distance, () => l2(QUERY, a()).toFixed(2), 'yellow'),
-  ]);
+  playCue(s, c, 'ten', (d) => s.play(scale.to(10, { duration: d })), { dur: 2.2 });
+  playCue(s, c, 'gap', (d) => s.play(vGap.to(1, { duration: d })), { dur: 0.55 });
 }

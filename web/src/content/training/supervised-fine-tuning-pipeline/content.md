@@ -166,7 +166,7 @@ mean target loss: 1.386294 (ln 4 = 1.386294)
 ```
 <!-- leetllm: output:end -->
 
-> **Key insight:** Why mask prompt tokens? Suppose a row has five easy prompt tokens (losses ~`0.03`) and two hard answer tokens (`2.20`, `1.80`). Averaging the full sequence gives a flattering `0.596`, hiding the fact that actual answer loss is `2.000`. Assistant-only masking focuses updates on the reply (though fractional prompt-loss weighting can regularize some short-completion tasks,[^huertaEnochian2024PromptLoss][^shi2024InstructionLoss] so always log response-only loss separately).
+> **Key insight:** Why mask prompt tokens? Suppose a row has five easy prompt tokens (losses ~`0.03`) and two hard answer tokens (`2.20`, `1.80`). Averaging the full sequence gives a flattering `0.593`, hiding the fact that actual answer loss is `2.000`. Assistant-only masking focuses updates on the reply (though fractional prompt-loss weighting can regularize some short-completion tasks,[^huertaEnochian2024PromptLoss][^shi2024InstructionLoss] so always log response-only loss separately).
 
 In TRL's `SFTTrainer`, prompt-completion datasets default to completion-only loss, while conversational `messages` datasets score the whole conversation unless `assistant_only_loss=True` is set (which requires generation-span markers in the template).[^huggingface2026sfttrainer] Also inspect collated batches **after truncation**: if an overlong prompt consumes `max_length` and slices off every answer token, every label becomes `-100` (returning NaN in raw PyTorch or silently dropping rows during TRL preparation).[^trl2026SftV117] Mask padding by position rather than token ID whenever EOS doubles as PAD, and keep the stop token supervised so the model learns when to end its turn.
 
@@ -446,81 +446,81 @@ When an SFT run underperforms, check these six failure modes before sweeping lea
     "explanation": "The threads differ, but M1 appears on both sides. Keep connected manual groups together when claiming unseen-manual performance. A thread key supports only the corresponding thread-level holdout."
   },
   {
-    "question": "An isolated sequence has six ignored context labels followed by two answer-token labels and one stop label at positions 6,7,8. The trainer shifts once internally. Which predictor rows and active-term count enter response loss?",
+    "question": "An isolated sequence has six ignored context labels followed by two answer-token labels and one stop label at positions 6, 7, 8. The trainer shifts once internally. Which predictor rows and active-term count enter response loss?",
     "options": [
-      "Rows 6,7,8; three terms.",
-      "Rows 5,6; two terms.",
-      "Rows 0 through7; eight terms.",
-      "Rows 5,6,7; three terms."
+      "Rows 6, 7, 8; three terms.",
+      "Rows 5, 6; two terms.",
+      "Rows 0 through 7; eight terms.",
+      "Rows 5, 6, 7; three terms."
     ],
-    "answer": "Rows 5,6,7; three terms.",
-    "explanation": "The label at t is predicted by logits at t−1. Thus labels6/7/8 use predictor rows5/6/7. The stop remains supervised and the six context labels remain ignored without removing context."
+    "answer": "Rows 5, 6, 7; three terms.",
+    "explanation": "The label at t is predicted by logits at t−1. Thus labels 6/7/8 use predictor rows 5/6/7. The stop remains supervised and the six context labels remain ignored without removing context."
   },
   {
-    "question": "Token ID2 is both the actual stop at position5 and right padding at positions6/7. Answer text is at position4. Under response-only training, which active target positions and padding labels are correct?",
+    "question": "Token ID 2 is both the actual stop at position 5 and right padding at positions 6/7. Answer text is at position 4. Under response-only training, which active target positions and padding labels are correct?",
     "options": [
-      "Active4/5; positions6/7 ignored.",
-      "Active4; positions5/6/7 ignored.",
-      "Active4/5/6/7; none ignored.",
-      "Active5/6/7; position4 ignored."
+      "Active 4/5; positions 6/7 ignored.",
+      "Active 4; positions 5/6/7 ignored.",
+      "Active 4/5/6/7; none ignored.",
+      "Active 5/6/7; position 4 ignored."
     ],
-    "answer": "Active4/5; positions6/7 ignored.",
-    "explanation": "Mask padding by position. Preserve the true answer and stop at4/5; ignore padded6/7 even though those IDs equal the genuine stop. Masking every occurrence of ID2 would erase stop supervision."
+    "answer": "Active 4/5; positions 6/7 ignored.",
+    "explanation": "Mask padding by position. Preserve the true answer and stop at 4/5; ignore padded 6/7 even though those IDs equal the genuine stop. Masking every occurrence of ID 2 would erase stop supervision."
   },
   {
-    "question": "Two packed examples have values A=[3,6,9], B=[8,24,0]. Query4 belongs to B and uses uniform weights over allowed earlier/current positions. Add50 to each A value. Which isolated and global-causal before→after outputs follow?",
+    "question": "Two packed examples have values A=[3, 6, 9], B=[8, 24, 0]. Query 4 belongs to B and uses uniform weights over allowed earlier/current positions. Add 50 to each A value. Which isolated and global-causal before→after outputs follow?",
     "options": [
-      "Isolated10→40; global16→16.",
-      "Isolated16→16; global10→40.",
-      "Isolated16→46; global10→10.",
-      "Isolated10→10; global16→46."
+      "Isolated 10→40; global 16→16.",
+      "Isolated 16→16; global 10→40.",
+      "Isolated 16→46; global 10→10.",
+      "Isolated 10→10; global 16→46."
     ],
-    "answer": "Isolated16→16; global10→40.",
-    "explanation": "An isolated query reads8 and24, averaging16 before and after. Global causal reads3,6,9,8,24: sum50/5=10. Changing three A values adds150/5=30, so it becomes40. Reset positions alone do not establish the enforced mask."
+    "answer": "Isolated 16→16; global 10→40.",
+    "explanation": "An isolated query reads 8 and 24, averaging 16 before and after. Global causal reads 3, 6, 9, 8, 24: sum 50/5 = 10. Changing three A values adds 150/5 = 30, so it becomes 40. Reset positions alone do not enforce the block-causal mask."
   },
   {
-    "question": "Microbatch A has target losses [3,1]; B has four losses of0.5. In order mean of microbatch means, complete-window token mean, what follows?",
+    "question": "Microbatch A has target losses [3, 1]; B has four losses of 0.5. In order (mean of microbatch means, complete-window token mean), what follows?",
     "options": [
-      "1.25;1.00.",
-      "1.00;1.25.",
-      "2.50;1.00.",
-      "0.50;1.25."
+      "1.25; 1.00.",
+      "1.00; 1.25.",
+      "2.50; 1.00.",
+      "0.50; 1.25."
     ],
-    "answer": "1.25;1.00.",
-    "explanation": "A sums4 over2 targets, mean2. B sums2 over4, mean0.5. Mean-of-means=(2+0.5)/2=1.25. The equal-token objective sums6 over6 targets, giving1.00."
+    "answer": "1.25; 1.00.",
+    "explanation": "A sums 4 over 2 targets (mean 2.0). B sums 2 over 4 targets (mean 0.5). Mean-of-means = (2.0 + 0.5) / 2 = 1.25. The equal-token objective sums 6 over 6 targets, giving 1.00."
   },
   {
-    "question": "Three DDP workers have local loss-sum gradients3,6,9 and a global active-target count6. Each divides by6, then DDP averages worker gradients. What gradient results, what was intended, and which compensation is needed if the trainer has applied none?",
+    "question": "Three DDP workers have local loss-sum gradients 3, 6, 9 and a global active-target count 6. Each divides by 6, then DDP averages worker gradients. What gradient results, what was intended, and which compensation is needed if the trainer has applied none?",
     "options": [
-      "Result3; intended1; divide by3.",
-      "Result1; intended1; no compensation.",
-      "Result1; intended3; multiply by3 once.",
-      "Result3; intended3; multiply by3 again."
+      "Result 3; intended 1; divide by 3.",
+      "Result 1; intended 1; no compensation.",
+      "Result 1; intended 3; multiply by 3 once.",
+      "Result 3; intended 3; multiply by 3 again."
     ],
-    "answer": "Result1; intended3; multiply by3 once.",
-    "explanation": "Local normalized gradients are0.5,1,1.5 and their DDP average is1. The global token objective is(3+6+9)/6=3. Compensate the averaging factor once; adding it again when the trainer already compensates changes the objective."
+    "answer": "Result 1; intended 3; multiply by 3 once.",
+    "explanation": "Local normalized gradients are 0.5, 1.0, 1.5 and their DDP average is 1. The global token objective is (3 + 6 + 9) / 6 = 3. Compensate the averaging factor once; adding it again when the trainer already compensates changes the objective."
   },
   {
-    "question": "A momentum-SGD rule uses velocity_new=0.5×velocity_old+gradient and weight_new=weight_old−0.2×velocity_new. From weight 1 and velocity 0, gradient 3 is applied and saved. With next gradient −1, what next weights follow with saved velocity versus reset velocity?",
+    "question": "A momentum-SGD rule uses velocity_new = 0.5×velocity_old + gradient and weight_new = weight_old − 0.2×velocity_new. From weight 1 and velocity 0, gradient 3 is applied and saved. With next gradient −1, what next weights follow with saved velocity versus reset velocity?",
     "options": [
-      "Saved0.6; reset0.3.",
-      "Saved0.3; reset0.6.",
-      "Saved0.5; reset0.4.",
-      "Saved0.4; reset0.5."
+      "Saved 0.6; reset 0.3.",
+      "Saved 0.3; reset 0.6.",
+      "Saved 0.5; reset 0.4.",
+      "Saved 0.4; reset 0.5."
     ],
-    "answer": "Saved0.3; reset0.6.",
-    "explanation": "The first step gives velocity3 and weight0.4. Retained history gives next velocity0.5 and weight0.3. A fresh velocity gives−1 and weight0.6. Same saved weight and gradient can move in opposite directions because history differs."
+    "answer": "Saved 0.3; reset 0.6.",
+    "explanation": "The first step gives velocity 3 and weight 0.4. Retained history gives next velocity 0.5 and weight 0.3. A fresh velocity gives −1 and weight 0.6. Same saved weight and gradient can move in opposite directions because history differs."
   },
   {
-    "question": "Require format>=0.98, then maximize task rate, then minimize validation loss, then prefer the earlier step. Validation scores (format,task,loss) are step100=(.99,.92,1.2),300=(.97,.98,.9),500=(.98,.94,1.4),700=(.99,.94,1.3). Which step wins?",
+    "question": "Require format >= 0.98, then maximize task rate, then minimize validation loss, then prefer the earlier step. Validation scores (format, task, loss) are step 100=(.99, .92, 1.2), 300=(.97, .98, .9), 500=(.98, .94, 1.4), 700=(.99, .94, 1.3). Which step wins?",
     "options": [
-      "Step100.",
-      "Step300.",
-      "Step500.",
-      "Step700."
+      "Step 100.",
+      "Step 300.",
+      "Step 500.",
+      "Step 700."
     ],
-    "answer": "Step700.",
-    "explanation": "Step300 misses format. Among eligible rows,500 and700 tie on task rate 0.94;700 has lower validation loss1.3 versus1.4. Step100 has lower task rate. Earlier-step ordering applies only after both preceding metrics tie."
+    "answer": "Step 700.",
+    "explanation": "Step 300 misses format. Among eligible rows, 500 and 700 tie on task rate 0.94; 700 has lower validation loss 1.3 versus 1.4. Step 100 has lower task rate. Earlier-step ordering applies only after both preceding metrics tie."
   },
   {
     "question": "A maintenance assistant replies with a team name followed by a reason. Urgent repairs go to Emergency Maintenance. A checkpoint predicts the approved replies well when given the preceding reference words, yet a resident gets a reply naming Routine Maintenance for an urgent repair. Which check on held-out urgent requests estimates how often residents get the right referral?",

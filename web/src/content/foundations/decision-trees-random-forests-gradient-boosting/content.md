@@ -491,26 +491,26 @@ tau* = 10 / (10 + 90) = 0.10. Changing the operating threshold uses the existing
     "explanation": "Residuals sum to 7(0.5) + 3(-0.5) = 2.0, and curvature sums to 10(0.25) = 2.5, giving a Newton step of 2.0 / 2.5 = 0.80 logit units."
   },
   {
-    "question": "A continuous noise feature receives 0.92 training MDI importance, while shuffling it on validation data changes F1 by 0.003. What explains the discrepancy?",
+    "question": "A continuous noise feature receives 0.85 training MDI importance, while shuffling it on validation data changes F1 by 0.004. What explains the discrepancy?",
     "options": [
-      "Many candidate cutoffs let continuous noise earn training split credit, whereas validation permutation measures what the fitted model needs to generalize.",
-      "Permutation importance retrained the forest without the noise feature.",
-      "MDI and permutation importance always disagree on continuous features.",
-      "Validation F1 is insensitive to features used near the root of trees."
+      "Dense continuous cutoffs earn training split credit, whereas validation shuffling measures held-out reliance.",
+      "Permutation importance refits the entire forest without the noise feature and averages new leaf counts.",
+      "Training MDI ignores continuous features near tree roots, whereas validation F1 only scores leaf splits.",
+      "Validation shuffling replaces the feature with zeros, which always leaves tree predictions unchanged."
     ],
-    "answer": "Many candidate cutoffs let continuous noise earn training split credit, whereas validation permutation measures what the fitted model needs to generalize.",
-    "explanation": "High-cardinality noise gives greedy split search many chances to overfit training rows (inflating MDI). Permutation importance evaluates the already-fitted model on held-out data."
+    "answer": "Dense continuous cutoffs earn training split credit, whereas validation shuffling measures held-out reliance.",
+    "explanation": "High-cardinality noise gives greedy split search many chances to overfit training rows (inflating MDI). Permutation importance evaluates the already-fitted model on held-out data without retraining."
   },
   {
-    "question": "A production alert system charges 8 per false alarm and 150 per missed priority deadline, and serving rows occasionally contain NaN values. Which combination is sound?",
+    "question": "A production alert system charges 12 per false alarm and 180 per missed priority deadline, and serving rows occasionally contain NaN values. Which combination is sound?",
     "options": [
-      "Use a chronological train/valid/test split, tune a cost-optimal threshold near 8/158 (about 0.051) on validation, and use HistGradientBoostingClassifier (or explicit NaN handling) instead of raw classic GradientBoostingClassifier.",
-      "Randomly shuffle all months for 5-fold CV, keep the default 0.50 threshold, and pass NaN directly to classic GradientBoostingClassifier.",
-      "Tune the threshold on May test data using coarse values [0.25, 0.50, 0.75] after imputing NaN with 0.",
-      "Select the model with highest training AUC and rely on OOB accuracy to set the threshold."
+      "Chronological split; tune threshold near 0.0625 on validation; route NaN natively in HistGradientBoostingClassifier.",
+      "Random 5-fold CV across months; keep default 0.50 cutoff; pass NaN directly to classic GradientBoostingClassifier.",
+      "Chronological split; tune threshold on test rows with [0.25, 0.50, 0.75]; impute every missing value as zero.",
+      "Random train/test shuffle; pick the highest training AUC; rely on out-of-bag accuracy to set the cost cutoff."
     ],
-    "answer": "Use a chronological train/valid/test split, tune a cost-optimal threshold near 8/158 (about 0.051) on validation, and use HistGradientBoostingClassifier (or explicit NaN handling) instead of raw classic GradientBoostingClassifier.",
-    "explanation": "Chronological splits prevent temporal leakage, asymmetric costs place the Bayes-optimal cutoff at C_FP / (C_FP + C_FN) = 8/158 = 0.051, and HistGradientBoostingClassifier handles NaN natively whereas classic GradientBoostingClassifier raises ValueError."
+    "answer": "Chronological split; tune threshold near 0.0625 on validation; route NaN natively in HistGradientBoostingClassifier.",
+    "explanation": "Chronological splits prevent temporal leakage, asymmetric costs place the Bayes-optimal cutoff at C_FP / (C_FP + C_FN) = 12/192 = 0.0625, and HistGradientBoostingClassifier handles NaN natively whereas classic GradientBoostingClassifier raises ValueError."
   }
 ]
 ```

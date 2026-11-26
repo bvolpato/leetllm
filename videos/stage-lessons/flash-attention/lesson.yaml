@@ -1,0 +1,2036 @@
+version: 1
+id: flash-attention
+title: Attention That Moves Less Data
+source: fundamentals/flashattention-memory-efficient-attention/content.md
+opening: lesson
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Dao et al. FlashAttention
+    url: https://arxiv.org/abs/2205.14135
+  - title: Dao. FlashAttention-2
+    url: https://arxiv.org/abs/2307.08691
+  - title: Milakov and Gimelshein. Online Normalizer Calculation for Softmax
+    url: https://arxiv.org/abs/1805.02867
+  - title: FlashAttention-3 paper
+    url: https://arxiv.org/abs/2407.08608
+  - title: FlashAttention-4 paper
+    url: https://arxiv.org/abs/2603.05451
+  - title: Pinned FlashAttention repository and cache interface
+    url: https://github.com/Dao-AILab/flash-attention/tree/7c53542eab6a1c4fe760d1101b8d57d6307d1dbe
+  - title: PyTorch 2.14 scaled dot-product attention
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.nn.functional.scaled_dot_product_attention.html
+  - title: PyTorch 2.14 CUDA eligibility
+    url: https://docs.pytorch.org/docs/2.14/backends.html
+  - title: NVIDIA Hopper tuning guide
+    url: https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html
+  - title: NVIDIA H100 specifications
+    url: https://www.nvidia.com/en-us/data-center/h100/
+  - title: Transformers attention backend contracts
+    url: https://huggingface.co/docs/transformers/attention_interface
+scenes:
+  - id: intro
+    title: Three scores, two slots
+    visual: Two scores fill the on-chip slots while a third key waits. The first two contributions survive in a row
+      summary as the third key takes a free slot. The full score grid then grows around the original three words.
+    beats:
+      - say: Both score slots are full. The query for test has scored fix and this. How can it score its own key?
+        hold: 1.6
+        visual_cues:
+          - id: full-slots
+            phrase: Both score slots are full
+            targets:
+              - score-slots
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: waiting
+            phrase: How can it score its own key
+            targets:
+              - waiting-key
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: FlashAttention saves what the first two keys contribute to the blend. Now it reuses a slot to score test.
+          All three keys count toward one output.
+        hold: 0.65
+        visual_cues:
+          - id: save-pair
+            phrase: FlashAttention saves what the first two keys contribute to the blend
+            targets:
+              - saved-pair
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: reuse-slot
+            phrase: reuses a slot to score test
+            targets:
+              - score-slots
+              - waiting-key
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: complete-row
+            phrase: All three keys count toward one output
+            targets:
+              - saved-pair
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Look at the full score array for this prompt. Test can use all three keys. Fix can use only itself. Six
+          pairs can contribute. The array has nine slots. Now extend the prompt to fix this test and run it.
+          How many slots does the full array need now?
+        hold: 2.1
+        visual_cues:
+          - id: read-test
+            phrase: Test can use all three keys
+            targets:
+              - score-grid
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: read-fix
+            phrase: Fix can use only itself
+            targets:
+              - score-grid
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: allowed-pairs
+            phrase: Six pairs can contribute
+            targets:
+              - score-grid
+              - grid-count
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: extend-prompt
+            phrase: and run it
+            targets:
+              - score-grid
+              - grid-count
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Thirty-six slots. Four of the old squares fit inside this one. Twenty-one pairs can contribute. Each row
+          still produces a single output.
+        hold: 0.65
+        visual_cues:
+          - id: square-result
+            phrase: Thirty-six slots
+            targets:
+              - score-grid
+              - grid-count
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: four-copies
+            phrase: Four of the old squares
+            targets:
+              - score-grid
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: larger-triangle
+            phrase: Twenty-one pairs can contribute
+            targets:
+              - score-grid
+              - grid-count
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: request-lifetime
+    title: Follow the word “test”
+    visual: The third row of the prompt becomes an output vector and a saved training statistic. A new query then
+      reads the same prompt plus its own appended key.
+    beats:
+      - say: Number the words from zero. Test is query two. It reads three keys and produces one vector. We'll use a
+          single coordinate of that vector so you can check each contribution by eye. The scores in this example
+          already include the scale for the head width.
+        hold: 0.65
+        visual_cues:
+          - id: track-test
+            phrase: Test is query two
+            targets:
+              - prompt-row
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: one-coordinate
+            phrase: a single coordinate
+            targets:
+              - request-output
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: During training, backward will need those probabilities again. We can save one number for this row and
+          rebuild them from the scores. Now append a fourth token, and its key and value, to the cache. This
+          next query needs four keys. The position of the query tells us where its visible history ends.
+        hold: 0.7
+        visual_cues:
+          - id: save-stat
+            phrase: save one number for this row
+            targets:
+              - request-output
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: append-key
+            phrase: append a fourth token
+            targets:
+              - prompt-row
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: decode-row
+            phrase: This next query needs four keys
+            targets:
+              - prompt-row
+              - request-output
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: operator
+    title: What does the full row return?
+    visual: Each key has one column from score to scalar value to weight. Three weighted contributions meet at the
+      dense reference output.
+    beats:
+      - say: Test compares its query with each key. Divide each dot product by the square root of the head width. In
+          our example, fix scores one and carries ten. This scores two and carries twenty. Test scores three and
+          carries forty.
+        hold: 0.6
+        visual_cues:
+          - id: dense-input
+            phrase: Test compares its query with each key
+            targets:
+              - dense-pairs
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: key-fix
+            phrase: fix scores one and carries ten
+            targets:
+              - dense-pairs
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: key-this
+            phrase: This scores two and carries twenty
+            targets:
+              - dense-pairs
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: key-test
+            phrase: Test scores three and carries forty
+            targets:
+              - dense-pairs
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Use the largest score, three, as the reference. Test is exactly at that reference, so its exponential
+          weight is one. The other two scores sit one and two steps below it. Their weights shrink. Divide each
+          weight by the sum across the row to get its share.
+        hold: 0.65
+        visual_cues:
+          - id: dense-weights
+            phrase: its exponential weight is one
+            targets:
+              - dense-weights
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: dense-shares
+            phrase: Divide each weight by the sum
+            targets:
+              - dense-shares
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Test gets about two thirds of the weight. Follow that column down. Forty times its share contributes
+          about twenty-six point six. Add the other two contributions and the output is about thirty-two point
+          four. It has to land between ten and forty. Keep that range in mind when we throw scores away.
+        hold: 0.85
+        visual_cues:
+          - id: dense-terms
+            phrase: Follow that column down
+            targets:
+              - dense-terms
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: dense-output
+            phrase: the output is about thirty-two point four
+            targets:
+              - dense-output
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: memory
+    title: How many trips do scores and probabilities make?
+    visual: The same three-by-three packet crosses between compute and HBM in four explicit directions. A counter
+      advances only when the transfer completes.
+    beats:
+      - say: To get that blend, a simple implementation runs three operations. Watch the space between the arithmetic
+          units and the large pool of GPU memory. We call that memory HBM. First, write the whole square of
+          scores to HBM.
+        hold: 0.6
+        visual_cues:
+          - id: store-scores
+            phrase: write the whole square of scores to HBM
+            targets:
+              - memory-channel
+              - hbm-data
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Softmax reads those scores back. It normalizes each row, then writes the square of probabilities out. The
+          value multiply reads those probabilities back. Four transfers of a full square, just to pass
+          intermediate results between the three operations.
+        hold: 0.65
+        visual_cues:
+          - id: fetch-scores
+            phrase: reads those scores back
+            targets:
+              - memory-channel
+              - hbm-data
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: store-probabilities
+            phrase: writes the square of probabilities out
+            targets:
+              - memory-channel
+              - hbm-data
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: fetch-probabilities
+            phrase: reads those probabilities back
+            targets:
+              - memory-channel
+              - hbm-data
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: count-transfers
+            phrase: Four transfers of a full square
+            targets:
+              - traffic-count
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Masking the future changes which entries count toward the blend. A materialized square still takes up a
+          slot for each of them. FlashAttention can consume a tile near the arithmetic units and reuse the
+          space. How much traffic could that save on a long prompt?
+        hold: 0.75
+        visual_cues:
+          - id: small-workspace
+            phrase: consume a tile near the arithmetic units
+            targets:
+              - local-data
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: memory-ledger
+    title: Count allocation, logical transfers and retained rows separately
+    visual: The same batch/head/token factors construct one score slab, four named intermediate transfers and an
+      independent LSE strip. Separate rulers retain binary GiB and decimal GB.
+    beats:
+      - say: "Take the article’s supplied configuration: batch eight, thirty-two heads and eight thousand one hundred
+          ninety-two tokens. Each head has sequence length squared scalar scores. At two bytes per score,
+          multiply all four factors to get thirty-two gibibytes, about thirty-four point three six decimal
+          gigabytes, for one full score matrix. A causal triangle does not shrink that allocated square."
+        hold: 0.6
+        visual_cues:
+          - id: memory-ledger-beat-1
+            phrase: "Take the article’s supplied configuration: batch eight, thirty-two heads and eight thousand one
+              hundred ninety-two tokens"
+            targets:
+              - memory-ledger-state-0
+            color: cyan
+            linger: 0.5
+          - id: fa-score-bytes
+            phrase: thirty-two gibibytes
+            targets:
+              - memory-ledger-state-0
+            color: yellow
+            linger: 0.55
+      - say: In a four-pass materializing FP16 baseline, write scores, read scores, write probabilities and read
+          probabilities. Four times thirty-two gives one hundred twenty-eight gibibytes of logical
+          intermediate transfers. The inputs and output add traffic. Fusion, cache reuse and intermediate
+          precision change the physical traffic a profiler observes. PyTorch’s math SDPA keeps FP16 and BF16
+          intermediates in FP32, so that baseline requires its own byte calculation.
+        hold: 0.6
+        visual_cues:
+          - id: memory-ledger-beat-2
+            phrase: In a four-pass materializing FP16 baseline, write scores, read scores, write probabilities and read
+              probabilities
+            targets:
+              - memory-ledger-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-four-passes
+            phrase: Four times thirty-two
+            targets:
+              - memory-ledger-state-1
+            color: yellow
+            linger: 0.55
+      - say: Build every size from its actual axes and bytes per element. A score matrix uses batch times heads times
+          query length times key length. A row statistic uses batch times heads times query length. The square
+          allocation, the sum of transfers and the saved training state describe different quantities.
+          Avoiding one array does not remove model weights, Q, K, V or output.
+        hold: 0.8
+        visual_cues:
+          - id: memory-ledger-beat-3
+            phrase: Build every size from its actual axes and bytes per element
+            targets:
+              - memory-ledger-state-2
+            color: green
+            linger: 0.5
+  - id: local-budgets
+    title: Fit logical tiles into distinct local resource budgets
+    visual: A host-to-HBM-to-SM cutaway retains separate shared-memory and register boundaries. The
+      Q/K/V/output/score pieces accumulate into an explicit 144 KiB logical subtotal without crossing resource
+      boundaries by implication.
+    beats:
+      - say: HBM holds device tensors; CPU DRAM is a separate host tier across a system link. Inside an H100 streaming
+          multiprocessor, shared memory has two hundred twenty-eight kibibytes, with at most two hundred
+          twenty-seven per thread block. Its sixty-five thousand five hundred thirty-six registers, each
+          thirty-two bits, form a separate two hundred fifty-six kibibyte register file. Shared memory also
+          shares physical capacity with L1 cache; resident blocks and launch settings affect its usable
+          budget.
+        hold: 0.6
+        visual_cues:
+          - id: local-budgets-beat-1
+            phrase: HBM holds device tensors; CPU DRAM is a separate host tier across a system link
+            targets:
+              - local-budgets-state-0
+            color: cyan
+            linger: 0.5
+      - say: For the supplied square tile, Q, K and V each have one hundred twenty-eight rows by sixty-four
+          FP16 entries. Each occupies sixteen kibibytes. An FP32 output accumulator occupies thirty-two, and a
+          one hundred twenty-eight square FP32 score tile occupies sixty-four. Their logical subtotal is one
+          hundred forty-four kibibytes. To see what fits, count the arrays assigned to shared memory and the
+          values held in registers separately.
+        hold: 0.6
+        visual_cues:
+          - id: local-budgets-beat-2
+            phrase: For the supplied square tile, Q, K and V each have one hundred twenty-eight rows by sixty-four FP16
+              entries
+            targets:
+              - local-budgets-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-tile-inventory
+            phrase: Their logical subtotal
+            targets:
+              - local-budgets-state-1
+            color: yellow
+            linger: 0.55
+      - say: For unequal tiles, multiply query rows by head width for Q, and key rows by their respective
+          widths for K and V. The output uses query rows times value width. The scores use query rows times
+          key rows. Count the bytes for each dtype, including any buffers that overlap during a load. A
+          thread-block cluster can share local storage across its members. Transfers from host memory have
+          their own bandwidth limit at the system link.
+        hold: 0.8
+        visual_cues:
+          - id: local-budgets-beat-3
+            phrase: For unequal tiles, multiply query rows by head width for Q
+            targets:
+              - local-budgets-state-2
+            color: green
+            linger: 0.5
+  - id: roofline-bound
+    title: Derive a bandwidth roof before interpreting utilization
+    visual: A fixed memory-bandwidth slope and compute ceiling meet at a computed ridge; one hypothetical workload
+      at intensity one remains visibly distinct from an actual GPU timing trace.
+    beats:
+      - say: Arithmetic intensity means floating-point operations per byte transferred. The roofline bound is the
+          smaller of a relevant compute peak and intensity times bandwidth. For H100 SXM, the listed nineteen
+          seventy-nine teraflops figure uses sparsity. Halving it gives an illustrative dense FP16 or BF16
+          tensor-core ceiling of nine hundred eighty-nine point five teraflops per second, alongside a three
+          point three five terabyte-per-second HBM rating.
+        hold: 0.6
+        visual_cues:
+          - id: roofline-bound-beat-1
+            phrase: Arithmetic intensity means floating-point operations per byte transferred
+            targets:
+              - roofline-bound-state-0
+            color: cyan
+            linger: 0.5
+      - say: Dividing the compute ceiling by bandwidth gives a ridge near two hundred ninety-five point four
+          operations per byte. At just one operation per byte, the memory can supply at most three point three
+          five trillion operations per second. That is about a third of one percent of the dense tensor-core
+          ceiling. The softmax reductions and exponentials run on different resources, each with its own
+          ceiling.
+        hold: 0.6
+        visual_cues:
+          - id: roofline-bound-beat-2
+            phrase: Dividing the compute ceiling by bandwidth gives a ridge near two hundred ninety-five point four
+              operations per byte
+            targets:
+              - roofline-bound-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-ridge
+            phrase: a ridge near
+            targets:
+              - roofline-bound-state-1
+            color: yellow
+            linger: 0.55
+      - say: Tiling increases useful reuse and can avoid expensive intermediate transfers. On a
+          bandwidth-limited kernel, doing more work per byte moves the workload up the sloping roof. To locate
+          a real kernel on this chart, profile its operations and bytes transferred. Time the application
+          separately to see how much of that gain reaches the user.
+        hold: 0.8
+        visual_cues:
+          - id: roofline-bound-beat-3
+            phrase: Tiling increases useful reuse and can avoid expensive intermediate transfers
+            targets:
+              - roofline-bound-state-2
+            color: green
+            linger: 0.5
+  - id: tiles
+    title: Two places to put three scores
+    visual: A resident query owns two scratch slots. Keys arrive in two groups. The row summary has its own
+      persistent position beside the slots.
+    beats:
+      - say: Keep the query for test on chip. Bring in the keys and values for fix and this together. The two scores
+          fit. Test's own key is still waiting for a slot.
+        hold: 0.55
+        visual_cues:
+          - id: load-pair
+            phrase: Bring in the keys and values for fix and this together
+            targets:
+              - scratch
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: waiting-key
+            phrase: still waiting for a slot
+            targets:
+              - next-key
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: FlashAttention-two streams key and value tiles past this query. Each allowed pair still gets a score.
+          Once a tile has contributed, the kernel can reuse its scratch space. The full score and probability
+          arrays never have to make that round trip through high-bandwidth memory.
+        hold: 0.55
+        visual_cues:
+          - id: reuse-scratch
+            phrase: reuse its scratch space
+            targets:
+              - scratch
+              - summary
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Suppose we saved just the average for these two keys. The third key arrives. How much weight
+          should the average get?
+        hold: 1.8
+        caption_starts:
+          - How much weight should the average get
+      - say: Keep the total weight. Keep the weighted sum of the values. Save the reference score that sets
+          the scale for both sums. With those three quantities, the next key can join the blend.
+        hold: 0.8
+        visual_cues:
+          - id: keep-sums
+            phrase: Keep the total weight
+            targets:
+              - summary
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: keep-values
+            phrase: Keep the weighted sum of the values
+            targets:
+              - summary
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: keep-ref
+            phrase: Save the reference score
+            targets:
+              - summary
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: online
+    title: What survives the first tile?
+    visual: On two fixed tracks, the first two keys build total weight and weighted value. Their scratch slots
+      empty while the totals and reference survive.
+    beats:
+      - say: Here are the first two keys again. Use two, the larger score, as the reference. Fix is one below it, so
+          its weight is e to the minus one, about point three six eight. This sits at the reference, so its
+          weight is one.
+        hold: 0.55
+        visual_cues:
+          - id: tile-reference
+            phrase: Use two, the larger score, as the reference
+            targets:
+              - scratch
+              - reference
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: first-weight
+            phrase: about point three six eight
+            targets:
+              - scratch
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: unit-weight
+            phrase: its weight is one
+            targets:
+              - scratch
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Follow the fix column. Put its weight on the upper track. Multiply that weight by ten for the lower
+          track. Now add the key for this. The upper track gains one. The lower track gains twenty. We have
+          about one point three six eight in total weight and twenty-three point six eight in weighted value.
+        hold: 0.65
+        visual_cues:
+          - id: post-fix
+            phrase: Put its weight on the upper track
+            targets:
+              - scratch
+              - weight-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: value-fix
+            phrase: Multiply that weight by ten for the lower track
+            targets:
+              - scratch
+              - value-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: weight-this
+            phrase: The upper track gains one
+            targets:
+              - scratch
+              - weight-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: post-this
+            phrase: The lower track gains twenty
+            targets:
+              - scratch
+              - value-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Divide those totals and you get seventeen point three one for these two keys alone. Keep both totals and
+          the reference. Release the two score slots.
+        hold: 0.65
+        visual_cues:
+          - id: tile-average
+            phrase: seventeen point three one
+            targets:
+              - tile-note
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: release-a
+            phrase: Release the two score slots
+            targets:
+              - scratch
+              - reference
+              - weight-track
+              - value-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: The next key brings a score of three and a value of forty. Look at the two saved totals. To express the
+          old weights relative to three, should both totals grow or shrink?
+        hold: 2.1
+        visual_cues:
+          - id: arrival-b
+            phrase: a score of three and a value of forty
+            targets:
+              - scratch
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: which-scale
+            phrase: should both totals grow or shrink
+            targets:
+              - weight-track
+              - value-track
+              - tile-note
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: rescale
+    title: Put both tiles on one scale
+    visual: Both saved lengths contract against their old endpoints. The new key appends its own weight and
+      weighted value, then the two totals produce the row output.
+    beats:
+      - say: They shrink. The old scores are each one step farther below three than they were below two. That
+          subtracts one inside every exponential. Multiply the old weights by e to the minus one.
+        hold: 0.4
+        visual_cues:
+          - id: reference-three
+            phrase: They shrink
+            targets:
+              - weight-track
+              - value-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: common-factor
+            phrase: e to the minus one
+            targets:
+              - reference
+              - tile-note
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Watch both blue strips contract together. Total weight drops from about one point three seven to point
+          five zero three. Weighted value drops from about twenty-three point six eight to eight point seven
+          one. Their ratio is still seventeen point three one. We changed the units of weight for the same two
+          keys.
+        hold: 0.6
+        visual_cues:
+          - id: new-reference
+            phrase: both blue strips contract together
+            targets:
+              - reference
+              - weight-track
+              - value-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: same-mean
+            phrase: Their ratio is still seventeen point three one
+            targets:
+              - tile-note
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Now add the last key. Its score equals three, so it adds one unit of weight. Its value is forty, so it
+          adds forty units to the weighted sum. Divide the two completed totals. You get thirty-two point four
+          zero five, the same blend as the full row to three decimal places.
+        hold: 0.85
+        visual_cues:
+          - id: add-weight
+            phrase: it adds one unit of weight
+            targets:
+              - scratch
+              - weight-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: add-value
+            phrase: it adds forty units to the weighted sum
+            targets:
+              - scratch
+              - value-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: merge-output
+            phrase: thirty-two point four zero five
+            targets:
+              - tile-note
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: generalized-merge
+    title: Would you accept this merge?
+    visual: A fixed output ruler compares the dense answer, a denominator-only rescale and an equal average of the
+      two tiles. A general two-summary update labels both factors.
+    beats:
+      - say: Here is a broken merge. It rescales the old weight but leaves the old weighted value untouched. The blue
+          mark is the dense answer. The input values range from ten to forty. Where does this candidate land?
+        hold: 1.7
+        visual_cues:
+          - id: broken-ratio
+            phrase: leaves the old weighted value untouched
+            targets:
+              - merge-formula
+              - merge-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Forty-two point three six. That's higher than every value in the row. Trace the numerator. The first tile
+          still contributes twenty-three point six eight on the old scale. Give it the same factor as its
+          denominator and the mark comes back inside the range.
+        hold: 0.75
+        visual_cues:
+          - id: outside-blend
+            phrase: Forty-two point three six
+            targets:
+              - merge-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: fix-ratio
+            phrase: Give it the same factor as its denominator
+            targets:
+              - merge-formula
+              - merge-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Another tempting shortcut gives each tile half the vote. Seventeen point three one and forty then average
+          to twenty-eight point six six. That one passes the range check. But the second tile supplies nearly
+          two thirds of the total weight. Use each tile's share of the weight and you recover the dense answer.
+        hold: 0.7
+        visual_cues:
+          - id: equal-votes
+            phrase: each tile half the vote
+            targets:
+              - merge-formula
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: equal-mean
+            phrase: twenty-eight point six six
+            targets:
+              - merge-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: true-shares
+            phrase: nearly two thirds of the total weight
+            targets:
+              - merge-formula
+              - merge-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: For any two blocks, take the greater maximum. Each block gets a factor of e to the power of its old
+          maximum minus that common maximum. With vector values, the weighted sum has one entry per coordinate.
+          Call that vector N. Multiply each block's total weight and its whole vector by the same factor. Add
+          the two weighted vectors, add the two weights, then divide. If you stored a block average, multiply it
+          by its total weight first. Floating-point rounding can change the last digits.
+        hold: 0.8
+        visual_cues:
+          - id: general-rule
+            phrase: Each block gets a factor
+            targets:
+              - merge-rule
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: general-sums
+            phrase: Multiply each block's total weight and its whole vector
+            targets:
+              - merge-rule
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: general-divide
+            phrase: add the two weights, then divide
+            targets:
+              - merge-rule
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: empty-and-overflow
+    title: Handle an empty causal row and a finite-input overflow separately
+    visual: A retained all-masked row keeps zero mass while a second independent row has finite giant values whose
+      unnormalized sum crosses FP64 range. The zero convention and rejected arithmetic occupy distinct result
+      branches.
+    beats:
+      - say: Initialize the reference maximum at negative infinity and both sums at zero. A fully masked tile can
+          leave both the old and new maxima at negative infinity. Subtracting those infinities creates NaN.
+          The CPU sketch temporarily uses zero as the reference when no finite maximum exists, so masked
+          weights and the old scale contribute zero instead.
+        hold: 0.6
+        visual_cues:
+          - id: empty-and-overflow-beat-1
+            phrase: Initialize the reference maximum at negative infinity and both sums at zero
+            targets:
+              - empty-and-overflow-state-0
+            color: cyan
+            linger: 0.5
+      - say: An entirely masked row has no mathematical probability distribution to normalize. Both the
+          tested CPU implementation and the FlashAttention package return a zero output for this case. The
+          sketch divides its zero numerator by one, and the empty row contributes zero gradient.
+        hold: 0.6
+        visual_cues:
+          - id: empty-and-overflow-beat-2
+            phrase: An entirely masked row has no mathematical probability distribution to normalize
+            targets:
+              - empty-and-overflow-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-empty-zero
+            phrase: return a zero output
+            targets:
+              - empty-and-overflow-state-1
+            color: yellow
+            linger: 0.55
+      - say: Take two equally weighted values of ten to the three hundred eighth power. Their mean fits in
+          FP64, but their unnormalized sum overflows. The sketch checks the accumulator and raises an error.
+          It also checks for compatible shapes, finite inputs and a positive integer block size, rejecting
+          Boolean block sizes.
+        hold: 0.8
+        visual_cues:
+          - id: empty-and-overflow-beat-3
+            phrase: Take two equally weighted values
+            targets:
+              - empty-and-overflow-state-2
+            color: green
+            linger: 0.5
+          - id: fa-overflow
+            phrase: their unnormalized sum overflows
+            targets:
+              - empty-and-overflow-state-2
+            color: yellow
+            linger: 0.55
+  - id: cpu-correctness
+    title: Seven keys, three block sizes
+    visual: The actual five-query by seven-key CPU fixture preserves its global position offset, empty first row,
+      three-coordinate values and remainder tiles; output and Q/K/V gradient comparisons complete
+      independently of dispatch.
+    beats:
+      - say: Follow the rows of this CPU check. Five queries follow two cached positions, so their absolute
+          positions start at two and end at six. There are seven keys. The mask admits each query’s history.
+          We deliberately empty the first row. Queries and keys each have width four, while the values have
+          width three.
+        hold: 0.6
+        visual_cues:
+          - id: cpu-correctness-beat-1
+            phrase: Five queries follow two cached positions
+            targets:
+              - cpu-correctness-state-0
+            color: cyan
+            linger: 0.5
+      - say: Try blocks of three keys. Seven keys split into three, three and one. Blocks of one visit every
+          key separately. A block of twenty covers the lot. At all three sizes, the FP64 CPU loop matches SDPA
+          on the outputs and the gradients for Q, K and V within the test tolerances. A separate check covers
+          large scores.
+        hold: 0.6
+        visual_cues:
+          - id: cpu-correctness-beat-2
+            phrase: Try blocks of three keys
+            targets:
+              - cpu-correctness-state-1
+            color: cyan
+            linger: 0.5
+          - id: one-key-blocks
+            phrase: Blocks of one
+            targets:
+              - cpu-correctness-state-1
+            color: yellow
+            caption_boundary: true
+          - id: one-wide-block
+            phrase: A block of twenty
+            targets:
+              - cpu-correctness-state-1
+            color: yellow
+            caption_boundary: true
+      - say: PyTorch autograd keeps the intermediate operations from this loop for backward. FlashAttention
+          rebuilds the probabilities from the scores and one saved number per row.
+        hold: 0.8
+        visual_cues:
+          - id: cpu-correctness-beat-3
+            phrase: PyTorch autograd keeps the intermediate operations
+            targets:
+              - cpu-correctness-state-2
+            color: green
+            linger: 0.5
+  - id: backward
+    title: Reconstruct probabilities when gradients need them
+    visual: Saved output and log-sum-exp row statistics reconstruct one probability tile during backward, with
+      full intermediates absent.
+    beats:
+      - say: Training needs gradients through attention. Instead of saving a full probability matrix for backward,
+          keep compact row normalization information alongside the output and required inputs. The log-sum-exp
+          combines the reference maximum and denominator into one convenient statistic per row.
+        visual_cues:
+          - id: saved-lse
+            phrase: log-sum-exp combines the reference maximum and denominator
+            targets:
+              - backward-readout
+            color: blue
+          - id: compact-statistic
+            phrase: one convenient statistic per row
+            targets:
+              - backward-equation
+            color: yellow
+        hold: 0.6
+      - say: When backward needs a tile of probabilities, recompute its scores and recover the probabilities from
+          those saved row statistics. This adds arithmetic while avoiding reads of a full saved intermediate.
+          Whether that trade improves time depends on the hardware and the implementation.
+        visual_cues:
+          - id: recompute-scores
+            phrase: recompute its scores
+            targets:
+              - backward-equation-2
+            color: blue
+          - id: recover-probability
+            phrase: recover the probabilities
+            targets:
+              - backward-readout-2
+            color: cyan
+        hold: 0.6
+      - say: The score workspace stays tile-sized and saved normalization state grows linearly with sequence
+          length. Dense attention arithmetic still grows quadratically in sequence length at fixed head
+          dimension. Doubling the sequence doubles the number of row statistics and roughly quadruples the
+          score work.
+        visual_cues:
+          - id: linear-storage
+            phrase: normalization state grows linearly
+            targets:
+              - backward-readout
+            color: blue
+          - id: tile-recomputation
+            phrase: Dense attention arithmetic still grows quadratically
+            targets:
+              - backward-equation-2
+            color: yellow
+        hold: 0.8
+  - id: backward-algebra
+    title: What happens when one key’s score rises?
+    visual: A value ruler places the dense output among the three inputs. Each value's distance from the output is
+      weighted by its probability to construct a signed score derivative.
+    beats:
+      - say: The three values are ten, twenty and forty. Their blend sits just above thirty-two. Turn dropout
+          off and send a derivative of one back through this row. Suppose the key carrying twenty gets a higher
+          score. Which way does the blend move?
+        hold: 1.8
+        caption_starts:
+          - Which way does the blend move
+        visual_cues:
+          - id: gradient-question
+            phrase: Suppose the key carrying twenty gets a higher score
+            targets:
+              - value-ruler
+              - grad-note
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Down. Watch the score rise from two to three. Twenty gains a larger share and pulls the blend
+          toward it. Back at score two, subtract the original blend from twenty. Multiply that signed distance
+          by its probability. The slope there is about minus three point zero four. Forty sits above the
+          blend, so its derivative is positive. The three score derivatives sum to zero before rounding.
+          Shifting every score by the same amount leaves the shares unchanged.
+        hold: 0.55
+        visual_cues:
+          - id: raise-score
+            phrase: Down. Watch the score rise from two to three
+            targets:
+              - value-ruler
+            color: yellow
+            linger: 0.18
+            caption_boundary: true
+          - id: distance
+            phrase: Back at score two
+            targets:
+              - value-ruler
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: score-slope
+            phrase: minus three point zero four
+            targets:
+              - grad-table
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: all-slopes
+            phrase: its derivative is positive
+            targets:
+              - grad-table
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: grad-sum
+            phrase: sum to zero before rounding
+            targets:
+              - grad-note
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Now allow a vector output and any upstream derivative, d O. A value passes its probability times d O back
+          along the value path. A probability receives the dot product of d O with its value vector. The
+          weighted average of those dot products is d O dotted with the output, because the output is the
+          weighted average of the values. That's the row correction, D.
+        hold: 0.65
+        visual_cues:
+          - id: value-path
+            phrase: along the value path
+            targets:
+              - value-path
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: prob-path
+            phrase: dot product of d O with its value vector
+            targets:
+              - score-path
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: row-correction
+            phrase: the row correction, D
+            targets:
+              - score-path
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Subtract D from each probability derivative, then multiply by its probability. That gives the score
+          derivative we just saw. Send those score derivatives through the scaled dot products to get d Q and d
+          K. The correction sums over the value width. The scale here uses the query and key width. Rebuilding
+          one probability tile at a time supplies both gradient paths.
+        hold: 0.8
+        visual_cues:
+          - id: derive-score
+            phrase: multiply by its probability
+            targets:
+              - score-path
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: qk-grad
+            phrase: to get d Q and d K
+            targets:
+              - qk-path
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: backward-state
+    title: Compare one saved probability matrix with one saved LSE vector
+    visual: A 32 GiB probability slab is written and reread while an 8 MiB LSE strip retains one scalar per row;
+      existing Q/K/V references and saved O remain visibly present. A local tile reappears only while its
+      gradient branch consumes it.
+    beats:
+      - say: The combined row statistic LSE is m plus log ell. Reconstruct a needed probability as exponential of its
+          scaled score minus that row’s LSE. Modern implementations retain references to existing Q, K and V,
+          save O and save this normalization vector. Retaining an input reference does not itself rewrite that
+          tensor. Dropout-enabled paths also need state that reproduces the random mask.
+        hold: 0.6
+        visual_cues:
+          - id: backward-state-beat-1
+            phrase: The combined row statistic LSE is m plus log ell
+            targets:
+              - backward-state-state-0
+            color: cyan
+            linger: 0.5
+      - say: In the article’s batch-eight, thirty-two-head, eight-thousand-one-hundred-ninety-two-token
+          example, one FP16 probability matrix occupies thirty-two gibibytes. One FP32 LSE per query row
+          occupies eight mebibytes. The four-thousand-ninety-six-fold ratio compares the probability matrix
+          with the row statistics. Q, K, V and the output remain. Across thirty-two layers, saving one such
+          probability matrix per layer would take one tebibyte.
+        hold: 0.6
+        visual_cues:
+          - id: backward-state-beat-2
+            phrase: In the article’s batch-eight, thirty-two-head, eight-thousand-one-hundred-ninety-two-token example,
+              one FP16 probability matrix occupies thirty-two gibibytes
+            targets:
+              - backward-state-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-state-ratio
+            phrase: four-thousand-ninety-six-fold ratio
+            targets:
+              - backward-state-state-1
+            color: yellow
+            linger: 0.55
+      - say: One write and one later read of that probability matrix total sixty-four gibibytes of logical transfers.
+          Backward can instead load local inputs and saved statistics, recompute scores and probabilities,
+          consume them in the derivative equations and discard the tile. This spends arithmetic to avoid a
+          retained quadratic array. Whether the avoided transfers outweigh the extra compute is a measurement
+          question.
+        hold: 0.8
+        visual_cues:
+          - id: backward-state-beat-3
+            phrase: One write and one later read of that probability matrix total sixty-four gibibytes of logical
+              transfers
+            targets:
+              - backward-state-state-2
+            color: green
+            linger: 0.5
+  - id: complexity-ledger
+    title: Scale mathematical work, auxiliary state and IO on separate axes
+    visual: Three independent curves respond to the same sequence-length change; the fast-memory capacity M
+      carries an explicit scalar-element unit and validity range.
+    beats:
+      - say: Hold batch, head count and head width fixed. Dense attention’s mathematical work grows with sequence
+          length squared times head width. FlashAttention preserves the permitted dense connections, so its
+          work remains quadratic; backward recomputation can add operations. Its extra normalization state
+          grows linearly with sequence length, and its active score workspace stays tile-sized.
+        hold: 0.6
+        visual_cues:
+          - id: complexity-ledger-beat-1
+            phrase: Hold batch, head count and head width fixed
+            targets:
+              - complexity-ledger-state-0
+            color: cyan
+            linger: 0.5
+      - say: Count fast memory in scalar elements. Call its capacity M. The paper’s two-level model applies
+          when M is at least the head width d and at most n times d. Materializing the square takes on the
+          order of n times d plus n squared element transfers. Tiling brings that count to the order of n
+          squared times d squared divided by M.
+        hold: 0.6
+        visual_cues:
+          - id: complexity-ledger-beat-2
+            phrase: Count fast memory in scalar elements
+            targets:
+              - complexity-ledger-state-1
+            color: cyan
+            linger: 0.5
+      - say: At fixed M and d, doubling n quadruples the IO expression and dense arithmetic, while row
+          statistics double. If both n and usable M double within the stated regime, the IO expression doubles
+          while arithmetic still quadruples. Both schedules compute the same dense operator in exact
+          arithmetic. Precision and the order of additions can change the rounded result.
+        hold: 0.8
+        visual_cues:
+          - id: complexity-ledger-beat-3
+            phrase: At fixed M and d, doubling n quadruples the IO expression and dense arithmetic, while row statistics
+              double
+            targets:
+              - complexity-ledger-state-2
+            color: green
+            linger: 0.5
+          - id: fa-scale-memory
+            phrase: If both n and usable M double
+            targets:
+              - complexity-ledger-state-2
+            color: yellow
+            linger: 0.55
+  - id: causal
+    title: Mask the pairs that the objective forbids
+    visual: A tiled causal grid skips future tiles and masks the diagonal tiles; valid per-row recurrence remains
+      unchanged.
+    beats:
+      - say: Autoregressive attention allows a query to use its current and earlier positions. With equal aligned
+          query and key tiles, a tile entirely above the causal diagonal contains only future keys. Its score
+          multiplication and value contribution can be skipped.
+        visual_cues:
+          - id: causal-tiles
+            phrase: equal aligned query and key tiles
+            targets:
+              - causal-readout-2
+            color: blue
+          - id: skip-future
+            phrase: only future keys
+            targets:
+              - causal-readout-5
+            color: yellow
+        hold: 0.6
+      - say: A diagonal tile contains both allowed and future pairs, so the kernel applies the causal rule inside that
+          tile. Past tiles contribute fully. Count tile pairs separately from kernel launches or physical
+          memory transfers, which depend on the actual schedule and reuse.
+        visual_cues:
+          - id: diagonal-mask
+            phrase: causal rule inside that tile
+            targets:
+              - causal-readout-8
+            color: yellow
+          - id: past-tiles
+            phrase: Past tiles contribute fully
+            targets:
+              - causal-readout-2
+            color: cyan
+        hold: 0.6
+      - say: "For unequal query and key lengths, compare absolute positions rather than tile indices. Cached decoding
+          is an important case: a new query can follow a long valid history. The chosen API’s causal alignment
+          must match that history, including padding and unused cache slots."
+        visual_cues:
+          - id: absolute-positions
+            phrase: compare absolute positions rather than tile indices
+            targets:
+              - causal-readout-12
+            color: yellow
+          - id: cached-history
+            phrase: new query can follow a long valid history
+            targets:
+              - causal-readout-11
+            color: blue
+          - id: valid-tail
+            phrase: padding and unused cache slots
+            targets:
+              - causal-readout-13
+            color: yellow
+        hold: 0.8
+  - id: absolute-tile-ranges
+    title: Classify causal work by positions before counting tiles
+    visual: The equal four-by-four grid first earns its ten computed pairs, then unequal query/key interval bars
+      cross the same absolute axis and expose a false index-based skip.
+    beats:
+      - say: For T equal aligned tiles along each axis, there are T times T pairs. For strictly past pairs, multiply T
+          by the quantity T minus one, then divide by two. Add T diagonal pairs. Equivalently, multiply T by
+          the quantity T plus one and divide by two to count computed pairs. The same past-pair count gives
+          entirely future pairs that can be skipped. In our four-by-four grid, ten run and six are skipped.
+        hold: 0.6
+        visual_cues:
+          - id: absolute-tile-ranges-beat-1
+            phrase: For T equal aligned tiles along each axis, there are T times T pairs
+            targets:
+              - absolute-tile-ranges-state-0
+            color: cyan
+            linger: 0.5
+          - id: fa-tile-count
+            phrase: ten run and six are skipped
+            targets:
+              - absolute-tile-ranges-state-0
+            color: yellow
+            linger: 0.55
+      - say: The computed fraction is one half plus one divided by twice T, approaching one half for a large
+          grid. Our four-by-four grid still runs ten tile pairs. Inside each boundary tile it calculates some
+          scores and masks them. A key tile skipped by one query tile can still be read by another.
+        hold: 0.6
+        visual_cues:
+          - id: absolute-tile-ranges-beat-2
+            phrase: The computed fraction is one half plus one divided by twice T, approaching one half for a large grid
+            targets:
+              - absolute-tile-ranges-state-1
+            color: cyan
+            linger: 0.5
+      - say: For unequal widths, compare ranges on an absolute position axis. Keys are entirely future if their first
+          position exceeds the last query. They are entirely allowed if their last position is no later than
+          the first query. Otherwise the tile crosses the causal boundary. Queries one hundred twenty-eight
+          through two hundred fifty-five meet a boundary tile at keys one hundred twenty-eight through one
+          hundred ninety-one, even though that key tile’s index is greater.
+        hold: 0.8
+        visual_cues:
+          - id: absolute-tile-ranges-beat-3
+            phrase: For unequal widths, compare ranges on an absolute position axis
+            targets:
+              - absolute-tile-ranges-state-2
+            color: green
+            linger: 0.5
+  - id: loop-order
+    title: Change the loop nest without changing the row
+    visual: Two retained query tiles and two K/V tiles traverse FA1 and FA2 schedules. Intermediate normalized
+      output returns to HBM in the first schedule; a resident numerator survives both key tiles in the second.
+    beats:
+      - say: FlashAttention-one loops over K/V blocks on the outside and query blocks on the inside. Each query
+          block’s running output, maximum and denominator must survive the next outer K/V step, so that state
+          is written to HBM and revisited. It still avoids the full score and probability matrices. Its
+          running output uses the valid normalized merge formulation.
+        hold: 0.6
+        visual_cues:
+          - id: loop-order-beat-1
+            phrase: FlashAttention-one loops over K/V blocks on the outside and query blocks on the inside
+            targets:
+              - loop-order-state-0
+            color: cyan
+            linger: 0.5
+      - say: FlashAttention-two makes query blocks the outer work units. One query tile and its unnormalized numerator
+          remain on chip while all required K/V tiles stream past. Normalize once at the end and write the
+          completed output and row statistic. Maxima, exponentials, sums and rescaling still occur in the
+          inner loop; avoiding repeated output division removes some non-matrix overhead.
+        hold: 0.6
+        visual_cues:
+          - id: loop-order-beat-2
+            phrase: FlashAttention-two makes query blocks the outer work units
+            targets:
+              - loop-order-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-resident-loop
+            phrase: One query tile and its unnormalized numerator remain
+            targets:
+              - loop-order-state-1
+            color: yellow
+            linger: 0.55
+      - say: The same query blocks can also be assigned to different thread blocks. That gives the GPU more
+          blocks to run in parallel when batch size and head count are small. Each resident block needs
+          registers and shared memory, so those local budgets limit how many blocks can run together.
+        hold: 0.8
+        visual_cues:
+          - id: loop-order-beat-3
+            phrase: The same query blocks can also be assigned to different thread blocks
+            targets:
+              - loop-order-state-2
+            color: green
+            linger: 0.5
+  - id: warp-ownership
+    title: Keep independent output rows with the warps that own them
+    visual: Split-K partial outputs converge through a shared reduction; split-Q gives each warp stable query-row
+      ownership and removes only that output-combination boundary.
+    beats:
+      - say: A warp is a group of GPU threads executing coordinated work. In a split-K design, different warps handle
+          different portions of the keys for the same queries. Their partial outputs must be combined,
+          involving shared-memory writes, synchronization and reduction. A block-average alone is
+          insufficient; their softmax weights must agree on a common reference.
+        hold: 0.6
+        visual_cues:
+          - id: warp-ownership-beat-1
+            phrase: A warp is a group of GPU threads executing coordinated work
+            targets:
+              - warp-ownership-state-0
+            color: cyan
+            linger: 0.5
+      - say: FlashAttention-two instead gives warps different query rows. Each owns separate output rows
+          while using the relevant K/V information. Each warp can finish its rows locally. Shared loads and
+          the backward pass still need coordination.
+        hold: 0.6
+        visual_cues:
+          - id: warp-ownership-beat-2
+            phrase: FlashAttention-two instead gives warps different query rows
+            targets:
+              - warp-ownership-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-split-q
+            phrase: Each owns separate output rows
+            targets:
+              - warp-ownership-state-1
+            color: yellow
+            linger: 0.55
+      - say: On the paper’s A100 kernel benchmarks, this work partitioning and reduced non-matrix overhead helped
+          reach roughly twice FlashAttention-one performance, with reported fifty to seventy-three percent of
+          theoretical peak and forward throughput up to two hundred thirty teraflops per second. Those are
+          reported kernel results, bounded to their tested shapes and baseline.
+        hold: 0.8
+        visual_cues:
+          - id: warp-ownership-beat-3
+            phrase: On the paper’s A100 kernel benchmarks, this work partitioning and reduced non-matrix overhead helped
+              reach roughly twice FlashAttention-one performance, with reported fifty to seventy-three percent
+              of theoretical peak and forward throughput up to two hundred thirty teraflops per second
+            targets:
+              - warp-ownership-state-2
+            color: green
+            linger: 0.5
+  - id: async-pipeline
+    title: Protect a two-slot buffer while copy and compute overlap
+    visual: Slots A and B retain their current tile identities through copy issue, copy-complete, compute,
+      dependent softmax and consumer release. A producer trying to reuse a live slot waits visibly.
+    beats:
+      - say: Hopper’s tensor memory accelerator, or TMA, can copy multidimensional data between global and shared
+          memory without staging every element through registers. Issuing the transfer and synchronizing
+          completion still take instructions. Asynchronous warpgroup matrix multiplication coordinates one
+          hundred twenty-eight threads across four warps; its result must arrive before a dependent softmax
+          update can consume it.
+        hold: 0.6
+        visual_cues:
+          - id: async-pipeline-beat-1
+            phrase: Hopper’s tensor memory accelerator, or TMA, can copy multidimensional data between global and shared
+              memory without staging every element through registers
+            targets:
+              - async-pipeline-state-0
+            color: cyan
+            linger: 0.5
+      - say: In a conceptual two-slot buffer, a producer copies the current K/V tile into A. Consumers wait for copy
+          completion, then use A. While they calculate, a producer may fill B for independent later work. A
+          cannot be overwritten until consumers release it. Copy-complete and consumed are different events.
+          Finite slots and resource pressure can expose waits even in an asynchronous design.
+        hold: 0.6
+        visual_cues:
+          - id: async-pipeline-beat-2
+            phrase: In a conceptual two-slot buffer, a producer copies the current K/V tile into A
+            targets:
+              - async-pipeline-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-copy-a
+            phrase: copies the current K/V tile into A
+            targets:
+              - async-pipeline-state-1
+            color: yellow
+            linger: 0.55
+          - id: fa-read-a
+            phrase: Consumers wait for copy completion
+            targets:
+              - async-pipeline-state-1
+            color: yellow
+            linger: 0.55
+          - id: fa-copy-b
+            phrase: may fill B
+            targets:
+              - async-pipeline-state-1
+            color: yellow
+            linger: 0.55
+          - id: fa-release-a
+            phrase: consumers release it
+            targets:
+              - async-pipeline-state-1
+            color: yellow
+            linger: 0.55
+      - say: FlashAttention-three specializes producer and consumer warps and interleaves softmax with
+          independent matrix work. Its block-quantized FP8 forward path uses techniques for handling outliers,
+          including incoherent processing. The paper reports H100 results up to seven hundred forty teraflops
+          per second in FP16 and nearly one point two petaflops in FP8. To check accuracy at that speed,
+          compare the low-precision output with a higher-precision reference.
+        hold: 0.8
+        visual_cues:
+          - id: async-pipeline-beat-3
+            phrase: FlashAttention-three specializes producer and consumer warps and interleaves softmax with independent
+              matrix work
+            targets:
+              - async-pipeline-state-2
+            color: green
+            linger: 0.5
+  - id: blackwell-reference
+    title: Keep a common reference while reducing exponential overhead
+    visual: An old m/ell/N triple remains on screen as a small maximum increase offers two valid common-reference
+      paths. A wrong switched-reference-without-rescale branch fails beside them; asynchronous MMA, shared
+      storage and tensor memory retain distinct roles.
+    beats:
+      - say: Blackwell’s tensor-core growth makes exponential throughput and shared-memory movement more prominent in
+          the FlashAttention-four paper’s design. It combines larger asynchronous matrix pipelines,
+          software-emulated exponentials, conditional rescaling, tensor memory and a two-thread-block backward
+          design that reduces some shared traffic and global atomic additions. These are hardware scheduling
+          and numerical choices around the dense operator.
+        hold: 0.6
+        visual_cues:
+          - id: blackwell-reference-beat-1
+            phrase: Blackwell’s tensor-core growth makes exponential throughput and shared-memory movement more prominent
+              in the FlashAttention-four paper’s design
+            targets:
+              - blackwell-reference-state-0
+            color: cyan
+            linger: 0.5
+      - say: Conditional rescaling can keep the old reference maximum when an increase is small enough for its
+          numerical policy. All incoming weights must then use that same old reference. For example, keeping
+          reference two when a new score is two point two uses exponential of point two for that new weight.
+          Alternatively, change the reference to two point two and rescale both old sums. Both describe the
+          same ideal normalized ratio; switching the reference while leaving old sums untouched does not.
+        hold: 0.6
+        visual_cues:
+          - id: blackwell-reference-beat-2
+            phrase: Conditional rescaling can keep the old reference maximum when an increase is small enough for its
+              numerical policy
+            targets:
+              - blackwell-reference-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-keep-reference
+            phrase: keeping reference two
+            targets:
+              - blackwell-reference-state-1
+            color: yellow
+            linger: 0.55
+          - id: fa-bad-reference
+            phrase: switching the reference while leaving old sums untouched
+            targets:
+              - blackwell-reference-state-1
+            color: yellow
+            linger: 0.55
+      - say: CuTe-DSL compiles GPU kernels from Python. The authors report shorter compile times than with
+          their FA3 C++ templates. On the B200, their BF16 kernel reached sixteen hundred thirteen teraflops
+          per second, seventy-one percent of peak. The paper compares it with cuDNN nine point thirteen and
+          Triton, and reports that later cuDNN versions reached similar speeds.
+        hold: 0.6
+        visual_cues:
+          - id: blackwell-reference-beat-3
+            phrase: CuTe-DSL compiles GPU kernels from Python
+            targets:
+              - blackwell-reference-state-2
+            color: cyan
+            linger: 0.5
+      - say: Those reported sweeps cover causal and noncausal shapes, head widths and lengths from one thousand to
+          thirty-two thousand while keeping total tokens at thirty-two thousand. The current repository’s CuTe
+          implementation targets Hopper and Blackwell; a paper’s benchmark machine and today’s package
+          compatibility are different lists. Check the actual build and input contract before selecting an
+          implementation.
+        hold: 0.8
+        visual_cues:
+          - id: blackwell-reference-beat-4
+            phrase: Those reported sweeps cover causal and noncausal shapes, head widths and lengths from one thousand to
+              thirty-two thousand while keeping total tokens at thirty-two thousand
+            targets:
+              - blackwell-reference-state-3
+            color: green
+            linger: 0.5
+  - id: benchmark-scopes
+    title: How much faster is the whole workload?
+    visual: A published training receipt retains hardware, sequence length, target and repeated-run context; a
+      separate supplied application timeline changes only its attention segment.
+    beats:
+      - say: Both BERT-large runs fit on eight A100 GPUs. The original paper timed how long it took to reach
+          the same masked-language-model accuracy at sequence length five hundred twelve. The
+          MLPerf-one-point-one baseline averaged twenty minutes over ten runs. FlashAttention averaged
+          seventeen point four. That cuts elapsed time by thirteen percent, or about fifteen percent more runs
+          per unit time.
+        hold: 0.6
+        visual_cues:
+          - id: benchmark-scopes-beat-1
+            phrase: Both BERT-large runs fit on eight A100 GPUs
+            targets:
+              - benchmark-scopes-state-0
+            color: cyan
+            linger: 0.5
+      - say: The FA2 paper’s GPT-style training result reaches two hundred twenty-five teraflops per GPU and
+          seventy-two percent model FLOPs utilization. Model utilization describes the surrounding training
+          computation, while an attention-kernel throughput number describes a different timed scope.
+          Optimizer work, communication and feed-forward layers can remain after attention gets faster.
+        hold: 0.6
+        visual_cues:
+          - id: benchmark-scopes-beat-2
+            phrase: The FA2 paper’s GPT-style training result reaches two hundred twenty-five teraflops per GPU and
+              seventy-two percent model FLOPs utilization
+            targets:
+              - benchmark-scopes-state-1
+            color: cyan
+            linger: 0.5
+      - say: Take one request that lasts a hundred milliseconds. The short segment is attention, twenty
+          milliseconds. The remaining eighty go to other work. Halving attention saves ten milliseconds. The
+          request now takes ninety. Divide a hundred by ninety for the speedup. With this same serial workload
+          and quality target, that means about eleven percent more requests per second.
+        hold: 0.8
+        visual_cues:
+          - id: benchmark-scopes-beat-3
+            phrase: Take one request that lasts a hundred milliseconds
+            targets:
+              - benchmark-scopes-state-2
+            color: green
+            linger: 0.5
+          - id: fa-half-attention
+            phrase: Halving attention
+            targets:
+              - benchmark-scopes-state-2
+            color: yellow
+            linger: 0.55
+  - id: prefill-decode
+    title: Count query rows before choosing an inference kernel
+    visual: The retained prompt becomes a triangular prefill grid, then collapses to one new query against the
+      same valid cache span. The token pair counter remains separate from timing.
+    beats:
+      - say: "Prefill has many query rows. For eight thousand one hundred ninety-two causal prompt tokens including
+          self-attention, sum one through that length: thirty-three million five hundred fifty-eight thousand
+          five hundred twenty-eight valid pairs per head. The full square has sixty-seven million possible
+          slots. The mask changes valid pairs without turning that square into a smaller allocated matrix."
+        hold: 0.6
+        visual_cues:
+          - id: prefill-decode-beat-1
+            phrase: Prefill has many query rows
+            targets:
+              - prefill-decode-state-0
+            color: cyan
+            linger: 0.5
+      - say: A single decode query over eight thousand one hundred ninety-two valid keys has only that many
+          query-key pairs. Divide the prefill pair count by the decode pair count and you get four thousand
+          ninety-six point five. During decode, reading the KV cache can dominate attention. At small batch
+          sizes, streaming model weights can dominate the whole step.
+        hold: 0.6
+        visual_cues:
+          - id: prefill-decode-beat-2
+            phrase: A single decode query over eight thousand one hundred ninety-two valid keys has only that many
+              query-key pairs
+            targets:
+              - prefill-decode-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-one-query
+            phrase: only that many query-key pairs
+            targets:
+              - prefill-decode-state-1
+            color: yellow
+            linger: 0.55
+      - say: Long-prompt prefill exposes the quadratic intermediate problem. Decode has one new query and a
+          cache with its own layout and valid lengths. Measure time to first token for the wait through
+          prefill, then inter-token latency for the wait between generated tokens.
+        hold: 0.8
+        visual_cues:
+          - id: prefill-decode-beat-3
+            phrase: Long-prompt prefill exposes the quadratic intermediate problem
+            targets:
+              - prefill-decode-state-2
+            color: green
+            linger: 0.5
+  - id: paged-contract
+    title: Follow logical cache positions through a block table
+    visual: Logical token positions map through scattered physical page IDs before a kernel read tile gathers
+      their data; allocation page size and computation tile size retain independent brackets.
+    beats:
+      - say: A paged KV allocator chooses where logical token blocks live and how requests share them. An attention
+          kernel follows a block table to read the K/V rows needed by its queries. Online softmax can merge
+          contributions across those noncontiguous blocks. Allocation and arithmetic are complementary
+          mechanisms; neither determines the other’s page or tile size automatically.
+        hold: 0.6
+        visual_cues:
+          - id: paged-contract-beat-1
+            phrase: A paged KV allocator chooses where logical token blocks live and how requests share them
+            targets:
+              - paged-contract-state-0
+            color: cyan
+            linger: 0.5
+      - say: In this example, eight logical sixteen-token pages sit in scattered physical blocks. A
+          one-hundred-twenty-eight-token read tile follows all eight mappings. For the pinned FlashAttention
+          cache API, choose a page size divisible by two hundred fifty-six. That API supports the forward pass
+          only.
+        hold: 0.6
+        visual_cues:
+          - id: paged-contract-beat-2
+            phrase: In this example, eight logical sixteen-token pages
+            targets:
+              - paged-contract-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-page-map
+            phrase: eight logical sixteen-token pages
+            targets:
+              - paged-contract-state-1
+            color: yellow
+            linger: 0.55
+      - say: Match the selected backend’s layout, valid lengths and page-size contract. FlashInfer and serving-engine
+          kernels offer other paged paths with their own requirements; grouped-query or multi-query attention
+          changes the cache inventory separately. A training function and an inference cache-update function
+          can implement related algebra while accepting different shapes and lifetime promises.
+        hold: 0.8
+        visual_cues:
+          - id: paged-contract-beat-3
+            phrase: Match the selected backend’s layout, valid lengths and page-size contract
+            targets:
+              - paged-contract-state-2
+            color: green
+            linger: 0.5
+  - id: alignment-failure
+    title: Which keys did this call average?
+    visual: One decode query sits at absolute position three above four valid cache entries. A one-row upper-left
+      mask covers three values. An absolute-position mask lets those same values back into their original
+      columns.
+    beats:
+      - say: One decode query sits at position three. All four cache entries are valid. Their scores are zero, so
+          every key that gets through has the same weight. The PyTorch call below returns ten. Which of these
+          four values did it actually read into the average?
+        hold: 1.9
+        visual_cues:
+          - id: cache-inputs
+            phrase: All four cache entries are valid
+            targets:
+              - decode-keys
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: ten-returned
+            phrase: returns ten
+            targets:
+              - decode-call
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Just the first one. PyTorch's causal mask for one row and four columns starts in the upper left. It
+          treats column one as future. Compare the keys to the absolute query position instead. Zero, one, two
+          and three all qualify. They each get a quarter of the weight. That gives thirty-seven point five.
+        hold: 0.7
+        visual_cues:
+          - id: upper-corner
+            phrase: Just the first one
+            targets:
+              - decode-keys
+              - decode-call
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: match-absolute
+            phrase: Compare the keys to the absolute query position instead
+            targets:
+              - decode-keys
+              - decode-call
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: fa-absolute-repair
+            phrase: That gives thirty-seven point five
+            targets:
+              - decode-call
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Here, turning causal mode off also works, because every supplied key is valid and visible. For a padded
+          cache, build the mask from positions and valid lengths. In SDPA, true admits the key. In the multihead
+          module's padding mask, true excludes it. Set dropout to zero in the SDPA call during inference, even
+          in evaluation mode.
+        hold: 0.6
+        visual_cues:
+          - id: valid-here
+            phrase: turning causal mode off also works
+            targets:
+              - decode-call
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: mask-contract
+            phrase: true admits the key
+            targets:
+              - decode-keys
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: zero-dropout
+            phrase: Set dropout to zero in the SDPA call
+            targets:
+              - decode-call
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: The FlashAttention package has used bottom-right alignment for unequal lengths since version two point
+          one. Compare the actual allowed keys, outputs and, for training, gradients on a small example before
+          you compare kernel times.
+        hold: 0.8
+        visual_cues:
+          - id: package-alignment
+            phrase: bottom-right alignment for unequal lengths
+            targets:
+              - decode-keys
+              - decode-call
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: backend-policy
+    title: Separate eligibility, completed dispatch and measured benefit
+    visual: An actual-input eligibility decision permits a declared fallback before execution; a restricted
+      eligible execution has its own uncaught failure branch, and a completed result must still cross the
+      timing and quality evidence boundary.
+    beats:
+      - say: Probe eligibility with the actual device, dtype, layout, head width, mask, dropout, causal and
+          grouped-query settings. If the probe fails, use a permitted alternative. If it passes, restrict the
+          call to FlashAttention to exercise that backend. In that context an unsupported call raises an
+          error.
+        hold: 0.6
+        visual_cues:
+          - id: backend-policy-beat-1
+            phrase: Probe eligibility with the actual device
+            targets:
+              - backend-policy-state-0
+            color: cyan
+            linger: 0.5
+      - say: Let execution failures propagate. An out-of-memory error or device failure can occur after a
+          valid launch. Catching every runtime error and retrying with the math backend can hide the failure
+          and require even more memory. After a successful run, compare its outputs with your reference.
+        hold: 0.6
+        visual_cues:
+          - id: backend-policy-beat-2
+            phrase: Let execution failures propagate
+            targets:
+              - backend-policy-state-1
+            color: cyan
+            linger: 0.5
+          - id: fa-execution-error
+            phrase: An out-of-memory error or device failure
+            targets:
+              - backend-policy-state-1
+            color: yellow
+            linger: 0.55
+      - say: Record framework and CUDA versions, GPU, exact input shapes, mask and dtype, then inspect
+          diagnostics or a profiler trace. Warm up both paths, synchronize each timed run and repeat on
+          identical inputs. Compare latency and peak allocated memory. The article’s fourteen executed
+          examples check CPU behavior. Use this timing procedure on the target GPU.
+        hold: 0.6
+        visual_cues:
+          - id: backend-policy-beat-3
+            phrase: Record framework and CUDA versions, GPU, exact input shapes, mask and dtype, then inspect diagnostics
+              or a profiler trace
+            targets:
+              - backend-policy-state-2
+            color: cyan
+            linger: 0.5
+      - say: When loading a Transformers model, the attention implementation setting requests a backend. A
+          profiler trace shows which kernel ran. To call FA4 directly, install its separate package and use
+          its CuTe module. Check that package’s input contract and GPU requirements. PyTorch’s FlashAttention
+          enum selects within PyTorch’s available implementations.
+        hold: 0.8
+        visual_cues:
+          - id: backend-policy-beat-4
+            phrase: When loading a Transformers model
+            targets:
+              - backend-policy-state-3
+            color: green
+            linger: 0.5
+  - id: transfer
+    title: Replay the last key
+    visual: The completed original row stays on the two fixed tracks while one scalar input changes in a second
+      pass. The new numerator replaces only the third key's segment.
+    beats:
+      - say: Replay the row for test. The scores are still one, two and three. This time its own value changes from
+          forty to four. Before doing the division, which saved quantity has to change?
+        hold: 2.05
+        visual_cues:
+          - id: swap-value
+            phrase: from forty to four
+            targets:
+              - scratch
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: predict-state
+            phrase: which saved quantity has to change
+            targets:
+              - reference
+              - weight-track
+              - value-track
+              - tile-note
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Only the weighted sum. Look at the last key. Its weight is still one. Replace its forty on the lower
+          track with four. The first tile's eight point seven one stays put. So do the reference and the total
+          weight.
+        hold: 0.7
+        visual_cues:
+          - id: changed-sum
+            phrase: Only the weighted sum
+            targets:
+              - value-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: replace-term
+            phrase: Replace its forty on the lower track with four
+            targets:
+              - scratch
+              - value-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: unchanged-weight
+            phrase: the reference and the total weight
+            targets:
+              - reference
+              - weight-track
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Divide the new weighted sum by the same total weight. The answer is about eight point four five six. You
+          could discard the score tile and still finish this row. If the set of allowed keys changes too, which
+          contributions survive?
+        hold: 0.8
+        visual_cues:
+          - id: replay-output
+            phrase: eight point four five six
+            targets:
+              - tile-note
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: finish-row
+            phrase: discard the score tile
+            targets:
+              - scratch
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+  - id: fresh-cache-repair
+    title: Which keys belong to this query?
+    visual: One eight-slot cache stays fixed. Three masks select different columns, then the query moves back one
+      position and the viewer can predict which single value drops out.
+    beats:
+      - say: Here is a fresh cache with room for eight values. Six slots hold real tokens. The last two contain
+          leftover thousands. Our query is at position five and every score is zero. Each key you admit gets one
+          unit of weight. Which keys belong in the average?
+        hold: 2.1
+        visual_cues:
+          - id: cache-premise
+            phrase: Six slots hold real tokens
+            targets:
+              - cache
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: cache-question
+            phrase: Which keys belong in the average
+            targets:
+              - cache
+              - mask-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Try an upper-left causal mask for a single row. It starts the query at column zero. Only the first key
+          gets through, so the answer is two. At the other extreme, opening all eight slots lets the two
+          thousands into the sum. Their average with the six real values is two hundred fifty-five point two
+          five.
+        hold: 0.7
+        visual_cues:
+          - id: upper-mask
+            phrase: It starts the query at column zero
+            targets:
+              - cache
+              - mask-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: fa-fresh-two
+            phrase: the answer is two
+            targets:
+              - mask-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: fa-fresh-unmasked
+            phrase: opening all eight slots
+            targets:
+              - cache
+              - mask-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: fa-fresh-255
+            phrase: two hundred fifty-five point two five
+            targets:
+              - mask-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Use the absolute query position and the valid cache length together. Keep a key if its slot is valid and
+          its position is at or before the query. Six keys pass. The maximum is zero, their weights sum to six,
+          and their values sum to forty-two. Forty-two divided by six gives seven. The two thousands stay in
+          memory, outside the sum.
+        hold: 0.7
+        caption_starts:
+          - gives seven
+        visual_cues:
+          - id: fa-fresh-repair
+            phrase: Keep a key if its slot is valid and its position is at or before the query
+            targets:
+              - cache
+              - mask-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: fa-fresh-seven
+            phrase: Forty-two divided by six gives seven
+            targets:
+              - mask-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Leave the cache exactly as it is. Move just the query back to position four. Which value drops out, and
+          what does the query return now?
+        hold: 2.2
+        visual_cues:
+          - id: move-query
+            phrase: back to position four
+            targets:
+              - cache
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: last-question
+            phrase: what does the query return now
+            targets:
+              - cache
+              - mask-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: Twelve drops out. Slot five lies ahead of this query. The five underlined values add up
+          to thirty. Divide by five and you get six. If a cached backend gives a different blend, check which
+          keys it admitted before you time it.
+        hold: 1.1
+        visual_cues:
+          - id: future-key
+            phrase: Twelve drops out
+            targets:
+              - cache
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: five-sum
+            phrase: add up to thirty
+            targets:
+              - mask-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: five-answer
+            phrase: you get six
+            targets:
+              - mask-counts
+            color: cyan
+            linger: 0.18
+            caption_boundary: true

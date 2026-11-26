@@ -1,138 +1,292 @@
-import { assertEqual, circle, column, dot, dynamic, group, line, place } from 'vizmatic/stage';
-import { heading, label, mono, note } from '../../kit-narrated.mjs';
-import { IDS, cloud, distance, foot, left, mix, pca, query, ribbon, right, xy } from '../parts.mjs';
+// Scene 15 (compression): "Who is closest along the fitted line?"
+// Project C -> rewind & add Query -> drop all 6 + Q onto PC1 line -> C beats B along 1D line! -> restore 2nd coord -> B wins again.
+import { line } from 'vizmatic/stage';
+import {
+  COSMOS,
+  DANGER_COLOR,
+  GROUP_COLOR,
+  LETTERS,
+  QUERY_COLOR,
+  aura,
+  distance,
+  glowDot,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  labels,
+  makePlot,
+  pca,
+  query,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+  xy,
+} from '../parts.mjs';
 
-export default function scene(s, c) {
-  const map = cloud(left, { assigned: true });
-  const project = (point) => {
-    const score = point.reduce((sum, v, j) => sum + (v - pca.mean[j]) * pca.vector[j], 0);
-    return pca.mean.map((v, j) => v + score * pca.vector[j]);
-  };
-  const feet = xy.map(project);
-  const queryFoot = project(query);
-  const nearest = (docs, q) => {
-    const distances = docs.map((p) => distance(p, q));
-    return IDS[distances.indexOf(Math.min(...distances))];
-  };
-  assertEqual(nearest(xy, query), 'B', 'full-space duplicate-charge lookup');
-  assertEqual(nearest(feet, queryFoot), 'C', 'PC1 duplicate-charge lookup');
-  const cError = distance(xy[2], feet[2]) ** 2;
-  const totalError = xy.reduce((sum, p, i) => sum + distance(p, feet[i]) ** 2, 0);
-  assertEqual(
-    Math.abs(pca.residual - totalError) < 1e-9,
-    true,
-    'sum of document reconstruction errors',
-  );
-  const firstDrop = s.value(0),
-    drop = s.value(0);
-  const current = (p, end, t) => p.map((v, j) => mix(v, end[j], t));
-  const documentAt = (i) =>
-    current(xy[i], feet[i], i === 2 ? Math.max(drop.value, firstDrop.value) : drop.value);
-  const queryAt = () => current(query, queryFoot, drop.value);
-  const axis = line(
-    ...[-4.4, 4.6].map((t) => map.p(pca.mean.map((v, j) => v + t * pca.vector[j]))),
-    { stroke: 'dim', width: 4 },
-  ).zIndex(-2);
-  const trails = dynamic(() =>
-    group(
-      ...xy.flatMap((p, i) => {
-        const from = map.p(p),
-          to = map.p(documentAt(i));
-        if (Math.hypot(to[0] - from[0], to[1] - from[1]) < 1) return [];
-        return [
-          circle(8, { stroke: 'red', width: 3 }).moveTo(from),
-          line(from, to, { stroke: 'red', width: 4 }),
-        ];
-      }),
-    ),
-  ).zIndex(-2);
-  const q = dynamic(() => {
-    const [x, y] = map.p(queryAt());
-    return group(
-      dot(13, 'yellow').moveTo([x, y]),
-      label('Q', { size: 34, color: 'yellow' }).moveTo([x, y - 39]),
-    );
+const footOf = (p) => {
+  const sc = (p[0] - pca.mean[0]) * pca.vector[0] + (p[1] - pca.mean[1]) * pca.vector[1];
+  return [pca.mean[0] + sc * pca.vector[0], pca.mean[1] + sc * pca.vector[1]];
+};
+
+export default function compression(s, c) {
+  const phase = s.value(0);
+  const dropC = s.value(0);
+  const showErrC = s.value(0);
+  const showQuery = s.value(0);
+  const showBaseline = s.value(0);
+  const dropAll = s.value(0); // 0 = 2D, 1 = projected onto PC1
+  const showKept = s.value(0);
+  const showPredict = s.value(0);
+  const showWrong = s.value(0);
+  const showZero = s.value(0);
+  const showAnswer = s.value(0);
+
+  const bgAura = aura(0, 20, 620, '#3a183b2c', '#133a4a18');
+  const title = heroTitle(['Who Is Closest Along', 'the Fitted 1D Line?'], {
+    x: -855,
+    y: -430,
+    size: 52,
+    lineHeight: 60,
+    accent: DANGER_COLOR,
+    eyebrow: 'PCA PROJECTION & NEIGHBOR REVERSAL',
   });
-  const lengths = dynamic(() =>
-    group(
-      ...[1, 2].map((i) =>
-        line(map.p(queryAt()), map.p(documentAt(i)), { stroke: 'yellow', width: 4 }),
-      ),
-    ),
-  ).zIndex(-1);
-  const [caption, bRow, cRow, result] = right.rows([1.35, 1.7, 1.7, 0.85], 'normal');
-  const reading = [1, 2].flatMap((i, k) => {
-    const [name, value] = [bRow, cRow][k].rows(2, 'tight');
-    const [baseline, live] = value.columns(2, 'normal');
-    return [
-      place(
-        label(k === 0 ? 'B   Duplicate payment' : 'C   Missing reset link', { size: 37 }),
-        name,
-        'bottom left',
-      ),
-      place(mono(distance(xy[i], query).toFixed(3), { size: 42 }), baseline),
-      dynamic(() =>
-        mono(distance(queryAt(), documentAt(i)).toFixed(3), {
-          size: 44,
-          color: 'cyan',
-        }).moveTo(live.point('center')),
-      ),
+
+  const live = guardedDynamic(s.value(1), () => {
+    const dAll = dropAll.value;
+    const dC = Math.max(dropC.value, dAll);
+    const plot = makePlot(-820, -235, 920, 500, { x: [0, 10], y: [0, 5.2] });
+
+    const lineStart = plot.pt([
+      pca.mean[0] - 4.8 * pca.vector[0],
+      pca.mean[1] - 4.8 * pca.vector[1],
+    ]);
+    const lineEnd = plot.pt([pca.mean[0] + 4.8 * pca.vector[0], pca.mean[1] + 4.8 * pca.vector[1]]);
+
+    const curPts = xy.map((p, i) => {
+      const f = footOf(p);
+      const t = i === 2 ? dC : dAll;
+      return [p[0] + (f[0] - p[0]) * t, p[1] + (f[1] - p[1]) * t];
+    });
+    const qFoot = footOf(query);
+    const curQ = [query[0] + (qFoot[0] - query[0]) * dAll, query[1] + (qFoot[1] - query[1]) * dAll];
+
+    const dQB = distance(curQ, curPts[1]);
+    const dQC = distance(curQ, curPts[2]);
+    const errTotal = curPts.reduce((acc, p, i) => acc + distance(p, xy[i]) ** 2, 0);
+
+    const nodes = [
+      ...plot.axesNodes(0.85),
+      line(lineStart, lineEnd, { stroke: COSMOS.cyan, width: 3.5 }).opacity(0.9),
+      txt('PC1 LINE (KEEPS 85.2% VARIANCE)', -820, -272, 26, COSMOS.cyan, 'mono', 'left'),
     ];
-  });
-  const source = place(
-    column(
-      [
-        label('Reconstruct message C', { size: 38 }),
-        mono(`z = ${pca.scores[2].toFixed(3)}`, { size: 40 }),
-        mono('mean + z × direction', { size: 32 }),
-      ],
-      { gap: 'normal' },
-    ),
-    right,
-  );
-  const error = place(
-    mono(`C’s squared gap ≈ ${cError.toFixed(3)}`, { size: 38, color: 'red' }),
-    foot,
-  );
-  const allSix = place(
-    note('All six messages searched    ·    Tracking distances to B and C'),
-    ribbon,
-  );
-  const [title, columns] = caption.rows(2, 'tight');
-  const [baseline, live] = columns.columns(2, 'normal');
-  const distanceName = [
-    place(label('Distance from Q', { size: 38 }), title),
-    place(note('Original 2D'), baseline),
-    place(note('On the map'), live),
-  ];
-  const flat = place(label('Full search returns B', { size: 39, color: 'yellow' }), result);
-  const ask = place(label('Closest on the line?', { size: 39, color: 'yellow' }), result);
-  const wrong = place(label('PC1 search returns C', { size: 39, color: 'pink' }), result);
-  const restored = place(label('Full search returns B', { size: 39, color: 'yellow' }), result);
-  const spread = place(
-    note(
-      `PC1 retains ${(100 * pca.varianceKept).toFixed(1)}% of corpus variance    ·    Total squared gap ≈ ${totalError.toFixed(3)}`,
-    ),
-    foot,
-  );
-  const zero = place(note('Both coordinates restored    ·    Total squared gap = 0'), foot);
-  const targets = (coords) => Object.fromEntries(IDS.map((id, i) => [id, coords[i]]));
 
-  s.add(heading(c.title), map.chart, axis, trails, source);
-  c.on('single', () => s.play(firstDrop.to(1), map.chart.move('C', feet[2]), { duration: 1.1 }));
-  c.show('error', error, { after: true });
-  c.hide('rewind', [error, source]);
-  c.on('rewind', () => s.play(firstDrop.to(0), map.chart.move('C', xy[2]), { duration: 0.8 }));
-  c.show('query', [q, lengths, reading, allSix, distanceName]);
-  c.show('baseline', flat, { after: true });
-  c.hide('drop', flat);
-  c.on('drop', () => s.play(drop.to(1), map.chart.move(targets(feet)), { duration: 1.8 }));
-  c.show('kept', spread, { after: true });
-  c.show('predict', ask);
-  c.swap('wrong', ask, wrong, { after: true });
-  c.hide('restore', [wrong, spread]);
-  c.on('restore', () => s.play(drop.to(0), map.chart.move(targets(xy)), { duration: 1.6 }));
-  c.show('zero', zero, { after: true });
-  c.show('answer', restored, { after: true });
-  c.keep(map.chart);
+    // Residual shortfall lines (red)
+    xy.forEach((p, i) => {
+      const t = i === 2 ? dC : dAll;
+      if (t > 0.03) {
+        nodes.push(
+          line(plot.pt(p), plot.pt(curPts[i]), {
+            stroke: DANGER_COLOR,
+            width: 2.8,
+            dash: [7, 5],
+          }).opacity(0.85),
+        );
+      }
+    });
+
+    // Plot all 6 messages (place labels cleanly away from residual lines)
+    curPts.forEach((p, i) => {
+      const [px, py] = plot.pt(p);
+      const col = GROUP_COLOR[labels[i]];
+      const isUpper = i === 2 || i === 3;
+      nodes.push(
+        glowDot(px, py, { radius: 8.5, color: col, glow: 10 }),
+        txt(
+          LETTERS[i],
+          px +
+            (i === 0
+              ? -34
+              : i === 2
+                ? -40
+                : i === 3
+                  ? 26
+                  : i === 4
+                    ? -24
+                    : i === 1
+                      ? 30
+                      : i === 5
+                        ? 32
+                        : 0),
+          py + (isUpper ? -36 : i === 0 ? 32 : i === 1 ? 34 : i === 5 ? 26 : 34),
+          26,
+          col,
+          'mono',
+        ),
+      );
+    });
+
+    // Query dot & distance links
+    if (showQuery.value > 0.02) {
+      const [qx, qy] = plot.pt(curQ);
+      nodes.push(
+        glowDot(qx, qy, { radius: 9.5, color: QUERY_COLOR, glow: 14, opacity: showQuery.value }),
+        txt('Q', qx - 32, qy - 36, 28, QUERY_COLOR, 'mono').opacity(showQuery.value),
+      );
+      if (showWrong.value > 0.5 && dAll > 0.5) {
+        const [cx, cy] = plot.pt(curPts[2]);
+        nodes.push(glowRing(cx, cy, 24, DANGER_COLOR, { width: 3.5, glow: 12 }));
+      }
+      if (showAnswer.value > 0.5 && dAll < 0.2) {
+        const [bx, by] = plot.pt(curPts[1]);
+        nodes.push(glowRing(bx, by, 24, COSMOS.emerald, { width: 3.5, glow: 12 }));
+      }
+    }
+
+    // Right-side live distance & reconstruction ledger (withhold 1D numbers during prediction hold!)
+    const rx = 185;
+    const hide1d = dAll > 0.5 && showWrong.value < 0.5;
+    nodes.push(
+      txt('LIVE DISTANCES FROM Q', rx, -235, 26, QUERY_COLOR, 'mono', 'left'),
+      txt(
+        hide1d ? 'd(Q, B) = ?' : `d(Q, B) = ${dQB.toFixed(2)}`,
+        rx,
+        -162,
+        34,
+        GROUP_COLOR[0],
+        'mono',
+        'left',
+      ).opacity(0.35 + 0.65 * Math.max(showQuery.value, showBaseline.value)),
+      txt(
+        hide1d ? 'd(Q, C) = ?' : `d(Q, C) = ${dQC.toFixed(2)}`,
+        rx,
+        -96,
+        34,
+        GROUP_COLOR[1],
+        'mono',
+        'left',
+      ).opacity(0.35 + 0.65 * Math.max(showQuery.value, showBaseline.value)),
+      txt('RECONSTRUCTION ERROR', rx, 10, 26, DANGER_COLOR, 'mono', 'left'),
+      txt(
+        `${errTotal.toFixed(2)}`,
+        rx,
+        82,
+        56,
+        errTotal < 0.05 ? COSMOS.emerald : DANGER_COLOR,
+        'mono',
+        'left',
+      ).glow(8, errTotal < 0.05 ? COSMOS.emerald : DANGER_COLOR),
+    );
+
+    if (showErrC.value > 0.02 && showQuery.value < 0.3) {
+      nodes.push(
+        txt(
+          'Red segment = C’s perpendicular shortfall',
+          rx,
+          175,
+          26,
+          DANGER_COLOR,
+          'sans',
+          'left',
+        ).opacity(showErrC.value),
+      );
+    }
+
+    const keptOp = showKept.value * Math.max(0, 1 - showZero.value * 2.6);
+    if (keptOp > 0.02) {
+      nodes.push(
+        txt(
+          '85.2% variance kept · 14.8% discarded',
+          rx,
+          175,
+          26,
+          COSMOS.cyan,
+          'mono',
+          'left',
+        ).opacity(keptOp),
+      );
+    }
+
+    const zeroOp = Math.max(0, (showZero.value - 0.45) / 0.55);
+    if (zeroOp > 0.02) {
+      nodes.push(
+        txt(
+          '2D residual = 0.00 (exact recovery)',
+          rx,
+          175,
+          26,
+          COSMOS.emerald,
+          'mono',
+          'left',
+        ).opacity(zeroOp),
+      );
+    }
+
+    // Non-overlapping prediction -> wrong winner C -> restored winner B along bottom
+    const pOp = showPredict.value * Math.max(0, 1 - showWrong.value * 2.6);
+    if (pOp > 0.02) {
+      nodes.push(
+        txt(
+          'Which message will the 1-coordinate search return?',
+          -855,
+          345,
+          32,
+          QUERY_COLOR,
+          'serif',
+          'left',
+        )
+          .glow(6, QUERY_COLOR)
+          .opacity(pOp),
+      );
+    }
+    const wOp =
+      Math.max(0, (showWrong.value - 0.45) / 0.55) * Math.max(0, 1 - showAnswer.value * 2.6);
+    if (wOp > 0.02) {
+      nodes.push(
+        txt(
+          'C (reset link) wins along PC1! Dropping the perpendicular coordinate flipped B and C.',
+          -855,
+          345,
+          28,
+          DANGER_COLOR,
+          'sans',
+          'left',
+        )
+          .glow(6, DANGER_COLOR)
+          .opacity(wOp),
+      );
+    }
+    const rOp = Math.max(0, (showAnswer.value - 0.45) / 0.55);
+    if (rOp > 0.02) {
+      nodes.push(
+        txt(
+          'Restored 2nd coordinate: error → 0.00, and B (duplicate payment) is nearest again!',
+          -855,
+          345,
+          30,
+          COSMOS.emerald,
+          'mono',
+          'left',
+        )
+          .glow(7, COSMOS.emerald)
+          .opacity(rOp),
+      );
+    }
+    return nodes;
+  });
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  tweenCue(s, c, 'single', dropC, 1, { duration: 0.7 });
+  tweenCue(s, c, 'error', showErrC, 1, { duration: 0.45 });
+  tweenCue(s, c, 'rewind', dropC, 0, { duration: 0.6 });
+  tweenCue(s, c, 'query', showQuery, 1, { duration: 0.45 });
+  tweenCue(s, c, 'baseline', showBaseline, 1, { duration: 0.4 });
+  tweenCue(s, c, 'drop', dropAll, 1, { duration: 0.9 });
+  tweenCue(s, c, 'kept', showKept, 1, { duration: 0.45 });
+  tweenCue(s, c, 'predict', showPredict, 1, { duration: 0.45 });
+  tweenCue(s, c, 'wrong', showWrong, 1, { duration: 0.45, after: true });
+  tweenCue(s, c, 'restore', dropAll, 0, { duration: 0.85 });
+  tweenCue(s, c, 'zero', showZero, 1, { duration: 0.45 });
+  tweenCue(s, c, 'answer', showAnswer, 1, { duration: 0.45 });
 }

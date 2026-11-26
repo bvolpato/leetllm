@@ -372,12 +372,12 @@ Start with framework ops and vendor libraries (cuBLAS, cuDNN, FlashAttention). D
   {
     "question": "A writer atomically replaces `kernel.cubin` with artifact B, then crashes before replacing its metadata file (still describing artifact A). What does this prove about multi-file caches?",
     "options": [
-      "Complete individual files can still form an inconsistent group; verify matching recipe and artifact hashes together.",
-      "Atomic replacement of one file binds the whole directory atomically.",
-      "The reader will observe corrupted half-written cubin bytes.",
-      "Checking file existence guarantees group consistency."
+      "Complete individual files still form an inconsistent group unless manifest and artifact hashes match.",
+      "Atomic replacement of one file binds the sibling metadata files in the same directory atomically.",
+      "Readers opening the replaced cubin observe corrupted half-written machine-code bytes on disk.",
+      "Checking that both files exist on disk confirms the cubin and metadata belong to the same build."
     ],
-    "answer": "Complete individual files can still form an inconsistent group; verify matching recipe and artifact hashes together.",
+    "answer": "Complete individual files still form an inconsistent group unless manifest and artifact hashes match.",
     "explanation": "Two separate `os.replace` calls are not one multi-file transaction. Always validate group manifests and matching digests."
   },
   {

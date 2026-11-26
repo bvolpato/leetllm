@@ -1,157 +1,137 @@
+// Scene 03 (unit-and-interference): "Name the effect and the paths that mix exposure"
+// Policy contrast (shared pinned receipt) -> SUTVA (no hidden versions, technician learning, shared compute) -> Cluster design effect DEFF = 1 + (20-1)*0.1 = 2.9!
 import {
-  arrow,
-  boxOf,
-  column,
-  dot,
-  draw,
-  dynamic,
-  indicate,
-  line,
-  place,
-  row,
-  tex,
-  to,
-  unitChart,
-  zone,
-} from 'vizmatic/stage';
-import { chip, heading, label, mono, namedBox, note, tint } from '../../kit-narrated.mjs';
-import { FOOT, SIDE, experiment } from '../parts.mjs';
-import { clusterDesignEffect } from '../../../films/ab-testing/model.mjs';
-export default function interference(s, c) {
-  const b = experiment(s);
-  const [top, staffRegion, queueRegion, math] = SIDE.rows([2, 1, 1.5, 2], 'normal');
-  const queries = top.columns(2, 'normal');
-  const raw = place(
-    column(
-      [
-        label('inc-C: control', { color: 'cyan', size: 36 }),
-        note('raw canary question'),
-        chip('own experience', { color: 'cyan' }),
-      ],
-      { gap: 'tight' },
-    ),
-    queries[0],
-  );
-  const rewrite = place(
-    column(
-      [
-        label('inc-T: treatment', { color: 'blue', size: 36 }),
-        note('rollback • error-rate policy'),
-        note('owner acknowledgement'),
-      ],
-      { gap: 'tight' },
-    ),
-    queries[1],
-  );
-  const learned = chip('learned rollback', { color: 'yellow' }).moveTo(
-    boxOf(raw.nodes[2]).point('center'),
-  );
-  const staff = place(
-    namedBox('shared technician', { width: 380, height: 80, color: 'dim' }),
-    staffRegion,
-  );
-  const spill = arrow(boxOf(rewrite).point('bottom'), boxOf(staff).point('right'), {
-    stroke: 'yellow',
-    width: 3,
-    pad: 18,
+  BAD_COLOR,
+  COSMOS,
+  CTRL_COLOR,
+  GOOD_COLOR,
+  TRT_COLOR,
+  WARN_COLOR,
+  aura,
+  clusterDesignEffect,
+  glowArrow,
+  glowDot,
+  glowTex,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+} from '../parts.mjs';
+
+const DEFF = clusterDesignEffect(20, 0.1); // 2.9
+
+export default function unitAndInterference(s, c) {
+  const phase = s.value(0);
+  const showPolicy = s.value(0);
+  const showVersions = s.value(0);
+  const showLearning = s.value(0);
+  const showCompute = s.value(0);
+  const showDeff = s.value(0);
+  const showTeams = s.value(0);
+
+  const bgAura = aura(0, 20, 620, '#133a4a30', '#3a183b20');
+  const title = heroTitle(['Policy Contrast, SUTVA', '& Spillover Interference'], {
+    x: -855,
+    y: -430,
+    size: 52,
+    lineHeight: 60,
+    accent: TRT_COLOR,
+    eyebrow: 'CAUSAL ESTIMAND & CLUSTER DESIGN EFFECT',
   });
-  const returnPath = arrow(boxOf(staff).point('left'), boxOf(raw).point('bottom'), {
-    stroke: 'yellow',
-    width: 3,
-    pad: 18,
+
+  const eqDeff = glowTex(`\\text{DEFF} = 1 + (20 - 1)(0.1) = ${DEFF.toFixed(1)}`, {
+    x: 420,
+    y: 120,
+    size: 38,
+    color: WARN_COLOR,
+    glow: 8,
   });
-  const procedure = dot(12, 'yellow').moveTo(boxOf(rewrite).point('bottom'));
-  const [queueTitle, queueSlots] = queueRegion.rows([1, 2], 'tight');
-  const title = place(note('One shared worker: queue → execution'), queueTitle);
-  const slots = queueSlots.columns(4, 'normal');
-  const worker = place(namedBox('worker', { width: 190, height: 70, color: 'dim' }), slots[3]);
-  const control = place(chip('C query', { color: 'cyan' }), slots[2]);
-  const treatment = place(chip('T rewrite', { color: 'blue' }), slots[2]);
-  const queued = slots[1].point('center');
-  const running = slots[2].point('center');
-  const work = dot(12, 'blue').moveTo(slots[0].point('center'));
-  const detour = slots[0].point('bottom');
-  const approach = [running[0], detour[1]];
-  const track = line(slots[0].point('bottom'), slots[3].point('bottom'), {
-    stroke: 'grid',
-    width: 3,
-  });
-  const waiting = place(note('Treatment work runs. Control waits.', { color: 'red' }), FOOT);
-  const [clusterRegion, spreadRegion] = math.columns([1, 1.4], 'wide');
-  const teams = clusterRegion.columns(2, 'normal').map((region, i) => {
-    const units = place(
-      unitChart([{ count: 20, color: i ? 'blue' : 'cyan' }], {
-        columns: 4,
-        cell: 13,
-        gap: 6,
-        shape: 'square',
+
+  const live = guardedDynamic(s.value(1), () => {
+    const nodes = [
+      // Top band: Controlled single-change policy contrast
+      txt('ISOLATED POLICY CONTRAST', -855, -245, 26, COSMOS.cyan, 'mono', 'left'),
+      lumBar(-570, -150, 560, 108, { color: CTRL_COLOR, fillOpacity: 0.16, glow: 6 }),
+      txt('CONTROL: Raw canary query', -825, -172, 26, CTRL_COLOR, 'mono', 'left'),
+      txt('“canary rollback?”', -825, -126, 26, COSMOS.muted, 'serif', 'left'),
+
+      lumBar(0, -150, 500, 108, {
+        color: GOOD_COLOR,
+        fillOpacity: 0.14,
+        glow: 6,
+        opacity: 0.55 + 0.45 * showPolicy.value,
       }),
-      region,
-    );
-    return zone(units, { title: i ? 'team T' : 'team C', color: 'dim' });
+      txt('PINNED SHARED STACK', 0, -172, 26, GOOD_COLOR, 'mono'),
+      txt('Index · Prompt · Model · Greedy', 0, -126, 26, COSMOS.ink, 'sans'),
+
+      lumBar(570, -150, 560, 108, { color: TRT_COLOR, fillOpacity: 0.16, glow: 6 }),
+      txt('TREATMENT: Rewritten query', 315, -172, 26, TRT_COLOR, 'mono', 'left'),
+      txt('“canary rollback error-rate...”', 315, -126, 26, COSMOS.muted, 'serif', 'left'),
+
+      // Lower-left: Two SUTVA spillover channels
+      txt('SUTVA INTERFERENCE PATHS', -855, -18, 26, BAD_COLOR, 'mono', 'left').opacity(
+        0.45 + 0.55 * showVersions.value,
+      ),
+      glowDot(-790, 62, { radius: 9, color: TRT_COLOR, glow: 9 }),
+      txt('Trt Inc', -790, 102, 26, TRT_COLOR, 'mono'),
+      glowDot(-300, 62, { radius: 9, color: CTRL_COLOR, glow: 9 }),
+      txt('Ctrl Inc', -300, 102, 26, CTRL_COLOR, 'mono'),
+      glowArrow([-745, 62], [-345, 62], BAD_COLOR, {
+        width: 3.5,
+        opacity: 0.35 + 0.65 * showLearning.value,
+      }),
+      txt('Technician learns rollback rule', -545, 28, 26, BAD_COLOR, 'sans').opacity(
+        0.35 + 0.65 * showLearning.value,
+      ),
+
+      glowDot(-790, 198, { radius: 9, color: TRT_COLOR, glow: 9 }),
+      txt('Rewrite', -790, 238, 26, TRT_COLOR, 'mono'),
+      glowDot(-300, 198, { radius: 9, color: CTRL_COLOR, glow: 9 }),
+      txt('Control', -300, 238, 26, CTRL_COLOR, 'mono'),
+      glowArrow([-745, 198], [-345, 198], WARN_COLOR, {
+        width: 3.5,
+        opacity: 0.35 + 0.65 * showCompute.value,
+      }),
+      txt('Shared GPU / worker queue lag', -545, 164, 26, WARN_COLOR, 'sans').opacity(
+        0.35 + 0.65 * showCompute.value,
+      ),
+
+      // Lower-right: Cluster randomization variance inflation
+      txt('CLUSTER DESIGN EFFECT (m = 20, ρ = 0.1)', 420, -18, 26, WARN_COLOR, 'mono').opacity(
+        0.45 + 0.55 * showDeff.value,
+      ),
+      txt('Variance inflates 2.9× vs independent units', 420, 215, 28, WARN_COLOR, 'mono').opacity(
+        0.35 + 0.65 * showDeff.value,
+      ),
+    ];
+
+    if (showTeams.value > 0.02) {
+      nodes.push(
+        txt(
+          'Analyze team-randomized trials with team-aware inference (more messages ≠ more independent teams)',
+          -855,
+          355,
+          28,
+          COSMOS.cyan,
+          'sans',
+          'left',
+        ).opacity(showTeams.value),
+      );
+    }
+
+    return nodes;
   });
-  const designEffect = clusterDesignEffect(20, 0.1);
-  const variance = s.value(1);
-  const [formulaRegion, widthRegion] = spreadRegion.rows([1, 2], 'normal');
-  const formula = place(tex('1+(20-1)\\times0.1', { size: 36 }), formulaRegion);
-  const center = widthRegion.point('center');
-  const halfWidth = widthRegion.width * 0.24;
-  const widthLabels = [
-    note('independent').moveTo([center[0], center[1] - 65]),
-    note('team-aware', { color: 'yellow' }).moveTo([center[0], center[1]]),
-  ];
-  const spreads = dynamic(() => [
-    line([center[0] - halfWidth, center[1] - 32], [center[0] + halfWidth, center[1] - 32], {
-      stroke: 'dim',
-      width: 7,
-    }),
-    line(
-      [center[0] - halfWidth * Math.sqrt(variance.value), center[1] + 32],
-      [center[0] + halfWidth * Math.sqrt(variance.value), center[1] + 32],
-      { stroke: 'yellow', width: 7 },
-    ),
-  ]);
-  const result = place(
-    mono(`variance × ${designEffect.toFixed(1)}`, { size: 36, color: 'yellow' }),
-    FOOT,
-  );
-  const inference = place(note('20 incidents per team • team-aware inference'), FOOT);
-  s.add(
-    heading('Keep the exposure contrast intact'),
-    raw,
-    rewrite,
-    staff,
-    title,
-    worker,
-    control,
-    track,
-  );
-  s.add(b.standing);
-  c.on('policy', () => s.play(indicate(rewrite, { scale: 1 })));
-  c.on('versions', () => s.play(indicate([raw, rewrite], { scale: 1 })));
-  c.show('learning', [draw(spill), draw(returnPath), procedure]);
-  c.on('learning', () => {
-    s.play(to(procedure, (n) => n.moveTo(boxOf(staff).point('bottom right')), { duration: 0.8 }));
-    s.play(to(procedure, (n) => n.moveTo(boxOf(staff).point('bottom left')), { duration: 0.7 }));
-    s.play(to(procedure, (n) => n.moveTo(boxOf(raw).point('bottom')), { duration: 0.8 }));
-  });
-  c.swap('learning', raw.nodes[2], learned, { after: true, lead: -0.8 });
-  c.show('compute', work);
-  c.on('compute', () => {
-    s.play(
-      to(control, (n) => n.moveTo(queued), { duration: 0.6 }),
-      tint(worker, 'blue'),
-    );
-    for (const point of [detour, approach, running])
-      s.play(to(work, (n) => n.moveTo(point), { duration: 0.5 }));
-  });
-  c.hide('compute', work, { after: true, lead: -1.2 });
-  c.show('compute', treatment, { after: true, lead: -1.2 });
-  c.show('compute', waiting, { after: true });
-  c.show(2, [teams, formula, spreads, widthLabels]);
-  c.after('design-effect', () => s.play(variance.to(designEffect, { duration: 1.2 })));
-  c.swap('design-effect', waiting, result, { after: true, lead: -1.3 });
-  c.swap('teams', result, inference);
-  c.clear([spill, returnPath, track], 0.5, 0.2);
-  c.keep(b.standing);
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+
+  tweenCue(s, c, 'policy', showPolicy, 1, { duration: 0.45 });
+  tweenCue(s, c, 'versions', showVersions, 1, { duration: 0.45 });
+  tweenCue(s, c, 'learning', showLearning, 1, { duration: 0.45 });
+  tweenCue(s, c, 'compute', showCompute, 1, { duration: 0.45 });
+  c.show('design-effect', eqDeff);
+  tweenCue(s, c, 'design-effect', showDeff, 1, { duration: 0.5 });
+  tweenCue(s, c, 'teams', showTeams, 1, { duration: 0.45 });
 }

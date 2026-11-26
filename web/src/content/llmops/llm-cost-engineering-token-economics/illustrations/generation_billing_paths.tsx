@@ -4,7 +4,7 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 780
 export const height = 415
 export const alt =
-    'Left: request billing flow branches between stored semantic cache hits ($0 token cost) and model calls billed across four token lines (fresh input, cached read, cache write, and output) plus embedding/infra overhead. Right: token tariffs per million tokens on a clean 0 to 12 dollar scale show Read $0.2, Input $2, Write $2.5, Batch $6, and Output $12.'
+    'Left: request billing flow branches between stored semantic cache hits ($0 token cost) and model calls billed across four token lines (fresh input, cached read, cache write, and output) plus embedding/infra overhead. Right: token tariffs per million tokens on a clean 0 to 12 dollar scale show Read $0.2, Input $2, Write $2.5, Batch output $6, and Output $12.'
 
 export function create(theme: ThemeMode = 'dark') {
     const fig = new Figure(theme, width, height)
@@ -102,7 +102,7 @@ export function create(theme: ThemeMode = 'dark') {
         { cx: 0.5, label: 'Read', value: 0.2, text: '$0.2', color: green },
         { cx: 1.5, label: 'Input', value: 2.0, text: '$2', color: blue },
         { cx: 2.5, label: 'Write', value: 2.5, text: '$2.5', color: purple },
-        { cx: 3.5, label: 'Batch', value: 6.0, text: '$6', color: warm },
+        { cx: 3.5, label: 'Batch out', value: 6.0, text: '$6', color: warm },
         { cx: 4.5, label: 'Output', value: 12.0, text: '$12', color: red },
     ]
     const barW = 42

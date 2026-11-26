@@ -1,137 +1,223 @@
+// Scene 01 (intro): "Which past message will the circle reach first?"
+// Expanding luminous distance ring from query [2.8, 2.71] toward B (1.841) vs C (1.913) + magnified ruler + full 6-message map.
 import {
-  assertEqual,
-  circle,
-  dot,
-  dynamic,
-  fadeIn,
-  group,
-  line,
-  linear,
-  place,
-  polygon,
-  rect,
-} from 'vizmatic/stage';
-import { area, heading, label, mono, note } from '../../kit-narrated.mjs';
-import { cloud, distance, query, right, xy } from '../parts.mjs';
+  COSMOS,
+  GROUP_COLOR,
+  LETTERS,
+  QUERY_COLOR,
+  aura,
+  distance,
+  glowDot,
+  glowRing,
+  guardedDynamic,
+  heroTitle,
+  labels,
+  makePlot,
+  messages,
+  query,
+  rule,
+  runAmbientPhase,
+  tweenCue,
+  txt,
+  xy,
+} from '../parts.mjs';
 
-export default function scene(s, c) {
-  const order = xy
-    .map((point, id) => ({ id, d: distance(query, point) }))
-    .sort((a, b) => a.d - b.d);
-  const [billing, reset] = order;
-  assertEqual([billing.id, reset.id].join(','), '1,2', 'nearest messages in the full search');
+const DIST_B = distance(query, xy[1]); // 1.841
+const DIST_C = distance(query, xy[2]); // 1.913
 
-  const [field, scale, result] = area.rows([6.8, 1.65, 0.95], 'normal');
-  const origin = field.point('center');
-  const unit = (field.height * 0.43) / reset.d;
-  const position = (point) => [
-    origin[0] + (point[0] - query[0]) * unit,
-    origin[1] - (point[1] - query[1]) * unit,
-  ];
-  const card = (candidate, side, id, subject) => {
-    const [x, y] = position(xy[candidate.id]);
-    const width = 410;
-    const cx = x + side * (width / 2 + 35);
-    return group(
-      line([x, y], [cx, y], { stroke: 'dim', width: 3 }),
-      rect(width, 116, { radius: 18, fill: 'surface', stroke: 'dim', width: 3 }).at(cx, y),
-      note('Message ' + id).moveTo([cx, y - 26]),
-      label(subject, { size: 43 }).at(cx, y + 23),
-      dot(6, 'cyan').at(x, y),
-    );
-  };
+export default function intro(s, c) {
+  const phase = s.value(0);
+  const ringR = s.value(0.88);
+  const showRuler = s.value(0);
+  const showPredict = s.value(0);
+  const showAnswer = s.value(0);
+  const showAll = s.value(0);
 
-  const [x, y] = origin;
-  const request = group(
-    polygon(
-      [
-        [x - 16, y - 33],
-        [x + 16, y - 33],
-        [x, y - 8],
-      ],
-      { fill: 'yellow', stroke: null },
-    ),
-    rect(298, 118, { radius: 22, fill: 'yellow', stroke: null }).at(x, y - 88),
-    label('Why was I', { size: 43, color: 'bg' }).at(x, y - 113),
-    label('charged twice?', { size: 43, color: 'bg' }).at(x, y - 64),
-    dot(10, 'yellow').moveTo(origin),
-  );
-  const radius = s.value(0.78);
-  const ring = dynamic(() =>
-    circle(radius.value * unit, { stroke: 'yellow', width: 5 }).moveTo(origin),
-  ).zIndex(-1);
-  const ruler = scale.inset('loose');
-  const minimum = s.value(0);
-  const maximum = 2;
-  const along = (d, low = minimum.value) =>
-    ruler.left + ((d - low) / (maximum - low)) * ruler.width;
-  const baseline = ruler.cy + 34;
-  const rail = line([ruler.left, baseline], [ruler.right, baseline], { stroke: 'dim', width: 4 });
-  const readings = dynamic(() => [
-    ...[billing, reset].map(({ d }) =>
-      line([along(d), baseline - 14], [along(d), baseline + 14], { stroke: 'cyan', width: 4 }),
-    ),
-    dot(10, 'yellow').at(along(radius.value), baseline),
-  ]);
-  const fullLabels = [0, 1, 2].map((d) =>
-    mono(String(d), { size: 33 }).moveTo([along(d, 0), baseline + 39]),
-  );
-  const opening = [
-    heading(c.title),
-    ring,
-    request,
-    card(billing, -1, 'B', 'Duplicate payment'),
-    card(reset, 1, 'C', 'Missing reset link'),
-    note('Distance from request').moveTo([ruler.cx, baseline - 43]),
-    rail,
-    readings,
-    fullLabels,
-  ];
-  s.add(opening);
-  s.play(fadeIn(opening, { duration: 0 }));
-  s.play(radius.to(1.16, { duration: 0.9, ease: linear }));
-  const zoom = c.cue('ruler');
-  s.play(radius.to(1.64, { duration: zoom.start - c.start - 0.9, ease: linear }));
-
-  c.hide('ruler', fullLabels);
-  c.on('ruler', () =>
-    s.play(minimum.to(1.6), radius.to(1.71), { duration: zoom.end - zoom.start }),
-  );
-  const magnified = [billing, reset].map(({ d }, i) =>
-    mono((i ? 'C  ' : 'B  ') + d.toFixed(3), { size: 37, color: 'cyan' }).moveTo([
-      along(d, 1.6),
-      baseline + 43,
-    ]),
-  );
-  c.show('ruler', magnified, { after: true });
-  const question = place(
-    label('Which dot will it touch first?', { color: 'yellow', size: 43 }),
-    result,
-  );
-  c.show('predict', question);
-  c.on('answer', () => s.play(radius.to(billing.d, { duration: 0.55, ease: linear })));
-  c.swap(
-    'answer',
-    question,
-    place(label('B   Duplicate payment', { color: 'yellow', size: 43 }), result),
-    { after: true },
-  );
-  c.show('answer', circle(20, { stroke: 'yellow', width: 5 }).moveTo(position(xy[billing.id])), {
-    after: true,
+  const bgAura = aura(320, 20, 560, '#133a4a36', '#2a1c4f18');
+  const title = heroTitle(['Which Message Will', 'the Circle Reach First?'], {
+    x: -855,
+    y: -430,
+    size: 52,
+    lineHeight: 60,
+    accent: QUERY_COLOR,
+    eyebrow: 'CLUSTERING & PCA · NEAREST-NEIGHBOR SEARCH',
   });
 
-  const map = cloud();
-  const q = map.p(query);
-  const b = map.p(xy[billing.id]);
-  const [name, measure] = right.rows(2, 'normal');
-  c.swapAll('all', [
-    heading('Full search across six messages'),
-    map.chart,
-    dot(12, 'yellow').moveTo(q),
-    line(q, b, { stroke: 'yellow', width: 4 }).zIndex(-1),
-    circle(16, { stroke: 'yellow', width: 4 }).moveTo(b),
-    place(label('B   Duplicate payment', { size: 41, color: 'yellow' }), name, 'bottom left'),
-    place(note('Two example coordinates per message'), measure, 'top left'),
-  ]);
-  c.keep(map.chart);
+  const live = guardedDynamic(s.value(1), () => {
+    const r = ringR.value;
+    const rul = showRuler.value;
+    const ans = showAnswer.value;
+    const all = showAll.value;
+    const pulse = 0.72 + 0.28 * Math.sin(phase.value * 3.0);
+
+    const plot = makePlot(60, -280, 790, 580, { x: [0, 10], y: [0, 5.2] });
+    const qPt = plot.pt(query);
+    const scalePx = plot.w / 10;
+    const nodes = [
+      ...plot.axesNodes(0.85),
+      txt('QUERY:  "Why was I charged twice?"', -855, -245, 28, QUERY_COLOR, 'mono', 'left').glow(
+        6,
+        QUERY_COLOR,
+      ),
+      // Expanding golden radar ring centered at query
+      glowRing(qPt[0], qPt[1], r * scalePx, QUERY_COLOR, {
+        width: 3.2,
+        glow: 11,
+        opacity: 0.9,
+      }),
+      glowDot(qPt[0], qPt[1], { radius: 9, color: QUERY_COLOR, glow: 14 }),
+      txt('Q', qPt[0] - 28, qPt[1] - 28, 28, QUERY_COLOR, 'mono'),
+    ];
+
+    // Render B (idx 1) and C (idx 2) always; reveal A, D, E, F when `all` opens the full map
+    xy.forEach((p, i) => {
+      const isClose = i === 1 || i === 2;
+      const vis = isClose ? 1 : all;
+      if (vis < 0.02) return;
+      const [mx, my] = plot.pt(p);
+      const col = GROUP_COLOR[labels[i]];
+      const isWinner = i === 1 && ans > 0.5;
+      nodes.push(
+        glowDot(mx, my, {
+          radius: isWinner ? 10 : 7.5,
+          color: col,
+          glow: isWinner ? 15 : 9,
+          opacity: vis,
+        }),
+        txt(
+          LETTERS[i],
+          mx + (i === 1 ? -40 : i === 2 ? 28 : 0),
+          my + (i === 1 ? 38 : -28),
+          28,
+          col,
+          'mono',
+        ).opacity(vis),
+      );
+      if (isWinner) {
+        nodes.push(glowRing(mx, my, 24 + 5 * pulse, col, { width: 3.2, glow: 12, opacity: ans }));
+      }
+    });
+
+    // Left stage: magnified ruler for the final stretch [1.60 .. 2.00]
+    const rx0 = -830;
+    const rx1 = -70;
+    const ry = -45;
+    const rMap = (d) => rx0 + ((d - 1.6) / 0.4) * (rx1 - rx0);
+    const curX = Math.max(rx0, Math.min(rx1, rMap(r)));
+
+    nodes.push(
+      txt(
+        'MAGNIFIED RADIUS RULER (1.60 → 2.00)',
+        -855,
+        -138,
+        26,
+        COSMOS.cyan,
+        'mono',
+        'left',
+      ).opacity(0.45 + 0.55 * rul),
+      rule(rx0, ry, rx1, ry, COSMOS.muted, 3.5).opacity(0.5 + 0.5 * rul),
+      glowDot(rMap(DIST_B), ry, {
+        radius: 8,
+        color: GROUP_COLOR[0],
+        glow: 10,
+        opacity: 0.45 + 0.55 * rul,
+      }),
+      txt('B', rMap(DIST_B), ry - 36, 28, GROUP_COLOR[0], 'mono').opacity(0.45 + 0.55 * rul),
+      glowDot(rMap(DIST_C), ry, {
+        radius: 8,
+        color: GROUP_COLOR[1],
+        glow: 10,
+        opacity: 0.45 + 0.55 * rul,
+      }),
+      txt('C', rMap(DIST_C), ry - 36, 28, GROUP_COLOR[1], 'mono').opacity(0.45 + 0.55 * rul),
+      glowDot(curX, ry, { radius: 10, color: QUERY_COLOR, glow: 14, opacity: 0.5 + 0.5 * rul }),
+      txt('1.60', rx0, ry + 42, 26, COSMOS.muted, 'mono', 'left').opacity(0.5 + 0.5 * rul),
+      txt('2.00', rx1, ry + 42, 26, COSMOS.muted, 'mono', 'right').opacity(0.5 + 0.5 * rul),
+    );
+
+    // Non-overlapping prediction -> answer handoff
+    const pOp = showPredict.value * Math.max(0, 1 - ans * 2.6);
+    if (pOp > 0.02) {
+      nodes.push(
+        txt(
+          'Which message will the expanding circle touch first?',
+          -855,
+          125,
+          32,
+          QUERY_COLOR,
+          'serif',
+          'left',
+        )
+          .glow(6, QUERY_COLOR)
+          .opacity(pOp),
+      );
+    }
+
+    const aOp = Math.max(0, (ans - 0.45) / 0.55);
+    if (aOp > 0.02) {
+      nodes.push(
+        txt(
+          `B ("${messages[1].text}") wins at d = ${DIST_B.toFixed(2)}`,
+          -855,
+          125,
+          32,
+          GROUP_COLOR[0],
+          'mono',
+          'left',
+        )
+          .glow(7, GROUP_COLOR[0])
+          .opacity(aOp),
+        txt(
+          `C ("${messages[2].text}") is ${(DIST_C - DIST_B).toFixed(2)} farther (d = ${DIST_C.toFixed(2)})`,
+          -855,
+          182,
+          26,
+          COSMOS.muted,
+          'mono',
+          'left',
+        ).opacity(aOp),
+      );
+    }
+
+    if (all > 0.02) {
+      nodes.push(
+        txt('Two shortcuts ahead:', -855, 290, 26, COSMOS.cyan, 'mono', 'left').opacity(all),
+        txt(
+          '1. PCA: compress to fewer coordinates',
+          -855,
+          342,
+          28,
+          COSMOS.ink,
+          'sans',
+          'left',
+        ).opacity(all),
+        txt(
+          '2. Clustering: search one group at a time',
+          -855,
+          392,
+          28,
+          COSMOS.ink,
+          'sans',
+          'left',
+        ).opacity(all),
+      );
+    }
+
+    nodes.push(txt('2D MESSAGE EMBEDDING MAP (6 MESSAGES)', 455, -325, 26, COSMOS.cyan, 'mono'));
+    return nodes;
+  });
+
+  s.add(bgAura, title, live);
+  runAmbientPhase(s, c, phase, 2.0);
+
+  c.at(0.2, () => {
+    s.play(ringR.to(1.74, { duration: Math.max(1.2, c.cue('ruler').start - c.start - 0.3) }));
+  });
+  tweenCue(s, c, 'ruler', showRuler, 1, { duration: 0.45 });
+  tweenCue(s, c, 'predict', showPredict, 1, { duration: 0.45 });
+  c.after('answer', () => {
+    s.play(ringR.to(DIST_B, { duration: 0.5 }));
+    s.play(showAnswer.to(1, { duration: 0.45 }));
+  });
+  tweenCue(s, c, 'all', showAll, 1, { duration: 0.65 });
 }

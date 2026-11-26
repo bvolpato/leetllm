@@ -1,0 +1,583 @@
+version: 1
+id: linear-regression
+title: How a Line Learns to Predict
+source: foundations/linear-regression-from-scratch/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Stanford CS229: supervised learning"
+    url: https://cs229.stanford.edu/notes_archive/cs229-notes-all/cs229-notes1.pdf
+  - title: NumPy least squares
+    url: https://numpy.org/doc/stable/reference/generated/numpy.linalg.lstsq.html
+scenes:
+  - id: intro
+    title: How long for another hundred tokens?
+    visual: A stopwatch times a reply with 500 tokens of context beside four completed requests. Its final time joins the column of
+      measurements. The shrinking increments stay in view while the viewer forecasts the sixth reply.
+    beats:
+      - say: Watch the clock on a request with five hundred tokens of context. It stops at a hundred ninety-eight
+          milliseconds. At four hundred tokens it stopped at a hundred eighty-one. That's seventeen milliseconds
+          longer for another hundred tokens.
+          Read down the last column. Twenty-three, twenty-one, nineteen, seventeen. If that pattern continues,
+          how much time will the next hundred tokens add?
+        hold: 2.2
+        caption_starts:
+          - It stops at a hundred ninety-eight milliseconds
+          - That's seventeen milliseconds longer for another hundred tokens
+          - Read down the last column
+          - If that pattern continues
+        visual_cues:
+          - id: clock-stops
+            phrase: It stops at a hundred ninety-eight milliseconds
+            targets: [reply-clock, latest-timing]
+            color: yellow
+          - id: last-gap
+            phrase: That's seventeen milliseconds longer for another hundred tokens
+            targets: [added-time]
+            color: yellow
+      - say: Fifteen milliseconds. Each jump is two milliseconds smaller than the last. Add fifteen to a hundred
+          ninety-eight. That puts the forecast at two hundred thirteen milliseconds. A straight line adds
+          the same amount for every hundred tokens. What time would it predict?
+        hold: 0.65
+        caption_starts:
+          - That puts the forecast at two hundred thirteen milliseconds
+        visual_cues:
+          - id: next-increase
+            phrase: Fifteen milliseconds
+            targets: [sixth-step]
+            color: pink
+            caption_boundary: true
+          - id: next-time
+            phrase: That puts the forecast at two hundred thirteen milliseconds
+            targets: [sixth-step]
+            color: pink
+  - id: line
+    title: What moves when a coefficient changes?
+    visual: A fixed guide at 300 tokens links the moving prediction to the measured 162 ms. The zero-context
+      endpoint locates the intercept outside the training range.
+    beats:
+      - say: Start with the request at three hundred tokens. It took one hundred sixty-two milliseconds. On this axis
+          its input is three, because each unit is a hundred tokens. Our trial line starts at eighty-five and
+          adds ten per unit. Raise the intercept by fifteen. Every prediction rises by fifteen, including the
+          one on our guide.
+        hold: 0.55
+        visual_cues:
+          - id: intercept-update
+            phrase: Raise the intercept by fifteen
+            targets:
+              - coefficient-change
+            color: blue
+      - say: Now increase the slope from ten to twenty. The intercept stays at one hundred. For this request, three
+          units times twenty adds sixty to that starting value. The line predicts one hundred sixty
+          milliseconds. See the little gap above it? We've measured two milliseconds more than we predicted.
+        hold: 0.65
+        visual_cues:
+          - id: slope-update
+            phrase: increase the slope from ten to twenty
+            targets:
+              - coefficient-change
+            color: cyan
+          - id: prediction-read
+            phrase: predicts one hundred sixty milliseconds
+            targets:
+              - selected-prediction
+            color: cyan
+      - say: Follow the line back to zero context. That hundred milliseconds is a fitted offset. The shortest request
+          we measured had a hundred tokens. To find out how much of that offset comes from the network, we'd
+          have to measure the network delay separately.
+        hold: 0.55
+        visual_cues:
+          - id: zero-context
+            phrase: back to zero context
+            targets:
+              - zero-context-point
+            color: blue
+  - id: residuals
+    title: Where did the line miss?
+    visual: Request C carries its signed miss from the latency plot to a magnified residual axis. Raising the
+      fitted line by 6 ms moves the five residuals together.
+    beats:
+      - say: Subtract the prediction from the observation. The two milliseconds left over are this request's residual.
+          Carry that same point onto a new axis. Zero means an exact prediction. Above zero, the request took
+          longer than the line predicted. Now we can see a two-millisecond gap.
+        hold: 0.65
+        visual_cues:
+          - id: residual-transfer
+            phrase: Carry that same point
+            targets:
+              - selected-residual
+            color: pink
+      - say: Bring over the other requests. The line reads high at both ends and low in the middle. Try lifting it six
+          milliseconds. Every residual moves downward together. The middle request now misses by four in the
+          other direction, and the ends get worse. Bring the line back. One observation at each length gives
+          us a reason to test a bend. We'd need fresh requests to decide whether the pattern repeats.
+        hold: 0.7
+        visual_cues:
+          - id: residual-others
+            phrase: Bring over the other requests
+            targets:
+              - residual-pattern
+            color: yellow
+          - id: residual-shift
+            phrase: Every residual moves downward together
+            targets:
+              - residual-pattern
+            color: pink
+          - id: residual-return
+            phrase: Bring the line back
+            targets:
+              - residual-pattern
+            color: green
+  - id: loss
+    title: How much error did the line leave?
+    visual: Each signed residual supplies a square. Their total and mean grade the line, and the square root
+      restores latency units. The residual plot stays beside the mean-baseline comparison.
+    beats:
+      - say: Add the signed misses and you get zero, even though the line missed every request. Follow the five
+          requests into the ledger. Use the length of each miss as the side of a square. A two-millisecond
+          miss contributes four times as much area as a one-millisecond miss. Both signs count.
+        hold: 0.5
+        visual_cues:
+          - id: loss-collect
+            phrase: Follow the five requests into the ledger
+            targets:
+              - squared-ledger
+            color: pink
+      - say: The squares add up to fourteen. Dividing by five gives two point eight milliseconds squared. That's the
+          mean squared error we minimize to fit the line. Taking the square root gives us a length again. The
+          root mean squared error is about one point seven milliseconds.
+        hold: 0.65
+        visual_cues:
+          - id: loss-average
+            phrase: Dividing by five
+            targets:
+              - loss-mean
+            color: pink
+          - id: loss-root
+            phrase: Taking the square root
+            targets:
+              - loss-root-shape
+            color: yellow
+      - say: What did knowing the length buy us? Try always predicting the training mean, one hundred sixty
+          milliseconds. The horizontal line misses most at the ends, and its mean squared error is over eight
+          hundred. R squared measures the fraction of that squared error our fitted line removes. Almost all
+          of it, on these five rows. Look at the arch beside that score. Its shape disappeared in the average.
+        hold: 0.7
+        visual_cues:
+          - id: loss-baseline
+            phrase: always predicting the training mean
+            targets:
+              - loss-comparison
+            color: blue
+          - id: loss-score
+            phrase: R squared
+            targets:
+              - loss-comparison
+            color: yellow
+  - id: fit
+    title: How do the errors move the line?
+    visual: The first gradient update connects the zero line to its first fitted coefficients. The matching
+      prediction line moves with the parameter point. An oversized rate reverses direction while its
+      completed-step losses grow.
+    beats:
+      - say: How would we find the line without guessing the numbers? Start both coefficients at zero. For the
+          gradient, subtract each observation from its prediction. Twice the average of those errors tells us
+          how loss changes with the intercept. For the slope, multiply each error by its input before taking
+          twice the average. Step in the opposite direction at a rate of point zero five. The first step puts
+          the intercept at sixteen and the slope at fifty-two.
+        hold: 0.66
+        visual_cues:
+          - id: gradient-first
+            phrase: The first step puts the intercept at sixteen and the slope at fifty-two
+            targets:
+              - gradient-first-step
+            color: yellow
+      - say: Repeat the update. Follow the parameter point and its matching line as the errors get smaller. Notice how
+          quickly the point reaches the valley floor, then how slowly it travels along it. The steep direction
+          limits the safe step. That leaves a lot of short steps in the shallow direction. Squared error gives
+          us a convex bowl. Its stationary minimum is the best straight-line fit.
+        hold: 0.6
+        visual_cues:
+          - id: gradient-descent
+            phrase: Follow the parameter point and its matching line as the errors get smaller
+            targets:
+              - fitting-prediction-line
+            color: cyan
+      - say: For a second run, start just off the minimum and raise the rate to point zero nine. Follow the point as
+          it crosses the minimum again and again. The little chart records the loss after each completed step.
+          Even close to the bottom, this rate sends the line farther away. Keep those two rates in mind.
+        hold: 0.8
+        visual_cues:
+          - id: gradient-oversized
+            phrase: crosses the minimum again and again
+            targets:
+              - unstable-parameter
+            color: pink
+  - id: solve
+    title: Which weights give the shortest miss?
+    visual: Each design row yields a prediction. A two-dimensional slice shows the projection and the
+      perpendicular residual. Two dot products check all five rows, and a redundant column permits different
+      weights for the same fitted vector.
+    beats:
+      - say: A least-squares solver can go straight to the bottom. Write a one next to each context length. Those two
+          columns form our design matrix. The one multiplies the intercept and the length multiplies the
+          slope. Read the predictions one row at a time. The third row gives one times a hundred plus three
+          times twenty. Every pair of coefficients makes a new five-number prediction vector from the same two
+          columns.
+        hold: 0.55
+        visual_cues:
+          - id: solve-rows
+            phrase: one row at a time
+            targets:
+              - design-predictions
+            color: green
+      - say: Picture the five observations as a target vector. This slice shows the target, the fitted vector, and the
+          gap between them. Project the target onto the space the columns can reach. The shortest miss meets
+          that space at a right angle. We can check that on all five rows. The residuals sum to zero. Multiply
+          each by its input and those terms sum to zero too. The residual is perpendicular to both columns.
+          Neither a shift nor a tilt can improve this line's squared error.
+        hold: 0.65
+        visual_cues:
+          - id: solve-project
+            phrase: Project the target
+            targets:
+              - projection-vectors
+            color: green
+          - id: solve-balances
+            phrase: The residuals sum to zero
+            targets:
+              - projection-balances
+            color: cyan
+      - say: Give the solver both length and double length. Watch the weights trade places while every prediction
+          stays fixed. Four times the length plus eight times double the length still adds up to twenty times
+          the length. A solver can select one pair even when the data cannot tell those two effects apart.
+        hold: 0.65
+        visual_cues:
+          - id: solve-duplicate
+            phrase: the weights trade places
+            targets:
+              - duplicate-weights
+            color: yellow
+  - id: solver-scale
+    title: What does the solver have to store?
+    visual: A tiled float64 Gram matrix grows with the number of features. Direct least squares on the actual five
+      rows reports rank and fitted values before and after adding twice the length.
+    beats:
+      - say: A dense Gram matrix stores a dot product for every pair of design columns. Each dot product visits all N
+          rows. Double the columns at fixed row count and you need four times the storage and about four times
+          the formation work. A dense factorization grows cubically, about eight times the work. Grow the grid
+          from a thousand columns to ten thousand. At eight bytes per entry, that last square alone takes
+          eight hundred megabytes. Double the rows instead and the square stays the same size, but each dot
+          product takes twice the work.
+        hold: 0.75
+        visual_cues:
+          - id: grow-gram
+            phrase: Grow the grid from a thousand columns to ten thousand
+            targets:
+              - gram-size
+            color: yellow
+      - say: On our two-column design, forming the Gram matrix squares the condition number, from about eight to about
+          seventy. QR and singular-value solvers work with the original design. Run NumPy's least-squares
+          routine on our five requests. It returns two independent directions, the same weights as the
+          converged gradient run, and the same fitted values. Now add a third column containing double the
+          length. The numerical rank stays at two. The solver returns the shortest weight vector among the
+          solutions. Check the predictions and the rank together. On nearly dependent columns, the
+          singular-value cutoff can change what counts as a direction.
+        hold: 0.7
+        visual_cues:
+          - id: duplicate-design
+            phrase: add a third column containing double the length
+            targets:
+              - solver-result
+            color: yellow
+  - id: step-bound
+    title: Which step sizes shrink the error?
+    visual: An equal-loss contour exposes the two curvature scales. Two rates move the same starting error on
+      fixed rulers. Trading duplicate feature weights leaves five fitted values in place.
+    beats:
+      - say: Return to the bowl from the gradient run. Slice it at one height and look straight down. The long radius
+          points along the shallow direction. In the steep direction, a much shorter move raises the loss just
+          as far. The Hessian measures curvature. For mean squared error, it is twice the design's Gram matrix
+          divided by the number of requests. Its two eigenvalues give the curvatures along these axes. Their
+          ratio is about seventy. The radii differ by the square root of that, a factor of about eight.
+        hold: 0.7
+      - say: Zero error means we've reached the solution in that direction. Each dot starts one unit to its
+          right. A step multiplies that error by one
+          minus the learning rate times the curvature. Try a rate of point zero five. Both dots land inside
+          the shaded strip. The pink dot crossed zero and still got closer. Now try point two. The pink dot
+          lands more than three units from zero. Each step multiplies its distance from zero by about three
+          point seven. For the error to shrink from every starting point, both multipliers must lie strictly
+          between minus one and one. Here that
+          means a rate above zero and below about point zero eight four five.
+        hold: 0.8
+        caption_starts:
+          - Both dots land inside the shaded strip
+          - The pink dot lands more than three units from zero
+          - Here that means a rate above zero
+        visual_cues:
+          - id: safe-step
+            phrase: Try a rate of point zero five
+            targets:
+              - safe-directions
+            color: cyan
+          - id: large-step
+            phrase: Now try point two
+            targets:
+              - large-directions
+            color: pink
+          - id: rate-limit
+            phrase: Here that means a rate above zero and below about point zero eight four five
+            targets: [rate-bound]
+            color: green
+      - say: Centering this one input and scaling it to unit variance makes the bowl round with the intercept
+          included. Correlated inputs can still leave a long valley. Take the length and also twice the length
+          as features. Trade weight between the two columns. The five predictions stay put. In that flat
+          direction the gradient is zero, so a convergent run keeps the component it started with. Starting at
+          zero gives the minimum-norm solution. Other starts can give different weights with the same fit.
+        hold: 0.7
+        visual_cues:
+          - id: null-direction
+            phrase: Trade weight between the two columns
+            targets:
+              - flat-weights
+            color: yellow
+  - id: complexity
+    title: How far does the bend move the forecast?
+    visual: Six aligned rulers show corrections to the straight line. Five observed gaps stay fixed as the bend
+      refits. The sixth row has a forecast and no observed target.
+    beats:
+      - say: Come back to the little arch in the residuals. On this ruler each gold ring marks how far its observation
+          sits from the straight line. At three hundred tokens we want to add two milliseconds. At each end we
+          want to subtract two. Give the model one extra input. Subtract three from the length in hundreds,
+          square it, then subtract two. Read down that column. Turn its weight from zero to minus one. The
+          pink marks land in all five rings. The prediction curves with length, but each coefficient still
+          multiplies an input. At six hundred tokens the new input is seven. Subtracting seven from the line's
+          two hundred twenty gives the two hundred thirteen we guessed at the start. Where would half that
+          correction put the forecast?
+        hold: 2.1
+        visual_cues:
+          - id: curve-fit
+            phrase: Turn its weight from zero to minus one
+            targets:
+              - curved-fit
+            color: pink
+          - id: half-question
+            phrase: Where would half that correction put the forecast
+            targets:
+              - sixth-correction
+            color: pink
+      - say: Half the correction puts the forecast at two hundred sixteen and a half milliseconds. We got there by
+          adding a Ridge penalty to the mean squared error. It charges for the square of the bend's weight.
+          Here a strength of two point eight cuts that weight in half. Look at the rings. We've given up some
+          training accuracy. A Lasso penalty charges for the absolute weight. Increase that charge until the
+          bend reaches zero. Now the forecast lies back on the line. Only the bend was penalized in this
+          experiment. We've kept the original line and the full curve for the held-out comparison.
+        hold: 0.75
+        visual_cues:
+          - id: curve-ridge
+            phrase: Half the correction puts the forecast at two hundred sixteen and a half milliseconds
+            targets:
+              - sixth-correction
+            color: pink
+            caption_boundary: true
+          - id: curve-lasso
+            phrase: Increase that charge until the bend reaches zero
+            targets:
+              - sixth-correction
+            color: pink
+  - id: penalty-contract
+    title: Which coefficient pays the penalty?
+    visual: On the straight model, a slope-only penalty pivots the line through the training mean. Adding an
+      intercept penalty moves it off that point. Returning to a free intercept lets Lasso reach a constant
+      forecast.
+    beats:
+      - say: This time use just the straight line and penalize its slope. The green ring marks the mean length and
+          mean latency. With a free intercept, the fitted line keeps passing through that ring. Raise the
+          Ridge strength to two. The slope falls from twenty to ten, and the intercept rises from a hundred to
+          a hundred thirty. In the normal equations we add the strength times the number of rows to each
+          penalized diagonal entry. Even with duplicate features, the squared penalty charges for every
+          nonzero feature direction. With at least one row, the ones column pins down the remaining intercept.
+          That makes this system positive definite.
+        hold: 0.7
+        visual_cues:
+          - id: ridge-slope
+            phrase: Raise the Ridge strength to two
+            targets:
+              - penalty-fit
+            color: cyan
+      - say: Keep that same slope penalty. Now charge the intercept as well. Watch the gap open below the green ring.
+          The mean prediction has moved. When every coefficient pays the same positive Ridge penalty, we add a
+          multiple of the identity. Every Gram eigenvalue then increases by the strength times the number of
+          rows. Leaving the intercept free uses a different diagonal mask, so that uniform shift argument
+          applies only to the all-coordinate case.
+        hold: 0.65
+        visual_cues:
+          - id: ridge-intercept
+            phrase: Now charge the intercept as well
+            targets:
+              - penalty-fit
+            color: cyan
+      - say: Return to the original line and leave the intercept free again. Switch to Lasso. As we raise the charge
+          on the absolute slope, watch the line go flat. At zero slope the smooth loss derivative here is
+          minus eighty. The kink in the absolute value lets the penalty supply any slope from minus eighty to
+          plus eighty at this strength. Plus eighty balances the loss derivative exactly. A zero weight tells
+          you about this fit and this charge. Scale inputs using training data and choose the strength on
+          representative validation requests. To reproduce it in another library, match the loss
+          normalization, including any factor of one half.
+        hold: 0.75
+        visual_cues:
+          - id: lasso-slope
+            phrase: watch the line go flat
+            targets:
+              - penalty-fit
+            color: pink
+  - id: statistical-contract
+    title: What varies if we collect the timings again?
+    visual: Two unbiased intercept estimates are compared over all 32 noise patterns. Fitted residuals share
+      constraints, individual and mean intervals have different widths, and matching array shapes restores
+      five paired errors.
+    beats:
+      - say: Suppose the true line starts at a hundred milliseconds. Let each of the five timings independently land
+          one millisecond above or below that line, like five fair coin tosses. The dots show the intercept
+          estimate for every possible set of tosses. Both rules average to a hundred. Give the lower rule
+          different weights that keep it unbiased. Its dots spread out. Least squares has the smaller
+          variance. Gauss-Markov gives the general result for a linear model with full column rank, zero
+          conditional mean error, and uncorrelated errors of equal finite variance given the design. Among
+          unbiased estimates linear in the observed timings, least squares has minimum covariance. A biased
+          fit can still predict better on new requests.
+        hold: 0.7
+        visual_cues:
+          - id: weights-spread
+            phrase: Give the lower rule different weights that keep it unbiased
+            targets:
+              - estimator-spread
+            color: cyan
+      - say: Those coin tosses were independent and plainly non-Gaussian. The variance guarantee still held. Familiar
+          exact small-sample t and F inference needs the extra Gaussian assumption. Now look at the fitted
+          residuals from our original five requests. Change the first three timings together, keeping both
+          sums at zero. The residuals move together even though the fitted line stays put. Fitting ties them
+          together. On a live service, check for bursts of traffic that link requests and rare delays that
+          dominate the variance. If longer requests arrive when the server is busiest, collecting more of
+          the same traffic still mixes length with load.
+        hold: 0.65
+        visual_cues:
+          - id: resample-errors
+            phrase: Change the first three timings together
+            targets:
+              - changed-residuals
+            color: pink
+      - say: At six hundred tokens, do we want the average latency or the time one request will take? Suppose the
+          straight-line mean continues to hold and the errors are independent and Gaussian with the same
+          variance. On these five rows, the green confidence interval is for the mean at six hundred tokens.
+          Start with that same uncertainty below. Add the variation of one future request. Both intervals
+          use the same ninety-five percent level. The pink prediction interval reaches farther on either side
+          because an individual reply can run faster or slower than the mean.
+        hold: 0.7
+        caption_starts:
+          - Add the variation of one future request
+          - The pink prediction interval reaches farther on either side
+        visual_cues:
+          - id: future-interval
+            phrase: Add the variation of one future request
+            targets:
+              - future-width
+            color: pink
+      - say: Here's a quieter way to spoil the fit. Keep the predictions in a vector, but put the five target times in
+          a column. Subtraction pairs every prediction with every target. Look across the first row. Even the
+          five-hundred-token prediction is being graded against the hundred-token request. Flatten the target
+          so each prediction meets its own timing. Only the five matched differences belong in this loss.
+          Check the shapes before taking the mean, or the optimizer will happily minimize the wrong number.
+        hold: 0.75
+        visual_cues:
+          - id: match-rows
+            phrase: Flatten the target so each prediction meets its own timing
+            targets:
+              - error-shape
+            color: green
+  - id: generalize
+    title: What do the held-out requests say?
+    visual: A fixed latency ruler compares the frozen forecasts on two 600-token requests. Signed distances become
+      squared errors in a two-row comparison. A length ruler then locates a new input relative to the tested
+      range.
+    beats:
+      - say: Take the two original forecasts out to six hundred tokens. Both learned from the same five shorter
+          requests. The straight line adds twenty to its fitted value of two hundred at five hundred tokens.
+          The full curve adds fifteen to its own value of one hundred ninety-eight. That gives us two hundred
+          twenty and two hundred thirteen. Keep those marks fixed while we open the replays.
+        hold: 0.7
+        visual_cues:
+          - id: test-predict
+            phrase: Take the two original forecasts out to six hundred tokens
+            targets:
+              - heldout-forecasts
+            color: cyan
+      - say: The first timing is two hundred nineteen milliseconds. Read the distance from each forecast to the gold
+          mark. The line is one millisecond high. The curve is six milliseconds low. The line came closer on
+          this request, even though the curve hit all five training points.
+        hold: 0.9
+        visual_cues:
+          - id: test-reveal
+            phrase: two hundred nineteen milliseconds
+            targets:
+              - heldout-observation
+            color: yellow
+            caption_boundary: true
+          - id: test-errors
+            phrase: The line is one millisecond high. The curve is six milliseconds low.
+            targets:
+              - heldout-errors
+            color: pink
+            caption_boundary: true
+      - say: Here's a second constructed request at the same length. Both forecasts still stand. This request took two
+          hundred fourteen milliseconds. Which forecast is closer this time?
+        hold: 2.2
+        visual_cues:
+          - id: test-second
+            phrase: two hundred fourteen milliseconds
+            targets:
+              - heldout-observation
+            color: yellow
+            caption_boundary: true
+      - say: The curve is closer. It missed by one millisecond. The line overshot by six. Put both replays side by
+          side. Square each signed miss and count each request once. Which model has the lower mean squared
+          error across the two requests?
+        hold: 2.1
+        visual_cues:
+          - id: second-errors
+            phrase: It missed by one millisecond. The line overshot by six.
+            targets:
+              - heldout-errors
+            color: pink
+          - id: compare-both
+            phrase: Put both replays side by side
+            targets:
+              - heldout-errors
+            color: yellow
+          - id: square-errors
+            phrase: Square each signed miss
+            targets:
+              - squared-misses
+            color: cyan
+      - say: They tie at eighteen and a half milliseconds squared. Each model pays for one large miss and one small
+          one. We'd need more requests covering the lengths and loads we expect to serve. Use validation
+          requests to choose the model, then score that choice on a separate test set.
+        hold: 0.8
+        visual_cues:
+          - id: pooled-score
+            phrase: They tie at eighteen and a half milliseconds squared
+            targets:
+              - test-score
+            color: yellow
+            caption_boundary: true
+      - say: Here comes a five-thousand-token request. Look how far it sits from the blue training marks.
+          Even the two replays at six hundred sit way over on the left. Time requests at five thousand tokens
+          under realistic load. Check the fit there before quoting a latency.
+        hold: 0.85
+        caption_starts:
+          - Time requests at five thousand tokens under realistic load
+        visual_cues:
+          - id: use-fallback
+            phrase: Time requests at five thousand tokens under realistic load
+            targets:
+              - distant-request
+            color: pink

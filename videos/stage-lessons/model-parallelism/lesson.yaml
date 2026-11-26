@@ -1,0 +1,2199 @@
+version: 1
+id: model-parallelism
+opening: lesson
+title: One Model Across Several GPUs
+source: fundamentals/model-parallelism-for-llm-inference/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: Shoeybi et al. Megatron-LM
+    url: https://arxiv.org/abs/1909.08053
+  - title: Narayanan et al. Efficient Large-Scale Language Model Training on GPU Clusters
+    url: https://arxiv.org/abs/2104.04473
+  - title: Huang et al. GPipe
+    url: https://arxiv.org/abs/1811.06965
+  - title: Qwen3.6-35B-A3B model card
+    url: https://huggingface.co/Qwen/Qwen3.6-35B-A3B
+  - title: Liu et al. Ring Attention with Blockwise Transformers for Near-Infinite Context
+    url: https://arxiv.org/html/2310.01889
+  - title: NVIDIA NCCL collective operations
+    url: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html
+scenes:
+  - id: intro
+    title: Can GPU 0 hold these weights?
+    visual: A single 70 GB weight block drops against the reserved space on GPU 0 and sticks past its limit.
+      The block splits in two, and its right half moves to GPU 1.
+    beats:
+      - say: Drop seventy gigabytes of weights into GPU zero. The gray block reserves sixteen gigabytes. How far
+          do the weights stick past the eighty-gigabyte limit?
+        hold: 2.2
+        visual_cues:
+          - id: reserved-space
+            phrase: The gray block reserves sixteen gigabytes
+            targets:
+              - device-memory
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: load-weights
+            phrase: Drop seventy gigabytes of weights into GPU zero
+            targets:
+              - device-memory
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Six gigabytes spill past the limit. A full copy would overflow GPU one by just as much.
+          Split the weights in half. Slide the right half into GPU one.
+        hold: 1
+        visual_cues:
+          - id: spill
+            phrase: Six gigabytes spill past the limit
+            targets:
+              - device-memory
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: split-weights
+            phrase: Split the weights in half
+            targets: [device-memory]
+            color: blue
+          - id: place-half
+            phrase: Slide the right half into GPU one
+            targets:
+              - device-memory
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: One model now lives in two memories. That's model parallelism. To run a token through a split layer,
+          each GPU uses the weights it holds. How do their results fit together?
+        hold: 0.8
+        visual_cues:
+          - id: same-model
+            phrase: One model now lives in two memories
+            targets:
+              - device-memory
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: weight-budget
+    title: What room is left for a request?
+    visual: The same two weight shards stay on their memory bars. A representative four-way shard uses the
+      same scale. A separate parameter inventory distinguishes stored weights from weights active for one
+      token.
+    beats:
+      - say: Those two halves represent roughly thirty-five billion parameters at two bytes each in BF sixteen.
+          That's seventy decimal gigabytes. One gigabyte here is a billion bytes. Subtract the sixteen
+          reserved from eighty and each GPU can hold sixty-four gigabytes of weights. Divide seventy by
+          sixty-four and round up. We need at least two GPUs for the weights. How much room does that leave
+          on each?
+        hold: 1.8
+        visual_cues:
+          - id: lower-bound
+            phrase: We need at least two GPUs for the weights
+            targets:
+              - weight-ledger
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Each GPU has twenty-nine gigabytes left. Now divide that same checkpoint across four GPUs. Each holds
+          seventeen and a half gigabytes of weights and still reserves sixteen. That leaves forty-six and a
+          half gigabytes per GPU. Actual request capacity depends on what the runtime puts in that space.
+        hold: 0.85
+        visual_cues:
+          - id: two-room
+            phrase: Each GPU has twenty-nine gigabytes left
+            targets:
+              - weight-ledger
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: four-devices
+            phrase: divide that same checkpoint across four GPUs
+            targets:
+              - weight-ledger
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: four-room
+            phrase: That leaves forty-six and a half gigabytes per GPU
+            targets:
+              - weight-ledger
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Where did the seventy come from? This Qwen model stores about thirty-five billion language-model
+          parameters. A token activates about three billion. The smaller count helps estimate work for that
+          token. We still need space for every resident expert. At four bits per parameter, the raw codes
+          would take seventeen and a half gigabytes. Scales, packing, higher-precision tensors and any
+          separate encoders belong in the actual checkpoint budget.
+        hold: 0.75
+        visual_cues:
+          - id: resident-count
+            phrase: stores about thirty-five billion language-model parameters
+            targets:
+              - weight-ledger
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: raw-codes
+            phrase: the raw codes would take seventeen and a half gigabytes
+            targets:
+              - weight-ledger
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: inference-contract
+    title: What does one request wait for?
+    visual: Two ranks compute partial results for the same batch. The faster rank waits at the exchange. A request
+      clock follows the first two tokens.
+    beats:
+      - say: Two GPU processes work on one batch. Each process is a rank. GPU zero finishes its multiply first.
+          It waits for GPU one. Once both partial results are ready, a collective combines them. Both ranks
+          can use the sum.
+        hold: 0.7
+        visual_cues:
+          - id: mp-inference-contract-0
+            phrase: Each process is a rank
+            targets:
+              - mp-inference-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-inference-contract-workers
+            phrase: GPU zero finishes its multiply first
+            targets:
+              - mp-inference-contract-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-inference-contract-wait
+            phrase: It waits for GPU one
+            targets: [mp-inference-contract-mechanism]
+            color: yellow
+          - id: mp-inference-contract-sum
+            phrase: Once both partial results are ready, a collective combines them
+            targets: [mp-inference-contract-mechanism]
+            color: cyan
+      - say: Training adds backward passes, gradients and optimizer states. Follow one request during serving.
+          Start the clock at the prompt. Mark the first token, then the next. That second token depends on
+          the first. Under load, track how many histories fit and how many useful tokens the service
+          delivers.
+        hold: 0.7
+        visual_cues:
+          - id: mp-inference-contract-1
+            phrase: Training adds backward passes, gradients and optimizer states
+            targets:
+              - mp-inference-contract-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-inference-contract-clocks
+            phrase: Start the clock at the prompt. Mark the first token
+            targets:
+              - mp-inference-contract-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-inference-contract-next
+            phrase: then the next
+            targets: [mp-inference-contract-mechanism]
+            color: cyan
+      - say: Look back at the two ranks. A faster link can shorten their exchange. It still takes GPU one just
+          as long to finish its multiply. Trace the kernels and the links the ranks share to see which wait
+          reaches the request. Changing the order of floating-point additions can change the last few bits
+          of the sum, enough to change which token gets sampled.
+        hold: 0.7
+        visual_cues:
+          - id: mp-inference-contract-2
+            phrase: Look back at the two ranks
+            targets:
+              - mp-inference-contract-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-inference-contract-faster
+            phrase: A faster link can shorten their exchange
+            targets: [mp-inference-contract-mechanism]
+            color: cyan
+          - id: mp-inference-contract-paths
+            phrase: "Trace the kernels and the links the ranks share"
+            targets:
+              - mp-inference-contract-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-inference-contract-rounding
+            phrase: "Changing the order of floating-point additions can change the last few bits of the sum"
+            targets:
+              - mp-inference-contract-mechanism
+            color: yellow
+            linger: 0.4
+  - id: linear
+    title: One input multiplies several output columns
+    visual: A row input [1,2] weights a two-by-four matrix; four column dot products reveal [1,4,6,5].
+    beats:
+      - say: Begin with a linear layer in row-vector convention. The input multiplies a weight matrix, and each matrix
+          column produces one output coordinate. Our input has two coordinates and the matrix has four output
+          columns, so the result has four coordinates.
+        visual_cues:
+          - id: linear-input
+            phrase: input multiplies a weight matrix
+            targets:
+              - linear-readout
+              - linear-readout-2
+            color: blue
+          - id: output-coordinates
+            phrase: result has four coordinates
+            targets:
+              - linear-readout-3
+            color: yellow
+        hold: 0.6
+      - say: Follow the highlighted column. Multiply each input coordinate by the matching weight, then add. Repeat
+          across the columns to assemble the complete output. This gives us a reference result that every
+          distributed version must reproduce in exact arithmetic.
+        visual_cues:
+          - id: column-products
+            phrase: Multiply each input coordinate by the matching weight, then add
+            targets:
+              - linear-equation
+            color: yellow
+          - id: repeat-columns
+            phrase: Repeat across the columns
+            targets:
+              - linear-readout-2
+              - linear-readout-3
+            color: yellow
+          - id: reference-output
+            phrase: assemble the complete output
+            targets:
+              - linear-readout-3
+            color: green
+        hold: 0.6
+      - say: Notice two different ways to divide the work. Different output columns can be computed independently from
+          the full input. Alternatively, contributions from different input coordinates can be computed
+          separately, but they still need to be combined for each output coordinate.
+        visual_cues:
+          - id: output-slices
+            phrase: Different output columns
+            targets:
+              - linear-readout-2
+            color: blue
+          - id: input-contributions
+            phrase: different input coordinates
+            targets:
+              - linear-readout
+            color: cyan
+        hold: 0.8
+  - id: column
+    title: Column shards produce complete output slices
+    visual: The matrix divides by output columns; replicated input reaches two GPUs and their complete output
+      slices concatenate.
+    beats:
+      - say: Split the weight matrix by columns. Each device keeps a different set of output columns and receives the
+          full input. Its local matrix multiplication produces the final values for its own output slice, with
+          every input-coordinate contribution already included.
+        visual_cues:
+          - id: column-split
+            phrase: Split the weight matrix by columns
+            targets:
+              - column-readout
+              - column-readout-2
+            color: blue
+          - id: complete-slices
+            phrase: final values for its own output slice
+            targets:
+              - column-readout-3
+              - column-readout-4
+            color: green
+        hold: 0.6
+      - say: The first device produces the first half of our reference output and the second produces the other half.
+          Concatenating those slices reconstructs the full vector. Whether the program actually gathers that
+          vector depends on what representation the next operation needs.
+        visual_cues:
+          - id: local-halves
+            phrase: first half of our reference output
+            targets:
+              - column-readout-3
+            color: blue
+          - id: concatenate-slices
+            phrase: Concatenating those slices reconstructs the full vector
+            targets:
+              - column-equation
+            color: yellow
+        hold: 0.6
+      - say: If a following elementwise activation can operate locally on each slice, it can run before gathering.
+          Keeping those slices distributed may avoid an unnecessary transfer. This is why the useful unit of
+          design is often a sequence of layers rather than an isolated matrix multiply.
+        visual_cues:
+          - id: local-activation
+            phrase: elementwise activation can operate locally
+            targets:
+              - column-equation-2
+            color: green
+          - id: distributed-slices
+            phrase: Keeping those slices distributed
+            targets:
+              - column-readout-3
+              - column-readout-4
+            color: blue
+        hold: 0.8
+  - id: row
+    title: Row shards produce contributions that must sum
+    visual: Local input slices meet matching matrix row shards; two equal-width partial outputs add through a
+      collective to the full result.
+    beats:
+      - say: Now split by input rows of the weight matrix, with matching slices of the input. Each device computes
+          contributions to every output coordinate from its assigned input coordinates. A local output is
+          therefore incomplete until the other devices’ contributions arrive.
+        visual_cues:
+          - id: row-split
+            phrase: split by input rows
+            targets:
+              - row-readout-5
+              - row-readout-6
+            color: blue
+          - id: incomplete-output
+            phrase: local output is therefore incomplete
+            targets:
+              - row-readout-5
+              - row-readout-6
+            color: yellow
+        hold: 0.6
+      - say: Add the partial vectors coordinate by coordinate. An all-reduce can make that sum available to every
+          participating device. A reduce-scatter can leave different pieces of the summed result on different
+          devices when the next operation expects a sharded layout.
+        visual_cues:
+          - id: sum-contributions
+            phrase: Add the partial vectors coordinate by coordinate
+            targets:
+              - row-readout-2
+            color: yellow
+          - id: all-reduce-result
+            phrase: sum available to every participating device
+            targets:
+              - row-readout-4
+            color: green
+        hold: 0.6
+      - say: Look at the first coordinate. One GPU contributes three and the other contributes minus one. Add
+          first and you get two. ReLU keeps that two. Apply ReLU separately and the minus one becomes zero.
+          Now the sum is three. The order changes what the next layer receives.
+        visual_cues:
+          - id: sum-before-relu
+            phrase: Apply ReLU separately and the minus one becomes zero
+            targets:
+              - row-equation-2
+            color: pink
+          - id: complete-relu
+            phrase: ReLU keeps that two
+            targets:
+              - row-equation
+            color: green
+        hold: 0.8
+  - id: pair
+    title: Follow one output through both GPUs
+    visual: Each GPU keeps its own activated features. The second projection aligns its two local dot products
+      under their output coordinates. The summed coordinates travel back to both devices.
+    beats:
+      - say: Come back to the four hidden features we got by cutting the first matrix into columns. One and four
+          live on GPU zero. Six and five live on GPU one. All four are positive, so our rectifier leaves
+          them alone. For the second projection, multiply each slice by its own two rows of weights. Look at
+          the bottom right. What does GPU one contribute to the second output?
+        hold: 2.35
+        visual_cues:
+          - id: complete-features
+            phrase: One and four live on GPU zero
+            targets:
+              - projection
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: matching-rows
+            phrase: multiply each slice by its own two rows of weights
+            targets:
+              - projection
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Start at zero. The six counts forward. The negative weight sends five back, leaving one. Look up that same column. GPU zero
+          contributes four. Read the other column the same way. GPU zero contributes one and GPU one
+          contributes sixteen. That gives seventeen in the first output and five in the second. Add down
+          each column to reconstruct the vector.
+        hold: 1
+        caption_starts: [leaving one]
+        visual_cues:
+          - id: positive-term
+            phrase: The six counts forward
+            targets: [projection]
+            color: yellow
+          - id: signed-one
+            phrase: The negative weight sends five back, leaving one
+            targets:
+              - projection
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: contracted-contributions
+            phrase: GPU zero contributes four
+            targets:
+              - projection
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: sum-contraction
+            phrase: Add down each column to reconstruct the vector
+            targets:
+              - projection
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: other-column
+            phrase: GPU zero contributes one and GPU one contributes sixteen
+            targets:
+              - projection
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: The next operation needs both coordinates on each GPU. Return the summed vector to both GPUs. That's
+          a sum all-reduce. The four hidden features stayed where they were, right through the activation.
+          Only the two contributions per GPU had to meet at the end of this block.
+        hold: 0.85
+        visual_cues:
+          - id: both-receive
+            phrase: Return the summed vector to both GPUs
+            targets:
+              - projection
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: gelu-reference
+    title: Check the layer against a dense multiply
+    visual: Two copies of the input meet separate columns of A, then the local GeLU outputs meet matching rows
+      of B. Both local signed contributions, one bias and two faulty reducers are compared with a dense
+      float64 reference.
+    beats:
+      - say: Keep the input one, two. This time we'll use the article's weights and a smooth activation called
+          GeLU. Each GPU gets two columns of A. On the far right, one times zero plus two times two makes
+          four. Across both GPUs the four features are one, one, zero and four. Each GPU can apply GeLU to
+          its two complete features. A one becomes roughly point eight four. The four stays very close to
+          four.
+        hold: 0.85
+        visual_cues:
+          - id: expansion-columns
+            phrase: Each GPU gets two columns of A
+            targets:
+              - gelu-work
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: expanded
+            phrase: the four features are one, one, zero and four
+            targets:
+              - gelu-work
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: activated
+            phrase: Each GPU can apply GeLU to its two complete features
+            targets:
+              - gelu-work
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Keep those hidden features on their GPUs. For the return projection, use the matching rows of B. The
+          left matrix just copies its two numbers. On the right, zero multiplies the first row and nearly
+          four multiplies the second. Which weight gives GPU one's contribution to the first output its
+          sign?
+        hold: 2
+        visual_cues:
+          - id: projection-rows
+            phrase: use the matching rows of B
+            targets:
+              - gelu-work
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Minus one. The last feature contributes nearly minus four in the first column and nearly eight in the
+          second. Add the GPU zero row to the GPU one row. Now add the output bias once. The first
+          coordinate is about minus two point six six and the second is about eight point three four. Those
+          are the two numbers the next layer receives.
+        hold: 0.85
+        visual_cues:
+          - id: signed-partial
+            phrase: nearly minus four in the first column and nearly eight in the second
+            targets:
+              - gelu-work
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: add-bias
+            phrase: add the output bias once
+            targets:
+              - gelu-work
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: gelu-output
+            phrase: The first coordinate is about minus two point six six and the second is about eight point three
+              four
+            targets:
+              - gelu-work
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Run those weights as one dense layer in float sixty-four. Both coordinates agree with the sharded
+          sum. Try averaging the partials. That halves the contribution from each GPU. Try adding the whole
+          bias on both GPUs. The first output gets an extra half and the second loses another half. The
+          article's check also rejects an invalid rank count or a mismatch between the hidden dimensions of
+          the two matrices.
+        hold: 0.8
+        visual_cues:
+          - id: test-mean
+            phrase: Try averaging the partials
+            targets:
+              - gelu-work
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: test-bias
+            phrase: Try adding the whole bias on both GPUs
+            targets:
+              - gelu-work
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: attention-shards
+    title: Match independent heads to the output reduction
+    visual: Local QKV head slices produce local attention outputs and aligned W-o row slices sum into the logical
+      attention result.
+    beats:
+      - say: The classic attention block mirrors column expansion and row contraction. Q, K and V projections produce
+          local head slices. Each rank computes attention for its assigned independent heads, and matching
+          rows of the output projection turn those local heads into contributions to the full hidden output.
+        hold: 0.7
+        visual_cues:
+          - id: mp-attention-shards-0
+            phrase: The classic attention block mirrors column expansion and row contraction
+            targets:
+              - mp-attention-shards-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-attention-shards-project
+            phrase: "Q, K and V projections produce local head slices"
+            targets:
+              - mp-attention-shards-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-attention-shards-heads
+            phrase: "Each rank computes attention for its assigned independent heads"
+            targets:
+              - mp-attention-shards-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-attention-shards-output
+            phrase: "matching rows of the output projection turn those local heads into contributions to the full hidden output"
+            targets:
+              - mp-attention-shards-mechanism
+            color: yellow
+            linger: 0.4
+      - say: A sum all-reduce reconstructs that output. The matching MLP uses another sum all-reduce. For this classic
+          dense forward pattern with more than one TP rank, count two per transformer layer, excluding
+          embedding and output handling.
+        hold: 0.7
+        visual_cues:
+          - id: mp-attention-shards-1
+            phrase: A sum all-reduce reconstructs that output
+            targets:
+              - mp-attention-shards-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-attention-shards-attention-sum
+            phrase: "A sum all-reduce reconstructs that output"
+            targets:
+              - mp-attention-shards-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-attention-shards-mlp-sum
+            phrase: "The matching MLP uses another sum all-reduce"
+            targets:
+              - mp-attention-shards-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-attention-shards-count
+            phrase: "count two per transformer layer"
+            targets:
+              - mp-attention-shards-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Count again when the blocks change. Qwen mixes full-attention layers with gated layers. Expert
+          routing can add exchanges, and a runtime can fuse operations. Trace the collectives in each type
+          of block. When sharding the weights, keep biases, normalization and residual additions in their
+          original places.
+        hold: 0.7
+        visual_cues:
+          - id: mp-attention-shards-2
+            phrase: Count again when the blocks change
+            targets:
+              - mp-attention-shards-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-attention-shards-hybrid
+            phrase: "Qwen mixes full-attention layers with gated layers"
+            targets:
+              - mp-attention-shards-mechanism
+            color: yellow
+            linger: 0.4
+  - id: collective
+    title: A collective has a specific output layout
+    visual: All-reduce and all-gather contracts appear first, followed by reduce-scatter ownership and authored
+      compute-versus-communication costs.
+    beats:
+      - say: Communication names describe different contracts. All-reduce sums corresponding values and returns the
+          complete sum to every participant. All-gather concatenates shards so every participant receives the
+          full concatenated tensor. Confusing those operations changes both values and ownership.
+        visual_cues:
+          - id: all-reduce-contract
+            phrase: All-reduce sums corresponding values
+            targets:
+              - collective-all-reduce-1-4-16-1
+            color: blue
+          - id: all-gather-contract
+            phrase: All-gather concatenates shards
+            targets:
+              - collective-all-gather-1-4-6-5
+            color: cyan
+          - id: distinct-ownership
+            phrase: values and ownership
+            targets:
+              - collective-readout
+              - collective-readout-2
+            color: yellow
+        hold: 0.6
+      - say: Reduce-scatter combines a reduction with a partitioned result. The diagram first forms the same global
+          sum, then gives each participant its assigned slice. An optimized implementation need not
+          materialize the full result on every device, but it must satisfy that output contract.
+        visual_cues:
+          - id: global-reduction
+            phrase: same global sum
+            targets:
+              - collective-1-4-16-1-17-5
+            color: blue
+          - id: partition-result
+            phrase: gives each participant its assigned slice
+            targets:
+              - collective-readout-3
+              - collective-readout-4
+            color: green
+        hold: 0.6
+      - say: Collectives cost latency and bandwidth according to tensor size, device count, topology, and
+          implementation. Splitting a layer into more pieces can make its local computation smaller while
+          leaving communication on the critical path. Measure the actual topology instead of assuming total
+          GPU count determines speed.
+        visual_cues:
+          - id: communication-cost
+            phrase: Collectives cost latency and bandwidth
+            targets:
+              - collective-costs
+            color: pink
+          - id: local-compute
+            phrase: local computation smaller
+            targets:
+              - collective-costs
+            color: blue
+        hold: 0.8
+  - id: head-replication
+    title: A KV head can be replicated after query heads divide
+    visual: Sixteen query-head owners split across eight ranks while two KV-head owners each repeat on four ranks.
+    beats:
+      - say: Pure nonduplicating head sharding needs TP to divide both query and KV head counts. The inspected Qwen
+          text configuration has sixteen query heads, two KV heads and head dimension two hundred fifty-six in
+          ten full-attention layers. Thirty other layers use gated recurrent-style state, which a full-history
+          KV formula does not describe.
+        hold: 0.7
+        visual_cues:
+          - id: mp-head-replication-0
+            phrase: Pure nonduplicating head sharding needs TP to divide both query and KV head counts
+            targets:
+              - mp-head-replication-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-head-replication-premises
+            phrase: "sixteen query heads, two KV heads and head dimension two hundred fifty-six in ten full-attention layers"
+            targets:
+              - mp-head-replication-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-head-replication-hybrid
+            phrase: "Thirty other layers use gated recurrent-style state"
+            targets:
+              - mp-head-replication-mechanism
+            color: yellow
+            linger: 0.4
+      - say: "TP two divides both counts. At TP eight, every rank gets two of the sixteen query heads. There
+          are only two KV heads to go around. In this vLLM layout, four ranks carry each head's projection
+          at TP eight. This replication works when the number of ranks is a multiple of the KV head count."
+        hold: 0.7
+        visual_cues:
+          - id: mp-head-replication-1
+            phrase: TP two divides both counts
+            targets:
+              - mp-head-replication-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-head-replication-two
+            phrase: "TP two divides both counts"
+            targets:
+              - mp-head-replication-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-head-replication-eight
+            phrase: "There are only two KV heads to go around"
+            targets:
+              - mp-head-replication-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-head-replication-replicate
+            phrase: "four ranks carry each head's projection at TP eight"
+            targets:
+              - mp-head-replication-mechanism
+            color: yellow
+            linger: 0.4
+      - say: For plain replicated full-history caching, TP two through TP eight can leave one KV head on every rank,
+          so that particular per-rank history term stops shrinking. Weight savings can still enlarge the pool.
+          Check the model and backend cache layout, and keep other hybrid-state terms separate. Supported
+          decode-context sharding addresses the duplicated history axis.
+        hold: 0.7
+        visual_cues:
+          - id: mp-head-replication-2
+            phrase: For plain replicated full-history caching, TP two through TP eight can leave one KV head on every
+              rank, so that particular per-rank history term stops shrinking
+            targets:
+              - mp-head-replication-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-head-replication-plateau
+            phrase: "that particular per-rank history term stops shrinking"
+            targets:
+              - mp-head-replication-mechanism
+            color: yellow
+            linger: 0.4
+  - id: collective-count
+    title: Count batch iterations without multiplying by batch size
+    visual: An 80-layer dense stack accumulates two reductions per layer, then counts actual decode iterations
+      after prefill.
+    beats:
+      - say: Under the chosen eighty-layer dense pattern, two reductions per layer make one hundred sixty in-layer
+          all-reduces per batch decode iteration. Across one hundred twenty-eight iterations that is twenty
+          thousand four hundred eighty. The batch may advance multiple requests in one iteration; do not
+          multiply this operation count by batch size.
+        hold: 0.7
+        visual_cues:
+          - id: mp-collective-count-0
+            phrase: Under the chosen eighty-layer dense pattern, two reductions per layer make one hundred sixty in-layer
+              all-reduces per batch decode iteration
+            targets:
+              - mp-collective-count-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-collective-count-one-step
+            phrase: "one hundred sixty in-layer all-reduces per batch decode iteration"
+            targets:
+              - mp-collective-count-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-collective-count-iterations
+            phrase: "twenty thousand four hundred eighty"
+            targets:
+              - mp-collective-count-mechanism
+            color: yellow
+            linger: 0.4
+      - say: A one hundred twenty-eight-token completion normally gets its first token from prefill, leaving one
+          hundred twenty-seven decode iterations. That decode-only count is twenty thousand three hundred
+          twenty. Additional embedding, output or sampling operations can add collectives.
+        hold: 0.7
+        visual_cues:
+          - id: mp-collective-count-1
+            phrase: A one hundred twenty-eight-token completion normally gets its first token from prefill, leaving one
+              hundred twenty-seven decode iterations
+            targets:
+              - mp-collective-count-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-collective-count-prefill
+            phrase: "first token from prefill, leaving one hundred twenty-seven decode iterations"
+            targets:
+              - mp-collective-count-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-collective-count-decode-only
+            phrase: "twenty thousand three hundred twenty"
+            targets:
+              - mp-collective-count-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Keep those eighty layers. In one decode step, each call carries a hidden vector for each request.
+          One vector has four thousand ninety-six values at two bytes each, or eight kibibytes. Grow the batch
+          from one request to eight. Each call now carries sixty-four kibibytes, and the counter still reads
+          one hundred sixty calls. To find their cost, profile duration on the request path. Overlap, fusion,
+          kernel launches and the collective algorithm all affect how much of the transfer the request waits for.
+        hold: 0.7
+        visual_cues:
+          - id: mp-collective-count-2
+            phrase: each call carries a hidden vector for each request
+            targets:
+              - mp-collective-count-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-collective-count-profile
+            phrase: "profile duration"
+            targets:
+              - mp-collective-count-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-collective-count-larger-batch
+            phrase: Grow the batch from one request to eight
+            targets: [mp-collective-count-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: startup-payload
+    title: What costs time in a collective?
+    visual: The same collective count feeds separate chosen startup and sustained per-rank send-bandwidth worksheets.
+    beats:
+      - say: Each square is one call. Start all one hundred sixty calls one after another. At five microseconds
+          per start, that takes point eight milliseconds. At twenty microseconds, it takes three point two
+          milliseconds. Add that to a six-millisecond step and the step grows by about fifty-three percent.
+        hold: 0.7
+        visual_cues:
+          - id: mp-startup-payload-0
+            phrase: Each square is one call
+            targets:
+              - mp-startup-payload-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-startup-payload-calls
+            phrase: "Start all one hundred sixty calls one after another"
+            targets:
+              - mp-startup-payload-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-startup-payload-startup
+            phrase: "At twenty microseconds, it takes three point two milliseconds"
+            targets:
+              - mp-startup-payload-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-startup-payload-baseline
+            phrase: "the step grows by about fifty-three percent"
+            targets:
+              - mp-startup-payload-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Now follow the bytes one GPU sends around a four-GPU ring. Eight requests, each with four thousand
+          ninety-six two-byte values, give us sixty-four kibibytes. The GPU sends three quarters of that
+          buffer as the ranks reduce it, then another three quarters as they gather the result. That's
+          ninety-six kibibytes sent by each GPU per call.
+        hold: 0.7
+        visual_cues:
+          - id: mp-startup-payload-1
+            phrase: the bytes one GPU sends around a four-GPU ring
+            targets:
+              - mp-startup-payload-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-startup-payload-activation
+            phrase: "Eight requests, each with four thousand ninety-six two-byte values, give us sixty-four
+              kibibytes"
+            targets:
+              - mp-startup-payload-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-startup-payload-send
+            phrase: "ninety-six kibibytes sent by each GPU per call"
+            targets:
+              - mp-startup-payload-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Give each GPU a sustained send rate of three hundred gigabytes per second. Moving those bytes
+          across all one hundred sixty calls would take about point zero five two four milliseconds at that
+          rate. On your GPU trace, check which algorithm NCCL used and how much of the transfer finished
+          while a kernel was running. The next kernel waits for any bytes it still needs.
+        hold: 0.7
+        visual_cues:
+          - id: mp-startup-payload-2
+            phrase: Give each GPU a sustained send rate of three hundred gigabytes per second
+            targets:
+              - mp-startup-payload-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-startup-payload-payload
+            phrase: "about point zero five two four milliseconds"
+            targets:
+              - mp-startup-payload-mechanism
+            color: yellow
+            linger: 0.4
+  - id: pipeline
+    title: Whole layers can form stages
+    visual: Three stage rows process four independent microbatches in six equal-duration ticks; fill and drain
+      bubbles are visible.
+    beats:
+      - say: Tensor parallelism divides work inside layers. Pipeline parallelism assigns different groups of layers to
+          successive devices. An input visits each stage in order, with intermediate activations transferred
+          between them. One input still depends on all preceding stages.
+        visual_cues:
+          - id: ordered-stages
+            phrase: input visits each stage in order
+            targets:
+              - pipeline-readout-3
+            color: blue
+          - id: prior-dependency
+            phrase: all preceding stages
+            targets:
+              - pipeline-readout-2
+            color: yellow
+        hold: 0.6
+      - say: "With several independent microbatches or requests, stages can overlap: while one stage handles a later
+          input, the next stage handles an earlier one. Our equal-time example processes four items through
+          three stages. The empty cells at fill and drain show the pipeline bubbles."
+        visual_cues:
+          - id: overlapping-items
+            phrase: stages can overlap
+            targets:
+              - pipeline-readout-3
+            color: green
+          - id: pipeline-bubbles
+            phrase: empty cells at fill and drain
+            targets:
+              - pipeline-readout-3
+            color: yellow
+        hold: 0.6
+      - say: This idealized schedule excludes communication and imbalance. A single autoregressive request also needs
+          the previous token’s complete model result before choosing its next token. Pipeline overlap
+          therefore depends on other available work and does not automatically shorten that request’s serial
+          dependency.
+        visual_cues:
+          - id: schedule-limits
+            phrase: excludes communication and imbalance
+            targets:
+              - pipeline-readout-3
+            color: pink
+          - id: serial-dependency
+            phrase: previous token’s complete model result
+            targets:
+              - pipeline-readout-3
+            color: blue
+        hold: 0.8
+  - id: pipeline-formula
+    title: Count the busy stage slots
+    visual: The last of four microbatches crosses the last two stages. The schedule exposes separate
+      denominators for hardware idle time and elapsed overhead. One and twelve microbatches test the same
+      three stages.
+    beats:
+      - say: Follow microbatch four. It enters the first stage on tick four. Trace it through stages two and
+          three. The last batch finishes on tick six. Each box is one tick of time on one stage. There are
+          three stages and six ticks, so eighteen boxes were available. Four batches visit three stages
+          each. Twelve boxes carry work. What fraction sat idle?
+        hold: 2
+        visual_cues:
+          - id: follow-last
+            phrase: Trace it through stages two and three
+            targets:
+              - stage-slots
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: count-work
+            phrase: Twelve boxes carry work
+            targets:
+              - stage-slots
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Six idle boxes out of eighteen. That's one third of the available hardware time. There's another
+          question we could ask. How much longer than four ticks did the run take? Two extra ticks compared
+          with four ideal ticks gives one half. Notice the different denominators. With m batches and p
+          equal stages, the last batch takes p minus one more ticks after it enters stage one. That's m plus
+          p minus one ticks in all. Each stage is busy for m of them.
+        hold: 0.95
+        caption_starts: [one half]
+        visual_cues:
+          - id: idle-ratio
+            phrase: That's one third of the available hardware time
+            targets:
+              - stage-slots
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: drain-ratio
+            phrase: Two extra ticks compared with four ideal ticks gives one half
+            targets:
+              - stage-slots
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: general-rule
+            phrase: That's m plus p minus one ticks in all
+            targets:
+              - stage-slots
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Keep the stages and send just one batch. It occupies three out of nine slots, about thirty-three
+          percent. Now give the same pipeline twelve independent batches. Thirty-six of forty-two slots are
+          busy, about eighty-six percent. Each picture counts one forward pass with equal batches and
+          equal stage times. Let's add the transfers and time one request.
+        hold: 0.8
+        caption_starts: [It occupies three out of nine slots, Thirty-six of forty-two slots are busy]
+        visual_cues:
+          - id: one-batch
+            phrase: send just one batch
+            targets:
+              - stage-slots
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: one-rate
+            phrase: about thirty-three percent
+            targets:
+              - stage-slots
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: twelve-batches
+            phrase: give the same pipeline twelve independent batches
+            targets:
+              - stage-slots
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: twelve-rate
+            phrase: about eighty-six percent
+            targets:
+              - stage-slots
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: pipeline-latency
+    title: Put a clock on one token
+    visual: Two timelines share a millisecond ruler. Both keep all three two-millisecond compute spans. Only
+      the second includes the two boundary transfers, so its finish moves from 6 to 6.4 ms.
+    beats:
+      - say: Watch a single token go through three stages. Give each stage two milliseconds of compute. Until the
+          last stage produces logits, this request can't sample its next token. Other requests can use the
+          idle stages while it waits. Those idle slots don't add time to its path.
+        hold: 0.85
+        visual_cues:
+          - id: single-token
+            phrase: Watch a single token go through three stages
+            targets:
+              - request-path
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Keep all three compute times. Insert two handoffs of a fifth of a millisecond each. Read the end of
+          the lower bar on the same ruler. When does this token finish stage three?
+        hold: 2
+        visual_cues:
+          - id: two-handoffs
+            phrase: Insert two handoffs of a fifth of a millisecond each
+            targets:
+              - request-path
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Six point four milliseconds. The three stages account for six, and the two handoffs add four
+          tenths. That makes the path about seven percent longer. For a serving trace, measure its stage
+          times and transfers. A long stage or a queue can move the finish farther to the right.
+        hold: 0.8
+        visual_cues:
+          - id: arrival-time
+            phrase: Six point four milliseconds
+            targets:
+              - request-path
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: profile-stages
+            phrase: measure its stage times and transfers
+            targets:
+              - request-path
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: topology-placement
+    title: Which GPUs need to talk?
+    visual: TP groups stay inside selected domains while PP activation boundaries and optional uneven stages
+      expose the actual placement constraints.
+    beats:
+      - say: Give the first four GPUs the early layers and the next four the later layers. Inside each group
+          the GPUs can split a layer. The activation crosses between groups once on its way forward. You can
+          give one stage fewer layers if its layers need more memory. vLLM also supports pipeline stages
+          inside a node and tensor parallel groups across nodes.
+        hold: 0.7
+        visual_cues:
+          - id: mp-topology-placement-0
+            phrase: Give the first four GPUs the early layers
+            targets:
+              - mp-topology-placement-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-topology-placement-placement
+            phrase: "The activation crosses between groups once on its way forward"
+            targets:
+              - mp-topology-placement-mechanism
+            color: yellow
+            linger: 0.4
+      - say: "Zoom out from those eight GPUs. NVIDIA's GB200 NVL72 connects seventy-two GPUs by NVLink. The eight
+          highlighted GPUs would use just part of that domain. Choose a group size that divides the work and
+          measure its exchanges on those links."
+        hold: 0.7
+        visual_cues:
+          - id: mp-topology-placement-1
+            phrase: "Zoom out from those eight GPUs"
+            targets:
+              - mp-topology-placement-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-topology-placement-domain
+            phrase: "connects seventy-two GPUs by NVLink"
+            targets:
+              - mp-topology-placement-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Take eight GPUs with eighty gigabytes each. At four bits a weight, four hundred five billion
+          parameters take about two hundred two point five gigabytes. Six hundred seventy-one billion take
+          about three hundred thirty-five point five. Either raw payload is smaller than the group's six
+          hundred forty gigabytes. Check each GPU's share with scales, history and workspace included. Then
+          time a request.
+        hold: 0.7
+        visual_cues:
+          - id: mp-topology-placement-2
+            phrase: eight GPUs with eighty gigabytes each
+            targets:
+              - mp-topology-placement-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-topology-placement-raw-codes
+            phrase: "about three hundred thirty-five point five"
+            targets:
+              - mp-topology-placement-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-topology-placement-group
+            phrase: "the group's six hundred forty gigabytes"
+            targets:
+              - mp-topology-placement-mechanism
+            color: yellow
+            linger: 0.4
+  - id: context-budget
+    title: Can four GPUs hold a million tokens of history?
+    visual: A full-history byte product splits across four ranks but remains above each declared device budget
+      before weights.
+    beats:
+      - say: During training, Megatron sequence parallelism splits activations for operations such as LayerNorm
+          and dropout. During serving, we can split the prompt attention work or the saved keys and values.
+          Start with a length the checkpoint supports, then calculate the memory its history needs.
+        hold: 0.7
+        visual_cues:
+          - id: mp-context-budget-0
+            phrase: Megatron sequence parallelism splits activations
+            targets:
+              - mp-context-budget-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-context-budget-training
+            phrase: "split the prompt attention work or the saved keys and values"
+            targets:
+              - mp-context-budget-mechanism
+            color: yellow
+            linger: 0.4
+      - say: The theoretical history example supplies one million tokens, eighty full-attention layers, eight KV
+          heads, head width one hundred twenty-eight and two-byte elements. Counting K and V gives about three
+          hundred five point two gibibytes. Divide evenly four ways for about seventy-six point three per
+          device before overhead.
+        hold: 0.7
+        visual_cues:
+          - id: mp-context-budget-1
+            phrase: The theoretical history example supplies one million tokens, eighty full-attention layers, eight KV
+              heads, head width one hundred twenty-eight and two-byte elements
+            targets:
+              - mp-context-budget-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-context-budget-dimensions
+            phrase: "one million tokens, eighty full-attention layers, eight KV heads, head width one hundred twenty-eight and two-byte elements"
+            targets:
+              - mp-context-budget-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-context-budget-full
+            phrase: "about three hundred five point two gibibytes"
+            targets:
+              - mp-context-budget-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-context-budget-four
+            phrase: "about seventy-six point three per device before overhead"
+            targets:
+              - mp-context-budget-mechanism
+            color: yellow
+            linger: 0.4
+      - say: The earlier eighty decimal gigabytes is only about seventy-four point five gibibytes. Even those
+          four ideal KV shares exceed that budget before weights and workspace. The pink marks show the
+          shortage on every GPU. For a hybrid model like Qwen, count full history in its full-attention
+          layers and budget the other layers' state separately.
+        hold: 0.7
+        visual_cues:
+          - id: mp-context-budget-2
+            phrase: The earlier eighty decimal gigabytes is only about seventy-four point five gibibytes
+            targets:
+              - mp-context-budget-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-context-budget-device
+            phrase: "about seventy-four point five gibibytes"
+            targets:
+              - mp-context-budget-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-context-budget-fails
+            phrase: "Even those four ideal KV shares exceed that budget before weights and workspace"
+            targets:
+              - mp-context-budget-mechanism
+            color: yellow
+            linger: 0.4
+  - id: ring-prefill
+    title: Bring the keys and values to the query
+    visual: Query zero stays put as four KV blocks visit it. A second view times a two-tick transfer alongside
+      three ticks of prompt work, then alongside one tick of decode work.
+    beats:
+      - say: Split a prompt into four blocks, one per GPU. Follow query block zero. It starts with the keys and
+          values on its own GPU. Now pass each key and value block one place to the right. Watch block three
+          come around to query zero.
+        hold: 0.7
+        visual_cues:
+          - id: mp-ring-prefill-0
+            phrase: Split a prompt into four blocks
+            targets:
+              - mp-ring-prefill-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-ring-prefill-local
+            phrase: Follow query block zero
+            targets:
+              - mp-ring-prefill-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-ring-prefill-shift
+            phrase: Now pass each key and value block one place to the right
+            targets:
+              - mp-ring-prefill-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Keep query zero there for two more turns. Block two arrives, then block one. Each query has now
+          seen all four blocks. With C blocks, each GPU receives C minus one blocks from its neighbor.
+          Online softmax combines their weights and weighted values as they arrive.
+          We're showing full attention. With a causal mask, a query can skip blocks entirely in its future.
+          The GPUs can then have different amounts of work.
+        hold: 0.7
+        visual_cues:
+          - id: mp-ring-prefill-1
+            phrase: Keep query zero there for two more turns
+            targets:
+              - mp-ring-prefill-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-ring-prefill-visits
+            phrase: Block two arrives, then block one
+            targets:
+              - mp-ring-prefill-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-ring-prefill-merge
+            phrase: Online softmax combines their weights and weighted values
+            targets:
+              - mp-ring-prefill-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Each GPU keeps its heads and receives the next block into a second buffer. Give the transfer two
+          ticks and the attention work three. The next block arrives in time. Keep the same transfer and give
+          a single decode query one tick of work. How long does it wait for the block?
+        hold: 2
+        visual_cues:
+          - id: mp-ring-prefill-2
+            phrase: Each GPU keeps its heads and receives the next block into a second buffer
+            targets:
+              - mp-ring-prefill-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-ring-prefill-overlap
+            phrase: Give the transfer two ticks and the attention work three
+            targets:
+              - mp-ring-prefill-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-ring-prefill-decode
+            phrase: give a single decode query one tick of work
+            targets: [mp-ring-prefill-mechanism]
+            color: cyan
+      - say: One tick. The query finishes its work halfway through the transfer. On this link, the longer prompt
+          calculation covers the whole transfer.
+        hold: 1
+        caption_starts: [One tick]
+        visual_cues:
+          - id: mp-ring-prefill-wait
+            phrase: One tick
+            targets: [mp-ring-prefill-mechanism]
+            color: pink
+  - id: ulysses-layout
+    title: Transpose sequence ownership to head ownership and back
+    visual: Projected local token slices become full-sequence head slices through all-to-all, then return to
+      sequence slices before the output projection.
+    beats:
+      - say: "Ulysses was introduced for long-sequence training. Its layout illustrates prefill attention: each
+          sequence-partitioned rank first projects its own tokens into Q, K and V. An all-to-all redistributes
+          those projections into head slices spanning the full sequence."
+        hold: 0.7
+        visual_cues:
+          - id: mp-ulysses-layout-0
+            phrase: Ulysses was introduced for long-sequence training
+            targets:
+              - mp-ulysses-layout-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-ulysses-layout-project
+            phrase: "each sequence-partitioned rank first projects its own tokens into Q, K and V"
+            targets:
+              - mp-ulysses-layout-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-ulysses-layout-transpose
+            phrase: "An all-to-all redistributes those projections into head slices spanning the full sequence"
+            targets:
+              - mp-ulysses-layout-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Each rank now computes local attention for its assigned heads, using a suitable local kernel. A second
+          all-to-all transposes the attention output back into sequence slices before the linear output
+          projection.
+        hold: 0.7
+        visual_cues:
+          - id: mp-ulysses-layout-1
+            phrase: Each rank now computes local attention for its assigned heads, using a suitable local kernel
+            targets:
+              - mp-ulysses-layout-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-ulysses-layout-attend
+            phrase: "Each rank now computes local attention for its assigned heads"
+            targets:
+              - mp-ulysses-layout-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-ulysses-layout-return
+            phrase: "A second all-to-all transposes the attention output back into sequence slices before the linear output projection"
+            targets:
+              - mp-ulysses-layout-mechanism
+            color: yellow
+            linger: 0.4
+      - say: To give each rank whole heads with no copies, the number of ranks must divide both head counts.
+          Under grouped-query attention, check the smaller KV head count first. An engine can also replicate
+          heads or combine layouts. For decode, the next question is where each rank keeps the earlier
+          tokens' keys and values.
+        hold: 0.7
+        visual_cues:
+          - id: mp-ulysses-layout-2
+            phrase: the number of ranks must divide both head counts
+            targets:
+              - mp-ulysses-layout-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-ulysses-layout-heads
+            phrase: "check the smaller KV head count first"
+            targets:
+              - mp-ulysses-layout-mechanism
+            color: yellow
+            linger: 0.4
+  - id: decode-history
+    title: Remove duplication inside existing TP groups
+    visual: Eight existing ranks redistribute 32 history positions for each of two KV-head identities into disjoint
+      modulo-four lanes.
+    beats:
+      - say: Decode context parallelism partitions retained history within existing TP groups. Look at the
+          eight GPUs already holding keys and values. When the model and attention backend support this
+          layout, those same eight GPUs can share the history by position.
+        hold: 0.7
+        visual_cues:
+          - id: mp-decode-history-0
+            phrase: Decode context parallelism partitions retained history within existing TP groups
+            targets:
+              - mp-decode-history-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-decode-history-existing
+            phrase: those same eight GPUs can share the history by position
+            targets:
+              - mp-decode-history-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Give each of the two KV heads four ranks and thirty-two positions. Deal the positions around
+          those four ranks. Lane zero owns positions zero, four and so on. Lane one starts at one and
+          takes every fourth position from there. Each rank stores eight head-position pairs.
+        hold: 0.7
+        visual_cues:
+          - id: mp-decode-history-1
+            phrase: Give each of the two KV heads four ranks and thirty-two positions
+            targets:
+              - mp-decode-history-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-decode-history-premises
+            phrase: "two KV heads four ranks and thirty-two positions"
+            targets:
+              - mp-decode-history-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-decode-history-modulo
+            phrase: "lane zero owns positions zero, four and so on"
+            targets:
+              - mp-decode-history-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-decode-history-eight
+            phrase: "Each rank stores eight head-position pairs"
+            targets:
+              - mp-decode-history-mechanism
+            color: yellow
+            linger: 0.4
+      - say: All sixty-four unique head-position pairs now appear once, down from two hundred fifty-six under
+          plain full-history replication. Cache pages, metadata and hybrid state also use memory. Now each
+          GPU sees only part of the history. How much should its keys count toward the attention result?
+        hold: 0.7
+        visual_cues:
+          - id: mp-decode-history-2
+            phrase: All sixty-four unique head-position pairs now appear once, down from two hundred fifty-six under plain
+              full-history replication
+            targets:
+              - mp-decode-history-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-decode-history-physical
+            phrase: "All sixty-four unique head-position pairs now appear once, down from two hundred fifty-six under plain full-history replication"
+            targets:
+              - mp-decode-history-mechanism
+            color: yellow
+            linger: 0.4
+  - id: mass-merge
+    title: How much attention weight goes to the nine?
+    visual: Three keys retain their device and value. A single attention strip measures each key's global
+      share. Raising only the last score changes its exponential weight and the common denominator.
+    beats:
+      - say: One query can see three keys. GPU zero holds two keys, both with value zero. GPU one holds a single
+          key with value nine. Every score is one thousand. Subtract that maximum before taking the
+          exponential, so each shifted weight is one. That also avoids overflow. What fraction of the
+          attention weight goes to the nine?
+        hold: 2.3
+        visual_cues:
+          - id: two-keys
+            phrase: GPU zero holds two keys
+            targets:
+              - attention-mass
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: one-key
+            phrase: GPU one holds a single key with value nine
+            targets:
+              - attention-mass
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: shifted
+            phrase: each shifted weight is one
+            targets:
+              - attention-mass
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: One third. Each key gets one of three equal shares. Only the nine contributes to the weighted sum, so
+          nine divided by three gives three. Watch what we lose if we average the local answers. Zero and
+          nine get equal votes and give four and a half. That gives one key on GPU one as much say as both
+          keys on GPU zero.
+        hold: 1
+        visual_cues:
+          - id: three-shares
+            phrase: One third. Each key gets one of three equal shares
+            targets:
+              - attention-mass
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: weighted-output
+            phrase: nine divided by three gives three
+            targets:
+              - attention-mass
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: wrong-mean
+            phrase: Zero and nine get equal votes and give four and a half
+            targets:
+              - attention-mass
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Keep the keys and their values. Raise only the last score by the natural log of two. Its exponential
+          weight doubles relative to either neighbor. Use the new maximum as the shared reference. The two
+          old weights each shrink to one half and the last weight is one. What fraction of the attention
+          weight goes to the nine now?
+        hold: 2.2
+        visual_cues:
+          - id: raise-score
+            phrase: Raise only the last score by the natural log of two
+            targets:
+              - attention-mass
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: rescale
+            phrase: The two old weights each shrink to one half and the last weight is one
+            targets:
+              - attention-mass
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: One half. The nine now has as much mass as the other two keys together. Look at where its share
+          begins on the thin strip from the first run. Divide its weighted
+          contribution of nine by the new total mass of two. The output is four and a half. The local
+          answers stayed at zero and nine through both runs. Their shares changed.
+        hold: 1
+        visual_cues:
+          - id: new-share
+            phrase: One half. The nine now has as much mass as the other two keys together
+            targets:
+              - attention-mass
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: new-output
+            phrase: The output is four and a half
+            targets:
+              - attention-mass
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: For each shard, keep its maximum score, the sum of shifted weights, and the sum of weighted values.
+          To combine shards, multiply both sums by the exponential of the local maximum minus the shared
+          maximum. Then add the weighted sums and divide by the combined mass. An empty or fully masked
+          shard adds zero to both sums. Its rank still participates in the collective with matching counts
+          and data types. If every shard is empty, the runtime needs an explicit policy for that query.
+        hold: 0.85
+        visual_cues:
+          - id: empty-rank
+            phrase: An empty or fully masked shard adds zero to both sums
+            targets:
+              - attention-mass
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: expert-dispatch
+    title: Send weighted assignments to expert owners and back
+    visual: Six token identities generate twelve routed assignments, then per-token weighted results return from
+      two expert-owning devices.
+    beats:
+      - say: Expert parallelism places different experts on different ranks. For each token, the router scores
+          the experts from that token's hidden representation. It sends the token to the GPUs that hold the
+          selected experts. A large expert can itself be split with tensor parallelism, and a busy expert
+          can have extra copies.
+        hold: 0.7
+        visual_cues:
+          - id: mp-expert-dispatch-0
+            phrase: Expert parallelism places different experts on different ranks
+            targets:
+              - mp-expert-dispatch-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-expert-dispatch-owners
+            phrase: "Expert parallelism places different experts on different ranks"
+            targets:
+              - mp-expert-dispatch-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Dispatch two weighted assignments for each of six tokens. Experts zero and one live on the first
+          GPU. Experts two and three live on the second. Count the routes. There are eight assignments to
+          the first device and four to the second. Six per GPU would be even. The busiest gets eight over
+          six times the average, about one point three three.
+        hold: 0.7
+        visual_cues:
+          - id: mp-expert-dispatch-1
+            phrase: Dispatch two weighted assignments for each of six tokens
+            targets:
+              - mp-expert-dispatch-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-expert-dispatch-dispatch
+            phrase: "two weighted assignments for each of six tokens"
+            targets:
+              - mp-expert-dispatch-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-expert-dispatch-loads
+            phrase: "eight assignments to the first device and four to the second"
+            targets:
+              - mp-expert-dispatch-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-expert-dispatch-skew
+            phrase: "about one point three three"
+            targets:
+              - mp-expert-dispatch-mechanism
+            color: yellow
+            linger: 0.4
+      - say: "Follow token three. Its input is four. Expert zero returns the input, and expert two triples it.
+          That gives four and twelve. The router gave the first expert a weight of three quarters and the
+          second a quarter. Three comes from each expert. Add them at the original token.
+          Six goes back into its row. This dispatch and return is a logical all-to-all exchange.
+          The runtime chooses the kernels that carry it."
+        hold: 0.7
+        caption_starts: [Three comes from each expert, Six goes back into its row]
+        visual_cues:
+          - id: mp-expert-dispatch-2
+            phrase: Follow token three. Its input is four
+            targets:
+              - mp-expert-dispatch-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-expert-dispatch-premises
+            phrase: "Expert zero returns the input, and expert two triples it"
+            targets:
+              - mp-expert-dispatch-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-expert-dispatch-expert
+            phrase: "Three comes from each expert"
+            targets:
+              - mp-expert-dispatch-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-expert-dispatch-combine
+            phrase: "Six goes back into its row"
+            targets:
+              - mp-expert-dispatch-mechanism
+            color: yellow
+            linger: 0.4
+  - id: capacity
+    title: Count the state that each device actually holds
+    visual: Weight shards shrink per-device storage, while KV cache, activations, workspace and replicated pieces
+      remain in an explicit memory ledger.
+    beats:
+      - say: Weight sharding can make a model fit, but serving memory includes more than weights. Attention history,
+          activations, temporary workspace, allocator behavior, and replicated components also occupy each
+          device. Different parallel layouts shard different parts of that inventory.
+        visual_cues:
+          - id: per-device-state
+            phrase: Attention history, activations, temporary workspace
+            targets:
+              - device-inventory
+            color: cyan
+          - id: inventory-sharding
+            phrase: shard different parts of that inventory
+            targets:
+              - device-inventory
+            color: blue
+        hold: 0.6
+      - say: Start with eight units of weights and split them evenly. Four units land on each GPU.
+          Above each share are the cache, activations and workspace. Add those terms to see how much
+          memory that GPU needs for this batch.
+        visual_cues:
+          - id: sharded-weights
+            phrase: eight units of weights and split them evenly
+            targets:
+              - device-inventory
+            color: blue
+          - id: total-device-state
+            phrase: Add those terms
+            targets:
+              - capacity-readout-2
+            color: yellow
+        hold: 0.6
+      - say: Choose tensor and pipeline degrees together with the interconnect and workload. Fast links often matter
+          for frequent within-layer collectives, while pipeline stages exchange activations at stage
+          boundaries. Training adds gradients and optimizer state, creating additional opportunities and costs
+          for sharding.
+        visual_cues:
+          - id: interconnect-workload
+            phrase: interconnect and workload
+            targets:
+              - device-inventory
+            color: pink
+          - id: training-state
+            phrase: gradients and optimizer state
+            targets:
+              - device-inventory
+            color: yellow
+        hold: 0.8
+  - id: local-fit
+    title: Which GPU runs out first?
+    visual: The two original memory bars retain the 35 GB weight shards and reserves. A 50 GB history lands
+      unevenly. The right ends of the bars expose a local deficit and spare memory on another GPU.
+    beats:
+      - say: Here's the pair that loaded our weights. Each GPU has twenty-nine gigabytes left. Suppose one request
+          uses three quarters of a gigabyte of key and value history across the pair. Fifty-eight divided by
+          three quarters gives room for seventy-seven whole requests on paper. That calculation treats the
+          two pools as one.
+        hold: 0.85
+        visual_cues:
+          - id: request-pool
+            phrase: Each GPU has twenty-nine gigabytes left
+            targets:
+              - request-pools
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: request-ceiling
+            phrase: seventy-seven whole requests on paper
+            targets:
+              - request-pools
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Try placing a single fifty-gigabyte history. Assign thirty-five gigabytes to GPU zero and fifteen
+          gigabytes to GPU one. Which GPU runs out first, and by how much?
+        hold: 2.1
+        visual_cues:
+          - id: left-placement
+            phrase: Assign thirty-five gigabytes to GPU zero
+            targets:
+              - request-pools
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: right-placement
+            phrase: fifteen gigabytes to GPU one
+            targets:
+              - request-pools
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: GPU zero is six gigabytes short. GPU one has fourteen to spare. That spare space is on the far side
+          of the link. Unless the backend supports a different placement, the scheduler has to wait, reclaim
+          space, or reject the request. Check each GPU's actual weights, cache pages, workspace, graph
+          allocations and headroom before choosing a batch. Then measure its latency under load.
+        hold: 0.8
+        visual_cues:
+          - id: local-verdict
+            phrase: GPU zero is six gigabytes short. GPU one has fourteen to spare
+            targets:
+              - request-pools
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: replica-layouts
+    title: Keep attention replicas distinct from coupled experts
+    visual: The same eight devices form one wide group or four pairs, with separate attention and expert
+      membership overlays.
+    beats:
+      - say: On the same eight devices, compare one TP-eight replica with four TP-two replicas when each pair is
+          validated to fit. With enough requests, balanced routing and independent workers, four pairs
+          can serve four times the traffic of one pair. Benchmark the eight-GPU replica on the same traffic.
+        hold: 0.7
+        visual_cues:
+          - id: mp-replica-layouts-0
+            phrase: On the same eight devices, compare one TP-eight replica with four TP-two replicas when each pair is
+              validated to fit
+            targets:
+              - mp-replica-layouts-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-replica-layouts-pairs
+            phrase: "one TP-eight replica with four TP-two replicas"
+            targets:
+              - mp-replica-layouts-mechanism
+            color: yellow
+            linger: 0.4
+      - say: More TP can reduce eligible local work and weight storage but also change collective exposure, kernel
+          efficiency and replicated state. Latency can rise or fall. Four small groups have replicated
+          weights, separate caches and their own skew and balancing costs.
+        hold: 0.7
+        visual_cues:
+          - id: mp-replica-layouts-1
+            phrase: More TP can reduce eligible local work and weight storage but also change collective exposure, kernel
+              efficiency and replicated state
+            targets:
+              - mp-replica-layouts-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-replica-layouts-copies
+            phrase: "Four small groups have replicated weights, separate caches and their own skew and balancing costs"
+            targets:
+              - mp-replica-layouts-mechanism
+            color: yellow
+            linger: 0.4
+      - say: With expert parallelism enabled, the inspected vLLM layout forms an expert group over TP times DP ranks
+          while attention uses TP inside each DP group. Expert work can therefore couple nominal attention
+          replicas. Treat the groups as independent only when their expert execution is also independent.
+        hold: 0.7
+        visual_cues:
+          - id: mp-replica-layouts-2
+            phrase: With expert parallelism enabled, the inspected vLLM layout forms an expert group over TP times DP
+              ranks while attention uses TP inside each DP group
+            targets:
+              - mp-replica-layouts-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-replica-layouts-expert-group
+            phrase: "forms an expert group over TP times DP ranks while attention uses TP inside each DP group"
+            targets:
+              - mp-replica-layouts-mechanism
+            color: yellow
+            linger: 0.4
+  - id: phase-handoff
+    title: Account for both queues and the transferred history
+    visual: Prefill completes source-owned KV, then a compatible decode worker receives its state while both
+      request queues remain visible.
+    beats:
+      - say: The prefill worker has read request one's prompt. Those eight blocks hold its keys and values. A
+          separate decode worker will generate the rest of the answer. With two pools, a long prompt can run
+          on the left while another request gets its next token on the right.
+        hold: 0.7
+        visual_cues:
+          - id: mp-phase-handoff-0
+            phrase: The prefill worker has read request one's prompt
+            targets:
+              - mp-phase-handoff-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-phase-handoff-phases
+            phrase: "a long prompt can run on the left while another request gets its next token on the right"
+            targets:
+              - mp-phase-handoff-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Move the eight blocks to the decode worker. Here the two workers use the same layout. If their
+          layouts differ, the handoff also has to rearrange the cache. Look below the workers. Request one
+          can wait to enter prefill and wait again to enter decode.
+        hold: 0.7
+        visual_cues:
+          - id: mp-phase-handoff-1
+            phrase: Move the eight blocks to the decode worker
+            targets:
+              - mp-phase-handoff-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-phase-handoff-move
+            phrase: "Move the eight blocks to the decode worker"
+            targets:
+              - mp-phase-handoff-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-phase-handoff-queues
+            phrase: "Request one can wait to enter prefill and wait again to enter decode"
+            targets:
+              - mp-phase-handoff-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Follow request one through admission, transfer, source release and the first decode step. Time
+          both queues and the part of the handoff that delays that token. Under bursty traffic, compare that
+          delay with the time saved by keeping long prompts off the decode worker.
+        hold: 0.7
+        visual_cues:
+          - id: mp-phase-handoff-2
+            phrase: Follow request one
+            targets:
+              - mp-phase-handoff-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-phase-handoff-trace
+            phrase: "through admission, transfer, source release and the first decode step"
+            targets:
+              - mp-phase-handoff-mechanism
+            color: yellow
+            linger: 0.4
+  - id: fit-latency-cost
+    title: Which layout meets both latency targets?
+    visual: Synthetic candidates pass or fail two separate latency limits, then a second eligible cohort computes
+      billed useful-token cost.
+    beats:
+      - say: One GPU runs out of memory. Look at the two layouts that fit. The yellow marks are our p95
+          limits. Four hundred milliseconds to the first token, and fifty-five milliseconds per output token.
+          With two GPUs the bars stop at three hundred ten and forty-five. With four GPUs they reach
+          four hundred thirty and sixty-two. Which layout clears both limits?
+        hold: 1.8
+        caption_starts: [With two GPUs, With four GPUs, Which layout clears both limits]
+        visual_cues:
+          - id: mp-fit-latency-cost-0
+            phrase: One GPU runs out of memory
+            targets:
+              - mp-fit-latency-cost-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-fit-latency-cost-fit
+            phrase: One GPU runs out of memory
+            targets:
+              - mp-fit-latency-cost-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-fit-latency-cost-two
+            phrase: With two GPUs the bars stop at three hundred ten and forty-five
+            targets:
+              - mp-fit-latency-cost-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-fit-latency-cost-four
+            phrase: With four GPUs they reach four hundred thirty and sixty-two
+            targets:
+              - mp-fit-latency-cost-mechanism
+            color: yellow
+            linger: 0.4
+      - say: "The two-GPU pair clears both limits. The four-GPU group produces more tokens per second, but
+          misses both latency targets. The selector ranks the passing layouts by tokens per second.
+          To see what an individual user felt, check that request's first-token time and its slowest gaps.
+          One long pause can disappear in its average time per token."
+        hold: 0.7
+        caption_starts: [The two-GPU pair clears both limits]
+        visual_cues:
+          - id: mp-fit-latency-cost-gate
+            phrase: The two-GPU pair clears both limits
+            targets: [mp-fit-latency-cost-mechanism]
+            color: green
+          - id: mp-fit-latency-cost-1
+            phrase: "The selector ranks the passing layouts by tokens per second"
+            targets:
+              - mp-fit-latency-cost-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Now compare two layouts that both meet the targets. The first costs six dollars an hour and delivers
+          six hundred twenty useful tokens a second. The second costs twice as much and delivers nine hundred.
+          Multiply each rate by thirty-six hundred to get tokens per hour. Divide the hourly price by that count
+          and multiply by a million. The first costs about two dollars sixty-nine per million useful tokens.
+          The second costs about three dollars seventy. It produces more tokens, but its price doubled.
+        hold: 0.7
+        visual_cues:
+          - id: mp-fit-latency-cost-2
+            phrase: Now compare two layouts that both meet the targets
+            targets:
+              - mp-fit-latency-cost-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-fit-latency-cost-a
+            phrase: The first costs about two dollars sixty-nine per million useful tokens
+            targets:
+              - mp-fit-latency-cost-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-fit-latency-cost-b
+            phrase: The second costs about three dollars seventy
+            targets:
+              - mp-fit-latency-cost-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-fit-latency-cost-hourly
+            phrase: Multiply each rate by thirty-six hundred to get tokens per hour
+            targets:
+              - mp-fit-latency-cost-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-fit-latency-cost-divide
+            phrase: Divide the hourly price by that count and multiply by a million
+            targets:
+              - mp-fit-latency-cost-mechanism
+            color: yellow
+            linger: 0.4
+  - id: failure-trace
+    title: Use the observed boundary to choose the next measurement
+    visual: A per-rank ledger, collective timeline and request token trace identify different missing evidence
+      without assigning a cause from a product label.
+    beats:
+      - say: OOM despite a group-total fit calls for each rank’s actual allocation ledger. Worse latency with more
+          ranks calls for local kernel, collective, scheduling and topology traces. A PCIe or cross-node label
+          alone does not diagnose the bottleneck.
+        hold: 0.7
+        visual_cues:
+          - id: mp-failure-trace-0
+            phrase: OOM despite a group-total fit calls for each rank’s actual allocation ledger
+            targets:
+              - mp-failure-trace-mechanism
+            color: cyan
+            linger: 0.4
+          - id: mp-failure-trace-ledger
+            phrase: "each rank’s actual allocation ledger"
+            targets:
+              - mp-failure-trace-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-failure-trace-latency
+            phrase: "local kernel, collective, scheduling and topology traces"
+            targets:
+              - mp-failure-trace-mechanism
+            color: yellow
+            linger: 0.4
+      - say: If per-rank history stops shrinking, inspect KV-head replication and separate hybrid state; a measured
+          duplication problem may justify supported DCP. Token gaps under concurrent traffic call for
+          admission, mixed-step, transfer and delivery-buffer traces, including any new queues introduced by a
+          proposed fix.
+        hold: 0.7
+        visual_cues:
+          - id: mp-failure-trace-1
+            phrase: If per-rank history stops shrinking, inspect KV-head replication and separate hybrid state; a measured
+              duplication problem may justify supported DCP
+            targets:
+              - mp-failure-trace-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-failure-trace-duplication
+            phrase: "inspect KV-head replication and separate hybrid state"
+            targets:
+              - mp-failure-trace-mechanism
+            color: yellow
+            linger: 0.4
+          - id: mp-failure-trace-gaps
+            phrase: "admission, mixed-step, transfer and delivery-buffer traces"
+            targets:
+              - mp-failure-trace-mechanism
+            color: yellow
+            linger: 0.4
+      - say: First validate the layout and reconstruct the reference computation. Then measure per-device peak memory,
+          sustained useful rates, both latency distributions and their joint request outcomes. Model
+          parallelism solves placement or multi-device work; validated sharded groups can themselves be
+          replicated when independent traffic is the bottleneck.
+        hold: 0.7
+        visual_cues:
+          - id: mp-failure-trace-2
+            phrase: First validate the layout and reconstruct the reference computation
+            targets:
+              - mp-failure-trace-mechanism
+            color: green
+            linger: 0.4
+          - id: mp-failure-trace-validate
+            phrase: "reconstruct the reference computation"
+            targets:
+              - mp-failure-trace-mechanism
+            color: yellow
+            linger: 0.4
+  - id: transfer
+    title: Check the reducer on one token
+    visual: For the article input [1, 2], both local projections and the dense reference stay fixed. The same
+      CPU comparison runs on a mean and a sum with one bias.
+    beats:
+      - say: Before trying another machine, run this one token through the layer on a CPU. Both GPU partials are
+          on the top row. The candidate averages them and adds the bias once. Underneath is the dense answer
+          for exactly the same input. Compare the two vectors within floating-point tolerance. The
+          comparison returns false. If the partials are correct, what should we change?
+        hold: 2.1
+        visual_cues:
+          - id: inspect-partials
+            phrase: Both GPU partials are on the top row
+            targets:
+              - reference-check
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: mean-check
+            phrase: The comparison returns false
+            targets:
+              - reference-check
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: try-mean
+            phrase: The candidate averages them and adds the bias once
+            targets: [reference-check]
+            color: yellow
+            caption_boundary: true
+      - say: Switch the reducer to a sum. Keep the same partials and the same bias. Run the same comparison on
+          both output coordinates. This time it returns true. We've checked the value that crosses the layer
+          boundary for this input. The serving run still has to establish peak memory, token latency and
+          useful throughput at the intended concurrency.
+        hold: 0.9
+        visual_cues:
+          - id: switch-reducer
+            phrase: Switch the reducer to a sum
+            targets:
+              - reference-check
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: sum-check
+            phrase: This time it returns true
+            targets:
+              - reference-check
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: fresh-layout
+    title: Will this request fit on both GPUs?
+    visual: A new input produces two new signed local vectors. After the dense comparison agrees, a 46 GB
+      placement is checked per GPU. An 8 GB part of the proposed reservation moves to the second GPU.
+    beats:
+      - say: Change just the layer input to minus one, three. Keep the article's two matrices and its bias. These
+          are the two new partial vectors. Look at the second coordinate. Nearly four on one GPU and nearly
+          twelve on the other both belong to that same output. Should we take their sum or their mean before
+          adding the bias?
+        hold: 2.2
+        visual_cues:
+          - id: mp-fresh-layout-input
+            phrase: Change just the layer input to minus one, three
+            targets:
+              - fresh-case
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Take their sum and add the bias once. Both coordinates match the dense reference. The second comes to
+          about fifteen and a half. Now check a separate constraint on the same pair. The request needs
+          forty-six gigabytes of history. Its proposed placement puts thirty-one on GPU zero and fifteen on
+          GPU one. With twenty-nine available on each, which GPU is short, and by how much?
+        hold: 2.2
+        visual_cues:
+          - id: mp-fresh-layout-sum
+            phrase: Take their sum and add the bias once
+            targets:
+              - fresh-case
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: mp-fresh-layout-result
+            phrase: Both coordinates match the dense reference
+            targets:
+              - fresh-case
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: mp-fresh-layout-placement
+            phrase: The request needs forty-six gigabytes of history
+            targets:
+              - fresh-case
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: mp-fresh-layout-rank-zero
+            phrase: puts thirty-one on GPU zero
+            targets: [fresh-case]
+            color: blue
+          - id: mp-fresh-layout-rank-one
+            phrase: and fifteen on GPU one
+            targets: [fresh-case]
+            color: cyan
+      - say: GPU zero is two gigabytes short. GPU one has fourteen to spare. Suppose the backend supports
+          splitting this history evenly. On the placement plan, move an eight-gigabyte block from GPU zero
+          to GPU one. The request still needs forty-six gigabytes in total. How much room is left on each
+          GPU?
+        hold: 2
+        visual_cues:
+          - id: mp-fresh-layout-deficit
+            phrase: GPU zero is two gigabytes short
+            targets:
+              - fresh-case
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: mp-fresh-layout-repair
+            phrase: move an eight-gigabyte block from GPU zero to GPU one
+            targets:
+              - fresh-case
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Six gigabytes remain on each GPU. Each now holds twenty-three of the twenty-nine available. This
+          request fits on both. At the expected load, time the first token and the tokens that follow. Among
+          the layouts that meet both latency targets, choose the one with the lowest cost per useful token.
+        hold: 1.2
+        visual_cues:
+          - id: mp-fresh-layout-six
+            phrase: Six gigabytes remain on each GPU
+            targets:
+              - fresh-case
+            color: cyan
+            linger: 0.25
+            caption_boundary: true

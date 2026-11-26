@@ -1,5 +1,6 @@
-// The lesson `sparse-autoencoders` as a narrated film. One file for each scene, in the order of lesson.yaml.
-import { narratedLesson } from '../../lib/narrated-lesson.mjs';
+// Pure Cinema stage film for `sparse-autoencoders` (14 scenes, cinematicLesson).
+import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
+import { verifySaeInvariants } from './parts.mjs';
 import ablation from './scenes/ablation.mjs';
 import clampAndGradient from './scenes/clamp-and-gradient.mjs';
 import coverage from './scenes/coverage.mjs';
@@ -15,8 +16,10 @@ import shrinkage from './scenes/shrinkage.mjs';
 import steering from './scenes/steering.mjs';
 import trainingEvidence from './scenes/training-evidence.mjs';
 
-export default narratedLesson({
+export default cinematicLesson({
   id: 'sparse-autoencoders',
+  accent: COSMOS.cyan,
+  invariants: verifySaeInvariants,
   scenes: {
     intro,
     'packing-bound': packingBound,

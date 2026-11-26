@@ -1,0 +1,1975 @@
+version: 1
+id: logistic-regression
+title: Logistic Regression at the Review Desk
+source: foundations/logistic-regression-classification-metrics-from-scratch/content.md
+sources:
+  - title: "Stanford CS229: logistic regression"
+    url: https://cs229.stanford.edu/notes_archive/cs229-notes-all/cs229-notes1.pdf
+  - title: Scikit-learn calibration
+    url: https://scikit-learn.org/stable/modules/calibration.html
+  - title: Scikit-learn classification metrics
+    url: https://scikit-learn.org/stable/modules/model_evaluation.html
+  - title: "Scikit-learn: average precision with threshold groups"
+    url: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html
+  - title: "Scikit-learn: support-vector objectives and kernel formulation"
+    url: https://scikit-learn.org/stable/modules/svm.html#mathematical-formulation
+  - title: "Rasmussen and Williams: Gaussian-process regression, equations 2.25–2.26"
+    url: https://gaussianprocess.org/gpml/chapters/RW2.pdf
+scenes:
+  - id: intro
+    title: Routing by score
+    visual: A scored access badge drops straight onto its place on the ruler. Keep the badge pinned while the
+      yellow review threshold slides underneath it.
+    beats:
+      - say: This access request lands at point six two four. The yellow cut is at point eight. Requests at or above
+          it go to a reviewer. This one goes through automatically.
+        hold: 0.5
+        visual_cues:
+          - id: opening-score
+            phrase: This access request lands at point six two four
+            targets:
+              - request-ruler
+            linger: 0.45
+          - id: opening-auto
+            phrase: This one goes through automatically
+            targets:
+              - request-ruler
+              - request-record
+            caption_boundary: true
+            linger: 0.45
+      - say: Suppose we lower the cut to one half. Keep your eye on the blue dot. Which route would this same request
+          take?
+        hold: 2.5
+        visual_cues:
+          - id: opening-proposal
+            phrase: lower the cut to one half
+            targets:
+              - request-ruler
+            linger: 0.45
+      - say: Slide the yellow cut past the dot. Now the request goes to human review. The score stayed put.
+          Where did that point six two four come from?
+        hold: 0.85
+        visual_cues:
+          - id: opening-choice
+            phrase: Slide the yellow cut past the dot
+            targets:
+              - request-ruler
+            linger: 0.45
+          - id: opening-review
+            phrase: Now the request goes to human review
+            targets:
+              - request-record
+            caption_boundary: true
+            linger: 0.45
+  - id: evidence-score
+    title: Where did the score come from?
+    visual: Three signed contributions travel end to end on a common logit scale. A vertical guide carries the end
+      of each addition down to the start of the next.
+    beats:
+      - say: Here’s what the model knew about that request. Its ambiguity was three. The evidence that policy allowed
+          automatic handling scored five. A positive label means that review was required. Use rounded fitted
+          weights so we can follow the arithmetic. Start at the intercept, minus four point nine.
+        hold: 0.45
+        visual_cues:
+          - id: score-intercept
+            phrase: Start at the intercept, minus four point nine
+            targets:
+              - score-contributions
+            linger: 0.45
+      - say: Each point of ambiguity adds three point four. Move right by ten point two. Stronger policy support pulls
+          the other way. Five times minus point nine six takes us left by four point eight. Where do we land?
+        hold: 1.9
+        visual_cues:
+          - id: score-ambiguity
+            phrase: Move right by ten point two
+            targets:
+              - score-contributions
+            linger: 0.45
+          - id: score-support
+            phrase: takes us left by four point eight
+            targets:
+              - score-contributions
+            linger: 0.45
+      - say: Half a unit above zero. That signed sum is the logit. A larger logit favors the review-required label.
+          How does half a unit turn into the number on our desk?
+        hold: 0.6
+        visual_cues:
+          - id: score-total
+            phrase: Half a unit above zero
+            targets:
+              - score-result
+            caption_boundary: true
+            linger: 0.45
+  - id: sigmoid
+    title: The same score step can have a different effect
+    visual: Trace equal horizontal steps on the sigmoid and measure their vertical changes. For the waiting
+      request, compare the score from the rounded weights with the score from the full fit.
+    beats:
+      - say: The sigmoid maps a zero logit to one half, negative scores toward zero, and positive scores toward one.
+          Follow the moving point. Around the center, shifting the score from minus one to one makes a large
+          vertical change. The bracket measures that change.
+        hold: 0.7
+        visual_cues:
+          - id: sigmoid-center
+            phrase: shifting the score from minus one to one
+            targets:
+              - sigmoid-center-probe
+            linger: 0.7
+      - say: Make the same two-unit move out in the tail, from four to six. The vertical change is much smaller. The
+          curve is flattening. Our request's logit near one half maps to a score near point six two. The curve
+          bounds the number; later outcomes must test its frequency meaning.
+        hold: 0.7
+        visual_cues:
+          - id: sigmoid-tail
+            phrase: from four to six
+            targets:
+              - sigmoid-tail-probe
+            linger: 0.7
+          - id: request-probability
+            phrase: Our request's logit near one half
+            targets:
+              - request-probability
+            linger: 0.7
+          - id: full-fit-score
+            phrase: maps to a score near point six two
+            targets:
+              - request-probability
+            linger: 0.45
+      - say: The logit is the logarithm of the positive-class odds. At a zero score the odds are one to one. Adding
+          one to the logit multiplies the odds by e. Logistic regression assumes that these log odds are a
+          linear combination of the evidence features.
+        hold: 0.55
+        visual_cues:
+          - id: logit-definition
+            phrase: logarithm of the positive-class odds
+            targets:
+              - log-odds-definition
+            linger: 0.65
+  - id: boundary-geometry
+    title: Measure the score in the feature plane
+    visual: Retain the request and its two feature coordinates. Construct the coefficient normal, project the
+      point onto the equal-score line, then change only the threshold level. Treat the constant-score case
+      separately.
+    beats:
+      - say: "A binary label does not force us to use logistic regression. Least squares can fit zero and one labels,
+          but its linear prediction can leave the probability interval. Bernoulli conditional variance is p
+          times one minus p, so it can change with features. Squared error on bounded probabilities is the
+          legitimate Brier scoring loss. The sigmoid supplies a different model: linear log odds."
+        hold: 0.65
+        visual_cues:
+          - id: lr-boundary-geometry-step-0
+            phrase: "A binary label does not force us to use logistic regression. Least squares can fit zero and one
+              labels, but its linear prediction can leave the probability interval. Bernoulli conditional
+              variance is p times one minus p, so it can change with features. Squared error on bounded
+              probabilities is the legitimate Brier scoring loss. The sigmoid supplies a different model:
+              linear log odds."
+            targets:
+              - lr-boundary-geometry-mechanism
+            linger: 0.35
+      - say: Sigmoid divides one by the quantity one plus the exponential of the negative logit. Keep the intercept
+          separate from the feature coefficients. For a nonzero vector beta of feature coefficients, the
+          boundary at threshold one half satisfies beta dot x plus intercept equals zero. Beta is
+          perpendicular to that line and points toward larger scores. The Euclidean norm of beta is the square
+          root of the sum of its squared feature coefficients. The signed orthogonal distance in these feature
+          units equals the logit divided by the Euclidean norm of beta.
+        hold: 0.65
+        visual_cues:
+          - id: lr-boundary-geometry-step-1
+            phrase: Sigmoid divides one by the quantity one plus the exponential of the negative logit. Keep the intercept
+              separate from the feature coefficients. For a nonzero vector beta of feature coefficients, the
+              boundary at threshold one half satisfies beta dot x plus intercept equals zero. Beta is
+              perpendicular to that line and points toward larger scores. The Euclidean norm of beta is the
+              square root of the sum of its squared feature coefficients. The signed orthogonal distance in
+              these feature units equals the logit divided by the Euclidean norm of beta.
+            targets:
+              - lr-boundary-geometry-mechanism
+            linger: 0.35
+          - id: lr-boundary-normal
+            phrase: The Euclidean norm of beta is the square root of the sum of its squared feature coefficients.
+            targets:
+              - lr-boundary-geometry-mechanism
+            linger: 0.35
+          - id: lr-boundary-distance
+            phrase: The signed orthogonal distance in these feature units equals the logit divided by the Euclidean norm
+              of beta.
+            targets:
+              - lr-boundary-geometry-mechanism
+            linger: 0.35
+      - say: A threshold t between zero and one changes the required logit to the natural logarithm of the ratio t
+          over the quantity one minus t. It shifts a parallel boundary while holding the coefficients fixed. A
+          zero second coefficient can produce a vertical line; if every feature coefficient is zero, the
+          classifier is constant and has no separating hyperplane. Rescaling feature units changes this
+          geometric distance.
+        hold: 0.65
+        visual_cues:
+          - id: lr-boundary-geometry-step-2
+            phrase: A threshold t between zero and one changes the required logit to the natural logarithm of the ratio t
+              over the quantity one minus t. It shifts a parallel boundary while holding the coefficients
+              fixed. A zero second coefficient can produce a vertical line; if every feature coefficient is
+              zero, the classifier is constant and has no separating hyperplane. Rescaling feature units
+              changes this geometric distance.
+            targets:
+              - lr-boundary-geometry-mechanism
+            linger: 0.35
+          - id: lr-boundary-level
+            phrase: A threshold t between zero and one changes the required logit to the natural logarithm of the ratio t
+              over the quantity one minus t.
+            targets:
+              - lr-boundary-geometry-mechanism
+            linger: 0.35
+          - id: lr-boundary-vertical
+            phrase: A zero second coefficient can produce a vertical line; if every feature coefficient is zero, the
+              classifier is constant and has no separating hyperplane.
+            targets:
+              - lr-boundary-geometry-mechanism
+            linger: 0.35
+          - id: lr-boundary-vertical-only
+            phrase: A zero second coefficient can produce a vertical line
+            targets:
+              - lr-boundary-geometry-mechanism
+            linger: 0.35
+          - id: lr-boundary-constant
+            phrase: if every feature coefficient is zero, the classifier is constant and has no separating hyperplane.
+            targets:
+              - lr-boundary-geometry-mechanism
+            linger: 0.35
+  - id: log-loss
+    title: Which outcome did the model make unlikely?
+    visual: A positive outcome selects p from a two-part probability bar. Moving the same prediction makes its
+      negative-log penalty grow or shrink.
+    beats:
+      - say: Suppose this case required review. The model assigned probability p to that outcome. For a routine
+          case, we'd use one minus p. Take the negative log of the probability assigned to what happened.
+          These losses add across independent training cases. For the case that needed review, which prediction
+          gets the bigger loss, one tenth or nine tenths?
+        hold: 2.3
+        caption_starts:
+          - For the case that needed review
+        visual_cues:
+          - id: loss-select-outcome
+            phrase: this case required review
+            targets:
+              - outcome-probability
+            linger: 0.65
+      - say: Move the prediction down toward one tenth. The model gave what happened just one chance in ten.
+          The loss climbs to about two point three nats. Move up toward nine tenths. The loss falls to about
+          a tenth of a nat.
+        hold: 0.85
+        caption_starts:
+          - The loss climbs
+          - Move up toward nine tenths
+          - The loss falls
+        visual_cues:
+          - id: loss-wrong
+            phrase: Move the prediction down toward one tenth
+            targets:
+              - loss-probe
+            linger: 0.6
+          - id: loss-correct
+            phrase: Move up toward nine tenths
+            targets:
+              - loss-probe
+            linger: 0.7
+      - say: Extreme scores expose a numerical trap. A negative logit of a thousand can round the positive probability
+          to zero. Taking its logarithm then fails. The stable softplus expression works directly from the
+          finite logit and keeps the positive case's loss at about a thousand.
+        hold: 0.7
+        visual_cues:
+          - id: stable-loss
+            phrase: works directly from the finite logit
+            targets:
+              - stable-log-loss
+            linger: 0.7
+          - id: lr-stable-loss-result
+            phrase: keeps the positive case's loss at about a thousand.
+            targets:
+              - stable-log-loss
+            linger: 0.35
+  - id: bernoulli-likelihood
+    title: Select the probability of each actual label
+    visual: The original completed training rows each select p or one-minus-p. Multiply their selected
+      likelihoods, turn the product into a log sum, and distinguish per-row one-hot entropy from the
+      population label distribution.
+    beats:
+      - say: For a Bernoulli row, the probability of its actual label is p raised to y, times the quantity one minus
+          p, raised to the quantity one minus y. A positive label selects p; a negative label selects one
+          minus p. Assuming conditional independence across the training rows, multiply those selected
+          probabilities to obtain the likelihood of the complete observed label vector.
+        hold: 0.65
+        visual_cues:
+          - id: lr-bernoulli-likelihood-step-0
+            phrase: For a Bernoulli row, the probability of its actual label is p raised to y, times the quantity one
+              minus p, raised to the quantity one minus y. A positive label selects p; a negative label
+              selects one minus p. Assuming conditional independence across the training rows, multiply those
+              selected probabilities to obtain the likelihood of the complete observed label vector.
+            targets:
+              - lr-bernoulli-likelihood-mechanism
+            linger: 0.35
+          - id: lr-label-selection
+            phrase: A positive label selects p; a negative label selects one minus p.
+            targets:
+              - lr-bernoulli-likelihood-mechanism
+            linger: 0.35
+          - id: lr-complete-likelihood
+            phrase: Assuming conditional independence across the training rows, multiply those selected probabilities to
+              obtain the likelihood of the complete observed label vector.
+            targets:
+              - lr-bernoulli-likelihood-mechanism
+            linger: 0.35
+      - say: "Taking natural logs changes that product into a sum. Negate it and divide by the number of rows to
+          obtain mean binary cross-entropy. That normalization matters: replacing the mean with a sum
+          multiplies the gradient by the batch size. The linear-regression chapter used mean squared error,
+          whose gradient has an additional factor of two; half-squared error removes that factor."
+        hold: 0.65
+        visual_cues:
+          - id: lr-bernoulli-likelihood-step-1
+            phrase: "Taking natural logs changes that product into a sum. Negate it and divide by the number of rows to
+              obtain mean binary cross-entropy. That normalization matters: replacing the mean with a sum
+              multiplies the gradient by the batch size. The linear-regression chapter used mean squared
+              error, whose gradient has an additional factor of two; half-squared error removes that factor."
+            targets:
+              - lr-bernoulli-likelihood-mechanism
+            linger: 0.35
+          - id: lr-mean-likelihood
+            phrase: Negate it and divide by the number of rows to obtain mean binary cross-entropy.
+            targets:
+              - lr-bernoulli-likelihood-mechanism
+            linger: 0.35
+      - say: For one observed hard label, the target distribution puts all its mass on that label. Its entropy is
+          zero, so its cross-entropy equals the K L divergence with the target as its first argument and the
+          prediction as its second. Our whole population can still have uncertain labels and positive marginal
+          entropy. Expected log loss is minimized by the true conditional probability when the model family
+          can represent it; one sampled label is not that entire distribution.
+        hold: 0.65
+        visual_cues:
+          - id: lr-bernoulli-likelihood-step-2
+            phrase: For one observed hard label, the target distribution puts all its mass on that label. Its entropy is
+              zero, so its cross-entropy equals the K L divergence with the target as its first argument and
+              the prediction as its second. Our whole population can still have uncertain labels and positive
+              marginal entropy. Expected log loss is minimized by the true conditional probability when the
+              model family can represent it; one sampled label is not that entire distribution.
+            targets:
+              - lr-bernoulli-likelihood-mechanism
+            linger: 0.35
+          - id: lr-zero-target-entropy
+            phrase: Its entropy is zero, so its cross-entropy equals the K L divergence with the target as its first
+              argument and the prediction as its second.
+            targets:
+              - lr-bernoulli-likelihood-mechanism
+            linger: 0.35
+  - id: loss-curvature
+    title: Inspect the learning signal before trusting convexity
+    visual: Compare BCE and squared-error score derivatives on the same confidently wrong positive row. Build the
+      weighted design Hessian, retain a duplicate-feature flat direction, and keep separation distinct from
+      curvature.
+    beats:
+      - say: Take a request that needed review. At a logit of minus eight, the model gives that outcome
+          almost no chance. Binary cross-entropy has a slope of p minus y, nearly minus one. Look at the
+          pink arrow. Now compare squared error after the sigmoid. Its slope has an extra factor of two p
+          times one minus p. That shrinks the blue arrow to less than a thousandth of a unit. Using half
+          the squared error drops the factor of two.
+        hold: 0.65
+        visual_cues:
+          - id: lr-loss-curvature-step-0
+            phrase: Take a request that needed review
+            targets:
+              - lr-loss-curvature-mechanism
+            linger: 0.35
+          - id: lr-bce-derivative
+            phrase: Binary cross-entropy has a slope of p minus y, nearly minus one
+            targets:
+              - lr-loss-curvature-mechanism
+            linger: 0.35
+          - id: lr-mse-derivative
+            phrase: Its slope has an extra factor of two p times one minus p
+            targets:
+              - lr-loss-curvature-mechanism
+            linger: 0.35
+      - say: For the mean linear-logit loss, the Hessian is X transpose, times a diagonal matrix of p times one minus
+          p, times X, divided by the number of rows. Every diagonal factor is positive at finite real logits.
+          The Hessian is positive definite when the design has full column rank; duplicate columns create
+          directions that leave every training score unchanged.
+        hold: 0.65
+        visual_cues:
+          - id: lr-loss-curvature-step-1
+            phrase: For the mean linear-logit loss, the Hessian is X transpose, times a diagonal matrix of p times one
+              minus p, times X, divided by the number of rows. Every diagonal factor is positive at finite
+              real logits. The Hessian is positive definite when the design has full column rank; duplicate
+              columns create directions that leave every training score unchanged.
+            targets:
+              - lr-loss-curvature-mechanism
+            linger: 0.35
+          - id: lr-design-hessian
+            phrase: For the mean linear-logit loss, the Hessian is X transpose, times a diagonal matrix of p times one
+              minus p, times X, divided by the number of rows.
+            targets:
+              - lr-loss-curvature-mechanism
+            linger: 0.35
+          - id: lr-duplicate-flat
+            phrase: The Hessian is positive definite when the design has full column rank; duplicate columns create
+              directions that leave every training score unchanged.
+            targets:
+              - lr-loss-curvature-mechanism
+            linger: 0.35
+      - say: These two training cases sit on opposite sides of zero. Turn up the coefficient. Both
+          predictions move closer to their labels, and the loss keeps falling. Every finite coefficient
+          leaves room for a larger one to do better. A squared-weight penalty gives that growth a cost. The
+          step size and feature scale also matter during fitting. A large step can send the loss back up.
+        hold: 0.65
+        visual_cues:
+          - id: lr-loss-curvature-step-2
+            phrase: Turn up the coefficient. Both predictions move closer to their labels, and the loss
+              keeps falling
+            targets:
+              - lr-loss-curvature-mechanism
+            linger: 0.35
+          - id: lr-no-finite-optimum
+            phrase: Every finite coefficient leaves room for a larger one to do better
+            targets:
+              - lr-loss-curvature-mechanism
+            linger: 0.35
+  - id: gradient
+    title: The chain rule leaves a residual
+    visual: Three linked derivative factors appear, their matching terms cancel, and a concrete positive row
+      produces three signed coefficient contributions.
+    beats:
+      - say: Follow the chain rule backward. The loss derivative contains prediction minus label, divided by p times
+          one minus p. The sigmoid contributes that same product. Those factors cancel, leaving prediction
+          minus label. Each coefficient then receives this residual times its own feature.
+        hold: 0.7
+        visual_cues:
+          - id: gradient-chain
+            phrase: The loss derivative contains prediction minus label
+            targets:
+              - gradient-factors
+            linger: 0.6
+          - id: gradient-cancel
+            phrase: Those factors cancel
+            targets:
+              - gradient-cancellation
+            linger: 0.7
+      - say: Work one row. At zero weights, the probability is one half. This row needed review, so its residual is
+          minus one half. Multiply by the intercept feature, ambiguity three point five, and support six.
+          Subtracting these negative contributions raises the next score for similar cases.
+        hold: 0.65
+        visual_cues:
+          - id: worked-row-gradient
+            phrase: Multiply by the intercept feature, ambiguity three point five, and support six
+            targets:
+              - worked-row-gradient
+            linger: 0.7
+          - id: lr-gradient-local
+            phrase: Subtracting these negative contributions raises the next score for similar cases.
+            targets:
+              - worked-row-gradient
+            linger: 0.35
+  - id: batch-gradient
+    title: Collect every row before updating
+    visual: Eight persistent request rows contribute to three column totals. Only the completed batch produces a
+      mean and one coefficient update.
+    beats:
+      - say: One row gives a direction, but this update uses the whole batch. Every case starts at probability one
+          half. Positive labels contribute a negative residual; routine labels contribute a positive one. The
+          columns keep the intercept, ambiguity and support contributions separate.
+        hold: 0.55
+        visual_cues:
+          - id: batch-columns
+            phrase: The columns keep the intercept, ambiguity and support contributions separate
+            targets:
+              - batch-ledger
+            linger: 0.65
+      - say: Bring in all eight contributions, one request at a time. Keep each sign attached to its row while the
+          column totals accumulate. Wait for the eighth row. Now divide the totals by eight to get the mean
+          gradient.
+        hold: 0.7
+        visual_cues:
+          - id: collect-batch
+            phrase: Bring in all eight contributions, one request at a time
+            targets:
+              - batch-ledger
+              - batch-totals
+            linger: 0.65
+          - id: average-batch
+            phrase: Now divide the totals by eight
+            targets:
+              - batch-mean
+            linger: 0.7
+      - say: Subtract the mean gradient, scaled by a learning rate of point two. The intercept stays zero, while both
+          feature weights rise on this first step. That initial direction reflects the batch averages. Later
+          steps can separate the two features' conditional effects.
+        hold: 0.65
+        visual_cues:
+          - id: first-update
+            phrase: Subtract the mean gradient
+            targets:
+              - first-coefficient-update
+            linger: 0.7
+  - id: data-contract
+    title: Keep one label paired with one logit
+    visual: Use the actual eight-row design and target vector. Expand a mistaken column-shaped label array to
+      expose its eight-by-eight broadcast, then restore rowwise loss and the completed-batch update.
+    beats:
+      - say: Our trainer uses a design of shape eight by three, weights of length three, and labels and logits both of
+          length eight. Importing labels as eight by one can broadcast multiplication against eight logits
+          into an eight-by-eight matrix. Its scalar mean can look plausible while pairing every label with
+          every request score. Reject the mismatch before fitting.
+        hold: 0.65
+        visual_cues:
+          - id: lr-data-contract-step-0
+            phrase: Our trainer uses a design of shape eight by three, weights of length three, and labels and logits both
+              of length eight. Importing labels as eight by one can broadcast multiplication against eight
+              logits into an eight-by-eight matrix. Its scalar mean can look plausible while pairing every
+              label with every request score. Reject the mismatch before fitting.
+            targets:
+              - lr-data-contract-mechanism
+            linger: 0.35
+          - id: lr-shape-broadcast
+            phrase: Importing labels as eight by one can broadcast multiplication against eight logits into an
+              eight-by-eight matrix.
+            targets:
+              - lr-data-contract-mechanism
+            linger: 0.35
+          - id: lr-shape-reject
+            phrase: Reject the mismatch before fitting.
+            targets:
+              - lr-data-contract-mechanism
+            linger: 0.35
+      - say: The actual helper also rejects empty designs, nonfinite features and labels outside zero and one. Convert
+          a known single target column deliberately; do not flatten an unexplained multi-target table. The
+          first full-batch update raises both feature weights because both features have larger averages among
+          positive rows. The eventual negative support coefficient concerns the conditional fit, rather than
+          that first marginal direction.
+        hold: 0.65
+        visual_cues:
+          - id: lr-data-contract-step-1
+            phrase: The actual helper also rejects empty designs, nonfinite features and labels outside zero and one.
+              Convert a known single target column deliberately; do not flatten an unexplained multi-target
+              table. The first full-batch update raises both feature weights because both features have larger
+              averages among positive rows. The eventual negative support coefficient concerns the conditional
+              fit, rather than that first marginal direction.
+            targets:
+              - lr-data-contract-mechanism
+            linger: 0.35
+          - id: lr-sign-conditional
+            phrase: The eventual negative support coefficient concerns the conditional fit, rather than that first
+              marginal direction.
+            targets:
+              - lr-data-contract-mechanism
+            linger: 0.35
+      - say: Each printed loss is evaluated after the same update as its printed weights. Keep that boundary explicit
+          when comparing trainers. Match the design, loss reduction, penalty, intercept handling and stopping
+          rule. A row gradient, a batch mean and an already-updated coefficient vector are different states,
+          even when they come from the same eight requests.
+        hold: 0.65
+        visual_cues:
+          - id: lr-data-contract-step-2
+            phrase: Each printed loss is evaluated after the same update as its printed weights. Keep that boundary
+              explicit when comparing trainers. Match the design, loss reduction, penalty, intercept handling
+              and stopping rule. A row gradient, a batch mean and an already-updated coefficient vector are
+              different states, even when they come from the same eight requests.
+            targets:
+              - lr-data-contract-mechanism
+            linger: 0.35
+          - id: lr-snapshot-boundary
+            phrase: Each printed loss is evaluated after the same update as its printed weights.
+            targets:
+              - lr-data-contract-mechanism
+            linger: 0.35
+  - id: learning
+    title: Fit a compromise among the observed cases
+    visual: The same eight training points remain as gradient descent rotates the boundary. Loss and coefficient
+      values derive from the exact same iteration.
+    beats:
+      - say: Repeat the prediction, residual, average and update. Watch the boundary turn while training loss falls.
+          The ambiguity coefficient settles positive and policy support settles negative. Both rose initially,
+          yet their fitted roles differ once the model accounts for the features together.
+        hold: 0.7
+        visual_cues:
+          - id: fit-boundary
+            phrase: Watch the boundary turn while training loss falls
+            targets:
+              - training-loss
+            linger: 0.7
+          - id: lr-learning-trajectory
+            phrase: Repeat the prediction, residual, average and update. Watch the boundary turn while training loss
+              falls. The ambiguity coefficient settles positive and policy support settles negative. Both rose
+              initially, yet their fitted roles differ once the model accounts for the features together.
+            targets:
+              - training-loss
+            linger: 0.35
+      - say: This required-review case still lies on the automatic side. A straight line cannot carve out every
+          isolated exception. Check labels and missing features before reaching for a more flexible model. The
+          training table explains how we fitted; new cases must test how the fit travels.
+        hold: 0.65
+        visual_cues:
+          - id: training-exception
+            phrase: still lies on the automatic side
+            targets:
+              - training-exception
+            linger: 0.7
+  - id: separation
+    title: Loss can fall while weights keep growing
+    visual: Two separable points stay fixed. A coefficient grows through actual score and loss values; a quadratic
+      penalty then creates a finite preferred scale.
+    beats:
+      - say: "One fitting limit is worth seeing. These two cases are perfectly separable. Double the coefficient: both
+          scores move farther from zero and log loss falls. Double it again. Without a penalty, this example
+          can keep improving its loss as the coefficient grows without a finite optimum."
+        hold: 0.65
+        visual_cues:
+          - id: separable-growth
+            phrase: Double the coefficient
+            targets:
+              - separable-scores
+              - separable-loss
+            linger: 0.7
+          - id: separable-again
+            phrase: Double it again
+            targets:
+              - separable-scores
+              - separable-loss
+            linger: 0.7
+      - say: Add a squared-weight penalty. Large coefficients now have a rising cost, so the combined objective has a
+          finite preferred scale. The linear-logit loss is convex; redundant features can still create flat
+          directions. Regularization addresses the objective, while held-out evaluation addresses future
+          behavior.
+        hold: 0.6
+        visual_cues:
+          - id: regularized-objective
+            phrase: Add a squared-weight penalty
+            targets:
+              - regularized-objective
+            linger: 0.7
+  - id: boundary
+    title: Move the policy while the model stays fixed
+    visual: A threshold changes a shaded half-plane and the action rings around persistent training points,
+      leaving weights untouched.
+    beats:
+      - say: Freeze the fitted weights. A threshold of one half asks for a logit of zero. That level is a straight
+          line in our two-feature plane. The shaded side goes to review. Color inside each point still records
+          its observed outcome.
+        hold: 0.65
+        visual_cues:
+          - id: boundary-region
+            phrase: The shaded side goes to review
+            targets:
+              - review-region
+            linger: 0.7
+      - say: Predict what a lower threshold will do. Move the line into the negative-score region. More requests
+          acquire review rings, including some routine cases. The weights stay fixed. We have changed the
+          action policy applied to the evidence score.
+        hold: 0.8
+        caption_starts:
+          - Move the line into the negative-score region
+          - More requests acquire review rings
+        visual_cues:
+          - id: lower-threshold
+            phrase: Move the line into the negative-score region
+            targets:
+              - review-decision-boundary
+              - review-region
+            linger: 0.7
+  - id: confusion
+    title: Every count has a request behind it
+    visual: Identified validation tokens physically enter the four confusion cells. A lower threshold moves the
+      crossed tokens while their outcome colors remain fixed.
+    beats:
+      - say: These eight earlier requests were reserved from fitting. Their closed outcomes are now available. Start
+          with a high threshold. Route each request into its matching cell. A required review caught is a true
+          positive; a required review passed through is a false negative.
+        hold: 0.7
+        visual_cues:
+          - id: route-validation
+            phrase: Route each request into its matching cell. A required review caught is a true positive; a required
+              review passed through is a false negative
+            targets:
+              - confusion-tp
+              - confusion-fp
+              - confusion-fn
+              - confusion-tn
+            linger: 0.7
+      - say: Moving the threshold changes the queue and the errors together. Watch the crossed requests travel into
+          their new cells. Their later labels stay attached. At the lower cut, all four required reviews are
+          caught, along with two routine requests that add unnecessary queue work.
+        hold: 0.75
+        visual_cues:
+          - id: threshold-sweep-b2-2
+            phrase: Moving the threshold changes the queue and the errors together. Watch the crossed requests travel into
+              their new cells
+            targets:
+              - confusion-tp
+              - confusion-fp
+              - confusion-fn
+              - confusion-tn
+              - review-policy-cost
+            linger: 0.7
+      - say: An unnecessary review costs eighteen dollars in this example. A missed required review costs a hundred
+          and twenty. Calculate total cost at several thresholds. Multiply each kind of error by its own cost.
+          More reviews have reduced this mistake bill, but we still have to staff the queue.
+        hold: 0.7
+        visual_cues:
+          - id: cost-alternatives-b3-2
+            phrase: Calculate total cost at several thresholds
+            targets:
+              - review-cost-rule
+              - review-cost-worked-example
+              - review-cost-alternatives
+              - review-policy-cost
+            linger: 0.7
+  - id: denominators
+    title: Precision and recall collect different groups
+    visual: Actual request tokens gather into a six-token review queue and a four-token required-review cohort.
+      Their shared true positives fill the two different denominators.
+    beats:
+      - say: "Which fraction of the review queue actually needed review? Collect the four true positives and two false
+          positives. Four of six gives precision, about two thirds. The denominator follows the action we
+          took: every request sent to review."
+        hold: 0.7
+        caption_starts:
+          - Collect the four true positives
+          - Four of six gives precision
+        visual_cues:
+          - id: precision-cohort
+            phrase: Collect the four true positives and two false positives
+            targets:
+              - precision-cohort
+            linger: 0.7
+      - say: Recall starts with every case that required review. Collect true positives and false negatives. Here all
+          four were caught, so recall is four out of four. Their harmonic mean, F one, is point eight. Keep
+          these counts beside the summaries, especially when required reviews are rare.
+        hold: 0.7
+        visual_cues:
+          - id: recall-cohort
+            phrase: Collect true positives and false negatives
+            targets:
+              - recall-cohort
+            linger: 0.7
+          - id: f1-receipt
+            phrase: Their harmonic mean, F one, is point eight
+            targets:
+              - recall-cohort
+            linger: 0.7
+  - id: harmonic-mean
+    title: Keep a small recall from hiding inside a large average
+    visual: The same selected-queue and actual-positive populations supply precision and recall. Compare
+      arithmetic and harmonic summaries, then construct F1 directly from the confusion counts.
+    beats:
+      - say: Precision and recall answer different denominator questions. For positive values, F one is two times
+          precision times recall, divided by their sum. Equivalently, it is two divided by the sum of their
+          reciprocals. A small component therefore has a large reciprocal and pulls this mean downward.
+        hold: 0.65
+        visual_cues:
+          - id: lr-harmonic-mean-step-0
+            phrase: Precision and recall answer different denominator questions. For positive values, F one is two times
+              precision times recall, divided by their sum. Equivalently, it is two divided by the sum of
+              their reciprocals. A small component therefore has a large reciprocal and pulls this mean
+              downward.
+            targets:
+              - lr-harmonic-mean-mechanism
+            linger: 0.35
+          - id: lr-harmonic-formula
+            phrase: For positive values, F one is two times precision times recall, divided by their sum.
+            targets:
+              - lr-harmonic-mean-mechanism
+            linger: 0.35
+      - say: In the article’s separate limiting example, one selected request is truly positive, but there are one
+          hundred positives overall. Precision is one and recall one hundredth. Their arithmetic mean is point
+          five zero five. F one is only about point zero one nine eight. The summary cannot hide ninety-nine
+          misses behind one pure review.
+        hold: 0.65
+        visual_cues:
+          - id: lr-harmonic-mean-step-1
+            phrase: In the article’s separate limiting example, one selected request is truly positive, but there are one
+              hundred positives overall. Precision is one and recall one hundredth. Their arithmetic mean is
+              point five zero five. F one is only about point zero one nine eight. The summary cannot hide
+              ninety-nine misses behind one pure review.
+            targets:
+              - lr-harmonic-mean-mechanism
+            linger: 0.35
+          - id: lr-harmonic-answer
+            phrase: F one is only about point zero one nine eight.
+            targets:
+              - lr-harmonic-mean-mechanism
+            linger: 0.35
+      - say: The equivalent count form is two true positives divided by the quantity two true positives plus false
+          positives plus false negatives. It avoids separately dividing by an empty precision or recall
+          denominator, except when its own denominator is zero. Keep a declared zero-division convention and
+          the class and queue counts visible; a numerical convention does not create an observed rate.
+        hold: 0.65
+        visual_cues:
+          - id: lr-harmonic-mean-step-2
+            phrase: The equivalent count form is two true positives divided by the quantity two true positives plus false
+              positives plus false negatives. It avoids separately dividing by an empty precision or recall
+              denominator, except when its own denominator is zero. Keep a declared zero-division convention
+              and the class and queue counts visible; a numerical convention does not create an observed rate.
+            targets:
+              - lr-harmonic-mean-mechanism
+            linger: 0.35
+          - id: lr-harmonic-counts
+            phrase: The equivalent count form is two true positives divided by the quantity two true positives plus false
+              positives plus false negatives.
+            targets:
+              - lr-harmonic-mean-mechanism
+            linger: 0.35
+  - id: capacity
+    title: Which review queue can we staff?
+    visual: Eight scored validation files keep one column apiece. Lower cuts send files into a four-slot tray.
+      Keep the three completed bills in place as a fifth and then a sixth slot opens.
+    beats:
+      - say: Line up the eight closed requests by score. At the point-eight cut, the first two take review slots. Look
+          along the automatic row. V three and V eight both needed review. Each miss costs a hundred and twenty
+          dollars. That's the whole two-hundred-forty-dollar bill.
+        hold: 0.55
+        visual_cues:
+          - id: policy-queues
+            phrase: V three and V eight both needed review
+            targets:
+              - policy-desk
+            linger: 0.45
+      - say: Lower the cut to one half. Two more files come down. V four was routine, so its review adds eighteen
+          dollars. V three needed that check, so its hundred-and-twenty-dollar charge disappears. The two extra
+          reviews leave us with a smaller bill, a hundred and thirty-eight dollars.
+        hold: 0.85
+        visual_cues:
+          - id: policy-middle
+            phrase: Two more files come down
+            targets:
+              - policy-desk
+            linger: 0.45
+      - say: Now try point two. Follow V six and V eight into the tray. V six adds an unnecessary review. Catching V
+          eight clears the last miss. The bill falls by another hundred and two dollars. Of the three cuts,
+          which has the lowest bill while using at most four slots?
+        hold: 2.75
+        visual_cues:
+          - id: policy-low
+            phrase: Follow V six and V eight into the tray
+            targets:
+              - policy-desk
+            linger: 0.45
+      - say: Choose one half. Thirty-six dollars would be cheaper, but those six files need six slots. Four reviews
+          fit at one half, and two reviews at point eight cost more. Freeze the model and the cut. Measure them
+          on new requests, because these eight helped us choose.
+        hold: 0.8
+        visual_cues:
+          - id: choose-feasible
+            phrase: Choose one half
+            targets:
+              - policy-ledger
+            caption_boundary: true
+            linger: 0.45
+      - say: Suppose the desk gets one more slot. Replay the same eight validation requests and open a fifth slot.
+          Keep all three cuts and both error prices. With five slots, can we use the thirty-six-dollar policy?
+        hold: 2.8
+        visual_cues:
+          - id: fifth-seat
+            phrase: open a fifth slot
+            targets:
+              - policy-desk
+            linger: 0.45
+      - say: Try the point-two cut again. Watch the last two files drop. V six fits in slot five. V eight still needs
+          slot six.
+        hold: 1.35
+        visual_cues:
+          - id: final-replay
+            phrase: Watch the last two files drop
+            targets:
+              - policy-desk
+            linger: 0.45
+      - say: With five slots, keep one half. That leaves one seat empty, but lowering the cut admits both files.
+        hold: 0.8
+        visual_cues:
+          - id: five-seat-cut
+            phrase: With five slots, keep one half
+            targets:
+              - policy-desk
+              - policy-ledger
+            caption_boundary: true
+            linger: 0.45
+      - say: Now open a sixth slot. Lower the cut once more. Point two now fits. Compared with one half, it catches
+          V eight and adds one unnecessary review of V six. That's where the hundred-and-two-dollar saving
+          comes from. Keep the authorization checks in force and measure the frozen choice on fresh traffic.
+        hold: 1.2
+        visual_cues:
+          - id: sixth-seat
+            phrase: open a sixth slot
+            targets:
+              - policy-desk
+            linger: 0.45
+          - id: six-seat-trial
+            phrase: Lower the cut once more
+            targets:
+              - policy-desk
+            linger: 0.45
+          - id: six-seat-cut
+            phrase: point two now fits
+            targets:
+              - policy-ledger
+            caption_boundary: true
+            linger: 0.45
+  - id: calibrated-cost
+    title: Which route costs less before the case closes?
+    visual: Pin a calibrated probability to a magnified plot of the two expected costs. Read both prices at the
+      same request, move to a second request, then find the probability where the prices meet.
+    beats:
+      - say: Those eight cases were already closed. Suppose a new request has a calibrated probability of point two.
+          Among many similar requests, we'd expect one in five to need review. Correct decisions cost nothing
+          here. Send the request through automatically and a miss costs a hundred and twenty dollars. Weight
+          that price by one chance in five. The expected bill is twenty-four dollars.
+        hold: 0.65
+        visual_cues:
+          - id: lr-expected-auto
+            phrase: Weight that price by one chance in five. The expected bill is twenty-four dollars
+            targets:
+              - risk-plot
+              - route-prices
+            linger: 0.45
+      - say: Keep the probe on this same request. On the review route, the only charge is eighteen dollars when the
+          case turns out to be routine. That happens four times in five on average here. The expected bill for
+          review is fourteen dollars forty. Which route costs less?
+        hold: 2
+        visual_cues:
+          - id: lr-expected-review
+            phrase: The expected bill for review is fourteen dollars forty
+            targets:
+              - risk-plot
+              - route-prices
+            linger: 0.45
+      - say: Choose human review. Now take a second request. Its chance of needing review is just five percent. Slide
+          the probe to point zero five. Keep both prices. Which route would you choose for this one?
+        hold: 2.25
+        visual_cues:
+          - id: first-risk-answer
+            phrase: Choose human review
+            targets:
+              - cost-rule
+            caption_boundary: true
+            linger: 0.45
+          - id: lower-risk-probe
+            phrase: Slide the probe to point zero five
+            targets:
+              - risk-plot
+              - route-prices
+            linger: 0.45
+      - say: Automatic handling. A five percent chance of a hundred-and-twenty-dollar miss costs six dollars on
+          average. Review would cost seventeen dollars ten. Between those two requests, the cheaper route
+          changes. Bring the probe to where the lines cross. Both actions have the same expected cost here.
+        hold: 0.55
+        caption_starts:
+          - Bring the probe to where the lines cross
+          - Both actions have the same expected cost here
+        visual_cues:
+          - id: second-risk-answer
+            phrase: Automatic handling
+            targets:
+              - cost-rule
+            caption_boundary: true
+            linger: 0.45
+          - id: find-crossing
+            phrase: Bring the probe to where the lines cross
+            targets:
+              - risk-plot
+              - route-prices
+            linger: 0.45
+      - say: At the crossing, a hundred and twenty times p equals eighteen times one minus p. Solving gives
+          eighteen over a hundred and thirty-eight, about point one three zero. When correct decisions cost
+          zero, the break-even probability is the false-positive cost divided by the sum of the two error
+          costs. With calibrated probabilities and an open review slot, review above that cut. Right at the
+          cut the two routes cost the same on average.
+        hold: 0.65
+        visual_cues:
+          - id: lr-bayes-cut
+            phrase: eighteen over a hundred and thirty-eight, about point one three zero
+            targets:
+              - cost-rule
+            linger: 0.45
+      - say: Apply that cut to the eight validation scores and seven requests qualify. Our desk has four slots. A
+          cheaper action for an individual request can still produce a queue we can't staff. That's why we
+          tested the size of each candidate queue before freezing the policy.
+        hold: 0.75
+        visual_cues:
+          - id: lr-cost-capacity
+            phrase: seven requests qualify
+            targets:
+              - route-prices
+              - cost-rule
+            linger: 0.45
+  - id: ranking
+    title: Which request scores higher?
+    visual: The score bars and the sixteen-cell comparison grid share two highlighted requests. Work one losing
+      pair and one winning pair, then follow the rest into the same grid.
+    beats:
+      - say: Look at V three. Its closed case required review. V four was routine. If the model ranks these two
+          correctly, V three should score higher. Read the two marked bars. Does V three beat V four?
+        hold: 2.3
+        visual_cues:
+          - id: auc-first
+            phrase: Read the two marked bars
+            targets:
+              - auc-scores
+              - auc-pair-ledger
+            linger: 0.45
+      - say: No. Point five nine five falls below point six two four. Enter zero in that cell. Keep V three and switch
+          its opponent to V six. What goes in this cell?
+        hold: 2.1
+        visual_cues:
+          - id: auc-loss
+            phrase: Enter zero in that cell
+            targets:
+              - auc-pair-ledger
+              - auc-result
+            caption_boundary: true
+            linger: 0.45
+          - id: auc-switch
+            phrase: switch its opponent to V six
+            targets:
+              - auc-scores
+              - auc-pair-ledger
+            linger: 0.45
+      - say: One win. V three scores above point three two five. Compare each required request with every routine
+          request. Four of each makes sixteen pairs. Give a tie half credit.
+        hold: 0.7
+        visual_cues:
+          - id: auc-win
+            phrase: One win
+            targets:
+              - auc-pair-ledger
+              - auc-result
+            caption_boundary: true
+            linger: 0.45
+          - id: auc-pairs
+            phrase: Compare each required request with every routine request. Four of each makes sixteen pairs
+            targets:
+              - auc-scores
+              - auc-pair-ledger
+            linger: 0.45
+      - say: Thirteen wins in sixteen comparisons. That fraction is point eight one two five, the area under the
+          ROC curve. Pick a required request and a routine one at random from these eight, and that's how often
+          the required one ranks higher. To work out how many requests will reach the desk, we still need a
+          cut and the mix of cases coming in.
+        hold: 0.75
+        visual_cues:
+          - id: auc-result
+            phrase: That fraction is point eight one two five
+            targets:
+              - auc-result
+            caption_boundary: true
+            linger: 0.45
+  - id: rare-event-population
+    title: Change the population while keeping the score model fixed
+    visual: Keep the actual score identities. Uniformly replicate negatives, then instead add only easy negatives.
+      Compare the different ROC and precision consequences, alongside a majority-class baseline.
+    beats:
+      - say: Of these hundred requests, the four pink ones needed review. Send every request through
+          automatically. Ninety-six decisions were correct, giving ninety-six percent accuracy. We missed
+          all four pink cases. Review recall is zero. Precision has an empty
+          denominator because we sent nobody to review. Recall has an empty denominator when there are no
+          positive cases. If a helper returns zero for an empty denominator, show the count beside it.
+        hold: 0.65
+        visual_cues:
+          - id: lr-rare-event-population-step-0
+            phrase: Of these hundred requests
+            targets:
+              - lr-rare-event-population-mechanism
+            linger: 0.35
+          - id: automatic-accuracy
+            phrase: giving ninety-six percent accuracy
+            targets:
+              - lr-rare-event-population-mechanism
+            linger: 0.35
+          - id: lr-majority-baseline
+            phrase: Review recall is zero
+            targets:
+              - lr-rare-event-population-mechanism
+            linger: 0.35
+      - say: At one fixed threshold, recall and false-positive rate normalize within their own true classes. Changing
+          prevalence while preserving both class-conditional score distributions leaves the population ROC
+          point unchanged. On our actual eight-score fixture, uniformly repeating every negative score
+          twenty-five times preserves F P R point five and A U C point eight one two five, but precision falls
+          from two thirds to about point zero seven four one.
+        hold: 0.65
+        visual_cues:
+          - id: lr-rare-event-population-step-1
+            phrase: At one fixed threshold, recall and false-positive rate normalize within their own true classes.
+              Changing prevalence while preserving both class-conditional score distributions leaves the
+              population ROC point unchanged. On our actual eight-score fixture, uniformly repeating every
+              negative score twenty-five times preserves F P R point five and A U C point eight one two five,
+              but precision falls from two thirds to about point zero seven four one.
+            targets:
+              - lr-rare-event-population-mechanism
+            linger: 0.35
+          - id: lr-repeat-negatives
+            phrase: On our actual eight-score fixture, uniformly repeating every negative score twenty-five times
+              preserves F P R point five and A U C point eight one two five, but precision falls from two
+              thirds to about point zero seven four one.
+            targets:
+              - lr-rare-event-population-mechanism
+            linger: 0.35
+      - say: Adding one hundred extra negatives all scored zero is a different change. It leaves the selected queue
+          unchanged, lowers F P R to about point zero one nine two and raises A U C to about point nine nine
+          two eight. Precision remains two thirds. Every positive outranks all one hundred new cases. Those
+          easy wins lift the ranking score while the same six requests reach the desk.
+        hold: 0.65
+        visual_cues:
+          - id: lr-rare-event-population-step-2
+            phrase: Every positive outranks all one hundred new cases
+            targets:
+              - lr-rare-event-population-mechanism
+            linger: 0.35
+          - id: lr-easy-negatives
+            phrase: It leaves the selected queue unchanged, lowers F P R to about point zero one nine two and raises A U C
+              to about point nine nine two eight.
+            targets:
+              - lr-rare-event-population-mechanism
+            linger: 0.35
+  - id: ap-and-ties
+    title: Collect threshold groups before scoring precision
+    visual: Keep the sorted validation requests and their complete positive-negative grid. Construct recall
+      increments at positive thresholds, then introduce an explicitly separate tied-score pair and collect the
+      tied group together.
+    beats:
+      - say: The R O C false-positive denominator is every negative label, whereas precision divides caught positives
+          by the selected queue. A precision-recall curve follows both queue membership and caught positives
+          as the cut moves. Precision can fall when a negative enters and rise when the next positive enters.
+          The empty-queue precision endpoint is a plotting convention.
+        hold: 0.65
+        visual_cues:
+          - id: lr-ap-and-ties-step-0
+            phrase: The R O C false-positive denominator is every negative label, whereas precision divides caught
+              positives by the selected queue. A precision-recall curve follows both queue membership and
+              caught positives as the cut moves. Precision can fall when a negative enters and rise when the
+              next positive enters. The empty-queue precision endpoint is a plotting convention.
+            targets:
+              - lr-ap-and-ties-mechanism
+            linger: 0.35
+          - id: lr-pr-membership
+            phrase: Precision can fall when a negative enters and rise when the next positive enters.
+            targets:
+              - lr-ap-and-ties-mechanism
+            linger: 0.35
+      - say: Average precision sums the precision at each threshold multiplied by the increase in recall there. With
+          distinct scores, each positive contributes one over the number of positives times its rank
+          precision. Our four positives enter at ranks one, two, four and six, giving precisions one, one,
+          three quarters and two thirds. Their average is about point eight five four.
+        hold: 0.65
+        visual_cues:
+          - id: lr-ap-and-ties-step-1
+            phrase: Average precision sums the precision at each threshold multiplied by the increase in recall there.
+              With distinct scores, each positive contributes one over the number of positives times its rank
+              precision. Our four positives enter at ranks one, two, four and six, giving precisions one, one,
+              three quarters and two thirds. Their average is about point eight five four.
+            targets:
+              - lr-ap-and-ties-mechanism
+            linger: 0.35
+          - id: lr-average-precision
+            phrase: Their average is about point eight five four.
+            targets:
+              - lr-ap-and-ties-mechanism
+            linger: 0.35
+      - say: Tied scores enter together at one threshold; do not choose a favorable order within the tie.
+          Positive-negative A U C gives a tied pair half credit. Average precision uses the whole tied
+          threshold group before its recall increment. Trapezoidal P R area interpolates between points and
+          can differ from A P. Name the statistic, counts and sampling design alongside the result.
+        hold: 0.65
+        visual_cues:
+          - id: lr-ap-and-ties-step-2
+            phrase: Tied scores enter together at one threshold; do not choose a favorable order within the tie.
+              Positive-negative A U C gives a tied pair half credit. Average precision uses the whole tied
+              threshold group before its recall increment. Trapezoidal P R area interpolates between points
+              and can differ from A P. Name the statistic, counts and sampling design alongside the result.
+            targets:
+              - lr-ap-and-ties-mechanism
+            linger: 0.35
+          - id: lr-threshold-ties
+            phrase: Tied scores enter together at one threshold; do not choose a favorable order within the tie.
+            targets:
+              - lr-ap-and-ties-mechanism
+            linger: 0.35
+          - id: lr-trapezoid-area
+            phrase: Trapezoidal P R area interpolates between points and can differ from A P.
+            targets:
+              - lr-ap-and-ties-mechanism
+            linger: 0.35
+  - id: rescaling
+    title: A new scale can preserve every ordering
+    visual: The same eight score bars shorten under squaring. Their order and pair ledger remain unchanged while
+      the matching numeric threshold moves from one half to one quarter.
+    beats:
+      - say: Square every score. On this zero-to-one interval the transformation preserves order. Watch the same
+          request bars shrink without overtaking one another. Every positive-negative verdict stays the same,
+          so the ranking metric is unchanged.
+        hold: 0.7
+        visual_cues:
+          - id: rescale-scores
+            phrase: Watch the same request bars shrink
+            targets:
+              - rescaled-scores
+            linger: 0.7
+      - say: The old one-half cut corresponds to one quarter on this new scale. Moving the numeric cut preserves the
+          same selected cases. The displayed percentages have changed. To judge their meaning, we need to
+          compare forecasts with later frequencies.
+        hold: 0.65
+        visual_cues:
+          - id: rescale-threshold
+            phrase: Moving the numeric cut preserves the same selected cases
+            targets:
+              - rescaled-threshold
+            linger: 0.7
+  - id: calibration
+    title: Let the later labels build the frequency
+    visual: Reserved predictions move into score bins before their labels are uncovered. Each observed bar is
+      built from counted outcomes, with bin populations always visible.
+    beats:
+      - say: "Return to the original scores. Group these reserved predictions into four bins. Each cyan bar is the
+          group's average forecast. Leave the outcome covers on for a moment: the forecast existed before
+          anyone could see how these requests ended."
+        hold: 0.7
+        visual_cues:
+          - id: collect-calibration
+            phrase: Group these reserved predictions into four bins
+            targets:
+              - calibration-bins
+              - calibration-tokens
+            linger: 0.7
+      - say: "Let their later labels arrive one at a time. Count required reviews inside each bin and divide by that
+          bin's population. The lowest bin has one in three. Near our opening request's score, one of two
+          needed review: a frequency of one half beside a forecast near point six one."
+        hold: 0.75
+        visual_cues:
+          - id: calibration-outcomes
+            phrase: Let their later labels arrive one at a time
+            targets:
+              - calibration-bins
+              - calibration-tokens
+              - observed-frequencies
+            linger: 0.7
+      - say: Two cases give a fragile fraction. Change just one label and half becomes all. More representative later
+          labels must test the probability claim. If we fit a calibration map, reserve separate labels for
+          verification, and reassess the numeric action cut on suitable validation data.
+        hold: 0.65
+        visual_cues:
+          - id: calibration-one-label
+            phrase: Change just one label
+            targets:
+              - calibration-fragility
+            linger: 0.7
+  - id: calibration-error
+    title: Weight each bin gap before adding it
+    visual: Use the actual four bins and their individual request identities. Construct size-weighted absolute
+      gaps, compare the bin-independent Brier score, then rerun the small-label sensitivity and changed-bin
+      audit.
+    beats:
+      - say: Binary positive-class E C E groups the review probabilities, rather than the confidence in whichever
+          class won. In each populated bin, subtract the observed positive frequency from the average
+          prediction, take the absolute value, multiply by that bin’s fraction of all rows, and add. Our
+          lowest bin contributes three eighths times its roughly point one seven five gap.
+        hold: 0.65
+        visual_cues:
+          - id: lr-calibration-error-step-0
+            phrase: Binary positive-class E C E groups the review probabilities, rather than the confidence in whichever
+              class won. In each populated bin, subtract the observed positive frequency from the average
+              prediction, take the absolute value, multiply by that bin’s fraction of all rows, and add. Our
+              lowest bin contributes three eighths times its roughly point one seven five gap.
+            targets:
+              - lr-calibration-error-mechanism
+            linger: 0.35
+          - id: lr-bin-contribution
+            phrase: Our lowest bin contributes three eighths times its roughly point one seven five gap.
+            targets:
+              - lr-calibration-error-mechanism
+            linger: 0.35
+      - say: The four calculated contributions total about point one three nine. The Brier score instead averages the
+          squared probability-minus-label errors of individual rows, giving about point one five eight here.
+          Brier assesses discrimination and outcome uncertainty as well as reliability; a lower score alone
+          does not prove better calibration. Changing the same displayed scores from four bins to eight
+          changes E C E to about point one five four.
+        hold: 0.65
+        visual_cues:
+          - id: lr-calibration-error-step-1
+            phrase: The four calculated contributions total about point one three nine. The Brier score instead averages
+              the squared probability-minus-label errors of individual rows, giving about point one five eight
+              here. Brier assesses discrimination and outcome uncertainty as well as reliability; a lower
+              score alone does not prove better calibration. Changing the same displayed scores from four bins
+              to eight changes E C E to about point one five four.
+            targets:
+              - lr-calibration-error-mechanism
+            linger: 0.35
+          - id: lr-ece-answer
+            phrase: The four calculated contributions total about point one three nine.
+            targets:
+              - lr-calibration-error-mechanism
+            linger: 0.35
+          - id: lr-brier-answer
+            phrase: The Brier score instead averages the squared probability-minus-label errors of individual rows, giving
+              about point one five eight here.
+            targets:
+              - lr-calibration-error-mechanism
+            linger: 0.35
+          - id: lr-eight-bin-answer
+            phrase: Changing the same displayed scores from four bins to eight changes E C E to about point one five four.
+            targets:
+              - lr-calibration-error-mechanism
+            linger: 0.35
+      - say: Change V four's label from routine to required. Keep every score and the half cut fixed. That
+          review now counts as a true positive. F one rises from point seven five to about point eight
+          eight nine. Look at the two cases in its bin. Both now needed review, even though the mean
+          forecast was near point six one. The gap grows, and four-bin E C E rises to about point two zero
+          nine.
+        hold: 0.65
+        visual_cues:
+          - id: lr-calibration-error-step-2
+            phrase: Keep every score and the half cut fixed
+            targets:
+              - lr-calibration-error-mechanism
+            linger: 0.35
+          - id: lr-flipped-label
+            phrase: Change V four's label from routine to required
+            targets:
+              - lr-calibration-error-mechanism
+            linger: 0.35
+          - id: lr-flip-metrics
+            phrase: F one rises from point seven five to about point eight eight nine
+            targets:
+              - lr-calibration-error-mechanism
+            linger: 0.35
+          - id: disputed-ece
+            phrase: four-bin E C E rises to about point two zero nine
+            targets:
+              - lr-calibration-error-mechanism
+            linger: 0.35
+  - id: calibration-maps
+    title: Keep the label sets and ranking contracts separate
+    visual: Separate classifier-fitting, calibrator-fitting and fresh verification rows. Compare a strictly
+      increasing sigmoid map, an isotonic flat segment and a positive temperature change on the same scores.
+    beats:
+      - say: A post-hoc calibrator maps a trained classifier’s output to an estimated conditional event probability.
+          Fit it on labels separate from the classifier’s fitting data, then verify it on fresh labels. Platt
+          scaling fits a one-dimensional sigmoid. Isotonic regression fits a nondecreasing step function.
+          Their fitted maps and data requirements are part of the probability claim.
+        hold: 0.65
+        visual_cues:
+          - id: lr-calibration-maps-step-0
+            phrase: A post-hoc calibrator maps a trained classifier’s output to an estimated conditional event
+              probability. Fit it on labels separate from the classifier’s fitting data, then verify it on
+              fresh labels. Platt scaling fits a one-dimensional sigmoid. Isotonic regression fits a
+              nondecreasing step function. Their fitted maps and data requirements are part of the probability
+              claim.
+            targets:
+              - lr-calibration-maps-mechanism
+            linger: 0.35
+          - id: lr-calibrator-data
+            phrase: Fit it on labels separate from the classifier’s fitting data, then verify it on fresh labels.
+            targets:
+              - lr-calibration-maps-mechanism
+            linger: 0.35
+          - id: lr-isotonic-map
+            phrase: Isotonic regression fits a nondecreasing step function.
+            targets:
+              - lr-calibration-maps-mechanism
+            linger: 0.35
+          - id: lr-platt-fit
+            phrase: Platt scaling fits a one-dimensional sigmoid.
+            targets:
+              - lr-calibration-maps-mechanism
+            linger: 0.35
+      - say: A strictly increasing map preserves binary ordering, while isotonic’s flat steps can merge previously
+          distinct scores into ties and change A U C. Positive temperature scaling divides logits by a
+          positive learned scalar. It preserves their ordering and the sign of a binary logit, so the binary
+          one-half boundary stays unchanged.
+        hold: 0.65
+        visual_cues:
+          - id: lr-calibration-maps-step-1
+            phrase: A strictly increasing map preserves binary ordering, while isotonic’s flat steps can merge previously
+              distinct scores into ties and change A U C. Positive temperature scaling divides logits by a
+              positive learned scalar. It preserves their ordering and the sign of a binary logit, so the
+              binary one-half boundary stays unchanged.
+            targets:
+              - lr-calibration-maps-mechanism
+            linger: 0.35
+          - id: lr-map-ties
+            phrase: A strictly increasing map preserves binary ordering, while isotonic’s flat steps can merge previously
+              distinct scores into ties and change A U C.
+            targets:
+              - lr-calibration-maps-mechanism
+            linger: 0.35
+          - id: lr-positive-temperature
+            phrase: Positive temperature scaling divides logits by a positive learned scalar.
+            targets:
+              - lr-calibration-maps-mechanism
+            linger: 0.35
+      - say: Other numerical thresholds can need reassessment after calibration. Learn that policy on appropriate
+          validation data, with the final test labels still reserved. Even a calibrated probability concerns
+          whether review is required; the actual routing action follows the chosen threshold. Model labels
+          also do not grant permission to change access or freeze credentials.
+        hold: 0.65
+        visual_cues:
+          - id: lr-calibration-maps-step-2
+            phrase: Other numerical thresholds can need reassessment after calibration. Learn that policy on appropriate
+              validation data, with the final test labels still reserved. Even a calibrated probability
+              concerns whether review is required; the actual routing action follows the chosen threshold.
+              Model labels also do not grant permission to change access or freeze credentials.
+            targets:
+              - lr-calibration-maps-mechanism
+            linger: 0.35
+          - id: lr-post-calibration-policy
+            phrase: Other numerical thresholds can need reassessment after calibration.
+            targets:
+              - lr-calibration-maps-mechanism
+            linger: 0.35
+  - id: multiclass-heads
+    title: Let each class receive its own residual
+    visual: The same supplied six-request multiclass design becomes three linear heads. Normalize the actual head
+      scores, subtract the one-hot target, and form the full design-transpose residual update.
+    beats:
+      - say: For three routing labels, give every class a coefficient vector including its intercept. For one feature
+          column x, the class logits are W transpose times x; across request rows the logits are X times W.
+          Softmax exponentiates each class score and divides by the sum, giving a class distribution. These
+          labels name proposed workflow categories, not independently authorized effects.
+        hold: 0.65
+        visual_cues:
+          - id: lr-multiclass-heads-step-0
+            phrase: For three routing labels, give every class a coefficient vector including its intercept. For one
+              feature column x, the class logits are W transpose times x; across request rows the logits are X
+              times W. Softmax exponentiates each class score and divides by the sum, giving a class
+              distribution. These labels name proposed workflow categories, not independently authorized
+              effects.
+            targets:
+              - lr-multiclass-heads-mechanism
+            linger: 0.35
+          - id: lr-softmax-heads
+            phrase: For one feature column x, the class logits are W transpose times x; across request rows the logits are
+              X times W.
+            targets:
+              - lr-multiclass-heads-mechanism
+            linger: 0.35
+          - id: lr-class-distribution
+            phrase: Softmax exponentiates each class score and divides by the sum, giving a class distribution.
+            targets:
+              - lr-multiclass-heads-mechanism
+            linger: 0.35
+      - say: "Categorical cross-entropy selects the negative log probability of the actual class. For each class head,
+          its logit residual is predicted probability minus the one-hot target. Multiply those residuals by
+          features and average across rows: the batch gradient is X transpose times predicted-minus-target
+          distributions, divided by the row count. The actual six-row, thousand-update toy fit reaches loss
+          about point zero zero five five on its training rows."
+        hold: 0.65
+        visual_cues:
+          - id: lr-multiclass-heads-step-1
+            phrase: "Categorical cross-entropy selects the negative log probability of the actual class. For each class
+              head, its logit residual is predicted probability minus the one-hot target. Multiply those
+              residuals by features and average across rows: the batch gradient is X transpose times
+              predicted-minus-target distributions, divided by the row count. The actual six-row,
+              thousand-update toy fit reaches loss about point zero zero five five on its training rows."
+            targets:
+              - lr-multiclass-heads-mechanism
+            linger: 0.35
+          - id: lr-class-residual
+            phrase: For each class head, its logit residual is predicted probability minus the one-hot target.
+            targets:
+              - lr-multiclass-heads-mechanism
+            linger: 0.35
+          - id: lr-multiclass-fit
+            phrase: The actual six-row, thousand-update toy fit reaches loss about point zero zero five five on its
+              training rows.
+            targets:
+              - lr-multiclass-heads-mechanism
+            linger: 0.35
+      - say: For two classes, the probability of class one is the sigmoid of class-one logit minus class-zero logit.
+          Pinning the reference logit to zero recovers binary logistic regression. Adding the same coefficient
+          vector to every class head shifts every row’s logits equally and changes no probability. A reference
+          class or constraint removes that redundancy; the unrestricted weight matrix is not uniquely
+          identified.
+        hold: 0.65
+        visual_cues:
+          - id: lr-multiclass-heads-step-2
+            phrase: For two classes, the probability of class one is the sigmoid of class-one logit minus class-zero
+              logit. Pinning the reference logit to zero recovers binary logistic regression. Adding the same
+              coefficient vector to every class head shifts every row’s logits equally and changes no
+              probability. A reference class or constraint removes that redundancy; the unrestricted weight
+              matrix is not uniquely identified.
+            targets:
+              - lr-multiclass-heads-mechanism
+            linger: 0.35
+          - id: lr-shared-head-shift
+            phrase: Adding the same coefficient vector to every class head shifts every row’s logits equally and changes
+              no probability.
+            targets:
+              - lr-multiclass-heads-mechanism
+            linger: 0.35
+  - id: stable-softmax
+    title: Keep an extremely wrong class expensive
+    visual: Shift a shared multiclass score vector by its maximum, construct true exponentials and their
+      normalizer, then compute cross-entropy directly from the shifted target logit rather than a clipped
+      probability.
+    beats:
+      - say: Calculate softmax by subtracting the largest finite logit from every class before exponentiating. The
+          shared exponential factor cancels. With representable finite differences, each shifted score is
+          nonpositive and the largest exponential is one. Sum the actual shifted exponentials for the
+          denominator, then divide; those weights describe the shifted scores, and their sum gives the
+          retained normalizer.
+        hold: 0.65
+        visual_cues:
+          - id: lr-stable-softmax-step-0
+            phrase: Calculate softmax by subtracting the largest finite logit from every class before exponentiating. The
+              shared exponential factor cancels. With representable finite differences, each shifted score is
+              nonpositive and the largest exponential is one. Sum the actual shifted exponentials for the
+              denominator, then divide; those weights describe the shifted scores, and their sum gives the
+              retained normalizer.
+            targets:
+              - lr-stable-softmax-mechanism
+            linger: 0.35
+          - id: lr-shift-largest
+            phrase: Calculate softmax by subtracting the largest finite logit from every class before exponentiating.
+            targets:
+              - lr-stable-softmax-mechanism
+            linger: 0.35
+          - id: lr-exp-normalizer
+            phrase: Sum the actual shifted exponentials for the denominator, then divide; those weights describe the
+              shifted scores, and their sum gives the retained normalizer.
+            targets:
+              - lr-stable-softmax-mechanism
+            linger: 0.35
+      - say: The negative log probability of a target class is the log of that exponential sum minus its shifted
+          target logit. In the supplied extreme row, logits are one thousand, zero and minus one thousand, and
+          the last class is correct. Shifting gives zero, minus one thousand and minus two thousand. The log
+          normalizer is approximately zero, so the loss remains two thousand nats.
+        hold: 0.65
+        visual_cues:
+          - id: lr-stable-softmax-step-1
+            phrase: The negative log probability of a target class is the log of that exponential sum minus its shifted
+              target logit. In the supplied extreme row, logits are one thousand, zero and minus one thousand,
+              and the last class is correct. Shifting gives zero, minus one thousand and minus two thousand.
+              The log normalizer is approximately zero, so the loss remains two thousand nats.
+            targets:
+              - lr-stable-softmax-mechanism
+            linger: 0.35
+          - id: lr-extreme-class-loss
+            phrase: The log normalizer is approximately zero, so the loss remains two thousand nats.
+            targets:
+              - lr-stable-softmax-mechanism
+            linger: 0.35
+      - say: Clipping the target probability at ten to the minus fifteen would cap that penalty near thirty-four point
+          five four, hiding how wrong the logit was. Finite-precision probabilities can underflow to zero
+          despite the mathematical distribution. Invalid inputs and subtraction overflow need explicit
+          handling. Rounded training output one, zero, zero is not calibrated certainty or evidence of
+          generalization.
+        hold: 0.65
+        visual_cues:
+          - id: lr-stable-softmax-step-2
+            phrase: Clipping the target probability at ten to the minus fifteen would cap that penalty near thirty-four
+              point five four, hiding how wrong the logit was. Finite-precision probabilities can underflow to
+              zero despite the mathematical distribution. Invalid inputs and subtraction overflow need
+              explicit handling. Rounded training output one, zero, zero is not calibrated certainty or
+              evidence of generalization.
+            targets:
+              - lr-stable-softmax-mechanism
+            linger: 0.35
+          - id: lr-clipped-class-loss
+            phrase: Clipping the target probability at ten to the minus fifteen would cap that penalty near thirty-four
+              point five four, hiding how wrong the logit was.
+            targets:
+              - lr-stable-softmax-mechanism
+            linger: 0.35
+  - id: margin-objective
+    title: Compare two losses on the same signed margin
+    visual: Keep each signed-label score pair. Move the score through the unit hinge margin, contrast logistic
+      loss at the same position, and attach the explicit weight penalty and support-vector role.
+    beats:
+      - say: A support vector classifier uses labels minus one and plus one. Multiply the label by its decision score
+          to get the functional margin. Hinge loss is the larger of zero and one minus that margin. Our
+          positive score point four is classified correctly but still has hinge loss point six. At score one
+          point four, hinge loss is zero while logistic loss remains about point two two zero.
+        hold: 0.65
+        visual_cues:
+          - id: lr-margin-objective-step-0
+            phrase: A support vector classifier uses labels minus one and plus one. Multiply the label by its decision
+              score to get the functional margin. Hinge loss is the larger of zero and one minus that margin.
+              Our positive score point four is classified correctly but still has hinge loss point six. At
+              score one point four, hinge loss is zero while logistic loss remains about point two two zero.
+            targets:
+              - lr-margin-objective-mechanism
+            linger: 0.35
+          - id: lr-functional-margin
+            phrase: Multiply the label by its decision score to get the functional margin.
+            targets:
+              - lr-margin-objective-mechanism
+            linger: 0.35
+          - id: lr-hinge-cleared
+            phrase: At score one point four, hinge loss is zero while logistic loss remains about point two two zero.
+            targets:
+              - lr-margin-objective-mechanism
+            linger: 0.35
+      - say: A usual soft-margin objective adds one half the squared feature-weight norm to C times the sum of hinge
+          violations. Support vectors lie on or inside the margin, or beyond it on the wrong side. Rows safely
+          beyond the margin supply no hinge-loss pressure. Divide a linear functional margin by the nonzero
+          feature-weight norm for its geometric margin.
+        hold: 0.65
+        visual_cues:
+          - id: lr-margin-objective-step-1
+            phrase: A usual soft-margin objective adds one half the squared feature-weight norm to C times the sum of
+              hinge violations. Support vectors lie on or inside the margin, or beyond it on the wrong side.
+              Rows safely beyond the margin supply no hinge-loss pressure. Divide a linear functional margin
+              by the nonzero feature-weight norm for its geometric margin.
+            targets:
+              - lr-margin-objective-mechanism
+            linger: 0.35
+          - id: lr-weight-penalty
+            phrase: A usual soft-margin objective adds one half the squared feature-weight norm to C times the sum of
+              hinge violations.
+            targets:
+              - lr-margin-objective-mechanism
+            linger: 0.35
+      - say: "Implementation details can change the objective: Linear S V C defaults to squared hinge and regularizes
+          its intercept through liblinear. Compare the actual loss, penalty, scale and normalization. A
+          decision score is not automatically a calibrated probability. A linear margin still cannot carve a
+          curved pocket around every exceptional request."
+        hold: 0.65
+        visual_cues:
+          - id: lr-margin-objective-step-2
+            phrase: "Implementation details can change the objective: Linear S V C defaults to squared hinge and
+              regularizes its intercept through liblinear. Compare the actual loss, penalty, scale and
+              normalization. A decision score is not automatically a calibrated probability. A linear margin
+              still cannot carve a curved pocket around every exceptional request."
+            targets:
+              - lr-margin-objective-mechanism
+            linger: 0.35
+          - id: lr-implementation-hinge
+            phrase: "Implementation details can change the objective: Linear S V C defaults to squared hinge and
+              regularizes its intercept through liblinear."
+            targets:
+              - lr-margin-objective-mechanism
+            linger: 0.35
+  - id: kernel-uncertainty
+    title: Use the same similarity for two different predictive jobs
+    visual: An RBF distance probe computes similarity, then a separately labeled one-observation Gaussian
+      regression model produces its posterior mean and latent variance. Retain noise variance separately from
+      future observation variance.
+    beats:
+      - say: For the R B F kernel, divide squared distance by twice the squared length scale, negate that quotient,
+          then exponentiate. It equals one at identical inputs. With length scale one, distances one and three
+          give similarities about point six zero seven and point zero one one. An R B F S V M can build
+          nonlinear margins from such similarities without explicitly materializing the feature expansion.
+          Feature units and length scale still matter.
+        hold: 0.65
+        visual_cues:
+          - id: lr-kernel-uncertainty-step-0
+            phrase: For the R B F kernel, divide squared distance by twice the squared length scale, negate that quotient,
+              then exponentiate. It equals one at identical inputs. With length scale one, distances one and
+              three give similarities about point six zero seven and point zero one one. An R B F S V M can
+              build nonlinear margins from such similarities without explicitly materializing the feature
+              expansion. Feature units and length scale still matter.
+            targets:
+              - lr-kernel-uncertainty-mechanism
+            linger: 0.35
+          - id: lr-kernel-distances
+            phrase: With length scale one, distances one and three give similarities about point six zero seven and point
+              zero one one.
+            targets:
+              - lr-kernel-uncertainty-mechanism
+            linger: 0.35
+      - say: Now switch to the article’s separate continuous regression example. Observe value two at input zero, with
+          zero prior mean, unit prior variance, length scale one and Gaussian noise variance point zero four.
+          If k is the similarity to the observed input, posterior mean is two k divided by one point zero
+          four. Latent variance is one minus k squared divided by one point zero four.
+        hold: 0.65
+        visual_cues:
+          - id: lr-kernel-uncertainty-step-1
+            phrase: Now switch to the article’s separate continuous regression example. Observe value two at input zero,
+              with zero prior mean, unit prior variance, length scale one and Gaussian noise variance point
+              zero four. If k is the similarity to the observed input, posterior mean is two k divided by one
+              point zero four. Latent variance is one minus k squared divided by one point zero four.
+            targets:
+              - lr-kernel-uncertainty-mechanism
+            linger: 0.35
+          - id: lr-gp-posterior-mean
+            phrase: If k is the similarity to the observed input, posterior mean is two k divided by one point zero four.
+            targets:
+              - lr-kernel-uncertainty-mechanism
+            linger: 0.35
+          - id: lr-gp-posterior-variance
+            phrase: Latent variance is one minus k squared divided by one point zero four.
+            targets:
+              - lr-kernel-uncertainty-mechanism
+            linger: 0.35
+      - say: For this one-observation unit-variance model, replace two by the observed value and one point zero four
+          by one plus noise variance. At the observed input the mean is about one point nine two three and
+          latent standard deviation about point one nine six. Far from this observation, mean returns toward
+          zero and standard deviation toward one under these assumptions. A new noisy observation adds point
+          zero four to latent variance. These regression equations do not apply unchanged to classification.
+          Exact dense G P fitting costs roughly cubic time and quadratic storage in observation count; other
+          kernels and observation layouts can change the distance pattern.
+        hold: 0.65
+        visual_cues:
+          - id: lr-kernel-uncertainty-step-2
+            phrase: For this one-observation unit-variance model, replace two by the observed value and one point zero
+              four by one plus noise variance. At the observed input the mean is about one point nine two
+              three and latent standard deviation about point one nine six. Far from this observation, mean
+              returns toward zero and standard deviation toward one under these assumptions. A new noisy
+              observation adds point zero four to latent variance. These regression equations do not apply
+              unchanged to classification. Exact dense G P fitting costs roughly cubic time and quadratic
+              storage in observation count; other kernels and observation layouts can change the distance
+              pattern.
+            targets:
+              - lr-kernel-uncertainty-mechanism
+            linger: 0.35
+          - id: lr-gp-observation-noise
+            phrase: A new noisy observation adds point zero four to latent variance.
+            targets:
+              - lr-kernel-uncertainty-mechanism
+            linger: 0.35
+  - id: implementation-parity
+    title: What changes when we refit the same eight rows?
+    visual: Match the library fit to the gradient loop. Turn on the penalty and follow one score across the
+      review cut. Compare the first loss update at two learning rates.
+    beats:
+      - say: Fit the same eight rows twice, once with our gradient loop and once with scikit-learn. Both
+          use the intercept column we supplied. Turn off the library's extra intercept and set C to
+          infinity so both fits minimize the same loss. Compare the three weights. The solvers stop at
+          slightly different values, but they rank the requests in the same order.
+        hold: 0.65
+        visual_cues:
+          - id: lr-implementation-parity-step-0
+            phrase: Fit the same eight rows twice
+            targets:
+              - lr-implementation-parity-mechanism
+            linger: 0.35
+          - id: lr-library-coefficients
+            phrase: Compare the three weights
+            targets:
+              - lr-implementation-parity-mechanism
+            linger: 0.35
+      - say: Now change only the penalty. With C set to one, large weights cost extra during fitting. Watch
+          all three weights shrink toward zero. Look at the same request, R three. Its score moves from
+          about point two seven to point five two. At a cut of one half, it now goes to review.
+        hold: 0.65
+        caption_starts:
+          - Its score moves
+          - At a cut of one half
+        visual_cues:
+          - id: lr-implementation-parity-step-1
+            phrase: Now change only the penalty
+            targets:
+              - lr-implementation-parity-mechanism
+            linger: 0.35
+          - id: lr-parity-penalty
+            phrase: Watch all three weights shrink toward zero
+            targets:
+              - lr-implementation-parity-mechanism
+            linger: 0.35
+          - id: r3-score
+            phrase: Its score moves from about point two seven to point five two
+            targets:
+              - lr-implementation-parity-mechanism
+            linger: 0.35
+          - id: r3-review
+            phrase: it now goes to review
+            targets:
+              - lr-implementation-parity-mechanism
+            linger: 0.35
+      - say: Both runs start at a loss near point six nine. Take one update. With a learning rate of two,
+          loss jumps above two. With point two, loss falls slightly. Try a smaller step when loss jumps. If
+          scores cluster near the base rate, compare them with a constant prediction. For good rankings but
+          poor probability estimates, check the labels and counts in each calibration bin.
+        hold: 0.65
+        caption_starts:
+          - With a learning rate of two
+          - With point two
+        visual_cues:
+          - id: lr-implementation-parity-step-2
+            phrase: Both runs start at a loss near point six nine
+            targets:
+              - lr-implementation-parity-mechanism
+            linger: 0.35
+          - id: lr-diagnose-first-update
+            phrase: Take one update
+            targets:
+              - lr-implementation-parity-mechanism
+            linger: 0.35
+          - id: remaining-updates
+            phrase: Try a smaller step when loss jumps
+            targets:
+              - lr-implementation-parity-mechanism
+            linger: 0.35
+  - id: fresh-operating-point
+    title: Price a new batch before the labels arrive
+    visual: Four new requests each carry the expected cost of both routes. A selector in each column picks the
+      term charged to a policy. When only one request changes route, only that selector moves.
+    beats:
+      - say: Suppose a different desk has two review slots. Here are four new requests and their calibrated probabilities of
+          needing review. A miss costs a hundred and eight dollars. For automatic handling, multiply that price
+          by the chance the request needs review. That gives a hundred and eight times p. An unnecessary review
+          costs twelve dollars, so review costs twelve times one minus p in expectation. Correct decisions cost
+          zero.
+        hold: 0.65
+        visual_cues:
+          - id: new-scores
+            phrase: four new requests and their calibrated probabilities
+            targets:
+              - expected-desk
+            linger: 0.45
+          - id: auto-prices
+            phrase: a hundred and eight times p
+            targets:
+              - expected-desk
+            linger: 0.45
+          - id: review-prices
+            phrase: twelve times one minus p in expectation
+            targets:
+              - expected-desk
+            linger: 0.45
+      - say: Start with the cut at point three. Review a request if its probability reaches the cut. Pick one dollar
+          amount in each column. Which four go on the bill?
+        hold: 3
+        visual_cues:
+          - id: expected-question
+            phrase: Pick one dollar amount in each column
+            targets:
+              - expected-desk
+            linger: 0.45
+      - say: The first two go through automatically. The last two go to review. For the first two, five dollars forty
+          plus nineteen forty-four gives twenty-four dollars eighty-four. For the two reviews, six sixty plus
+          three dollars gives nine sixty. Together those four choices cost thirty-four dollars forty-four in
+          expectation.
+        hold: 0.9
+        visual_cues:
+          - id: fresh-auto-routes
+            phrase: The first two go through automatically
+            targets:
+              - expected-desk
+            caption_boundary: true
+            linger: 0.45
+          - id: lr-new-mid-queue
+            phrase: The last two go to review
+            targets:
+              - expected-desk
+            caption_boundary: true
+            linger: 0.45
+          - id: lr-new-mid-auto
+            phrase: gives twenty-four dollars eighty-four
+            targets:
+              - expected-bills
+            linger: 0.45
+          - id: lr-new-mid-review
+            phrase: gives nine sixty
+            targets:
+              - expected-bills
+            linger: 0.45
+          - id: lr-new-mid-total
+            phrase: cost thirty-four dollars forty-four in expectation
+            targets:
+              - expected-bills
+            caption_boundary: true
+            linger: 0.45
+      - say: Lower the cut to point one. Only N two switches to review. Its expected charge falls from nineteen
+          forty-four to nine eighty-four. That brings the bill down to twenty-four dollars eighty-four, and puts
+          three requests in a two-slot queue.
+        hold: 0.8
+        visual_cues:
+          - id: lr-new-low-selection
+            phrase: Only N two switches to review
+            targets:
+              - expected-desk
+            linger: 0.45
+          - id: lr-new-low-policy
+            phrase: puts three requests in a two-slot queue
+            targets:
+              - expected-bills
+            caption_boundary: true
+            linger: 0.45
+      - say: Go back to point three. Now raise the cut to point six. N three goes through automatically. Its charge
+          rises from six sixty to forty-eight sixty. That leaves one review and an expected bill of seventy-six
+          dollars forty-four. Which tested cut is cheapest among the ones we can staff?
+        hold: 2.8
+        visual_cues:
+          - id: restore-middle
+            phrase: Go back to point three
+            targets:
+              - expected-desk
+            linger: 0.45
+          - id: lr-new-high-selection
+            phrase: N three goes through automatically
+            targets:
+              - expected-desk
+            linger: 0.45
+          - id: lr-new-high-policy
+            phrase: one review and an expected bill of seventy-six dollars forty-four
+            targets:
+              - expected-bills
+            caption_boundary: true
+            linger: 0.45
+      - say: Choose point three. The last two requests take the two slots. The expected bill is thirty-four dollars
+          forty-four. When the cases close, count the actual misses and unnecessary reviews.
+        hold: 0.9
+        visual_cues:
+          - id: lr-new-selected-policy
+            phrase: Choose point three
+            targets:
+              - expected-bills
+              - expected-desk
+            caption_boundary: true
+            linger: 0.45
+  - id: decision
+    title: What goes on the mistake bill?
+    visual: The opening score ruler shows the frozen four-slot policy. Move the request to the desk, open its
+      outcome, then price that review. Beside it, add the two mistakes from the eight validation cases.
+    beats:
+      - say: Back at our four-slot desk, the cut is one half. This request scores point six two four, so it goes
+          to review. Open the closed case. Routine handling would have been enough. That makes this an
+          unnecessary review. Put eighteen dollars on its bill.
+        hold: 0.8
+        caption_starts:
+          - Put eighteen dollars on its bill
+        visual_cues:
+          - id: frozen-cut
+            phrase: the cut is one half
+            targets:
+              - request-ruler
+            linger: 0.35
+          - id: final-route
+            phrase: so it goes to review
+            targets:
+              - final-request-route
+            caption_boundary: true
+            linger: 0.45
+          - id: final-label
+            phrase: Routine handling would have been enough
+            targets:
+              - final-request-route
+              - final-request-outcome
+            caption_boundary: true
+            linger: 0.35
+          - id: final-verdict
+            phrase: That makes this an unnecessary review
+            targets:
+              - final-request-outcome
+            caption_boundary: true
+            linger: 0.2
+          - id: final-outcome
+            phrase: Put eighteen dollars on its bill
+            targets:
+              - final-request-outcome
+            linger: 0.45
+      - say: Across the eight validation cases, one missed review cost a hundred and twenty dollars. One
+          unnecessary review cost eighteen. That makes a hundred and thirty-eight dollars, with all four review
+          slots filled. Freeze the cut and tally the next batch as its cases close. Next, we'll try a
+          decision tree on a required review the straight line missed.
+        hold: 0.8
+        caption_starts:
+          - One unnecessary review cost eighteen
+          - That makes a hundred and thirty-eight dollars
+          - Next, we'll try a decision tree
+        visual_cues:
+          - id: final-miss
+            phrase: one missed review cost a hundred and twenty dollars
+            targets:
+              - final-policy-receipt
+            linger: 0.25
+          - id: final-extra
+            phrase: One unnecessary review cost eighteen
+            targets:
+              - final-policy-receipt
+            linger: 0.25
+          - id: final-receipt
+            phrase: That makes a hundred and thirty-eight dollars, with all four review slots filled
+            targets:
+              - final-policy-receipt
+            linger: 0.45

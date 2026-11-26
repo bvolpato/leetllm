@@ -1,0 +1,1908 @@
+version: 1
+id: gradients-backprop
+title: Gradients and Backprop
+source: foundations/calculus-gradients-backpropagation-optimization/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "Calculus Volume 1: Defining the Derivative"
+    url: https://openstax.org/books/calculus-volume-1/pages/3-1-defining-the-derivative
+  - title: "Calculus Volume 1: The Chain Rule"
+    url: https://openstax.org/books/calculus-volume-1/pages/3-6-the-chain-rule
+  - title: Learning Representations by Back-Propagating Errors
+    url: https://doi.org/10.1038/323533a0
+  - title: "Automatic Differentiation in Machine Learning: a Survey"
+    url: https://www.jmlr.org/papers/v18/17-468.html
+  - title: PyTorch Autograd mechanics
+    url: https://docs.pytorch.org/docs/stable/notes/autograd.html
+  - title: PyTorch backward seeds and accumulation
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.autograd.backward.html
+  - title: PyTorch gradcheck precision and corners
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.autograd.gradcheck.gradcheck.html
+  - title: PyTorch expanded views
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.Tensor.expand.html
+  - title: PyTorch differentiable clone
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.clone.html
+  - title: Boyd and Vandenberghe Convex Optimization chapter9
+    url: https://web.stanford.edu/~boyd/cvxbook/bv_cvxbook.pdf
+scenes:
+  - id: subject-intro
+    title: "Two blocks, one weight"
+    visual: >-
+      Cut into the second predicted block as it approaches the observed five-second finish. Color the
+      part that runs past the stop, then label the miss when the block ends. Keep the observed finish
+      fixed as one turn shortens both blocks. Reset to three and try a smaller turn.
+    beats:
+      - say: >-
+          This request took five seconds. The model predicted six. It gave the first hundred tokens three
+          seconds and the next hundred another three. One weight sets the width of both blocks. Which way
+          would you turn it?
+        hold: 2.2
+        caption_starts: [The model predicted six, It gave the first hundred tokens, One weight sets the width]
+        visual_cues:
+          - id: intro-question
+            phrase: Which way would you turn it
+            targets:
+              - intro-dial
+              - wrong-prediction
+              - prediction-gap
+            color: pink
+            linger: 0.35
+          - id: intro-first-block
+            phrase: "the first hundred tokens three seconds"
+            targets: [first-prompt-block]
+            color: cyan
+          - id: intro-second-block
+            phrase: "the next hundred another three"
+            targets: [second-prompt-block]
+            color: cyan
+      - say: >-
+          Turn it down a tenth. Both blocks get shorter. The join moves a tenth of a second. The end moves
+          twice as far, two tenths. Put the weight back at three. If we take off one hundredth per block,
+          how far will the end move?
+        hold: 2
+        caption_starts: [The end moves twice as far, Put the weight back at three]
+        visual_cues:
+          - id: intro-turn
+            phrase: "Turn it down a tenth"
+            targets:
+              - intro-dial
+              - prompt-strip
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: intro-direction
+            phrase: Both blocks get shorter
+            targets:
+              - intro-direction
+            color: green
+            linger: 0.35
+          - id: intro-linkage
+            phrase: twice as far
+            targets:
+              - intro-linkage
+              - prompt-strip
+            color: yellow
+            linger: 0.35
+          - id: intro-reset
+            phrase: Put the weight back at three
+            targets: [intro-dial, prompt-strip]
+            color: yellow
+      - say: >-
+          Each block loses one hundredth of a second. Two hundredths altogether. The prediction
+          is now five point nine eight. The next question is how to score that miss.
+        hold: 0.65
+        caption_starts: [Two hundredths altogether, The prediction is now five point nine eight]
+        visual_cues:
+          - id: intro-small-turn
+            phrase: Each block loses one hundredth of a second
+            targets: [intro-dial, prompt-strip]
+            color: yellow
+          - id: intro-small-result
+            phrase: Two hundredths altogether
+            targets: [latency-prediction, intro-linkage]
+            color: cyan
+            caption_boundary: true
+          - id: intro-fine-prediction
+            phrase: The prediction is now five point nine eight
+            targets: [latency-prediction]
+            color: cyan
+          - id: intro-score
+            phrase: how to score that miss
+            targets:
+              - loss-question
+            color: yellow
+            linger: 0.35
+  - id: why-train
+    title: "What does the miss cost?"
+    visual: >-
+      Reuse the two prompt strips on the same time ruler. Copy the length of the error into both sides of
+      a square and compare the areas for a one-second miss, a two-second miss and the trial step.
+    beats:
+      - say: >-
+          Roll back that last nudge. Let's score the miss we started with. Two blocks times three puts the
+          prediction at six. The observed five stays fixed. We can measure the error as the distance between
+          the two marks.
+        hold: 0.6
+        visual_cues:
+          - id: rollback-small-nudge
+            phrase: Roll back that last nudge
+            targets: [adjustable-weight, latency-prediction]
+            color: yellow
+          - id: request-input-b1-1
+            phrase: Two blocks times three puts the prediction at six
+            targets:
+              - request-input
+              - prompt-strip
+              - latency-prediction
+            color: blue
+            linger: 0.35
+          - id: target-fixed
+            phrase: observed five stays fixed
+            targets:
+              - latency-target
+            color: green
+            linger: 0.35
+      - say: >-
+          Square that gap. A miss of one second makes one square second of loss. A two-second miss doubles
+          both sides of the square. Four of the old squares fit inside. A miss on the early side costs just as
+          much as a late miss of the same size.
+        hold: 0.8
+        visual_cues:
+          - id: squared-loss-b2-2
+            phrase: Square that gap
+            targets:
+              - squared-loss
+            color: yellow
+            linger: 0.35
+          - id: double-miss
+            phrase: A two-second miss
+            targets:
+              - squared-loss
+            color: blue
+      - say: >-
+          Back at three seconds per block, turn the weight down to two point nine again. This time watch the
+          area. Each side measures eight tenths of a second, so the loss square shrinks to sixty-four
+          hundredths. Now we can compare possible moves.
+        hold: 0.8
+        visual_cues:
+          - id: trial-weight
+            phrase: down to two point nine
+            targets:
+              - adjustable-weight
+            color: yellow
+            linger: 0.35
+          - id: trial-gap
+            phrase: loss square shrinks
+            targets:
+              - squared-loss
+            color: green
+            linger: 0.35
+  - id: parameters-shape-loss
+    title: One dial draws a loss curve
+    visual: >-
+      Measure the squared miss at individual weights, then sweep the same calculation over the interval. On
+      the two-weight surface, follow two different weight pairs along its zero-loss floor.
+    beats:
+      - say: Hold this request fixed and sweep the weight dial. At two, the prediction is four and loss is one. At two
+          point five, loss is zero. At three, it is one again.
+        hold: 0.25
+        visual_cues:
+          - id: sample-curve
+            phrase: sweep the weight dial
+            targets:
+              - curve-parameter
+            color: yellow
+            linger: 0.35
+          - id: sample-mid
+            phrase: At two point five
+            targets:
+              - curve-parameter
+            color: green
+            linger: 0.3
+          - id: sample-three
+            phrase: At three
+            targets:
+              - curve-parameter
+            color: pink
+            linger: 0.3
+      - say: >-
+          What happens between two and two and a half? Try two and a quarter. The model predicts four and a half
+          seconds. Half a second early gives a loss of one quarter. Evaluate the same squared loss at the other
+          weights. Plotting those losses traces the parabola.
+        hold: 0.25
+        caption_starts: [Try two and a quarter, four and a half seconds, Half a second early, one quarter, Evaluate the same squared loss]
+        visual_cues:
+          - id: loss-curve-b2-1
+            phrase: "Evaluate the same squared loss at the other weights"
+            targets:
+              - loss-curve
+            color: cyan
+            linger: 0.35
+          - id: quarter-sample
+            phrase: "Try two and a quarter"
+            targets: [curve-parameter]
+            color: yellow
+          - id: quarter-prediction
+            phrase: "The model predicts four and a half seconds"
+            targets: [quarter-score]
+            color: cyan
+          - id: quarter-loss
+            phrase: "Half a second early gives a loss of one quarter"
+            targets: [quarter-score]
+            color: cyan
+      - say: >-
+          Two adjustable weights need two horizontal coordinates. For this request, two prompt blocks and one
+          second queued, both marked settings predict five. Move between them. The bottom is a valley. Extra
+          rows with the same feature ratio still measure only that same combination. To tell the weights apart,
+          we need a different ratio.
+        hold: 0.25
+        visual_cues:
+          - id: loss-surface-b2-2
+            phrase: Two adjustable weights
+            targets:
+              - loss-surface
+            color: blue
+            linger: 0.35
+          - id: valley-bottom
+            phrase: bottom is a valley
+            targets:
+              - surface-parameter
+            color: green
+            linger: 0.35
+  - id: probe-neighbor
+    title: At weight 3.001, will loss rise or fall?
+    visual: Keep the starting loss and the proposed weight visible. Trace the loss only as the weight moves,
+      then use the horizontal and vertical changes to form the difference quotient.
+    beats:
+      - say: Back at weight three, predict what an upward nudge will do. We already predict too much time. Increasing
+          the weight should therefore raise the loss. Now move it to three point zero zero one.
+        hold: 0.55
+        caption_starts: [raise the loss, Now move it]
+        visual_cues:
+          - id: probe-start
+            phrase: Back at weight three
+            targets: [original-weight]
+            color: pink
+          - id: nudged-weight-b1-1
+            phrase: move it to three point zero zero one
+            targets:
+              - nudged-weight
+            color: yellow
+            linger: 0.35
+      - say: The original loss is one. The new loss is a little above one, so the nudge moved uphill. The exact values
+          are shown below the points; magnification lets us inspect that tiny change.
+        hold: 0.8
+        visual_cues:
+          - id: original-weight-b2-1
+            phrase: original loss is one
+            targets:
+              - original-weight
+            color: pink
+            linger: 0.35
+          - id: nudge-receipt
+            phrase: new loss
+            targets:
+              - nudged-weight
+            color: yellow
+            linger: 0.35
+      - say: Divide the loss increase by the weight increase. The ratio is just above four. That positive slope tells
+          us how rapidly loss rises when we turn the dial up.
+        hold: 1
+        caption_starts: [just above four]
+        visual_cues:
+          - id: finite-ratio-b3-1
+            phrase: Divide the loss increase by the weight increase
+            targets:
+              - finite-ratio
+            color: green
+            linger: 0.35
+          - id: finite-answer
+            phrase: ratio is just above four
+            targets:
+              - finite-ratio
+            color: green
+            linger: 0.35
+  - id: derivative-limit
+    title: What survives as the nudge shrinks?
+    visual: Keep the original point fixed while nonzero h contracts. Tie the secant excess to4h, show the inset
+      window width, and withhold the tangent value until the final limit.
+    beats:
+      - say: That two-point slope is a finite difference. Bring the second point closer. The yellow secant turns
+          toward a stable direction. What number do you think the slope is approaching?
+        hold: 0.7
+        visual_cues:
+          - id: nearby-point-b1-1
+            phrase: second point closer
+            targets:
+              - nearby-point
+            color: yellow
+            linger: 0.35
+      - say: "Call the nudge h. The new error is one plus two h. Expand its square, subtract the old loss, and divide
+          by h. The slope is four plus four h: a fixed part and a shrinking correction."
+        hold: 0.25
+        visual_cues:
+          - id: finite-expression-b2-1
+            phrase: four plus four h
+            targets:
+              - finite-expression
+            color: yellow
+            linger: 0.35
+          - id: nudge-size-b2-2
+            phrase: shrinking correction
+            targets:
+              - nudge-size
+            color: yellow
+            linger: 0.35
+      - say: As h approaches zero, four h disappears. The secant approaches the tangent, whose slope is four. This
+          limit is the derivative; every nudge we divide by remains nonzero.
+        hold: 0.25
+        visual_cues:
+          - id: secant-line-b3-1
+            phrase: secant approaches the tangent
+            targets:
+              - secant-line
+            color: green
+            linger: 0.35
+          - id: limiting-slope-b3-2
+            phrase: slope is four
+            targets:
+              - limiting-slope
+            color: green
+            linger: 0.35
+  - id: gradient-vector
+    title: Two dials, two separate questions
+    visual: First probe the prompt weight with queue weight held fixed, then probe queue with prompt held fixed.
+      Convert the two measured sensitivities into vector components only after both probes.
+    beats:
+      - say: Now split the prediction into prompt work and queue delay, with weights two and two. Turn only the prompt
+          dial. A nudge of one hundredth raises loss by about four hundredths. Its local sensitivity is four.
+        hold: 0.25
+        visual_cues:
+          - id: prompt-probe
+            phrase: Turn only the prompt dial
+            targets:
+              - coordinate-probe
+            color: blue
+            linger: 0.35
+          - id: partial-sensitivity
+            phrase: sensitivity is four
+            targets:
+              - prompt-partial
+            color: blue
+            linger: 0.35
+      - say: "Reset the prompt dial and turn only the queue dial. The same nudge raises loss by about two hundredths.
+          Its sensitivity is two. These are partial derivatives: each question freezes the other weight."
+        hold: 0.25
+        visual_cues:
+          - id: queue-probe
+            phrase: turn only the queue dial
+            targets:
+              - coordinate-probe
+            color: cyan
+            linger: 0.35
+          - id: queue-partial-cue
+            phrase: sensitivity is two
+            targets:
+              - queue-partial
+            color: cyan
+            linger: 0.35
+      - say: Collect the slopes in parameter order. Four along the prompt coordinate, two along the queue coordinate.
+          Their combined arrow is the gradient, four comma two. These components record sensitivity. The
+          learning rate will scale their update.
+        hold: 0.25
+        visual_cues:
+          - id: prompt-slope
+            phrase: Four along the prompt coordinate
+            targets:
+              - prompt-partial
+              - prompt-component
+            color: blue
+            linger: 0.35
+          - id: queue-slope
+            phrase: two along the queue coordinate
+            targets:
+              - queue-partial
+              - queue-component
+            color: cyan
+            linger: 0.35
+          - id: combine-gradient
+            phrase: combined arrow is the gradient
+            targets:
+              - combined-gradient
+            color: yellow
+            linger: 0.35
+  - id: gradient-geometry
+    title: Read a contour like a map
+    visual: Trace exact equal-loss lines, identify the zero-loss valley and initial loss1 contour, grow the normal
+      gradient, then retain the initial point while reversing a scaled copy downhill.
+    beats:
+      - say: Look down on that valley as if it were a contour map. Every point on one line has the same loss. Our
+          current weights, two and two, lie on the line with loss one.
+        hold: 0.25
+        visual_cues:
+          - id: equal-loss
+            phrase: same loss
+            targets:
+              - loss-contours
+            color: cyan
+            linger: 0.35
+          - id: coordinate-sensitivity
+            phrase: weights, two and two
+            targets:
+              - parameter-axes
+            color: blue
+            linger: 0.35
+      - say: The gradient combines both uphill sensitivities. In these ordinary coordinates, it points toward the
+          steepest local increase and crosses the contour at a right angle.
+        hold: 0.25
+        visual_cues:
+          - id: assemble-direction
+            phrase: combines both uphill sensitivities
+            targets:
+              - uphill-gradient
+            color: yellow
+            linger: 0.35
+          - id: normal-direction
+            phrase: a right angle
+            targets:
+              - contour-normal
+            color: cyan
+            linger: 0.35
+      - say: "Reverse a scaled copy and travel downhill. Here a step of zero point zero eight moves the weights to one
+          point six eight and one point eight four. Recompute the loss: zero point zero four."
+        hold: 0.25
+        visual_cues:
+          - id: reverse-gradient
+            phrase: travel downhill
+            targets:
+              - downhill-update
+            color: green
+            linger: 0.35
+          - id: prompt-moves-more
+            phrase: Recompute the loss
+            targets:
+              - updated-loss
+            color: green
+            linger: 0.35
+  - id: update-step
+    title: Choose the distance yourself
+    visual: >-
+      Hold the starting point on the curve while the viewer predicts the update. Move to 2.6, then show the
+      prediction of 5.2 seconds and the loss of 0.04. Keep that result visible while the viewer tries a
+      rate of one from the original weight.
+    beats:
+      - say: Return to the single weight at three. Its gradient is positive four. With learning rate one tenth, what
+          number should we subtract? Work it out before the point moves.
+        hold: 0.9
+        visual_cues:
+          - id: descent-equation-b1-1
+            phrase: what number should we subtract
+            targets:
+              - descent-equation
+            color: green
+            linger: 0.35
+      - say: "One tenth times four is zero point four. Subtract it: three becomes two point six. The minus sign
+          reverses the uphill gradient; the learning rate chooses the distance."
+        hold: 0.25
+        visual_cues:
+          - id: updated-weight-b2-1
+            phrase: three becomes two point six
+            targets:
+              - updated-weight
+            color: green
+            linger: 0.35
+      - say: Run the model again. Two point six times two predicts five point two seconds. Squaring the remaining zero
+          point two gap gives loss zero point zero four. The measured improvement is our receipt for this
+          step.
+        hold: 0.25
+        visual_cues:
+          - id: downhill-path-b3-1
+            phrase: Run the model again
+            targets:
+              - downhill-path
+            color: green
+            linger: 0.35
+          - id: descent-calculation-b3-2
+            phrase: loss zero point zero four
+            targets:
+              - update-receipt
+            color: green
+            linger: 0.35
+      - say: >-
+          One tenth worked. Start back at three with the same gradient, but try a learning rate of one.
+          Will its new loss be smaller than one?
+        hold: 2.4
+        visual_cues:
+          - id: step-choice-0-b1-1
+            phrase: One tenth
+            targets:
+              - update-receipt
+            color: yellow
+            linger: 0.35
+          - id: rate-one-question
+            phrase: a learning rate of one
+            targets: [next-rate]
+            color: yellow
+  - id: step-size-limits
+    title: "Where will the longer step land?"
+    visual: >-
+      Keep the small step on the curve. Start the longer step at the original weight, compare both
+      landings, then add the exact fit to the same curve and its close-up.
+    beats:
+      - say: >-
+          Subtract four from three. The weight lands at minus one. Follow the curve up from that weight. We
+          started by heading downhill and ended with loss forty-nine. The step carried us past the target and
+          farther away than we started. Look inside the close-up. The bottom is half a weight unit from
+          our starting weight. What rate times four would take us just that far?
+        hold: 2.25
+        visual_cues:
+          - id: step-choice-2-b1-2
+            phrase: lands at minus one
+            targets:
+              - step-choice-2
+            color: red
+            linger: 0.35
+            caption_boundary: true
+          - id: step-overshoot-loss
+            phrase: ended with loss forty-nine
+            targets: [overshoot-loss]
+            color: red
+          - id: exact-rate-question
+            phrase: What rate times four
+            targets: [exact-rate]
+            color: yellow
+      - say: >-
+          One eighth lands exactly at the bottom. One eighth times four is one half. Subtract that from
+          three and the weight is two and a half. Two blocks at that weight take five seconds, exactly
+          what we observed.
+        hold: 0.8
+        visual_cues:
+          - id: step-choice-1-b2-1
+            phrase: lands exactly at the bottom
+            targets:
+              - step-choice-1
+            color: green
+            linger: 0.35
+      - say: >-
+          Watch the tangent change along the route. We measured the slope at three. Once we leave three, the
+          curve can turn. Run the prediction again to find out what a finite step bought us.
+        hold: 0.65
+        visual_cues:
+          - id: changing-tangent-b3-1
+            phrase: tangent change
+            targets:
+              - changing-tangent
+            color: blue
+            linger: 0.35
+  - id: stable-scale
+    title: "What happens on the next step?"
+    visual: >-
+      Trace six updates at each fixed rate. Use one vertical scale for signed displacement so crossing
+      zero and growing in magnitude can be judged separately. Then change from blocks to raw tokens.
+    beats:
+      - say: >-
+          Measure the offset from the optimum, two point five. Right counts positive and left counts
+          negative. Each update multiplies that offset by one minus eight times the learning rate.
+          At one tenth, distance shrinks by a factor of one fifth and loss by
+          one twenty-fifth. At one quarter, the weight changes sides and comes back just as far away. Try
+          point two six. Now the peaks grow. Convergence from this start requires a positive rate strictly
+          below one quarter.
+        hold: 0.8
+        visual_cues:
+          - id: stable-scale-b1
+            phrase: Each update multiplies that offset
+            targets:
+              - stable-scale-mechanism
+            color: cyan
+            linger: 0.6
+          - id: stable-iterate
+            phrase: At one tenth, distance shrinks by a factor of one fifth and loss by one twenty-fifth.
+            targets:
+              - stable-scale-mechanism
+            color: yellow
+            linger: 0.45
+          - id: stable-boundary
+            phrase: "At one quarter"
+            targets:
+              - stable-scale-mechanism
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: stable-outside
+            phrase: "Try point two six"
+            targets:
+              - stable-scale-mechanism
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          With one fixed, nonzero input x and squared error, each update multiplies the signed offset by
+          one minus two times x squared times the learning rate. For the distance to shrink, that multiplier
+          must lie strictly between minus one and one. In exact arithmetic, that gives a learning rate above
+          zero and below one divided by x squared.
+        hold: 0.65
+        visual_cues:
+          - id: stable-scale-b2
+            phrase: each update multiplies the signed offset
+            targets:
+              - stable-scale-mechanism
+            color: cyan
+            linger: 0.6
+      - say: >-
+          Now count raw tokens. It is still the same two-hundred-token request. Two hundred times three
+          hundredths predicts the same six seconds. Its gradient becomes four hundred. The stable upper bound
+          becomes zero point zero zero zero zero two five, ten thousand times smaller. Changing units changed
+          the gradient without changing what the feature tells us. When training diverges, check the rate and
+          verify that the inputs and loss are finite.
+        hold: 0.85
+        visual_cues:
+          - id: stable-scale-b3
+            phrase: Now count raw tokens.
+            targets:
+              - stable-scale-mechanism
+            color: cyan
+            linger: 0.6
+          - id: units-gradient
+            phrase: Its gradient becomes four hundred.
+            targets:
+              - units-gradients
+            color: yellow
+            linger: 0.45
+          - id: units-bound
+            phrase: The stable upper bound becomes zero point zero zero zero zero two five
+            targets:
+              - units-gradients
+            color: yellow
+            linger: 0.45
+  - id: forward-graph
+    title: Break the calculation into small jobs
+    visual: Construct product4 and product2, prediction6, fixed target5, error1, loss1 in dependency order. Keep
+      forward receipts for the backward rules.
+    beats:
+      - say: Instead of nudging each weight, break our predictor into small operations. Record each operation's
+          inputs for the backward pass.
+        hold: 0.25
+        visual_cues:
+          - id: graph-node-6-b1-1
+            phrase: small operations
+            targets:
+              - graph-node-6
+            color: green
+            linger: 0.35
+      - say: The prompt branch produces four, and the queue branch produces two. Add them to get six. Subtract the
+          fixed target, five, to get error one. Square it to get loss one.
+        hold: 0.25
+        visual_cues:
+          - id: graph-node-4-b2-1
+            phrase: prompt branch produces four
+            targets:
+              - graph-node-4
+            color: blue
+            linger: 0.35
+          - id: graph-node-6-b2-2
+            phrase: get six
+            targets:
+              - graph-node-6
+            color: green
+            linger: 0.35
+          - id: graph-target-cue
+            phrase: fixed target, five
+            targets:
+              - graph-target
+            color: yellow
+            linger: 0.35
+          - id: graph-node-8-b2-3
+            phrase: loss one
+            targets:
+              - graph-node-8
+            color: pink
+            linger: 0.35
+          - id: graph-queue-cue
+            phrase: queue branch produces two
+            targets:
+              - graph-node-5
+            color: cyan
+            linger: 0.35
+          - id: graph-error-cue
+            phrase: get error one
+            targets:
+              - graph-node-7
+            color: yellow
+            linger: 0.35
+      - say: That is the forward pass. Keep its error and feature values. Those same numbers will supply each weight's
+          sensitivity on the backward pass.
+        hold: 0.25
+        visual_cues:
+          - id: graph-node-4-b3-1
+            phrase: Keep its error and feature values
+            targets:
+              - graph-node-7
+              - graph-node-1
+              - graph-node-3
+            color: yellow
+            linger: 0.35
+  - id: chain-rule
+    title: Pass the sensitivity backward
+    visual: Retain the complete forward graph. Carry sensitivity1 through square×2, subtraction×1 and both product
+      factors, with each factor adjacent to its active path; end at gradients4and2.
+    beats:
+      - say: Start with sensitivity one at the loss. The square has local slope twice the error, so one becomes two.
+          Subtracting a fixed target has slope one, so two passes through unchanged.
+        hold: 0.25
+        visual_cues:
+          - id: graph-node-8-b1-1
+            phrase: sensitivity one
+            targets:
+              - graph-node-8
+            color: pink
+            linger: 0.35
+          - id: graph-node-7-b1-2
+            phrase: twice the error
+            targets:
+              - graph-node-7
+            color: yellow
+            linger: 0.35
+          - id: backward-subtraction
+            phrase: two passes through unchanged
+            targets:
+              - graph-node-6
+            color: green
+            linger: 0.35
+      - say: Addition passes that two to both branches. The prompt weight acts through feature two, giving two times
+          two equals four. The queue weight acts through feature one, giving two times one equals two.
+        hold: 0.25
+        visual_cues:
+          - id: graph-node-6-b2-1
+            phrase: both branches
+            targets:
+              - graph-node-6
+            color: green
+            linger: 0.35
+          - id: graph-node-1-b2-2
+            phrase: feature two
+            targets:
+              - graph-node-1
+              - graph-node-3
+            color: blue
+            linger: 0.35
+          - id: queue-backward
+            phrase: feature one
+            targets:
+              - graph-node-2
+            color: cyan
+            linger: 0.35
+      - say: Trace the prompt route. Start with one. The square contributes times two, subtraction times one, and the
+          prompt feature another times two. Multiply the factors to recover four. Backpropagation organizes
+          this chain rule across the graph.
+        hold: 0.25
+        visual_cues:
+          - id: graph-node-0-b3-1
+            phrase: Multiply the factors
+            targets:
+              - graph-node-0
+              - graph-node-2
+            color: yellow
+            linger: 0.35
+          - id: replay-loss
+            phrase: Start with one
+            targets:
+              - graph-node-8
+            color: blue
+            linger: 0.1
+          - id: replay-square
+            phrase: square contributes times two
+            targets:
+              - graph-node-7
+            color: blue
+            linger: 0.1
+          - id: replay-subtraction
+            phrase: subtraction times one
+            targets:
+              - graph-node-6
+            color: blue
+            linger: 0.1
+          - id: replay-feature
+            phrase: prompt feature another times two
+            targets:
+              - graph-node-0
+            color: blue
+            linger: 0.1
+          - id: replay-result
+            phrase: recover four
+            targets:
+              - graph-node-0
+            color: blue
+            linger: 0.35
+  - id: relu-gate
+    title: A forward sign controls the returning derivative
+    visual: Insert ReLU into the same prompt branch, retain pre-activation and upstream loss signal, then change
+      only the prompt weight from2 to−.5.
+    beats:
+      - say: Insert a bend in the existing prompt branch. Multiply prompt weight by feature two to get h; ReLU returns
+          the larger of zero and h, called z. Add the queue contribution two, then compare with target five.
+          With prompt weight two, h and z are four, prediction is six, and loss is one.
+        hold: 0.65
+        visual_cues:
+          - id: relu-gate-b1
+            phrase: Insert a bend in the existing prompt branch.
+            targets:
+              - relu-gate-mechanism
+            color: cyan
+            linger: 0.6
+      - say: For positive h, ReLU has local derivative one. The arriving prediction signal two passes through the
+          bend, then feature two gives prompt-weight gradient four. For negative h, the local derivative is
+          zero, so that path contributes zero even when the loss is large.
+        hold: 0.65
+        visual_cues:
+          - id: relu-gate-b2
+            phrase: For positive h, ReLU has local derivative one.
+            targets:
+              - relu-gate-mechanism
+            color: cyan
+            linger: 0.6
+      - say: Change only prompt weight to minus one half. Now h is minus one, z is zero, prediction is two and squared
+          loss is nine. The prediction signal is minus six, but multiplying by ReLU’s zero derivative blocks
+          the prompt-weight gradient. The queue weight still receives minus six through its separate active
+          path. Retain the sign of h for the backward rule.
+        hold: 0.8
+        visual_cues:
+          - id: relu-gate-b3
+            phrase: Change only prompt weight to minus one half.
+            targets:
+              - relu-gate-mechanism
+            color: cyan
+            linger: 0.6
+          - id: relu-negative-state
+            phrase: Change only prompt weight to minus one half.
+            targets:
+              - relu-forward
+            color: yellow
+            linger: 0.45
+  - id: relu-corner
+    title: A centered ratio can cross a corner
+    visual: Hold L(w)=(ReLU(2w)−3)² at w0. Approach from separate sides before comparing centered difference and
+      PyTorch’s convention.
+    beats:
+      - say: >-
+          Set the prompt weight to zero and look just to its left. ReLU returns zero there. The queue still
+          supplies two seconds. Against a target of five, the loss stays at nine square seconds. Cross to the
+          right and the prompt term starts growing. The loss now follows the square of two w minus three. Its
+          slope approaches minus twelve on the right. On the flat side the slope is zero.
+        hold: 0.65
+        visual_cues:
+          - id: relu-corner-b1
+            phrase: "Set the prompt weight to zero"
+            targets:
+              - relu-corner-mechanism
+            color: cyan
+            linger: 0.6
+          - id: corner-right
+            phrase: "Cross to the right"
+            targets: [relu-corner-mechanism]
+            color: yellow
+      - say: A centered finite difference crosses both pieces and approaches minus six. There is no ordinary
+          derivative at the corner, because the two one-sided derivatives disagree. PyTorch’s ReLU backward
+          convention uses zero at zero, so its weight gradient is zero here.
+        hold: 0.65
+        visual_cues:
+          - id: relu-corner-b2
+            phrase: A centered finite difference crosses both pieces and approaches minus six.
+            targets:
+              - relu-corner-mechanism
+            color: cyan
+            linger: 0.6
+          - id: corner-centered-probe
+            phrase: A centered finite difference crosses both pieces and approaches minus six.
+            targets:
+              - corner-conventions
+            color: yellow
+            linger: 0.45
+      - say: >-
+          Start at the corner. Move the weight a quarter to the right. Loss falls from nine to six and a
+          quarter. The backward rule gave us zero at the corner, even with lower loss right beside it.
+          To check the rule, test a smooth point on each side. At the corner itself, use the ReLU convention.
+        hold: 0.8
+        caption_starts: [Loss falls from nine, To check the rule]
+        visual_cues:
+          - id: relu-corner-b3
+            phrase: Move the weight a quarter to the right
+            targets:
+              - relu-corner-mechanism
+            color: cyan
+            linger: 0.6
+  - id: path-accumulation
+    title: What happens when paths meet?
+    visual: >-
+      Trace both linear branches back to the weight they share. Then untie the weights, pair each request
+      with its prompt-weight derivative, and divide their sum by the number of requests in the loss.
+    beats:
+      - say: >-
+          Remove the ReLU from the prompt branch. We're back to the linear predictor. Count the hundred-token
+          blocks in the prompt and the one-second intervals in the queue delay. That gives us two and one.
+          Give both branches one stored weight, starting at two seconds. Turn that one dial and both routes
+          change. Would you multiply the returning contributions, or add them?
+        hold: 2
+        visual_cues:
+          - id: shared-node-0-b1-1
+            phrase: one stored weight
+            targets:
+              - shared-node-0
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Add them. The prompt route contributes four and the queue route contributes two. Both describe
+          the same dial, so its total derivative is six. Multiply along a route. Add where routes meet.
+        hold: 0.25
+        visual_cues:
+          - id: prompt-path-contribution-b2-1
+            phrase: prompt route contributes four
+            targets:
+              - prompt-path-contribution
+              - queue-path-contribution
+            color: blue
+            linger: 0.35
+          - id: shared-gradient-sum-b2-2
+            phrase: total derivative is six
+            targets:
+              - shared-gradient-sum
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Untie the weights and set both to zero for four training requests. Follow just the prompt weight. The
+          four prompt-weight contributions sum to minus one hundred forty-four. Our loss averages four squared
+          errors. Divide by four to get the prompt-weight gradient of the mean loss, minus thirty-six. The
+          negative sign tells us which way to turn this weight.
+        hold: 0.25
+        visual_cues:
+          - id: row-gradient-mean-b3-1
+            phrase: "the prompt-weight gradient of the mean loss, minus thirty-six"
+            targets:
+              - row-gradient-mean
+            color: yellow
+            linger: 0.35
+          - id: row-gradient-sum-arrives
+            phrase: "four prompt-weight contributions sum to minus one hundred forty-four"
+            targets: [row-gradient-sum]
+            color: green
+  - id: batch-conditioning
+    title: "Which change do the four requests notice?"
+    visual: >-
+      Build the mean gradient from the four paired rows and replay the training history. Move equal-sized
+      offsets on the actual loss contours. Beside the contour, keep all four signed prediction errors on a
+      common scale.
+    beats:
+      - say: >-
+          Here are those same four requests. Read across the last row. Four prompt blocks at two seconds each,
+          plus two seconds queued, give a target of ten seconds. We built every target by that rule. At zero
+          weights every prediction is zero. Squaring the four misses and averaging gives a loss of forty-three
+          point three seven five square seconds.
+        hold: 0.7
+        visual_cues:
+          - id: batch-conditioning-b1
+            phrase: "Read across the last row"
+            targets: [batch-last-row]
+            color: cyan
+            linger: 0.6
+      - say: >-
+          The last request pulls hardest on the prompt weight. Its error is minus ten seconds.
+          Double that for the square, then multiply by its four prompt blocks. That gives minus eighty.
+          Average the prompt column and you get minus
+          thirty-six. Average the queue column and you get minus fourteen point seven five. In matrix form,
+          multiply X transpose by the errors, then scale by two divided by four. Check that both gradients
+          are finite. Apply a rate of point zero
+          three to get our first pair of weights.
+        hold: 0.7
+        visual_cues:
+          - id: batch-conditioning-b2
+            phrase: "last request pulls hardest"
+            targets: [batch-last-row]
+            color: cyan
+            linger: 0.6
+          - id: batch-column-sum
+            phrase: "Double that for the square, then multiply by its four prompt blocks"
+            targets:
+              - batch-conditioning-mechanism
+            color: yellow
+            linger: 0.45
+          - id: batch-average
+            phrase: "Average the prompt column and you get minus thirty-six"
+            targets: [batch-gradient-result]
+            color: pink
+          - id: batch-queue-average
+            phrase: "Average the queue column and you get minus fourteen point seven five"
+            targets: [batch-gradient-result]
+            color: pink
+          - id: batch-first-step
+            phrase: "Apply a rate of point zero three"
+            targets:
+              - batch-gradient-result
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Run the same update on these four requests. After ten updates, mean squared loss has dropped
+          below four thousandths. After one hundred updates, it's still above seven ten-thousandths.
+          Notice how slowly the line falls now. The loop makes one last update. The weights are close to
+          two and one. We can test them on fresh requests.
+        hold: 0.7
+        visual_cues:
+          - id: batch-conditioning-b3
+            phrase: "Run the same update on these four requests"
+            targets:
+              - batch-conditioning-mechanism
+            color: cyan
+            linger: 0.6
+          - id: batch-history
+            phrase: "Notice how slowly the line falls now"
+            targets:
+              - batch-conditioning-mechanism
+            color: yellow
+            linger: 0.45
+          - id: batch-first-ten
+            phrase: "After ten updates"
+            targets: [batch-conditioning-mechanism]
+            color: cyan
+          - id: batch-next-ninety
+            phrase: "After one hundred updates"
+            targets: [batch-conditioning-mechanism]
+            color: cyan
+          - id: batch-last-update
+            phrase: "one last update"
+            targets: [batch-conditioning-mechanism]
+            color: cyan
+      - say: >-
+          Why does progress slow? Start where all four predictions fit. Raise the prompt weight by a tenth.
+          Look at request three. Three prompt blocks add three tenths of a second to its prediction. It
+          spent half a second in the queue. If we turn the queue weight down a quarter, can that erase the miss?
+        hold: 2.1
+        caption_starts: [Look at request three, If we turn the queue weight down]
+        visual_cues:
+          - id: batch-conditioning-b4
+            phrase: Why does progress slow?
+            targets:
+              - batch-conditioning-mechanism
+            color: cyan
+            linger: 0.6
+          - id: batch-prompt-offset
+            phrase: "Raise the prompt weight by a tenth"
+            targets:
+              - batch-conditioning-mechanism
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Lower the queue weight. Half a second in the queue times a quarter takes off one eighth of a
+          second. Request three is still late. The other three predictions cross zero and land slightly early.
+          What if we turn the queue weight up instead?
+        hold: 2
+        caption_starts: [Half a second in the queue, Request three is still late, What if we turn]
+        visual_cues:
+          - id: batch-queue-minus
+            phrase: "Lower the queue weight"
+            targets:
+              - batch-conditioning-mechanism
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Flip the queue change to plus a quarter. Now that eighth of a second adds to the miss. All four
+          predictions run late. The fourth misses by nine tenths of a second. Follow the two lines from the
+          center. They're the same length, but the pink one crosses more contours. That's conditioning. A rate
+          small enough for that steep direction can give you slow progress along the flatter one. Rescaling
+          the features can help. Features that tend to grow together can still leave a narrow valley.
+        hold: 1.2
+        caption_starts: [Now that eighth of a second, All four predictions run late, The fourth misses, Follow the two lines]
+        visual_cues:
+          - id: batch-queue-plus
+            phrase: "Flip the queue change to plus a quarter"
+            targets:
+              - batch-conditioning-mechanism
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+  - id: reverse-mode
+    title: One loss and six weights
+    visual: >-
+      Pass two subtotals into a single stored total. Follow the derivative from the square through the two
+      levels of addition to all six weights. Count six separate forward nudges on the same graph.
+    beats:
+      - say: >-
+          Start six weights at one. Add the top three. Add the bottom three. Now add the two subtotals and save
+          the total, six. Squaring that six gives a loss of thirty-six. Which of those forward values does the
+          square need on the way back?
+        hold: 2.1
+        visual_cues:
+          - id: scalar-loss-b1-1
+            phrase: "Squaring that six gives a loss of thirty-six"
+            targets:
+              - scalar-loss
+            color: pink
+            linger: 0.35
+          - id: reverse-sums
+            phrase: "Add the top three. Add the bottom three"
+            targets:
+              - retained-value-0
+              - retained-value-1
+            color: yellow
+            linger: 0.35
+          - id: reverse-total
+            phrase: "add the two subtotals and save the total, six"
+            targets: [stored-total]
+            color: yellow
+      - say: >-
+          The square needs its input. We saved six. Twice six is twelve. Each addition passes twelve to each of
+          its inputs. Follow the split, then the split again. Every weight receives twelve.
+        hold: 0.25
+        visual_cues:
+          - id: retained-value-0-b2-1
+            phrase: "We saved six"
+            targets:
+              - stored-total
+            color: yellow
+            linger: 0.35
+          - id: reverse-square
+            phrase: twice six is twelve
+            targets:
+              - reverse-factor
+            color: pink
+            linger: 0.35
+          - id: reverse-leaves
+            phrase: "Follow the split, then the split again"
+            targets:
+              - reverse-parameter-0
+            color: green
+            linger: 0.35
+      - say: >-
+          Keep the loss we already computed. For a one-sided check, nudge one weight at a time and run
+          the model again. Six weights cost six extra forward runs. Reverse-mode automatic differentiation
+          reuses the recorded operations. One sweep from this scalar loss gives us all six derivatives.
+        hold: 0.25
+        visual_cues:
+          - id: retained-value-0-b3-1
+            phrase: reuses the recorded operations
+            targets:
+              - stored-total
+            color: yellow
+            linger: 0.35
+          - id: finite-forward-runs-b1-2
+            phrase: nudge one weight at a time and run the model again. Six weights cost six extra forward runs
+            targets:
+              - finite-forward-runs
+            color: yellow
+            linger: 0.35
+  - id: vector-seed
+    title: Choose the output combination before differentiating
+    visual: Compare two predicted durations with the same queue contribution and different prompt lengths.
+      Trace the difference and the sum of their sensitivity vectors.
+    beats:
+      - say: >-
+          Both requests waited half a second in the queue. One prompt has a hundred tokens. The other
+          has three hundred. How much extra time does the model predict for the longer prompt? Subtract
+          the first prediction from the second. What happens to the queue term in that difference?
+        hold: 1.8
+        caption_starts: [How much extra time, What happens to the queue term]
+        visual_cues:
+          - id: vector-seed-b1
+            phrase: Both requests waited half a second in the queue
+            targets:
+              - vector-seed-mechanism
+            color: cyan
+            linger: 0.6
+      - say: >-
+          The queue terms cancel. The two extra blocks account for the whole gap, two point six seconds.
+          To send that difference backward, start the first prediction at minus one and the second at
+          plus one. These starting signals are the backward seed. Three blocks minus one gives the
+          prompt-weight sensitivity, two. Half a second minus half a second gives the queue-weight sensitivity, zero.
+        hold: 0.65
+        caption_starts: [To send that difference backward, Three blocks minus one, Half a second minus half a second]
+        visual_cues:
+          - id: vector-seed-b2
+            phrase: The queue terms cancel
+            targets:
+              - vector-seed-mechanism
+            color: cyan
+            linger: 0.6
+          - id: seed-accumulate
+            phrase: Three blocks minus one gives the prompt-weight sensitivity, two
+            targets:
+              - seed-geometry
+            color: yellow
+            linger: 0.45
+      - say: >-
+          A scalar loss starts backward with a seed of one. With several outputs, choose a seed for each
+          or combine them into a scalar first. The Jacobian has one row of slopes per output and one column
+          per parameter. Backward combines those rows. With column vectors, it's J transpose times the seed.
+          Backprop computes this vector-Jacobian product directly along the graph. Give both outputs a plus
+          one and you differentiate their sum. Now the sensitivities are four and one.
+        hold: 0.8
+        caption_starts: [Give both outputs a plus one, Now the sensitivities are four and one]
+        visual_cues:
+          - id: vector-seed-b3
+            phrase: The Jacobian has one row of slopes per output
+            targets:
+              - vector-seed-mechanism
+            color: cyan
+            linger: 0.6
+          - id: seed-sum
+            phrase: Give both outputs a plus one and you differentiate their sum
+            targets:
+              - seed-result
+            color: yellow
+            linger: 0.45
+  - id: gradient-check
+    title: What does the centered check measure?
+    visual: >-
+      Magnify a centered probe, then keep its requested weight spacing alongside the rounded float32 spacing.
+      Follow the ratio from the reference slope to the estimate from the two stored losses.
+    beats:
+      - say: >-
+          On a small model, evaluate loss just above and below weight three. Divide the difference by twice
+          the nudge, and compare with our reference derivative, four.
+        hold: 1.5
+        visual_cues:
+          - id: lower-probe-b1-1
+            phrase: above and below
+            targets:
+              - lower-probe
+              - upper-probe
+            color: blue
+            linger: 0.35
+          - id: centered-difference-b1-2
+            phrase: twice the nudge
+            targets:
+              - centered-difference
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Agreement within a chosen tolerance supports the backward rule at this smooth point. Try other
+          inputs too. At a sharp corner such as ReLU at zero, an ordinary derivative may not exist.
+        hold: 0.7
+        visual_cues:
+          - id: analytical-slope-b2-1
+            phrase: Agreement within a chosen tolerance
+            targets:
+              - analytical-slope
+            color: green
+            linger: 0.35
+      - say: >-
+          These near-equal losses were rounded before subtraction. In float thirty-two, dividing their
+          difference by twice the nudge gives a slope estimate of about three point eight one five. Double
+          precision stays close to four here; rounding error dominates the lower-precision ratio.
+        hold: 0.8
+        caption_starts: [three point eight one five]
+        visual_cues:
+          - id: rounded-slope-b3-1
+            phrase: three point eight one five
+            targets:
+              - rounded-slope
+            color: red
+            linger: 0.35
+          - id: stored-probes
+            phrase: rounded before subtraction
+            targets: [stored-weights-probe]
+            color: cyan
+          - id: stored-probe-losses
+            phrase: These near-equal losses
+            targets: [probe-losses]
+            color: cyan
+  - id: check-backward-rule
+    title: Would you change the backward rule?
+    visual: >-
+      Keep the two float32 losses and the slope of 3.815 on screen. Recompute the slope using the stored
+      weight spacing. Then compare both batch gradients with independent centered checks.
+    beats:
+      - say: >-
+          Look at the two gaps. We asked for one millionth on each side of three. Both stored weights
+          landed a little closer to three. Keep the same loss difference. Divide by the actual spacing
+          between the stored weights and you get four here. For a small gradient check, use double precision.
+        hold: 0.8
+        caption_starts: [four here]
+        visual_cues:
+          - id: stored-spacing-slope
+            phrase: "actual spacing between the stored weights and you get four here"
+            targets: [actual-spacing-slope]
+            color: green
+            caption_boundary: true
+      - say: >-
+          Try this backward rule on the four requests. It averages error times feature for each weight. Freeze
+          the data and check both weights separately with a centered nudge in double precision. The calculated
+          slopes point the same way as the measured ones. Would you trust their sizes?
+        hold: 2
+        visual_cues:
+          - id: check-both-weights
+            phrase: "check both weights separately"
+            targets:
+              - batch-check
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Each proposed slope is half the measured one. Look back at the square in our loss. Restore the
+          factor of two from its derivative. Both marks now meet their independent checks. A different
+          learning rate would change the next step, but the error here was already present in the backward
+          calculation.
+        hold: 1
+        visual_cues:
+          - id: restore-square-factor
+            phrase: "Restore the factor of two"
+            targets:
+              - batch-check
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+  - id: pytorch-loop
+    title: Compute gradients, then move the weights
+    visual: >-
+      Keep the PyTorch gradient buffer beside the stored weights. Show None after zero_grad(), fill the buffer
+      during backward, then apply one SGD step. Compare two histories at the same weights.
+    beats:
+      - say: In PyTorch, ask the weights to require gradients. Clear the old gradient buffer, run the forward
+          prediction, and compute a scalar loss. The stored weights themselves have not moved.
+        hold: 0.25
+        visual_cues:
+          - id: pytorch-stage-0-b1-1
+            phrase: Clear the old gradient buffer
+            targets:
+              - pytorch-stage-0
+            color: blue
+            linger: 0.35
+          - id: pytorch-stage-1-b1-2
+            phrase: forward prediction
+            targets:
+              - pytorch-stage-1
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Backward fills the buffer with four comma two. The weights are still two comma two. Only the
+          optimizer step applies learning rate one tenth, changing them to one point six and one point eight.
+        hold: 0.25
+        caption_starts: [four comma two, one point six and one point eight]
+        visual_cues:
+          - id: gradient-buffer-b2-1
+            phrase: fills the buffer with four comma two
+            targets:
+              - gradient-buffer
+            color: yellow
+            linger: 0.35
+          - id: stored-weights-b2-2
+            phrase: changing them to one point six and one point eight
+            targets:
+              - stored-weights
+            color: green
+            linger: 0.35
+      - say: >-
+          Send the same incoming gradient into two buffer histories. A cleared buffer finishes at four comma
+          two. Keep the previous buffer and it finishes at eight comma four. Backward adds; clearing chooses
+          the history.
+        hold: 0.25
+        caption_starts: [four comma two, eight comma four]
+        visual_cues:
+          - id: fresh-gradient-b3-1
+            phrase: cleared buffer finishes at four comma two
+            targets:
+              - fresh-gradient
+            color: blue
+            linger: 0.35
+          - id: accumulated-gradient-b3-2
+            phrase: eight comma four
+            targets:
+              - accumulated-gradient
+            color: yellow
+            linger: 0.35
+  - id: saved-output
+    title: Keep the forward value that the derivative needs
+    visual: Follow sigmoid’s exact output and version counter through a destructive write, then repair with an
+      out-of-place operation preserving the saved value.
+    beats:
+      - say: >-
+          Take the sigmoid of two. Its output, b, is about point eight eight. Multiply b by three to get c.
+          On the way back, the sigmoid needs b again. Its slope is b times one minus b.
+        hold: 0.65
+        visual_cues:
+          - id: saved-output-b1
+            phrase: the sigmoid needs b again
+            targets:
+              - saved-output-mechanism
+            color: cyan
+            linger: 0.6
+      - say: >-
+          Now add one to b in place. The same storage holds about one point eight eight. PyTorch saved version
+          zero and finds version one. It stops the backward pass here because the sigmoid needs the original b.
+        hold: 0.65
+        caption_starts: [PyTorch saved version zero, It stops the backward pass]
+        visual_cues:
+          - id: saved-output-b2
+            phrase: add one to b in place
+            targets:
+              - saved-output-mechanism
+            color: cyan
+            linger: 0.6
+          - id: saved-rejection
+            phrase: It stops the backward pass
+            targets: [saved-version]
+            color: pink
+      - say: >-
+          Replay the forward pass. Put b plus one in a new tensor. The original b still has version zero.
+          Backward uses it and sends about point three one five back to the input. Detaching b from the graph
+          would cut that path. After a weight update, run a fresh forward pass to save the new values.
+        hold: 0.8
+        caption_starts: [Backward uses it, After a weight update]
+        visual_cues:
+          - id: saved-output-b3
+            phrase: Put b plus one in a new tensor
+            targets:
+              - saved-output-mechanism
+            color: cyan
+            linger: 0.6
+          - id: saved-gradient
+            phrase: sends about point three one five back to the input
+            targets: [saved-version]
+            color: green
+  - id: expanded-storage
+    title: Three visible entries can share one location
+    visual: Expose an expanded tensor’s zero stride, fail a repeated write, then clone into independent storage
+      while preserving the gradient route.
+    beats:
+      - say: >-
+          Follow these three entries back to memory. All three point to one number, twice x.
+          Expanding a size-one dimension gives the view a stride of zero. Moving to the next entry moves
+          zero slots in memory. PyTorch rejects an in-place addition across the view because it would
+          write to the same slot three times.
+        hold: 0.65
+        visual_cues:
+          - id: expanded-storage-b1
+            phrase: Follow these three entries back to memory
+            targets:
+              - expanded-storage-mechanism
+            color: cyan
+            linger: 0.6
+      - say: >-
+          Clone the view. Now each entry has its own writable slot. Sum the three copies of twice x.
+          Each sends two back to x, so its gradient is six. With k copies, the gradient is twice k.
+        hold: 0.8
+        caption_starts: [Each sends two back to x]
+        visual_cues:
+          - id: expanded-storage-b2
+            phrase: Clone the view
+            targets:
+              - expanded-storage-mechanism
+            color: cyan
+            linger: 0.6
+          - id: cloned-gradient
+            phrase: its gradient is six
+            targets: [storage-contract]
+            color: pink
+  - id: nonlinear-forward
+    title: "Carry one request through a hidden unit"
+    visual: >-
+      Retain each hidden value as the request moves forward. On the return trip expose one local signal at
+      a time, with the output and input weight products beside the relevant branches.
+    beats:
+      - say: >-
+          Double the input, then halve the result. Trace the output against the input. Stacking only linear
+          maps still gives one linear map. Multiplying by W one and then W two is multiplying by their product.
+          Add a bias of one half. The whole line shifts. Clip its negative part at zero. Now the output stays
+          flat up to minus a half. That bend is a ReLU. Add a second unit that turns on at plus a half. Past
+          that point both units are climbing, so their sum climbs twice as fast.
+        hold: 0.9
+        visual_cues:
+          - id: nonlinear-forward-b1
+            phrase: "Stacking only linear maps still gives one linear map: multiplying by W one and then W two is
+              multiplying by their product."
+            targets:
+              - nonlinear-forward-mechanism
+            color: cyan
+            linger: 0.6
+          - id: hidden-affine-shift
+            phrase: "Add a bias of one half"
+            targets: [nonlinear-forward-mechanism]
+            color: cyan
+          - id: hidden-first-hinge
+            phrase: "Clip its negative part at zero"
+            targets: [nonlinear-forward-mechanism]
+            color: cyan
+          - id: hidden-second-hinge
+            phrase: "Add a second unit that turns on at plus a half"
+            targets: [nonlinear-forward-mechanism]
+            color: cyan
+      - say: Follow a two-block request through one hidden unit. Input two passes through first weight one point five and bias
+          minus one, giving h two. ReLU passes two. Output weight two and bias one half give prediction four
+          point five against target five, so squared loss is one quarter.
+        hold: 0.65
+        visual_cues:
+          - id: nonlinear-forward-b2
+            phrase: Follow a two-block request through one hidden unit
+            targets:
+              - nonlinear-forward-mechanism
+            color: cyan
+            linger: 0.6
+          - id: hidden-h
+            phrase: Input two passes through first weight one point five and bias minus one, giving h two.
+            targets:
+              - hidden-values
+            color: yellow
+            linger: 0.45
+          - id: hidden-z
+            phrase: ReLU passes two.
+            targets:
+              - hidden-values
+            color: yellow
+            linger: 0.45
+          - id: hidden-prediction
+            phrase: Output weight two and bias one half give prediction four point five
+            targets:
+              - hidden-values
+            color: yellow
+            linger: 0.45
+          - id: hidden-loss
+            phrase: squared loss is one quarter.
+            targets:
+              - hidden-values
+            color: yellow
+            linger: 0.45
+      - say: >-
+          Backward begins with prediction sensitivity minus one. Start at the output end. Its weight
+          multiplies the saved activation, two. Its bias just adds. The output weight receives minus two and
+          its bias minus one. Carry the signal through the output weight and then through the open gate. The
+          hidden signal is minus two. Its input weight receives minus four and hidden bias minus two. That
+          first weight picks up a second factor of two from the input. All four entries came from one backward
+          pass, the method popularized for neural networks in nineteen eighty-six.
+        hold: 0.95
+        visual_cues:
+          - id: nonlinear-forward-b3
+            phrase: Backward begins with prediction sensitivity minus one.
+            targets:
+              - nonlinear-forward-mechanism
+            color: cyan
+            linger: 0.6
+          - id: hidden-output-pair
+            phrase: "The output weight receives minus two"
+            targets:
+              - hidden-gradients
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: hidden-gate-return
+            phrase: "through the open gate"
+            targets:
+              - hidden-gradients
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: hidden-reverse-values
+            phrase: Its input weight receives minus four and hidden bias minus two.
+            targets:
+              - hidden-gradients
+            color: yellow
+            linger: 0.45
+  - id: nonlinear-update
+    title: "Where will the four weights take this request?"
+    visual: >-
+      Keep the original prediction and the target on a fixed seconds ruler. Replay each forward
+      calculation from the same snapshot. Park the first landing while the second runs beneath it. Show
+      each squared error after its gap can be inspected.
+    beats:
+      - say: >-
+          Predict a step on those four knobs in the order first weight, hidden bias, output weight, output
+          bias. All four gradients are negative. Subtracting them will raise all four settings. We’re half a
+          second early. At a rate of point zero five, where do you expect the prediction to land?
+        hold: 2.2
+        visual_cues:
+          - id: nonlinear-update-b1
+            phrase: Predict a step on those four knobs in the order first weight, hidden bias, output weight, output bias.
+            targets:
+              - nonlinear-update-mechanism
+            color: cyan
+            linger: 0.6
+      - say: >-
+          New knobs are one point seven, minus point nine, two point one and point five five. Recompute every
+          stage. Watch the dot leave four and a half. The hidden unit passes two and a half now. Look at the
+          distance back to five. Would you keep this step?
+        hold: 2
+        visual_cues:
+          - id: hidden-update-knobs
+            phrase: New knobs are one point seven, minus point nine, two point one and point five five.
+            targets:
+              - hidden-weights
+            color: yellow
+            linger: 0.45
+          - id: nonlinear-update-b2
+            phrase: Recompute every stage.
+            targets:
+              - hidden-values
+            color: cyan
+            linger: 0.6
+      - say: >-
+          We went from half a second early to eight tenths late. Squaring that miss, loss becomes point six
+          four. The negative gradient initially moved the prediction toward five seconds. This step carried it
+          past the target and increased the loss.
+        hold: 1
+        visual_cues:
+          - id: hidden-overshoot-result
+            phrase: loss becomes point six four
+            caption_boundary: true
+            targets:
+              - hidden-values
+            color: yellow
+            linger: 0.45
+      - say: >-
+          Restore the original snapshot and halve only the rate to point zero two five. New knobs are one
+          point six, minus point nine five, two point zero five and point five two five. Follow the second dot
+          from the same starting mark. The hidden value is two and a quarter. Which landing is closer?
+        hold: 2
+        visual_cues:
+          - id: nonlinear-update-b3
+            phrase: Restore the original snapshot and halve only the rate to point zero two five.
+            targets:
+              - nonlinear-update-mechanism
+            color: cyan
+            linger: 0.6
+          - id: hidden-repair-knobs
+            phrase: New knobs are one point six, minus point nine five, two point zero five and point five two five.
+            targets:
+              - hidden-weights
+            color: yellow
+            linger: 0.45
+          - id: hidden-replay-half
+            phrase: "Follow the second dot from the same starting mark"
+            targets:
+              - hidden-values
+            color: blue
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Both dots crossed five. The lower one stopped nearer the target than it started. Its prediction is
+          five point one three seven five, with squared loss point zero one eight nine zero six two five. I’d
+          keep the shorter step for this request.
+        hold: 1.1
+        visual_cues:
+          - id: hidden-repair-result
+            phrase: squared loss point zero one eight nine zero six two five.
+            caption_boundary: true
+            targets:
+              - hidden-values
+            color: yellow
+            linger: 0.45
+  - id: deep-products
+    title: A missing signal can have several causes
+    visual: Change only the hidden bias to−4 in the reader network, then build explicit scalar derivative chains
+      and a residual bypass.
+    beats:
+      - say: >-
+          Now change only the original hidden bias to minus four. The input to the ReLU is minus one. Its output
+          is zero, so the output bias alone sets the prediction at half a second. The loss is twenty point two
+          five. Trace the returning signal. The output bias receives minus nine. At the gate, multiplying by
+          zero cuts off the signal to the first weight and the hidden bias.
+        hold: 0.65
+        visual_cues:
+          - id: deep-products-b1
+            phrase: Now change only the original hidden bias to minus four.
+            targets:
+              - deep-products-mechanism
+            color: cyan
+            linger: 0.6
+          - id: inactive-backward
+            phrase: "Trace the returning signal"
+            targets: [deep-products-mechanism]
+            color: pink
+      - say: >-
+          If the input to a ReLU stays negative on every training example, that path contributes zero gradient
+          to the parameters before the ReLU. A signal can also fade through a chain of nonzero derivatives.
+          Multiply by one half ten times. A unit signal shrinks to one over one thousand twenty-four. On the
+          other path each factor is two. Ten factors grow the signal to one thousand twenty-four. In a matrix
+          network the effect also depends on direction.
+        hold: 0.65
+        visual_cues:
+          - id: deep-products-b2
+            phrase: "If the input to a ReLU stays negative on every training example"
+            targets:
+              - deep-products-mechanism
+            color: cyan
+            linger: 0.6
+          - id: deep-chain
+            phrase: "A signal can also fade through a chain of nonzero derivatives"
+            targets: [deep-products-mechanism]
+            color: cyan
+          - id: deep-products-ten
+            phrase: "Multiply by one half ten times"
+            targets:
+              - deep-products-mechanism
+            color: yellow
+            linger: 0.45
+          - id: deep-double-ten
+            phrase: "On the other path each factor is two. Ten factors grow the signal"
+            targets: [deep-products-mechanism]
+            color: pink
+      - say: >-
+          A residual addition gives the signal a direct path with slope one. At the input, that signal
+          adds to the one returning through the branch. Normalization adjusts the scale of the activations.
+          Low-precision arithmetic can round a small gradient to zero. Backward reuses forward values
+          such as the hidden activation. Saving them costs memory. Recomputing them costs time.
+        hold: 0.8
+        visual_cues:
+          - id: deep-products-b3
+            phrase: A residual addition gives the signal a direct path
+            targets:
+              - deep-products-mechanism
+            color: cyan
+            linger: 0.6
+  - id: keep-the-model-honest
+    title: "Your turn: a new request"
+    visual: Use the article exercise xp3,xq1,y7,weights2and2. Hold prediction/error/gradient unknown for learner
+      prediction, then construct8,1,(6,2) and update at0.05 to(1.7,1.9). Compare fitted versus an explicitly
+      separate held-out request after the update.
+    beats:
+      - say: Your turn. A new request has three prompt blocks and one second queued. It took seven seconds; our
+          weights are two and two. Predict the model output, then the two gradient entries. Pause here if you
+          want to calculate.
+        hold: 1.4
+        visual_cues:
+          - id: challenge-input
+            phrase: three prompt blocks
+            targets:
+              - challenge-input
+            color: blue
+            linger: 0.35
+      - say: The prediction is eight, so error is one. Twice that error times each feature gives gradient six comma
+          two. With learning rate zero point zero five, the new weights are one point seven and one point
+          nine. Now the prediction is seven.
+        hold: 0.25
+        caption_starts: [Twice that error, With learning rate zero point zero five, Now the prediction is seven]
+        visual_cues:
+          - id: challenge-gradient
+            phrase: gradient six comma two
+            targets:
+              - challenge-gradient
+            color: yellow
+            linger: 0.35
+          - id: challenge-update
+            phrase: new weights
+            targets:
+              - challenge-update
+            color: green
+            linger: 0.35
+      - say: "Try an unseen request: one prompt block, two seconds queued, observed time four. The model predicts five
+          point five. Fitting one row gave us a useful update; generalization needs a new measurement."
+        hold: 0.25
+        caption_starts: [The model predicts five point five]
+        visual_cues:
+          - id: challenge-heldout
+            phrase: unseen request
+            targets:
+              - challenge-heldout
+            color: pink
+            linger: 0.35
+          - id: challenge-unseen-result
+            phrase: predicts five point five
+            targets:
+              - challenge-unseen-result
+            color: pink
+            linger: 0.35
+  - id: fresh-nonlinear
+    title: "Which gradient entries change?"
+    visual: >-
+      Keep the old gradient row in view. Switch requests with the weights fixed, then reveal the hidden
+      value, activation and prediction in order. Hold the four new gradient entries open for the question.
+      Compare the two rate-0.05 landings. For the final replay, keep the one-block request fixed and change
+      only which gradient the step uses. Keep both predictions on the same ruler.
+    beats:
+      - say: >-
+          Finish with a different request. Put all four settings back where they started. Our
+          earlier input was two, with a target of five. This input is one, with a target of two. Follow it
+          into the hidden unit, through the ReLU, and on to the prediction. We're half a second early again.
+          Look at the old row. Which gradient entries change?
+        hold: 3.5
+        visual_cues:
+          - id: fresh-nonlinear-b1
+            phrase: Finish with a different request.
+            targets:
+              - fresh-nonlinear-mechanism
+            color: cyan
+            linger: 0.6
+          - id: fresh-switch-request
+            phrase: This input is one
+            targets: [fresh-hidden-values]
+            color: blue
+            caption_boundary: true
+          - id: fresh-trace-hidden
+            phrase: Follow it into the hidden unit
+            targets: [fresh-hidden-values]
+            color: cyan
+          - id: fresh-trace-activation
+            phrase: through the ReLU
+            targets: [fresh-hidden-values]
+            color: cyan
+          - id: fresh-hidden-forward
+            phrase: on to the prediction
+            targets: [fresh-hidden-values]
+            color: green
+            linger: 0.45
+      - say: >-
+          Hidden value and ReLU output are one half. Prediction is one point five, so the arriving loss
+          sensitivity is minus one. The gate is still open and the output weight is still two. Both biases get
+          the same signals as before. For the weight gradients, multiply those signals by different inputs this time. In
+          order, the gradients are minus two, minus two, minus one half and minus one. Try the rate that went
+          too far on the other request. Will it go too far here?
+        hold: 2.4
+        caption_starts: ["minus two, minus two, minus one half and minus one", Try the rate that went too far]
+        visual_cues:
+          - id: fresh-nonlinear-b2
+            phrase: Hidden value and ReLU output are one half.
+            targets:
+              - fresh-nonlinear-mechanism
+            color: cyan
+            linger: 0.6
+          - id: fresh-compare-bias
+            phrase: "Both biases get the same signals"
+            targets:
+              - fresh-hidden-gradients
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-compare-weights
+            phrase: "multiply those signals by different inputs"
+            targets:
+              - fresh-hidden-gradients
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-hidden-gradient
+            phrase: the gradients are minus two, minus two, minus one half and minus one.
+            targets:
+              - fresh-hidden-gradients
+            color: yellow
+            linger: 0.45
+      - say: >-
+          Use the same rate, point zero five. Scale each fresh gradient by that rate and subtract it from its
+          starting weight. Follow this prediction back toward its target. The hidden unit passes seven tenths. The
+          prediction stops just short of two seconds. Squared loss falls from one quarter to about one
+          thousandth. That same rate helped this request. Suppose we had copied the old gradient from the
+          two-block request. Where would this one land?
+        hold: 2.5
+        caption_starts: [The prediction stops just short, Suppose we had copied]
+        visual_cues:
+          - id: fresh-nonlinear-b3
+            phrase: "Use the same rate, point zero five"
+            targets:
+              - fresh-nonlinear-mechanism
+            color: cyan
+            linger: 0.6
+          - id: fresh-hidden-update
+            phrase: "Scale each fresh gradient by that rate and subtract it from its starting weight"
+            targets:
+              - fresh-hidden-weights
+            color: yellow
+            linger: 0.45
+          - id: fresh-landing
+            phrase: "Follow this prediction back toward its target"
+            targets:
+              - fresh-hidden-values
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-hidden-result
+            phrase: "Squared loss falls from one quarter to about one thousandth"
+            caption_boundary: true
+            targets:
+              - fresh-hidden-values
+            color: yellow
+            linger: 0.45
+      - say: >-
+          Reset the weights. Keep the same request and learning rate. Apply the gradient from the two-block
+          request. Watch the yellow dot. Two point two three seconds, almost a quarter of a second late.
+          With the fresh gradient, the miss was about three hundredths of a second. Both requests started
+          half a second early. The first weight multiplied the block count. The output weight multiplied
+          the hidden activation. Backprop uses both values from this request.
+        hold: 1.8
+        caption_starts: [Two point two three seconds, With the fresh gradient, Both requests started]
+        visual_cues:
+          - id: fresh-copied-step
+            phrase: "Apply the gradient from the two-block request"
+            targets: [copied-landing]
+            color: yellow
+            caption_boundary: true
+          - id: fresh-copied-loss
+            phrase: "With the fresh gradient"
+            targets: [copied-landing]
+            color: yellow

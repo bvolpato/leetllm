@@ -695,15 +695,15 @@ Effective context engineering treats the prompt as a curated working set rather 
     "explanation": "Required items R and S consume 1,100 tokens. Adding highest-priority optional item A (1,400) brings usage to 2,500, leaving 500 tokens. B needs 600 tokens and does not fit, so the packer skips B and takes C (400) for a total of 2,900 tokens. On the second run, silently returning an empty list hides a critical input, so exceeding the 3,000-token limit must raise an error."
   },
   {
-    "question": "Assume exact token reuse up to the first mismatched token. A fixed root instruction spans 80 tokens, a per-request trace ID spans 16 tokens with different first tokens per call, and an unchanging API spec spans 240 tokens. Compare ordering root -> trace_id -> spec against root -> spec -> trace_id. What are the reusable prefix lengths and total tokens sent per call?",
+    "question": "Assume exact token reuse up to the first mismatched token. A fixed root instruction spans 120 tokens, a per-request trace ID spans 24 tokens with different first tokens per call, and an unchanging API spec spans 360 tokens. Compare ordering root -> trace_id -> spec against root -> spec -> trace_id. What are the reusable prefix lengths and total tokens sent per call?",
     "options": [
-      "Reusable prefix: 80 then 320; total tokens sent: 80 then 320.",
-      "Reusable prefix: 0 then 240; total tokens sent: 336 then 336.",
-      "Reusable prefix: 0 then 240; total tokens sent: 80 then 320.",
-      "Reusable prefix: 80 then 320; total tokens sent: 336 then 336."
+      "Reusable prefix: 120 then 480; total tokens sent: 120 then 480.",
+      "Reusable prefix: 0 then 360; total tokens sent: 504 then 504.",
+      "Reusable prefix: 0 then 360; total tokens sent: 120 then 480.",
+      "Reusable prefix: 120 then 480; total tokens sent: 504 then 504."
     ],
-    "answer": "Reusable prefix: 80 then 320; total tokens sent: 336 then 336.",
-    "explanation": "When the changing trace ID sits directly after the 80-token root, prefix caching breaks at token 80. Placing the static 240-token spec before the trace ID extends the matched prefix to 80 + 240 = 320 tokens. In both orderings, the complete request still contains all 80 + 16 + 240 = 336 tokens."
+    "answer": "Reusable prefix: 120 then 480; total tokens sent: 504 then 504.",
+    "explanation": "When the changing trace ID sits directly after the 120-token root, prefix caching breaks at token 120. Placing the static 360-token spec before the trace ID extends the matched prefix to 120 + 360 = 480 tokens. In both orderings, the complete request still contains all 120 + 24 + 360 = 504 tokens."
   },
   {
     "question": "Five consecutive tool calls indexed 0 through 4 have recorded_finding flags [false, true, true, true, false]. The pruning rule preserves the newest two results raw in case details are still needed. Which earlier payloads can safely be compressed in place, and how should they be stored?",

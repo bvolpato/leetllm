@@ -1,280 +1,308 @@
-// Scene `dependency-graph`: an edge says when a node may run.
-//
-// The picture: the board. A run goes triage, then the three checks, and the cards arrive at the
-// barrier in the order policy, eval, health. The gates open only at the third. Then each node gets
-// its kind, the join reads the cards rule by rule, and a rejected review sends the token back:
-// the one cycle. A strip of states in the band follows the token.
+// Scene 02 (dependency-graph): "Edges describe readiness"
+// Full-bleed luminous 2D DAG + state-machine cycle arc paired with orbiting 3D DAG rig.
 import {
-  arrow,
-  beside,
-  boxOf,
-  column,
-  draw,
-  fitted,
-  grid,
-  group,
-  indicate,
-  lagged,
-  par,
-  pictogram,
-  place,
-  pulse,
-  recolor,
-  rect,
-  row,
-  seq,
-  spin,
-  steps,
-} from 'vizmatic/stage';
-import { readSchedule } from '../../../films/agent-orchestration/arithmetic.mjs';
-import { REQUEST } from '../../../films/agent-orchestration/fixtures.mjs';
-import { chip, display, heading, label, mono, note } from '../../kit-narrated.mjs';
-import {
-  BAND,
-  BRANCHES,
-  BRANCH_COLOR,
-  CORNER,
-  FRESH_SECONDS,
-  MARK,
-  QUIET,
-  VALID,
-  WRONG,
-  board,
+  COSMOS,
+  ROLE,
+  buildOrchestrationDag3d,
+  cinemaAtmosphere,
+  conduitPts,
+  glowArrow,
+  glowDot,
+  glowRing,
+  glowingArc,
+  glowingTrail,
+  guardedDynamic,
+  heroTitle,
+  orbitScene,
+  renderStation,
+  rule,
+  runAmbientPhase,
+  samplePolyline,
+  tweenCue,
+  txt,
 } from '../parts.mjs';
 
-/** The seconds of each read, from the model: eval, health, policy. */
-const SECONDS = readSchedule(0).branches.map((branch) => branch.duration);
-
 export default function dependencyGraph(s, c) {
-  const b = board(s);
-  const { triage, checks, plates, ask, fan, packetFrame } = b.nodes;
-  s.add(heading(c.title));
-  b.enter(c);
+  const phase = s.value(0);
+  const dagStage = s.value(0.2);
 
-  // Beat 0. Nodes, arrows, and one run. The table in the band says what each node waits for.
-  const tag = (words, color = 'ink') => chip(words, { color, stroke: color });
-  const waits = [
-    { node: [tag('triage')], after: [tag('request')] },
-    { node: BRANCHES.map((branch, i) => tag(branch, BRANCH_COLOR[i])), after: [tag('triage')] },
-    { node: [tag('merge')], after: BRANCHES.map((branch, i) => tag(branch, BRANCH_COLOR[i])) },
-  ].map((entry) => ({
-    node: row(entry.node, { gap: 'tight' }),
-    word: note('after'),
-    after: row(entry.after, { gap: 'tight' }),
-  }));
-  const table = place(
-    grid(
-      waits.flatMap((entry) => [entry.node, entry.word, entry.after]),
-      { columns: 3, gap: ['normal', 'normal'], align: ['right', 'center', 'left'], even: true },
-    ),
-    BAND,
-    'left',
-  );
-  const tableRow = (i) => [waits[i].node, waits[i].word, waits[i].after];
+  // Beat 0: DAG basics
+  const nodesLit = s.value(0);
+  const arrowsLit = s.value(0);
+  const branchesLit = s.value(0);
+  const mergeLit = s.value(0);
+  const noBackLit = s.value(0);
+  const dagBadge = s.value(0);
 
-  // The frame of the packet takes the color and keeps its size: its name is on its border.
-  const light = (part) => indicate(part, { color: MARK, scale: part === packetFrame ? 1 : 1.14 });
-  c.on('nodes', () => s.play(light([triage, ...checks]), light(packetFrame)));
-  c.on('arrows', () =>
-    s.play(
-      ask.pulse({ color: MARK }),
-      ...fan.map((edge) => edge.pulse({ color: MARK })),
-      indicate(plates, { color: MARK }),
-    ),
-  );
+  // Beat 1: Node implementation roles (code / DB / model / validator)
+  const kindCode = s.value(0);
+  const kindDb = s.value(0);
+  const kindModel = s.value(0);
+  const specialistLit = s.value(0);
+  const validatorLit = s.value(0);
 
-  // The run. The slowest card arrives as the voice ends "merge waits for all three".
-  const first = c.cue('read-branches'),
-    merge = c.cue('merge-ready');
-  const launch = first.start + (first.end - first.start) * 0.45;
-  const opens = merge.end;
-  const travel = SECONDS.map((seconds) => ((opens - launch) * seconds) / Math.max(...SECONDS));
-  c.show('read-branches', tableRow(0));
-  c.on('read-branches', () =>
-    s.play(indicate(triage, { color: MARK }), ...fan.map((edge) => edge.pulse({ color: MARK }))),
-  );
-  c.show('read-branches', tableRow(1), { lead: -(launch - first.start) });
-  c.on(
-    'read-branches',
-    () =>
-      s.play(
-        indicate(checks, { color: MARK }),
-        ...b.card.map((card) => card.shown.to(1, { duration: 0.2 })),
-        ...b.card.map((card, i) =>
-          seq(card.pos.to(1, { duration: travel[i] }), b.gate[i].lamp.to(1, { duration: 0.15 })),
+  // Beat 2: Pause, internal retry, explicit state-machine cycle vs cancel
+  const pauseLit = s.value(0);
+  const retryLit = s.value(0);
+  const cycleLit = s.value(0);
+  const stateMachineLit = s.value(0);
+  const cancelLit = s.value(0);
+
+  const bgAtmo = cinemaAtmosphere(ROLE.triage, ROLE.merge);
+  const { view: dag3d } = buildOrchestrationDag3d(phase, dagStage, {
+    x: 560,
+    y: 45,
+    theta: -0.78,
+    phi: 1.06,
+    distance: 15.8,
+    unit: 94,
+    showCycle: true,
+  });
+
+  const title = heroTitle(['Edges Describe', 'Readiness'], {
+    x: -860,
+    y: -440,
+    size: 54,
+    lineHeight: 62,
+    accent: ROLE.triage,
+    eyebrow: 'DEPENDENCY GRAPH  VS  STATE MACHINE',
+  });
+
+  // Left-center 2D DAG coordinates with generous vertical spacing so strokes never cross labels
+  const pos = {
+    triage: [-775, 10],
+    eval: [-465, -165],
+    health: [-465, 10],
+    policy: [-465, 185],
+    merge: [-155, 10],
+    review: [115, 10],
+    cancel: [115, 225],
+  };
+
+  const live = guardedDynamic(s.value(1), () => {
+    const ph = phase.value;
+    const nLit = nodesLit.value;
+    const aLit = arrowsLit.value;
+    const bLit = branchesLit.value;
+    const mLit = mergeLit.value;
+    const cyc = cycleLit.value;
+    const sm = stateMachineLit.value;
+    const can = cancelLit.value;
+    const nodes = [];
+
+    // Right 3D header & mode indicator
+    nodes.push(
+      txt('3D CONTROL FLOW', 560, -420, 26, ROLE.eval, 'mono').glow(6, ROLE.eval),
+      txt(
+        sm > 0.4 ? 'Read DAG wrapped in Review Cycle' : 'Forward-only Read DAG',
+        560,
+        -375,
+        26,
+        sm > 0.4 ? ROLE.reject : COSMOS.muted,
+        'sans',
+      ),
+    );
+
+    // 2D DAG edges (routed edge-to-edge between station rings, radius = 26)
+    const edges = [
+      [pos.triage, pos.eval, ROLE.eval, Math.max(aLit, bLit)],
+      [pos.triage, pos.health, ROLE.health, Math.max(aLit, bLit)],
+      [pos.triage, pos.policy, ROLE.policy, Math.max(aLit, bLit)],
+      [pos.eval, pos.merge, ROLE.eval, Math.max(aLit, mLit)],
+      [pos.health, pos.merge, ROLE.health, Math.max(aLit, mLit)],
+      [pos.policy, pos.merge, ROLE.policy, Math.max(aLit, mLit)],
+      [pos.merge, pos.review, ROLE.merge, Math.max(aLit, mLit)],
+    ];
+    edges.forEach(([from, to, col, hot], idx) => {
+      const p0 = [from[0] + 30, from[1]];
+      const p1 = [to[0] - 30, to[1]];
+      const pts = conduitPts(p0, p1, 18);
+      nodes.push(
+        glowingTrail(pts, {
+          color: hot > 0.4 ? col : COSMOS.dim,
+          width: hot > 0.4 ? 3.8 : 2.4,
+          glow: hot > 0.4 ? 9 : 2,
+          opacity: hot > 0.4 ? 0.92 : 0.55,
+          core: false,
+        }),
+      );
+      // Animated readiness pulse moving strictly left-to-right
+      const [px, py] = samplePolyline(pts, (ph * 0.25 + idx * 0.14) % 1);
+      nodes.push(glowDot(px, py, { radius: 5, color: col, glow: 10 }));
+    });
+
+    // Optional Reviewer Rejection -> Cancel path (Beat 2)
+    if (can > 0.02) {
+      nodes.push(
+        glowArrow(
+          [pos.review[0], pos.review[1] + 34],
+          [pos.cancel[0], pos.cancel[1] - 32],
+          ROLE.muted,
+          {
+            width: 3.4,
+            glow: 6,
+            opacity: can,
+          },
         ),
-      ),
-    launch - first.start,
-  );
-  c.show('merge-ready', tableRow(2), { after: true });
-  c.after(
-    'merge-ready',
-    () =>
-      s.play(
-        ...b.gate.map((gate) => gate.open.to(1, { duration: 0.3 })),
-        ...b.card.map((card) => card.pos.to(2, { duration: 0.8 })),
-        light(packetFrame),
-      ),
-    0,
-  );
-  c.on('no-path-back', () =>
-    s.play(lagged([triage, checks, plates, packetFrame].map(light), { lag: 0.45 })),
-  );
-  const dag = place(
-    column([note('read phase'), display('DAG', { color: MARK })], { gap: 'tight' }),
-    CORNER,
-    'top left',
-  );
-  c.show('dag', dag);
+        ...renderStation(pos.cancel[0], pos.cancel[1], 'CANCEL', COSMOS.muted, {
+          radius: 22,
+          active: true,
+          labelOffset: 44,
+          opacity: can,
+        }),
+      );
+    }
 
-  // Beat 1. The kind of each node, in its lane. Then the join as code: three rules, read in turn.
-  const kinds = [
-    ['model', 'model'],
-    ['database', 'database read'],
-    ['code', 'code'],
-  ].map(([art, words], i) =>
-    place(
-      row([pictogram(art, { size: 60, color: QUIET, accent: BRANCH_COLOR[i] }), label(words)], {
-        gap: 'normal',
+    // Optional Review -> Merge explicit cycle arc above the graph (Beat 2)
+    if (cyc > 0.02) {
+      nodes.push(
+        glowingArc([pos.review[0], pos.review[1] - 34], [pos.merge[0], pos.merge[1] - 34], -170, {
+          color: ROLE.reject,
+          width: 4.0,
+          glow: 11,
+          opacity: cyc,
+        }),
+        txt('re-review cycle (optional)', -20, -210, 26, ROLE.reject, 'mono')
+          .glow(7, ROLE.reject)
+          .opacity(cyc),
+      );
+    }
+
+    // Internal node retry ring around Health (stays acyclic!)
+    if (retryLit.value > 0.02) {
+      nodes.push(
+        glowRing(pos.health[0], pos.health[1], 42, ROLE.mark, {
+          width: 3.0,
+          glow: 10,
+          dash: [8, 6],
+          opacity: retryLit.value,
+        }),
+      );
+    }
+
+    // Pause halo around Review (pause != cycle)
+    if (pauseLit.value > 0.02) {
+      nodes.push(
+        glowRing(pos.review[0], pos.review[1], 44, ROLE.eval, {
+          width: 3.2,
+          glow: 10,
+          dash: [10, 8],
+          opacity: pauseLit.value,
+        }),
+      );
+    }
+
+    // Stations with dynamic role tags
+    const evalSub = specialistLit.value > 0.4 || kindModel.value > 0.4 ? 'model specialist' : null;
+    const healthSub = kindCode.value > 0.4 ? 'ordinary code' : null;
+    const policySub = kindDb.value > 0.4 ? 'database read' : null;
+    const mergeSub = validatorLit.value > 0.4 ? 'deterministic check' : null;
+
+    nodes.push(
+      ...renderStation(pos.triage[0], pos.triage[1], 'TRIAGE', ROLE.triage, {
+        radius: 26,
+        active: nLit > 0.4 || bLit > 0.4,
+        labelPos: 'above',
+        labelOffset: 54,
       }),
-      boxOf(plates[i]).inset('normal', 'tight'),
-      'left',
-    ),
-  );
-  c.show('operation-node', kinds[2]);
-  c.show('kind-database', kinds[1]);
-  c.show('kind-model', kinds[0]);
-  c.on('model-specialist', () => s.play(indicate(kinds[0], { color: MARK })));
-  const rules = [
-    `tenant == ${REQUEST.tenant}`,
-    `revision == v${REQUEST.version}`,
-    `age <= ${FRESH_SECONDS} s`,
-  ].map((words) => mono(words));
-  const validator = place(
-    column(
-      [
-        row([
-          pictogram('code', { size: 60, color: QUIET, accent: VALID }),
-          label('the join is code'),
-        ]),
-        ...rules,
-      ],
-      {
-        gap: 'normal',
-      },
-    ),
-    BAND,
-    'left',
-  );
-  c.swap('deterministic-merge', table, validator);
-  c.after('deterministic-merge', () =>
-    s.play(
-      seq(
-        ...rules.map((rule, field) =>
-          par(
-            recolor(rule, VALID, { duration: 0.5 }),
-            ...b.card.map((card) => card.read.to(field + 1, { duration: 0.5 })),
-          ),
-        ),
+      ...renderStation(pos.eval[0], pos.eval[1], 'EVAL', ROLE.eval, {
+        radius: 26,
+        active: bLit > 0.4 || kindModel.value > 0.4 || specialistLit.value > 0.4,
+        labelPos: 'above',
+        labelOffset: 54,
+        sub: evalSub,
+      }),
+      ...renderStation(pos.health[0], pos.health[1], 'HEALTH', ROLE.health, {
+        radius: 26,
+        active: bLit > 0.4 || kindCode.value > 0.4 || retryLit.value > 0.4,
+        labelPos: 'below',
+        labelOffset: 70,
+        sub: healthSub,
+      }),
+      ...renderStation(pos.policy[0], pos.policy[1], 'POLICY', ROLE.policy, {
+        radius: 26,
+        active: bLit > 0.4 || kindDb.value > 0.4,
+        labelPos: 'below',
+        labelOffset: 54,
+        sub: policySub,
+      }),
+      ...renderStation(
+        pos.merge[0],
+        pos.merge[1],
+        'MERGE',
+        validatorLit.value > 0.4 ? ROLE.pass : ROLE.merge,
+        {
+          radius: 28,
+          active: mLit > 0.4 || validatorLit.value > 0.4,
+          labelPos: 'below',
+          labelOffset: 56,
+          sub: mergeSub,
+        },
       ),
-    ),
-  );
+      ...renderStation(pos.review[0], pos.review[1], 'REVIEW', ROLE.review, {
+        radius: 26,
+        active: pauseLit.value > 0.4 || cyc > 0.4,
+        labelPos: 'right',
+        labelOffset: 56,
+      }),
+    );
 
-  // Beat 2. The control flow around the read phase: a pause, a retry inside a node, and one way back.
-  const [upper, lower] = BAND.rows(2, 'none');
-  const strip = place(
-    fitted(BAND, (width) =>
-      steps(['read DAG', 'proposal', 'review', 'write'], { width, size: 40, current: 2 }),
-    ),
-    lower,
-    'top',
-  );
-  const revisionChange = place(
-    column([note('Optional revision route'), note('Configured by application', { color: MARK })], {
-      gap: 'tight',
-    }),
-    upper,
-    'top right',
-  );
-  c.swap(2, [validator, ...kinds], strip);
-  c.onBeat(2, () =>
-    s.play(
-      ...b.card.map((card) => card.verdict.to(1, { duration: 0.3 })),
-      seq(
-        b.packet.seal.to(1, { duration: 0.4 }),
-        pulse(b.nodes.steps[0], { color: VALID }),
-        b.token.shown.to(1, { duration: 0.3 }),
-      ),
-    ),
-  );
-  const down = boxOf(b.nodes.steps[0]);
-  const bar = () => rect(10, 34, { radius: 3, fill: MARK, stroke: null });
-  const paused = beside(group(bar().at(-9, 0), bar().at(9, 0)), down, 'right', 'normal');
-  c.show('pause', paused);
-  c.hide('retry-inside', paused);
-  const retry = place(
-    pictogram('loop', { size: 64, color: QUIET, accent: MARK }),
-    boxOf(plates[1]).inset('normal', 'tight'),
-    'left',
-  );
-  c.show('retry-inside', retry);
-  c.on('retry-inside', () => s.play(spin(retry, 3, { duration: 2.4 })));
-  c.hide('review-cycle', retry);
+    // Bottom floating status bar (mutually exclusive text phases via opacity, zero overlap!)
+    const footY = 365;
+    nodes.push(rule(-860, footY - 30, 860, footY - 30, ROLE.rule, 2));
 
-  // This optional route does not execute a source refresh or the article's review node.
-  const backX = down.cx + 60;
-  const back = arrow([backX, down.bottom], [backX, down.top], { stroke: MARK, width: 4 });
-  const stripBack = arrow(
-    strip.toWorld(...strip.p(2, 'top')),
-    strip.toWorld(...strip.p(1, 'top')),
-    {
-      stroke: MARK,
-      width: 4,
-      bend: 60,
-      pad: 10,
-    },
-  );
-  const rejected = beside(
-    note('optional revision', { color: MARK }),
-    boxOf(stripBack),
-    'above',
-    'tight',
-  );
-  c.show('review-cycle', [draw(back), draw(stripBack), rejected]);
-  c.on('review-cycle', () =>
-    s.play(
-      seq(
-        b.token.refused.to(1, { duration: 0.3 }),
-        par(
-          strip.go(1),
-          b.token.shown.to(0, { duration: 0.4 }),
-          b.packet.seal.to(0, { duration: 0.4 }),
-          ...b.card.flatMap((card) => [
-            card.verdict.to(0, { duration: 0.4 }),
-            card.read.to(0, { duration: 0.4 }),
-          ]),
-        ),
-        b.token.refused.to(0, { duration: 0.1 }),
-        strip.go(2),
-      ),
-    ),
-  );
-  c.show('review-cycle', revisionChange, { lead: -1.8 });
-  const machine = place(label('state machine', { color: MARK }), upper, 'top left');
-  c.show('state-machine', machine);
-  c.on('state-machine', () => s.play(indicate(dag, { color: MARK })));
-  const cancelled = place(
-    note('Article: rejection → cancel', { color: WRONG }),
-    upper,
-    'top right',
-  );
-  c.swap('review-cancel', [back, stripBack, rejected, revisionChange], cancelled);
+    let caption = 'Nodes = operations   |   Arrows = readiness prerequisites';
+    let capCol = COSMOS.muted;
+    if (can > 0.4) {
+      caption = 'Article default: reject -> Cancel';
+      capCol = ROLE.eval;
+    } else if (sm > 0.4) {
+      caption = 'Explicit back-edge makes outer control flow a State Machine around the read DAG';
+      capCol = ROLE.reject;
+    } else if (retryLit.value > 0.4) {
+      caption = 'Internal node retry keeps outer graph acyclic';
+      capCol = ROLE.mark;
+    } else if (pauseLit.value > 0.4) {
+      caption = 'Pausing at Review waits for input without creating a cycle';
+      capCol = ROLE.eval;
+    } else if (kindCode.value > 0.4 || validatorLit.value > 0.4) {
+      caption = 'Code, DB read, model specialist, or deterministic validator';
+      capCol = validatorLit.value > 0.4 ? ROLE.pass : ROLE.eval;
+    } else if (dagBadge.value > 0.4 || noBackLit.value > 0.4) {
+      caption = 'No path leads back to an earlier node -> Directed Acyclic Graph (DAG)';
+      capCol = ROLE.mark;
+    }
 
-  // Clear the revised evidence before the standing board returns to its shared rest state.
-  c.clear(
-    [...b.card.flatMap((card) => [card.shown, card.verdict]), b.packet.seal, b.token.shown],
-    0.8,
-    0.25,
-  );
-  b.leave(c);
+    nodes.push(txt(caption, -860, footY + 14, 28, capCol, 'sans', 'left'));
+
+    return nodes;
+  });
+
+  s.add(bgAtmo, dag3d, title, live);
+  runAmbientPhase(s, c, phase, 2.2);
+  orbitScene(s, c, dag3d, { theta: 0.25, phi: 0.98 });
+
+  // Beat 0
+  tweenCue(s, c, 'nodes', nodesLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'arrows', arrowsLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'read-branches', branchesLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'merge-ready', mergeLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'no-path-back', noBackLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'dag', dagBadge, 1, { duration: 0.35 });
+
+  // Beat 1
+  tweenCue(s, c, 'operation-node', kindCode, 1, { duration: 0.35 });
+  tweenCue(s, c, 'kind-database', kindDb, 1, { duration: 0.35 });
+  tweenCue(s, c, 'kind-model', kindModel, 1, { duration: 0.35 });
+  tweenCue(s, c, 'model-specialist', specialistLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'deterministic-merge', validatorLit, 1, { duration: 0.35, after: true });
+
+  // Beat 2
+  tweenCue(s, c, 'pause', pauseLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'retry-inside', retryLit, 1, { duration: 0.35 });
+  c.on('review-cycle', () => {
+    s.play(cycleLit.to(1, { duration: 0.4 }), dagStage.to(1, { duration: 0.4 }));
+  });
+  tweenCue(s, c, 'state-machine', stateMachineLit, 1, { duration: 0.35 });
+  tweenCue(s, c, 'review-cancel', cancelLit, 1, { duration: 0.35 });
 }

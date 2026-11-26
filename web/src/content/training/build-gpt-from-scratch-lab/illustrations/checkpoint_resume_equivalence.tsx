@@ -4,7 +4,7 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 760
 export const height = 380
 export const alt =
-    'A step-321 checkpoint saves four pieces of state: 4.2M model weights theta, AdamW moments (m_t, v_t, step=321), train/val RNG generator states, and vocab/corpus metadata. Both Path A (uninterrupted) and Path B (resumed from disk) draw the identical 12x48 batch at step 322, compute identical cross-entropy loss 5.5492 nats, and land on bitwise-identical weights (max delta = 0.0).'
+    'A step-321 checkpoint saves four pieces of state: 1.91M model weights theta, AdamW moments (m_t, v_t, step=321), train/val RNG generator states, and vocab/corpus metadata. Both Path A (uninterrupted) and Path B (resumed from disk) draw the identical 12x48 batch at step 322, compute identical cross-entropy loss, and land on bitwise-identical weights (max delta = 0.0).'
 
 export function create(theme: ThemeMode = 'dark') {
     const fig = new Figure(theme, width, height)
@@ -28,7 +28,7 @@ export function create(theme: ThemeMode = 'dark') {
     })
 
     const stateBlocks = [
-        { title: 'Weights θ', sub: '4.2M params', color: cyan },
+        { title: 'Weights θ', sub: '1.91M params', color: cyan },
         { title: 'AdamW state', sub: 'mₜ, vₜ, step = 321', color: warm },
         { title: 'RNG state', sub: 'train / val seeds', color: purple },
         { title: 'Metadata', sub: 'vocab 17,485 · split', color: muted },
@@ -101,7 +101,7 @@ export function create(theme: ThemeMode = 'dark') {
         })
         const rows = [
             ['Next batch', '12 × 48 from RNG@321'],
-            ['Forward loss', 'L_CE = 5.5492 nats'],
+            ['Forward loss', 'bitwise equal (A == B)'],
             ['Optimizer', 'AdamW step 322 applied'],
         ]
         rows.forEach(([k, v], rIdx) => {

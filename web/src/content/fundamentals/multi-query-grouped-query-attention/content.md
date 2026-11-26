@@ -178,7 +178,7 @@ same absorbed query across positions?: False
 
 ## Serving impact, native kernels, and KV cache correctness
 
-In a fixed **10 GiB** raw KV pool on a 72B-style model at 4K context, MHA fits **1** request (`10.74 GB`), GQA-8 fits **8** (`1.34 GB`), and MQA fits **64** (`0.17 GB`), directly unlocking larger decode batches.
+In a fixed **10 GiB** (`10.74 GB`) raw KV pool on a 72B-style model at 4K context, MHA fits **1** request (`10.00 GiB` / `10.74 GB`), GQA-8 fits **8** (`1.25 GiB` / `1.34 GB` each), and MQA fits **64** (`0.156 GiB` / `0.17 GB` each), directly unlocking larger decode batches.
 
 <figure>
   <img src="illustrations/_generated/serving_ceiling_dark.png" alt="A fixed 10 GiB KV cache pool partitioned across 4K-context requests fits 1 MHA request, 8 GQA-8 requests, or 64 MQA requests." />
@@ -332,11 +332,11 @@ cached single-step & 2-token chunk parity: exact | compact K shape: (2, 2, 6, 4)
     "options": [
       "[2,−1] gives 5; [2,−1] gives 5.",
       "[2,−1] gives 5; [1,3] gives 6.",
-      "[2,−1] gives 5; [−1,−3] gives−6.",
+      "[2,−1] gives 5; [−1,−3] gives −6.",
       "[1,3] gives 6; [2,−1] gives 5."
     ],
-    "answer": "[2,−1] gives 5; [−1,−3] gives−6.",
-    "explanation": "The expanded key is [5,6]. Identity gives query dot 5; rotating it gives[−6,5] and score −6. WᵀRᵀq is [2,−1] at identity and [−1,−3] at 90°. Associativity holds separately, but the absorbed query depends on cached position. Separate positional scoring permits reusable content absorption."
+    "answer": "[2,−1] gives 5; [−1,−3] gives −6.",
+    "explanation": "The expanded key is [5,6]. Identity gives query dot 5; rotating it gives [−6,5] and score −6. WᵀRᵀq is [2,−1] at identity and [−1,−3] at 90°. Associativity holds separately, but the absorbed query depends on cached position. Separate positional scoring permits reusable content absorption."
   },
   {
     "question": "An older MHA checkpoint has 40 K/V heads. You want to convert it to a GQA model with 5 K/V heads without training from scratch. What plan matches the uptraining recipe?",

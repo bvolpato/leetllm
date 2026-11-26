@@ -1,5 +1,6 @@
-// The lesson `agent-recovery` as a narrated film. One file for each scene, in the order of lesson.yaml.
-import { narratedLesson } from '../../lib/narrated-lesson.mjs';
+// Full-bleed dark-cinema narrated stage film for `agent-recovery`.
+import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
+import { verifyAgentRecoveryInvariants } from './parts.mjs';
 import actionBoundary from './scenes/action-boundary.mjs';
 import breakerContract from './scenes/breaker-contract.mjs';
 import circuitBreaker from './scenes/circuit-breaker.mjs';
@@ -16,8 +17,10 @@ import spendBudget from './scenes/spend-budget.mjs';
 import subjectIntro from './scenes/subject-intro.mjs';
 import workflowWorld from './scenes/workflow-world.mjs';
 
-export default narratedLesson({
+export default cinematicLesson({
   id: 'agent-recovery',
+  accent: COSMOS.cyan,
+  invariants: verifyAgentRecoveryInvariants,
   scenes: {
     'subject-intro': subjectIntro,
     'action-boundary': actionBoundary,

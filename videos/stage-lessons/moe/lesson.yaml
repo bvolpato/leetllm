@@ -1,0 +1,2365 @@
+version: 1
+id: moe
+opening: lesson
+title: "Mixture of Experts: Routing, Training and Serving"
+source: fundamentals/mixture-of-experts-architecture/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Mixtral of Experts
+    url: https://arxiv.org/abs/2401.04088
+  - title: Switch Transformers
+    url: https://www.jmlr.org/papers/v23/21-0998.html
+  - title: MegaBlocks, Efficient Sparse Training with Mixture-of-Experts
+    url: https://arxiv.org/abs/2211.15841
+  - title: Outrageously Large Neural Networks, The Sparsely-Gated Mixture-of-Experts Layer
+    url: https://arxiv.org/abs/1701.06538
+  - title: Mixture-of-Experts with Expert Choice Routing
+    url: https://arxiv.org/abs/2202.09368
+  - title: DeepSeek-V2
+    url: https://arxiv.org/abs/2405.04434
+  - title: DeepSeek-V3 Technical Report
+    url: https://arxiv.org/abs/2412.19437
+  - title: "ST-MoE: Designing Stable and Transferable Sparse Expert Models"
+    url: https://arxiv.org/abs/2202.08906
+  - title: DeepSeek-V4 Technical Report
+    url: https://arxiv.org/abs/2606.19348
+  - title: GLM-5.3 checkpoint configuration, article snapshot
+    url: https://huggingface.co/zai-org/GLM-5.3-BF16/blob/304b8051cfb2b260b61ce0cbe330e02a98e73639/config.json
+  - title: Qwen3.6-35B-A3B model card
+    url: https://huggingface.co/Qwen/Qwen3.6-35B-A3B
+  - title: vLLM Expert Parallel Deployment
+    url: https://docs.vllm.ai/en/latest/serving/expert_parallel_deployment/
+  - title: Megatron Core Mixture of Experts
+    url: https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/moe.html
+scenes:
+  - id: capacity-question
+    title: Where does the router send each token?
+    visual: The code tokens return and total sit above eight expert weight blocks. Two cyan paths connect
+      return to E1 and E3 from the first frame. The outputs merge at return. Total lights a different pair
+      in pink on the same shelf.
+    beats:
+      - say: Follow the word return. Two experts light up for it in this layer. Both get the same token vector.
+          Each transforms it with its own weights. We multiply each output by its router weight and add the two vectors.
+        hold: 0.6
+        visual_cues:
+          - id: first-pair
+            phrase: Follow the word return
+            targets:
+              - weight-rack
+              - token-path
+            color: cyan
+            linger: 0.25
+          - id: first-return
+            phrase: multiply each output by its router weight and add the two vectors
+            targets:
+              - token-path
+            color: cyan
+            linger: 0.25
+      - say: The six gray experts sat idle for this word. Can we discard their weights before we process total?
+        hold: 2.7
+        visual_cues:
+          - id: keep-weights
+            phrase: Can we discard their weights before we process total
+            targets:
+              - weight-rack
+            color: yellow
+            linger: 0.25
+      - say: Keep all eight. For total, the router picks experts two and eight. Both were idle for return.
+          Their outputs now combine at total. That's how this mixture of experts uses just two networks
+          per token while keeping eight different functions available.
+        caption_starts:
+          - For total, the router picks experts two and eight
+        hold: 0.8
+        visual_cues:
+          - id: next-pair
+            phrase: For total, the router picks experts two and eight
+            targets:
+              - weight-rack
+              - token-path
+            color: pink
+            linger: 0.25
+          - id: next-return
+            phrase: Their outputs now combine at total
+            targets:
+              - token-path
+            color: pink
+            linger: 0.25
+  - id: shared-and-routed
+    title: Open up the feed-forward layer
+    visual: A token row passes through shared attention and one dense FFN. The FFN opens into four parallel expert
+      lanes, preserving the shared attention block and residual bypass. Two routes illuminate for one
+      highlighted token.
+    beats:
+      - say: A Transformer represents each token with a vector called its hidden state. Attention mixes information
+          across positions. A feed-forward network then transforms each position using the same learned
+          function. Follow the highlighted token.
+        visual_cues:
+          - id: hidden-token
+            phrase: hidden state
+            targets:
+              - shared-and-routed-input
+            color: cyan
+          - id: shared-attention
+            phrase: Attention mixes information across positions
+            targets:
+              - shared-and-routed-attention
+            color: blue
+          - id: dense-ffn
+            phrase: feed-forward network then transforms each position
+            targets:
+              - shared-and-routed-dense
+            color: blue
+        hold: 0.5
+      - say: Open the feed-forward part into several networks. A small router chooses which expert functions process
+          this token. Attention stays shared, while the feed-forward transformation takes a selected path.
+        visual_cues:
+          - id: open-expert-pool
+            phrase: Open the feed-forward part into several networks
+            targets:
+              - shared-and-routed-expert
+            color: blue
+          - id: router-choice
+            phrase: router chooses which expert functions process this token
+            targets:
+              - shared-and-routed-gate
+            color: yellow
+        hold: 0.55
+      - say: Combine the selected outputs into one vector for the surrounding residual connection and later layers.
+          Another token, or the same position at another layer, can take a different route.
+        visual_cues:
+          - id: combine-experts
+            phrase: Combine the selected outputs into one vector
+            targets:
+              - shared-and-routed-output
+            color: cyan
+          - id: residual-connection
+            phrase: surrounding residual connection
+            targets:
+              - shared-and-routed-residual-path
+            color: blue
+        hold: 0.55
+  - id: router-scores
+    title: Let the hidden state choose a path
+    visual: Four coordinate tiles feed the router matrix. The source article's exact logits appear, exponentiate
+      into positive masses, and rescale on a common probability axis. Bar lengths use the actual
+      stable-softmax calculation.
+    beats:
+      - say: Multiply the hidden state by the router's learned matrix. This produces one score, called a logit, for
+          each expert. Their relative sizes tell us which paths the router favors.
+        visual_cues:
+          - id: router-hidden-state
+            phrase: hidden state
+            targets:
+              - token-hidden-state
+            color: cyan
+          - id: project-router-logits
+            phrase: one score, called a logit, for each expert
+            targets:
+              - router-projection
+              - expert-scores
+            color: blue
+        hold: 0.55
+      - say: Softmax turns the scores into positive weights that sum to one. Watch the probability bars grow. Raising
+          one logit relative to the others gives that expert a larger share.
+        visual_cues:
+          - id: router-softmax
+            phrase: Softmax turns the scores into positive weights that sum to one
+            targets:
+              - expert-scores
+              - softmax-normalization
+            color: yellow
+          - id: expert-probability-shares
+            phrase: larger share
+            targets:
+              - expert-scores
+            color: cyan
+        hold: 0.55
+      - say: Follow the blue and yellow bars. For this input, those two experts have the highest scores.
+        visual_cues:
+          - id: expert-identities
+            phrase: Follow the blue and yellow bars
+            targets:
+              - expert-scores
+            color: blue
+        hold: 0.5
+  - id: top-two
+    title: Keep two paths and rescale their weights
+    visual: Exact probability bars preserve their expert positions as E1 and E3 are selected. The two surviving
+      masses travel into one stacked unit bar, growing from their original mass into normalized weights whose
+      sum is exactly one.
+    beats:
+      - say: "Use a Mixtral-style top-two rule. Keep the two largest scores: the first and third experts win. The
+          others stay stored and contribute no expert computation for this token."
+        visual_cues:
+          - id: select-top-two
+            phrase: Keep the two largest scores
+            targets:
+              - winning-expert-probabilities
+              - selected-gate-blend
+            color: yellow
+          - id: unselected-stored
+            phrase: The others stay stored
+            targets:
+              - other-expert-probabilities
+            color: blue
+        hold: 0.7
+      - say: Divide each surviving probability by their combined mass. The selected weights now fill one whole bar,
+          with roughly two thirds assigned to the first expert. This is the blend we'll use.
+        visual_cues:
+          - id: normalize-selected-gates
+            phrase: Divide each surviving probability by their combined mass
+            targets:
+              - gate-renormalization-rule
+              - selected-gate-blend
+            color: yellow
+          - id: unit-gate-blend
+            phrase: The selected weights now fill one whole bar
+            targets:
+              - selected-gate-blend
+            color: green
+          - id: unit-gate-readout
+            phrase: with roughly two thirds assigned to the first expert
+            targets:
+              - selected-gate-blend
+            color: green
+        hold: 0.6
+      - say: Follow those two colors. We have chosen both the functions to evaluate and the weights for blending their
+          outputs. Keep the exact values on screen to check the result.
+        visual_cues:
+          - id: follow-selected-colors
+            phrase: Follow those two colors
+            targets:
+              - winning-expert-probabilities
+              - selected-gate-blend
+            color: yellow
+        hold: 0.7
+  - id: weighted-output
+    title: Build the output as a weighted vector sum
+    visual: A shared input forks into two illustrative linear expert maps. On a common two-dimensional plane, the
+      first output arrow shrinks by its gate, the second shrinks by its own gate, and the weighted arrows join
+      head to tail. The diagonal result is computed from the exact logits.
+    beats:
+      - say: Both selected experts receive the same hidden state and return equally sized vectors. Our tiny example
+          produces a horizontal vector from one expert and a vertical vector from the other.
+        visual_cues:
+          - id: same-expert-input
+            phrase: Both selected experts receive the same hidden state
+            targets:
+              - same-token-input
+            color: cyan
+          - id: unweighted-expert-results
+            phrase: horizontal vector from one expert and a vertical vector from the other
+            targets:
+              - first-expert-output
+              - third-expert-output
+            color: yellow
+        hold: 0.55
+      - say: Scale each vector by its gate weight. The first arrow becomes about two thirds of its original length;
+          the second becomes about one third. Their lengths follow our router calculation.
+        visual_cues:
+          - id: weight-first-expert
+            phrase: The first arrow becomes about two thirds of its original length
+            targets:
+              - first-expert-output
+            color: blue
+          - id: weight-third-expert
+            phrase: the second becomes about one third
+            targets:
+              - third-expert-output
+            color: yellow
+        hold: 0.7
+      - say: Place the weighted arrows head to tail. The diagonal from the origin is the combined output. Real experts
+          use large nonlinear networks; these tiny linear maps make the addition visible.
+        visual_cues:
+          - id: join-weighted-arrows
+            phrase: Place the weighted arrows head to tail
+            targets:
+              - first-expert-output
+              - third-expert-output
+            color: yellow
+          - id: combined-vector
+            phrase: The diagonal from the origin is the combined output
+            targets:
+              - combined-expert-output
+              - mixture-rule
+            color: cyan
+        hold: 0.75
+  - id: routing-rules
+    title: The gate rule belongs to the architecture
+    visual: The selected top-two gates remain paired. A separate Switch top-one example shows the original winning
+      softmax gate multiplying its expert, with a continuous gate sensitivity probe. A common hidden-state row
+      remains visible rather than implying independent full models.
+    beats:
+      - say: Mixtral selects two experts from eight at each layer. Our four-expert picture is a smaller teaching
+          example. A checkpoint's routing rule determines the function its trained weights implement.
+        visual_cues:
+          - id: mixtral-route
+            phrase: Mixtral selects two experts from eight
+            targets:
+              - routing-rules-readout
+            color: blue
+          - id: trained-routing
+            phrase: checkpoint's routing rule
+            targets:
+              - routing-rules-readout-2
+            color: yellow
+        hold: 0.5
+      - say: Switch Transformer selects one expert and retains its original softmax gate. The gate changes as the
+          router learns. Normalizing that lone weight to one would remove this task-loss gradient through the
+          gate.
+        visual_cues:
+          - id: switch-route
+            phrase: Switch Transformer selects one expert
+            targets:
+              - switch-gate
+            color: yellow
+          - id: gate-learning
+            phrase: gate changes as the router learns
+            targets:
+              - switch-gate
+            color: yellow
+          - id: retain-gate
+            phrase: Normalizing that lone weight to one
+            targets:
+              - routing-rules-readout-4
+            color: blue
+        hold: 0.55
+      - say: Other architectures add shared experts or use different scoring and balancing rules. Changing the
+          selected count changes the computation. Evaluate the resulting answers and cost against the
+          checkpoint's actual definition.
+        visual_cues:
+          - id: architectural-variants
+            phrase: different scoring and balancing rules
+            targets:
+              - routing-rules-readout-2
+              - routing-rules-readout-4
+            color: blue
+          - id: selected-count
+            phrase: selected count changes the computation
+            targets:
+              - routing-rules-readout
+            color: yellow
+        hold: 0.55
+  - id: router-contract
+    title: Make the routing rule executable
+    visual: One hidden vector enters the actual finite-value validator, four projected logits and a stable
+      softmax. Adding one common offset preserves the probability geometry. A deterministic tie splits equal
+      scores by expert ID; malformed counts stop before dispatch.
+    beats:
+      - say: The walkthrough uses a four-coordinate hidden state and four expert maps. Our original two-coordinate
+          drawing shows its first two coordinates. For the exact logits, the selected weights are about point
+          six six eight and point three three two. The full output begins one point three three six, point
+          nine nine five. The rounded probability table instead gives four thirds and one. Keep those two
+          calculations separate.
+        hold: 0.7
+        visual_cues:
+          - id: mo-router-contract-op-0
+            phrase: The walkthrough uses a four-coordinate hidden state and four expert maps. Our original two-coordinate
+              drawing shows its first two coordinates. For the exact logits, the selected weights are about
+              point six six eight and point three three two. The full output begins one point three three six,
+              point nine nine five. The rounded probability table instead gives four thirds and one. Keep
+              those two calculations separate.
+            targets:
+              - mo-router-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-exact-gates
+            phrase: selected weights are about point six six eight and point three three two
+            targets:
+              - mo-router-contract-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-exact-output
+            phrase: full output begins one point three three six, point nine nine five
+            targets:
+              - mo-router-contract-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-rounded-output
+            phrase: rounded probability table instead gives four thirds and one
+            targets:
+              - mo-router-contract-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The executable router first checks dimensions, finite numbers and an integer expert count. A Boolean or a
+          fractional count fails that contract. It projects the hidden state, rejects a nonfinite result, and
+          subtracts the largest logit before exponentiating. Subtracting the same number preserves probability
+          ratios while avoiding unnecessarily large exponentials.
+        hold: 0.7
+        visual_cues:
+          - id: mo-router-contract-op-1
+            phrase: The executable router first checks dimensions, finite numbers and an integer expert count. A Boolean
+              or a fractional count fails that contract. It projects the hidden state, rejects a nonfinite
+              result, and subtracts the largest logit before exponentiating. Subtracting the same number
+              preserves probability ratios while avoiding unnecessarily large exponentials.
+            targets:
+              - mo-router-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-stable-shift
+            phrase: subtracts the largest logit before exponentiating
+            targets:
+              - mo-router-contract-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Choose the highest scores, using expert ID to break an exact tie in this teaching implementation. Divide
+          each chosen probability by the sum of chosen probabilities. These weights sum to one. That is the
+          rule for this example. A trained model may use another rule, and changing its chosen count changes
+          the function it was trained to compute.
+        hold: 0.7
+        visual_cues:
+          - id: mo-router-contract-op-2
+            phrase: Choose the highest scores, using expert ID to break an exact tie in this teaching implementation.
+              Divide each chosen probability by the sum of chosen probabilities. These weights sum to one.
+              That is the rule for this example. A trained model may use another rule, and changing its chosen
+              count changes the function it was trained to compute.
+            targets:
+              - mo-router-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-tie-order
+            phrase: using expert ID to break an exact tie in this teaching implementation
+            targets:
+              - mo-router-contract-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-normalized
+            phrase: These weights sum to one
+            targets:
+              - mo-router-contract-mechanism
+            color: yellow
+            linger: 0.45
+  - id: gate-gradient
+    title: One selected expert can still train a gate
+    visual: Two expert scores define a sigmoid curve. The selected expert stays fixed while its retained
+      probability changes the output and squared-loss slope. A second branch normalizes its sole gate to one
+      and becomes locally flat. Both loss values wait for their completed clauses.
+    beats:
+      - say: One expert returns two. Its router weight is three quarters, and the target output is one. Use
+          half the squared error for the loss. What output do we get if we keep the router weight? What if
+          we set it to one?
+        hold: 1.5
+        visual_cues:
+          - id: mo-gate-gradient-op-0
+            phrase: One expert returns two. Its router weight is three quarters, and the target output is one.
+              Use half the squared error for the loss. What output do we get if we keep the router weight?
+              What if we set it to one?
+            targets:
+              - mo-gate-gradient-mechanism
+            color: cyan
+            linger: 0.35
+      - say: One point five. That's three quarters of the expert's output. The loss is one eighth. A
+          small change in the selected logit changes that probability, so the task loss can train
+          the router even while the selected expert stays fixed. With the other logit fixed at zero,
+          the derivative here is three sixteenths. The curve shows this local slope.
+        caption_starts:
+          - The loss is one eighth
+        hold: 0.7
+        visual_cues:
+          - id: mo-gate-gradient-op-1
+            phrase: One point five. That's three quarters of the expert's output. The loss is one eighth.
+              A small change in the selected logit changes that probability, so the task loss can
+              train the router even while the selected expert stays fixed. With the other logit
+              fixed at zero, the derivative here is three sixteenths. The curve shows this local
+              slope.
+            targets:
+              - mo-gate-gradient-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-retained-output
+            phrase: One point five
+            targets:
+              - mo-gate-gradient-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-retained-loss
+            phrase: The loss is one eighth
+            targets:
+              - mo-gate-gradient-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-retained-gradient
+            phrase: derivative here is three sixteenths
+            targets:
+              - mo-gate-gradient-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Normalizing a sole selected gate gives weight one, output two, and loss one half. Away from a
+          selection boundary, that output has zero derivative through this normalized gate. The expert
+          itself can still learn. Load balancing gives the router another training signal.
+        caption_starts:
+          - output two
+        hold: 0.7
+        visual_cues:
+          - id: mo-gate-gradient-op-2
+            phrase: Normalizing a sole selected gate gives weight one, output two, and loss one half. Away from a
+              selection boundary, that output has zero derivative through this normalized gate. The expert
+              itself can still learn. Load balancing gives the router another training signal.
+            targets:
+              - mo-gate-gradient-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-normalized-output
+            phrase: Normalizing a sole selected gate gives weight one, output two, and loss one half
+            targets:
+              - mo-gate-gradient-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-normalized-flat
+            phrase: that output has zero derivative through this normalized gate
+            targets:
+              - mo-gate-gradient-mechanism
+            color: yellow
+            linger: 0.45
+  - id: batch-dispatch
+    title: Group the work, preserve the token
+    visual: Six persistent token colors branch into their explicit top-two assignments, traveling along visible
+      polylines into four expert queues. The queued rows execute together, then return to six original token
+      positions with both contributions accumulated.
+    beats:
+      - say: Give every token a persistent color and follow its two assignments. The runtime groups assignments by
+          expert, letting one network process several hidden states together as rows of a matrix.
+        visual_cues:
+          - id: persistent-token
+            phrase: persistent color
+            targets:
+              - source-token-identities
+            color: cyan
+          - id: group-assignments
+            phrase: groups assignments by expert
+            targets:
+              - expert-assignment-rows
+            color: blue
+        hold: 0.6
+      - say: The grouped rows become an expert matrix multiplication. A token's identity and gate weight travel with
+          its row. The work changes order while each row retains its original destination.
+        visual_cues:
+          - id: expert-matrix
+            phrase: expert matrix multiplication
+            targets:
+              - expert-assignment-rows
+            color: blue
+          - id: carried-gates
+            phrase: identity and gate weight travel with its row
+            targets:
+              - batch-dispatch-readout-5
+            color: yellow
+        hold: 0.55
+      - say: Return each result to its token position, apply its gate, and accumulate both contributions. Preserving
+          the indices and weights makes grouped execution compute the same mixture we built for one token.
+        visual_cues:
+          - id: restore-order
+            phrase: Return each result to its token position
+            targets:
+              - ordered-token-results
+            color: cyan
+          - id: weighted-accumulation
+            phrase: apply its gate, and accumulate both contributions
+            targets:
+              - ordered-token-results
+            color: green
+        hold: 0.65
+  - id: pack-permutation
+    title: Follow two assignments for token zero
+    visual: Five tickets carry a token ID, expert ID and gate. One ticket at a time crosses into its expert's
+      group. Token zero's two tickets land in different groups and retain their own weights.
+    beats:
+      - say: Here are three tokens and five assignments. In this example the experts are numbered from zero. Read
+          the first ticket on the right. Expert two gets token zero's vector, one and two. A quarter of that
+          expert's output belongs back at token zero.
+        hold: 0.55
+        visual_cues:
+          - id: read-ticket
+            phrase: Read the first ticket on the right
+            targets:
+              - assignment-rack
+            color: cyan
+            linger: 0.25
+      - say: Move each ticket into its expert's group, taking its token number and weight along. Now each expert
+          can process its rows together in one matrix operation.
+        hold: 0.75
+        visual_cues:
+          - id: group-tickets
+            phrase: Move each ticket into its expert's group, taking its token number and weight along
+            targets:
+              - assignment-rack
+            color: cyan
+            linger: 0.25
+      - say: Look down the packed rows. Which two will send results back to token zero?
+        hold: 2.2
+        visual_cues:
+          - id: find-address
+            phrase: Which two will send results back to token zero
+            targets:
+              - assignment-rack
+            color: cyan
+            linger: 0.25
+      - say: The two tickets marked token zero went to different experts. Expert one carries three quarters and
+          expert two carries one quarter. You can change the order within a group. Each result still needs
+          that original token address and its own weight.
+        caption_starts:
+          - Expert one carries three quarters
+        hold: 0.65
+        visual_cues:
+          - id: both-addresses
+            phrase: The two tickets marked token zero went to different experts
+            targets:
+              - assignment-rack
+            color: cyan
+            linger: 0.25
+  - id: scatter-combine
+    title: What comes back to each token?
+    visual: The same packed tickets execute in order. Weighted vectors move to three running sums by token ID.
+      Token zero's second vector waits beside its first subtotal, then the two add in place.
+    beats:
+      - say: Keep those five tickets in order. On the right, put a zero vector at each token address. Expert zero
+          doubles both its inputs. Its weighted returns go to token one and token two. Token one is finished.
+          Token two is still waiting for another return.
+        hold: 0.7
+        visual_cues:
+          - id: double-rows
+            phrase: Its weighted returns go to token one and token two
+            targets:
+              - packed-execution
+              - weighted-return-path
+              - token-sums
+            color: cyan
+            linger: 0.25
+      - say: Expert one negates token zero's input, giving minus one and minus two. Send three quarters of that
+          back to token zero. Look at its subtotal. Both coordinates are negative.
+        hold: 0.9
+        visual_cues:
+          - id: negate-zero
+            phrase: Send three quarters of that back to token zero
+            targets:
+              - weighted-return-path
+              - token-sums
+            color: cyan
+            linger: 0.25
+      - say: Expert two halves that same input. Take a quarter of its half-sized vector and carry it back. Here's
+          the positive return beside the negative subtotal. What belongs in token zero now?
+        hold: 2.7
+        visual_cues:
+          - id: quarter-return
+            phrase: Take a quarter of its half-sized vector and carry it back
+            targets:
+              - packed-execution
+              - weighted-return-path
+              - token-sums
+            color: cyan
+            linger: 0.25
+      - say: Add the return to the subtotal. Token zero ends at minus point six two five, minus one point two five.
+          The last ticket goes back to token two and finishes its sum at five point five, six point six.
+          That's scatter-add. Five assignment rows have filled three token addresses.
+        caption_starts:
+          - Token zero ends at minus point six two five
+          - The last ticket goes back to token two
+        hold: 0.8
+        visual_cues:
+          - id: add-zero
+            phrase: Token zero ends at minus point six two five, minus one point two five
+            targets:
+              - weighted-return-path
+              - token-sums
+            color: cyan
+            linger: 0.25
+          - id: last-return
+            phrase: finishes its sum at five point five, six point six
+            targets:
+              - weighted-return-path
+              - token-sums
+            color: cyan
+            linger: 0.25
+      - say: If you overwrite token zero on the second delivery, only the small positive return survives. If you
+          omit the gates, the two raw outputs add to minus a half, minus one. Both mistakes change the
+          answer. Apply each gate once, including when a kernel does the multiplication for you. Add the
+          residual and any shared expert separately.
+        hold: 0.7
+        visual_cues:
+          - id: wrong-writes
+            phrase: overwrite token zero on the second delivery
+            targets:
+              - token-sums
+            color: yellow
+            linger: 0.25
+  - id: expert-choice
+    title: Who gets a place?
+    visual: A three-by-five matrix holds a router probability for each expert and token. Each expert fills its
+      two places from its own row. The viewer reads down the same columns to decide which token receives no
+      return.
+    beats:
+      - say: So far the token has chosen its experts. Now give each expert two places and let it choose its tokens.
+          This is expert choice. Read the first row of this toy score table. Fill its two places with the
+          highest scores. Token zero and token one get those calls.
+        hold: 0.65
+        visual_cues:
+          - id: fill-first
+            phrase: Fill its two places with the highest scores
+            targets:
+              - choice-matrix
+            color: cyan
+            linger: 0.25
+      - say: Do the same in the second row. Token zero gets another call there. Now fill the third row from its own
+          scores. Each expert has the same number of assignments. With equal-size experts, that gives them
+          equal numbers of rows to process.
+        hold: 0.75
+        visual_cues:
+          - id: fill-second
+            phrase: Do the same in the second row
+            targets:
+              - choice-matrix
+            color: cyan
+            linger: 0.25
+          - id: fill-third
+            phrase: Now fill the third row from its own scores
+            targets:
+              - choice-matrix
+            color: cyan
+            linger: 0.25
+      - say: Look down each token's column. Which token receives no expert return?
+        hold: 2.65
+        visual_cues:
+          - id: scan-columns
+            phrase: Look down each token's column
+            targets:
+              - choice-matrix
+            color: cyan
+            linger: 0.25
+      - say: Token four gets none. Its scores fell below the top two in their rows. Tokens zero and two each get two
+          returns, while token four continues on its residual path with no expert contribution. Count the
+          paths back to each token when you check coverage. Whether those paths help the model make better
+          predictions takes a separate quality check.
+        hold: 0.8
+        visual_cues:
+          - id: uncovered-four
+            phrase: Token four gets none
+            targets:
+              - choice-matrix
+            color: cyan
+            linger: 0.25
+      - say: In the expert-choice paper, the routing group size, expert count and a capacity factor set the bucket
+          size. That factor controls the average number of experts per token. Later we'll use a different
+          capacity factor to size buffers for routes the tokens have already chosen.
+        hold: 0.6
+  - id: prefix-consistency
+    title: Let a future token challenge the same prefix
+    visual: A one-slot expert bucket first selects an earlier token at score 0.6. A future token at 0.9 enters a
+      separate later position and displaces it. The earlier score, hidden state and causal attention mask
+      remain visibly fixed.
+    beats:
+      - say: Now test causality rather than load. An expert has one slot. With only the prefix present, an earlier
+          token scores point six and wins that slot. Hold its hidden state and score fixed. Predict whether
+          its expert assignment stays the same when a future token joins the group with score point nine.
+        hold: 1.5
+        visual_cues:
+          - id: mo-prefix-consistency-op-0
+            phrase: Now test causality rather than load. An expert has one slot. With only the prefix present, an earlier
+              token scores point six and wins that slot. Hold its hidden state and score fixed. Predict
+              whether its expert assignment stays the same when a future token joins the group with score
+              point nine.
+            targets:
+              - mo-prefix-consistency-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-prefix-score
+            phrase: earlier token scores point six and wins that slot
+            targets:
+              - mo-prefix-consistency-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-future-score
+            phrase: future token joins the group with score point nine
+            targets:
+              - mo-prefix-consistency-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The future token takes the slot. The unchanged earlier token loses its expert contribution because
+          selection compared tokens across the entire group. A causal attention mask limits which positions
+          attention reads. It does not remove this separate routing dependence on a future token.
+        hold: 0.7
+        visual_cues:
+          - id: mo-prefix-consistency-op-1
+            phrase: The future token takes the slot. The unchanged earlier token loses its expert contribution because
+              selection compared tokens across the entire group. A causal attention mask limits which
+              positions attention reads. It does not remove this separate routing dependence on a future
+              token.
+            targets:
+              - mo-prefix-consistency-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-future-wins
+            phrase: The future token takes the slot
+            targets:
+              - mo-prefix-consistency-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-prefix-loses
+            phrase: unchanged earlier token loses its expert contribution
+            targets:
+              - mo-prefix-consistency-mechanism
+            color: yellow
+            linger: 0.45
+      - say: An autoregressive implementation therefore needs a routing design whose earlier results remain consistent
+          as the prefix grows. Test prefix and incremental execution explicitly. Fixed buckets across a
+          completed sequence cannot simply be assumed valid during generation, and small serving groups can
+          also change the behavior of the original expert-choice method.
+        hold: 0.7
+        visual_cues:
+          - id: mo-prefix-consistency-op-2
+            phrase: An autoregressive implementation therefore needs a routing design whose earlier results remain
+              consistent as the prefix grows. Test prefix and incremental execution explicitly. Fixed buckets
+              across a completed sequence cannot simply be assumed valid during generation, and small serving
+              groups can also change the behavior of the original expert-choice method.
+            targets:
+              - mo-prefix-consistency-mechanism
+            color: cyan
+            linger: 0.35
+  - id: training-skew
+    title: A popular route can reinforce itself
+    visual: Twenty top-one assignments produce exact 12/4/3/1 task-gradient term counts. A labeled schematic
+      sequence collects those terms, applies the expert update rule, and reveals a possible future router
+      preference. Future routing remains conditional on learning and data.
+    beats:
+      - say: During training, a router can favor one expert early. This top-one batch sends most tokens to the first
+          expert. Many examples contribute to its task gradient; quieter experts receive fewer.
+        visual_cues:
+          - id: assignment-skew
+            phrase: sends most tokens to the first expert
+            targets:
+              - training-assigned-rows
+            color: blue
+          - id: unequal-gradients
+            phrase: quieter experts receive fewer
+            targets:
+              - training-contributions
+            color: yellow
+        hold: 0.55
+      - say: The optimizer first collects the task-gradient contributions and updates each selected expert. The
+          popular expert has many more examples in this batch. In this schematic feedback path, an expert that
+          improves can become more attractive to the jointly trained router. Repeating that loop can leave
+          quieter experts with fewer opportunities to learn.
+        visual_cues:
+          - id: collect-gradients
+            phrase: first collects the task-gradient contributions
+            targets:
+              - training-contributions
+            color: blue
+          - id: update-experts
+            phrase: updates each selected expert
+            targets:
+              - expert-update
+            color: yellow
+          - id: feedback-loop
+            phrase: more attractive to the jointly trained router
+            targets:
+              - future-router
+            color: pink
+        hold: 0.6
+      - say: Investigate the trend across batches alongside executed assignments and held-out quality. Healthy
+          training needs useful expert functions and enough opportunities for them to learn from the data
+          reaching the model.
+        visual_cues:
+          - id: later-batches
+            phrase: trend across batches
+            targets:
+              - training-assigned-rows
+            color: blue
+          - id: expert-quality
+            phrase: useful expert functions
+            targets:
+              - expert-update
+            color: green
+        hold: 0.55
+  - id: balance-pressure
+    title: Give the router a balancing signal
+    visual: The Switch top-one assignment fractions and mean probabilities form product areas on a common scale. A
+      derivative arrow is larger for the heavily assigned expert. A training-objective diagram retains task
+      quality beside the balancing term, with the uniform distribution drawn only as a labeled reference.
+    beats:
+      - say: Switch adds an auxiliary term combining assignment frequency with mean router probability. Their product
+          grows when an expert is both heavily assigned and strongly favored. The rectangles show those
+          products.
+        visual_cues:
+          - id: frequency-probability
+            phrase: assignment frequency with mean router probability
+            targets:
+              - assignment-products
+            color: blue
+          - id: rectangle-products
+            phrase: rectangles show those products
+            targets:
+              - assignment-products
+            color: yellow
+        hold: 0.6
+      - say: The gradient flows through the probabilities. For this fixed assignment pattern, the busy expert receives
+          a larger penalty coefficient. Learning gains pressure against concentration, while the next batch
+          makes new routing decisions.
+        visual_cues:
+          - id: probability-gradient
+            phrase: gradient flows through the probabilities
+            targets:
+              - probability-gradient
+            color: red
+          - id: concentration-pressure
+            phrase: busy expert receives a larger penalty coefficient
+            targets:
+              - probability-gradient
+            color: red
+        hold: 0.65
+      - say: The language-modeling loss still rewards accurate predictions. Balance pressure works alongside that
+          objective. Use the uniform reference for orientation, then inspect actual coverage, overflow, and
+          answer quality to assess training.
+        visual_cues:
+          - id: task-objective
+            phrase: language-modeling loss
+            targets:
+              - balance-pressure-task-loss-balance-pressure
+            color: cyan
+          - id: uniform-reference
+            phrase: uniform reference
+            targets:
+              - balance-pressure-uniform-reference
+            color: yellow
+        hold: 0.6
+  - id: balance-value
+    title: Compute the balancing pressure
+    visual: Observed assignment fractions and mean probabilities form four exact product areas. Their common-scale
+      areas add to 0.4005, then a separate multiplication by four earns 1.602. Hard counts stop the gradient
+      while probability columns carry it.
+    beats:
+      - say: Let us compute the balancing term shown earlier. For each expert, f is its fraction of hard top-one
+          assignments in this batch. P is its mean router probability across the batch. Their products are
+          point three three, point zero four four, point zero two two five, and point zero zero four.
+        hold: 0.7
+        visual_cues:
+          - id: mo-balance-value-op-0
+            phrase: Let us compute the balancing term shown earlier. For each expert, f is its fraction of hard top-one
+              assignments in this batch. P is its mean router probability across the batch. Their products are
+              point three three, point zero four four, point zero two two five, and point zero zero four.
+            targets:
+              - mo-balance-value-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-balance-products
+            phrase: Their products are point three three, point zero four four, point zero two two five, and point zero
+              zero four
+            targets:
+              - mo-balance-value-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Adding those products gives point four zero zero five. Multiplying by four experts gives one
+          point six zero two before the loss coefficient alpha. If both distributions were uniform, the
+          score would be one. Watch what happens to that score when an expert goes unused.
+        hold: 0.7
+        visual_cues:
+          - id: mo-balance-value-op-1
+            phrase: Adding those products gives point four zero zero five. Multiplying by four experts gives one
+              point six zero two before the loss coefficient alpha. If both distributions were uniform, the
+              score would be one. Watch what happens to that score when an expert goes unused.
+            targets:
+              - mo-balance-value-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-balance-sum
+            phrase: Adding those products gives point four zero zero five
+            targets:
+              - mo-balance-value-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-balance-score
+            phrase: Multiplying by four experts gives one point six zero two before the loss coefficient alpha
+            targets:
+              - mo-balance-value-mechanism
+            color: yellow
+            linger: 0.45
+      - say: During differentiation, treat the hard assignment fractions as fixed. The gradient flows through the mean
+          probabilities. Before their softmax coupling, the coefficient for probability i is alpha times the
+          expert count times f i, so this fixed batch penalizes a busy expert more strongly. The task
+          objective must still reward useful predictions.
+        hold: 0.7
+        visual_cues:
+          - id: mo-balance-value-op-2
+            phrase: During differentiation, treat the hard assignment fractions as fixed. The gradient flows through the
+              mean probabilities. Before their softmax coupling, the coefficient for probability i is alpha
+              times the expert count times f i, so this fixed batch penalizes a busy expert more strongly. The
+              task objective must still reward useful predictions.
+            targets:
+              - mo-balance-value-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-balance-coefficient
+            phrase: coefficient for probability i is alpha times the expert count times f i
+            targets:
+              - mo-balance-value-mechanism
+            color: yellow
+            linger: 0.45
+  - id: balance-counterexample
+    title: A smaller score can leave an expert unused
+    visual: Two complete three-expert probability rows select experts 0 and 1. The unused expert retains
+      probability 0.4 in both rows. Hard counts and mean probabilities calculate a score of 0.90; a separate
+      coverage indicator stays empty.
+    beats:
+      - say: Look at the yellow column. This expert gets forty percent of the router weight from each token.
+          In each row, another expert gets fifty-one percent and wins the call. Expert zero takes the first
+          token and expert one takes the second.
+        hold: 0.7
+        visual_cues:
+          - id: mo-balance-counterexample-op-0
+            phrase: Look at the yellow column. This expert gets forty percent of the router weight from each
+              token. In each row, another expert gets fifty-one percent and wins the call. Expert zero
+              takes the first token and expert one takes the second.
+            targets:
+              - mo-balance-counterexample-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-counter-routes
+            phrase: Expert zero takes the first token and expert one takes the second
+            targets:
+              - mo-balance-counterexample-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The assignment fractions are one half, one half, zero. The mean probabilities are point three,
+          point three, point four. Expert two's forty percent gets multiplied by zero. Three times their
+          dot product is point nine. The score fell below one even though expert two receives no
+          assignment.
+        hold: 0.7
+        visual_cues:
+          - id: mo-balance-counterexample-op-1
+            phrase: The assignment fractions are one half, one half, zero. The mean probabilities are point
+              three, point three, point four. Expert two's forty percent gets multiplied by zero. Three
+              times their dot product is point nine. The score fell below one even though expert two
+              receives no assignment.
+            targets:
+              - mo-balance-counterexample-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-counter-fractions
+            phrase: assignment fractions are one half, one half, zero
+            targets:
+              - mo-balance-counterexample-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-counter-means
+            phrase: mean probabilities are point three, point three, point four
+            targets:
+              - mo-balance-counterexample-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-counter-score
+            phrase: Three times their dot product is point nine
+            targets:
+              - mo-balance-counterexample-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-counter-unused
+            phrase: expert two receives no assignment
+            targets:
+              - mo-balance-counterexample-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Count the calls that actually ran to see which experts got work and which tokens lost a return.
+          To test whether an expert helps with code, take it out of the route for held-out code examples
+          and compare the answers.
+        hold: 0.7
+        visual_cues:
+          - id: mo-balance-counterexample-op-2
+            phrase: Count the calls that actually ran to see which experts got work and which tokens lost a
+              return. To test whether an expert helps with code, take it out of the route for held-out code
+              examples and compare the answers.
+            targets:
+              - mo-balance-counterexample-mechanism
+            color: cyan
+            linger: 0.35
+  - id: z-partition
+    title: Slide both router scores by three
+    visual: Two labeled logits sit on one number line. A probability strip below shows the blue and pink
+      shares. Both markers slide three units right while the strip holds its proportions. Beside it, the
+      exponential sum, its logarithm and the squared penalty show what changed.
+    beats:
+      - say: Blue gets three quarters of the router weight and pink gets one quarter. The two logits on the ruler
+          are the logs of those shares. Exponentiate them and add. The sum is one. Its logarithm, called the
+          log partition, is zero. Squaring zero gives a z-loss of zero.
+        hold: 0.7
+        visual_cues:
+          - id: mo-z-partition-op-0
+            phrase: The two logits on the ruler
+            targets: [mo-z-partition-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: mo-z-base
+            phrase: Squaring zero gives a z-loss of zero
+            targets: [z-penalty]
+            color: yellow
+            linger: 0.45
+          - id: mo-z-base-sum
+            phrase: The sum is one
+            targets: [z-penalty]
+            color: yellow
+            linger: 0.25
+      - say: Add three to both logits. The gap stays the same. Blue still gets three quarters and wins the
+          route. Each exponential grew by the same factor, e cubed. Their sum is now e cubed. Its logarithm
+          is three. Squaring three gives a z-loss of nine.
+        caption_starts:
+          - Their sum is now e cubed
+          - Squaring three gives a z-loss of nine
+        hold: 0.7
+        visual_cues:
+          - id: mo-z-partition-op-1
+            phrase: The gap stays the same
+            targets: [mo-z-partition-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: mo-z-shift
+            phrase: Add three to both logits
+            targets: [mo-z-partition-mechanism]
+            color: yellow
+            linger: 0.45
+          - id: mo-z-result
+            phrase: Squaring three gives a z-loss of nine
+            targets: [z-penalty]
+            color: yellow
+            linger: 0.45
+          - id: mo-z-shift-sum
+            phrase: Their sum is now e cubed
+            targets: [z-penalty]
+            color: yellow
+            linger: 0.25
+      - say: Softmax divides by the sum, so the common factor cancels. Subtracting the largest logit before
+          exponentiating keeps that calculation in range. During training, z-loss penalizes the squared log
+          partition, averaged across tokens. The ST-MoE team found that this penalty helped stabilize training.
+          In their large-model experiment, adding input noise also improved stability but cost prediction quality.
+        hold: 0.7
+        visual_cues:
+          - id: mo-z-partition-op-2
+            phrase: z-loss penalizes the squared log partition
+            targets: [z-penalty]
+            color: cyan
+            linger: 0.35
+  - id: capacity-limit
+    title: Which return fits?
+    visual: Sixteen tickets enter four queues in token order. A cutoff crosses each queue after its fourth
+      slot. Token four has an address on either side of the cutoff. Its two expert vectors stay in view while
+      the surviving gate determines its routed sum. A count appears above E1's four overflow tickets.
+    beats:
+      - say: Eight tokens each choose two of four experts. Line up their assignments in token order at each expert.
+          That's sixteen assignments for four experts, or four per expert on average. At capacity factor
+          one, reserve four slots per expert. In general, multiply the average by the capacity factor and
+          round up.
+        hold: 0.65
+        visual_cues:
+          - id: arrange-arrivals
+            phrase: Line up their assignments in token order at each expert
+            targets:
+              - queue-rows
+            color: cyan
+            linger: 0.25
+          - id: four-slots
+            phrase: reserve four slots per expert
+            targets:
+              - queue-budget
+              - queue-rows
+            color: pink
+            linger: 0.25
+      - say: Find token four in the first and third queues. The vectors on the right show what each expert would
+          return for this input. Token four put six tenths on expert one and four tenths on expert three.
+          We drop arrivals past the line and keep each surviving gate at its original weight. Which of its
+          two expert outputs reaches the sum?
+        hold: 2.8
+        visual_cues:
+          - id: find-four
+            phrase: Find token four in the first and third queues
+            targets:
+              - queue-rows
+              - token-return
+            color: yellow
+            linger: 0.25
+      - say: Only expert three returns. Token four is fifth in the first queue and second in the third. Its
+          surviving gate stays at four tenths. Multiply that by the vector zero, three, and the routed output
+          is zero, one point two. In the first queue, the four tickets past the line overflow. All eight
+          token positions still have a residual path. A policy that rescales the surviving gate would give token four a
+          different answer.
+        hold: 0.9
+        visual_cues:
+          - id: third-returns
+            phrase: Only expert three returns
+            targets:
+              - queue-rows
+              - token-return
+            color: cyan
+            linger: 0.25
+          - id: retained-gate
+            phrase: Its surviving gate stays at four tenths
+            targets:
+              - token-return
+            color: cyan
+            linger: 0.25
+          - id: overflow-assignments
+            phrase: In the first queue, the four tickets past the line overflow
+            targets:
+              - queue-rows
+            color: red
+            caption_boundary: true
+            linger: 0.25
+          - id: residual-positions
+            phrase: All eight token positions still have a residual path
+            targets:
+              - queue-rows
+            color: cyan
+            linger: 0.25
+  - id: dropless-work
+    title: What if the fifth row runs?
+    visual: The same queues remain in place. Dropless execution admits the tail and restores token four's first
+      coordinate. In a separate rerouting trial, its first ticket travels to expert four. The gate stays at
+      0.6 while the returned vector changes.
+    beats:
+      - say: Keep these assignments. This time, let the first expert process its whole queue. Token four gets the
+          missing horizontal contribution back. Both coordinates now equal one point two. This is dropless
+          execution. MegaBlocks uses block-sparse operations to handle variable numbers of rows with less
+          padding. The first expert still has eight rows to finish. A busy device can hold up the layer.
+        hold: 0.85
+        visual_cues:
+          - id: execute-tail
+            phrase: let the first expert process its whole queue
+            targets:
+              - queue-rows
+              - token-return
+            color: cyan
+            linger: 0.25
+          - id: hot-queue
+            phrase: The first expert still has eight rows to finish
+            targets:
+              - queue-rows
+            color: yellow
+            linger: 0.25
+      - say: Try a different policy on just the highlighted assignment. Expert four would return five, zero for
+          this input. If it takes expert one's place and keeps the six-tenths gate, what will token four's
+          first coordinate be?
+        hold: 2.5
+        visual_cues:
+          - id: alternative-expert
+            phrase: what will token four's first coordinate be
+            targets:
+              - queue-rows
+              - token-return
+            color: yellow
+            linger: 0.25
+      - say: Move token four's first ticket to expert four. Six tenths times five gives three. The other route
+          still contributes one point two vertically. We've moved work off the busy expert, and we've changed
+          this token's vector. Check answer quality as well as queue times before choosing a rerouting
+          policy.
+        caption_starts:
+          - Six tenths times five gives three
+        hold: 0.85
+        visual_cues:
+          - id: move-four
+            phrase: Move token four's first ticket to expert four
+            targets:
+              - queue-rows
+            color: cyan
+            linger: 0.25
+          - id: compare-returns
+            phrase: Six tenths times five gives three
+            targets:
+              - token-return
+            color: cyan
+            linger: 0.25
+  - id: capacity-arithmetic
+    title: Count assignments before choosing an overflow policy
+    visual: 4096 token cells split into 8192 route marks. Division among 32 experts establishes 256 slots. A hot
+      expert has 400 arrivals; increasing only the factor to 1.2 changes the integer ceiling to 308.
+      Contributions remain distinct from sequence tokens.
+    beats:
+      - say: Scale the buffer calculation to four thousand ninety-six tokens, top-two routing and thirty-two experts.
+          There are eight thousand one hundred ninety-two assignments, giving two hundred fifty-six nominal
+          slots per expert at capacity factor one. A hot expert with four hundred arrivals has one hundred
+          forty-four overflow assignments.
+        hold: 0.7
+        visual_cues:
+          - id: mo-capacity-arithmetic-op-0
+            phrase: Scale the buffer calculation to four thousand ninety-six tokens, top-two routing and thirty-two
+              experts. There are eight thousand one hundred ninety-two assignments, giving two hundred
+              fifty-six nominal slots per expert at capacity factor one. A hot expert with four hundred
+              arrivals has one hundred forty-four overflow assignments.
+            targets:
+              - mo-capacity-arithmetic-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-capacity-assignments
+            phrase: There are eight thousand one hundred ninety-two assignments
+            targets:
+              - mo-capacity-arithmetic-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-capacity-slots
+            phrase: giving two hundred fifty-six nominal slots per expert at capacity factor one
+            targets:
+              - mo-capacity-arithmetic-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-capacity-overflow
+            phrase: has one hundred forty-four overflow assignments
+            targets:
+              - mo-capacity-arithmetic-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Under a dropping policy, each overflow skips one expert's contribution. The token keeps its
+          residual path and can still receive its other expert's return. The runtime can keep the surviving
+          gate or rescale it. Rerouting sends work to a different function. Dropless execution schedules
+          the original expert for the extra rows.
+        hold: 0.7
+        visual_cues:
+          - id: mo-capacity-arithmetic-op-1
+            phrase: Under a dropping policy, each overflow skips one expert's contribution. The token keeps its
+              residual path and can still receive its other expert's return. The runtime can keep the
+              surviving gate or rescale it. Rerouting sends work to a different function. Dropless
+              execution schedules the original expert for the extra rows.
+            targets:
+              - mo-capacity-arithmetic-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Change only the capacity factor to one point two. The integer ceiling of three hundred seven
+          point two is three hundred eight slots. The same hot expert now has ninety-two overflow
+          assignments. All four hundred tickets still arrive. The larger buffer admits fifty-two more of
+          them and reserves extra space at every expert.
+        hold: 0.7
+        visual_cues:
+          - id: mo-capacity-arithmetic-op-2
+            phrase: Change only the capacity factor to one point two. The integer ceiling of three hundred seven
+              point two is three hundred eight slots. The same hot expert now has ninety-two overflow
+              assignments. All four hundred tickets still arrive. The larger buffer admits fifty-two more
+              of them and reserves extra space at every expert.
+            targets:
+              - mo-capacity-arithmetic-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-capacity-factor
+            phrase: Change only the capacity factor to one point two
+            targets:
+              - mo-capacity-arithmetic-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-capacity-ceiling
+            phrase: integer ceiling of three hundred seven point two is three hundred eight slots
+            targets:
+              - mo-capacity-arithmetic-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-capacity-remainder
+            phrase: same hot expert now has ninety-two overflow assignments
+            targets:
+              - mo-capacity-arithmetic-mechanism
+            color: yellow
+            linger: 0.45
+  - id: parameter-memory
+    title: Count the stored pool and the active path
+    visual: A hypothetical three-billion shared block and eight two-billion expert partitions assemble a
+      19-billion total bar. Only two experts illuminate in the seven-billion active bar. The complete pool
+      maps to 38 GB of raw two-byte weights while runtime memory components remain separate.
+    beats:
+      - say: Consider a hypothetical model with three billion shared parameters and eight two-billion expert
+          partitions. Each partition summarizes one expert position across its layers. The full model stores
+          every partition.
+        visual_cues:
+          - id: stored-parameters
+            phrase: three billion shared parameters and eight two-billion expert partitions
+            targets:
+              - stored-parameter-pool
+            color: blue
+          - id: all-partitions
+            phrase: stores every partition
+            targets:
+              - parameter-memory-19b-total
+            color: yellow
+        hold: 0.55
+      - say: Each token uses the shared parameters plus two partitions. Adding experts expands stored capacity while
+          keeping selected expert arithmetic tied mostly to the chosen count. Watch the total and active bars
+          separate.
+        visual_cues:
+          - id: active-partitions
+            phrase: shared parameters plus two partitions
+            targets:
+              - active-parameter-pool
+            color: cyan
+          - id: stored-active-bars
+            phrase: total and active bars separate
+            targets:
+              - stored-parameter-pool
+              - active-parameter-pool
+            color: yellow
+        hold: 0.6
+      - say: Two bytes per stored parameter already require thirty-eight gigabytes here, before cache and workspace.
+          Sharding, quantization, and offloading change how that pool fits, with different communication and
+          latency consequences.
+        visual_cues:
+          - id: parameter-bytes
+            phrase: thirty-eight gigabytes
+            targets:
+              - parameter-memory-readout-3
+            color: yellow
+          - id: placement-costs
+            phrase: Sharding, quantization, and offloading
+            targets:
+              - stored-parameter-pool
+            color: blue
+        hold: 0.6
+  - id: residency-budget
+    title: Place the complete pool in the memory budget
+    visual: The existing 38 GB stored bar stays fixed while a separate 14 GB capacity ruler is overlaid. A 24 GB
+      shortfall bracket appears after the subtraction clause. KV cache, workspaces and replicas are added as
+      separate unquantified terms.
+    beats:
+      - say: One decimal gigabyte is one billion bytes. Return to the hypothetical nineteen-billion-parameter pool.
+          Its seven billion active parameters describe which weights participate for one token. At two bytes
+          per stored parameter, the complete raw pool occupies thirty-eight decimal gigabytes. A
+          fourteen-gigabyte device budget falls short by twenty-four gigabytes before cache and workspaces.
+        hold: 0.7
+        visual_cues:
+          - id: mo-residency-budget-op-0
+            phrase: One decimal gigabyte is one billion bytes. Return to the hypothetical nineteen-billion-parameter pool.
+              Its seven billion active parameters describe which weights participate for one token. At two
+              bytes per stored parameter, the complete raw pool occupies thirty-eight decimal gigabytes. A
+              fourteen-gigabyte device budget falls short by twenty-four gigabytes before cache and
+              workspaces.
+            targets:
+              - mo-residency-budget-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-residency-pool
+            phrase: complete raw pool occupies thirty-eight decimal gigabytes
+            targets:
+              - mo-residency-budget-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-residency-gap
+            phrase: fourteen-gigabyte device budget falls short by twenty-four gigabytes before cache and workspaces
+            targets:
+              - mo-residency-budget-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Inactive experts must remain stored somewhere reachable. Sharding distributes residency, quantization
+          changes stored precision and adds format overhead, and offloading moves weights from another memory
+          tier. Each choice has a different execution cost. Training also needs gradients and optimizer state,
+          so an inference weight count is not a training-memory budget.
+        hold: 0.7
+        visual_cues:
+          - id: mo-residency-budget-op-1
+            phrase: Inactive experts must remain stored somewhere reachable. Sharding distributes residency, quantization
+              changes stored precision and adds format overhead, and offloading moves weights from another
+              memory tier. Each choice has a different execution cost. Training also needs gradients and
+              optimizer state, so an inference weight count is not a training-memory budget.
+            targets:
+              - mo-residency-budget-mechanism
+            color: cyan
+            linger: 0.35
+      - say: A cold expert receiving no task-gradient contribution in this batch need not have an unchanged parameter
+          value. An optimizer can retain momentum or apply weight decay according to its update policy. Track
+          task gradients, optimizer behavior and weight residency as distinct parts of the system.
+        hold: 0.7
+        visual_cues:
+          - id: mo-residency-budget-op-2
+            phrase: A cold expert receiving no task-gradient contribution in this batch need not have an unchanged
+              parameter value. An optimizer can retain momentum or apply weight decay according to its update
+              policy. Track task gradients, optimizer behavior and weight residency as distinct parts of the
+              system.
+            targets:
+              - mo-residency-budget-mechanism
+            color: cyan
+            linger: 0.35
+  - id: expert-arithmetic
+    title: Count the matrices inside each expert
+    visual: A two-projection FFN expands H to I and contracts back, showing two 2THI multiply-add regions. A
+      SwiGLU expert adds an independent up projection whose output multiplies the activated gate. Expert-count
+      grids are explicitly count encodings rather than parameter-area encodings.
+    beats:
+      - say: Expert counts alone cannot compare computation across architectures. With T input rows, hidden width H
+          and intermediate width I, one projection costs about two T H I floating-point operations under the
+          multiply-add convention. A two-projection feed-forward block therefore costs about four T H I,
+          ignoring elementwise operations.
+        hold: 0.7
+        visual_cues:
+          - id: mo-expert-arithmetic-op-0
+            phrase: Expert counts alone cannot compare computation across architectures. With T input rows, hidden width H
+              and intermediate width I, one projection costs about two T H I floating-point operations under
+              the multiply-add convention. A two-projection feed-forward block therefore costs about four T H
+              I, ignoring elementwise operations.
+            targets:
+              - mo-expert-arithmetic-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-projection-work
+            phrase: one projection costs about two T H I floating-point operations
+            targets:
+              - mo-expert-arithmetic-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-ffn-work
+            phrase: two-projection feed-forward block therefore costs about four T H I
+            targets:
+              - mo-expert-arithmetic-mechanism
+            color: yellow
+            linger: 0.45
+      - say: "A SwiGLU expert has three large projections: a gate projection, an up projection and a down projection.
+          The activated gate multiplies the up branch before contraction. Its matrix work is about six T H I
+          under the same convention. Different intermediate widths can change the comparison more than the
+          number of experts suggests."
+        hold: 0.7
+        visual_cues:
+          - id: mo-expert-arithmetic-op-1
+            phrase: "A SwiGLU expert has three large projections: a gate projection, an up projection and a down
+              projection. The activated gate multiplies the up branch before contraction. Its matrix work is
+              about six T H I under the same convention. Different intermediate widths can change the
+              comparison more than the number of experts suggests."
+            targets:
+              - mo-expert-arithmetic-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-swiglu-work
+            phrase: matrix work is about six T H I under the same convention
+            targets:
+              - mo-expert-arithmetic-mechanism
+            color: yellow
+            linger: 0.45
+      - say: For equal-size experts, fixed top-k keeps selected expert arithmetic tied mainly to the chosen count
+          while the stored pool grows with all experts. Router work, attention, shared experts and
+          communication still contribute. Total parameters, active parameters and measured latency answer
+          different questions.
+        hold: 0.7
+        visual_cues:
+          - id: mo-expert-arithmetic-op-2
+            phrase: For equal-size experts, fixed top-k keeps selected expert arithmetic tied mainly to the chosen count
+              while the stored pool grows with all experts. Router work, attention, shared experts and
+              communication still contribute. Total parameters, active parameters and measured latency answer
+              different questions.
+            targets:
+              - mo-expert-arithmetic-mechanism
+            color: cyan
+            linger: 0.35
+  - id: family-architecture
+    title: Read the dense and shared paths too
+    visual: A per-layer Mixtral pool of eight selects two SwiGLU experts. A distinct DeepSeek-V2 layer shows 160
+      narrower routed experts, six selected and two always-on shared paths. Layer strips preserve the first
+      dense FFN; V3 preserves the first three dense FFNs.
+    beats:
+      - say: Use the article architecture snapshot, checked October tenth, twenty twenty-six, as concrete examples.
+          Mixtral selects two of eight SwiGLU experts per layer and normalizes selected gates. Its roughly
+          forty-seven billion stored and thirteen billion active parameters include shared parts, so eight
+          times a model nickname is not a parameter calculation.
+        hold: 0.7
+        visual_cues:
+          - id: mo-family-architecture-op-0
+            phrase: Use the article architecture snapshot, checked October tenth, twenty twenty-six, as concrete examples.
+              Mixtral selects two of eight SwiGLU experts per layer and normalizes selected gates. Its roughly
+              forty-seven billion stored and thirteen billion active parameters include shared parts, so eight
+              times a model nickname is not a parameter calculation.
+            targets:
+              - mo-family-architecture-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-family-mixtral
+            phrase: Mixtral selects two of eight SwiGLU experts per layer and normalizes selected gates
+            targets:
+              - mo-family-architecture-mechanism
+            color: yellow
+            linger: 0.45
+      - say: DeepSeek-V2 replaces every feed-forward layer except the first with a routed pool of one hundred sixty
+          experts, selects six, and also runs two shared experts. Its reported total and active counts are two
+          hundred thirty-six and twenty-one billion. The experts are fine-grained, so compare their widths and
+          computation rather than just six versus two.
+        hold: 0.7
+        visual_cues:
+          - id: mo-family-architecture-op-1
+            phrase: DeepSeek-V2 replaces every feed-forward layer except the first with a routed pool of one hundred sixty
+              experts, selects six, and also runs two shared experts. Its reported total and active counts are
+              two hundred thirty-six and twenty-one billion. The experts are fine-grained, so compare their
+              widths and computation rather than just six versus two.
+            targets:
+              - mo-family-architecture-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-family-v2
+            phrase: selects six, and also runs two shared experts
+            targets:
+              - mo-family-architecture-mechanism
+            color: yellow
+            linger: 0.45
+      - say: DeepSeek-V3 keeps the first three feed-forward layers dense, then uses two hundred fifty-six routed
+          experts, eight selected and one shared expert. Its reported counts are six hundred seventy-one
+          billion total and thirty-seven billion active. Multi-head latent attention changes a different part
+          of the model; expert sparsity alone does not explain its cache behavior.
+        hold: 0.7
+        visual_cues:
+          - id: mo-family-architecture-op-2
+            phrase: DeepSeek-V3 keeps the first three feed-forward layers dense, then uses two hundred fifty-six routed
+              experts, eight selected and one shared expert. Its reported counts are six hundred seventy-one
+              billion total and thirty-seven billion active. Multi-head latent attention changes a different
+              part of the model; expert sparsity alone does not explain its cache behavior.
+            targets:
+              - mo-family-architecture-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-family-v3
+            phrase: eight selected and one shared expert
+            targets:
+              - mo-family-architecture-mechanism
+            color: yellow
+            linger: 0.45
+  - id: selection-bias
+    title: Choose with bias, weight with original affinity
+    visual: Three toy sigmoid affinities 0.6, 0.5 and 0.4 fork into selection and value branches. Raising only the
+      third selection bias to 0.3 changes chosen IDs from 0,1 to 2,0. Original selected affinities normalize
+      to 0.4 and 0.6, visibly distinct from normalizing biased scores.
+    beats:
+      - say: DeepSeek-V3 separates the score used to select an expert from the weight multiplying its output. It adds
+          a balancing bias to sigmoid affinities for top-k selection. After selecting expert IDs, it
+          normalizes their original affinities. The bias stays out of this value branch.
+        hold: 0.7
+        visual_cues:
+          - id: mo-selection-bias-op-0
+            phrase: DeepSeek-V3 separates the score used to select an expert from the weight multiplying its output. It
+              adds a balancing bias to sigmoid affinities for top-k selection. After selecting expert IDs, it
+              normalizes their original affinities. The bias stays out of this value branch.
+            targets:
+              - mo-selection-bias-mechanism
+            color: cyan
+            linger: 0.35
+      - say: A small example makes the distinction visible. Affinities are point six, point five and point four, with
+          two experts selected. Add a bias of point three only to the third selection score. The selected IDs
+          become the third and first experts. Their original affinities normalize to point four and point six.
+          Using point seven as an output affinity would compute different weights.
+        hold: 0.7
+        visual_cues:
+          - id: mo-selection-bias-op-1
+            phrase: A small example makes the distinction visible. Affinities are point six, point five and point four,
+              with two experts selected. Add a bias of point three only to the third selection score. The
+              selected IDs become the third and first experts. Their original affinities normalize to point
+              four and point six. Using point seven as an output affinity would compute different weights.
+            targets:
+              - mo-selection-bias-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-selection-input
+            phrase: Add a bias of point three only to the third selection score
+            targets:
+              - mo-selection-bias-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-selection-ids
+            phrase: selected IDs become the third and first experts
+            targets:
+              - mo-selection-bias-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-selection-weights
+            phrase: Their original affinities normalize to point four and point six
+            targets:
+              - mo-selection-bias-mechanism
+            color: yellow
+            linger: 0.45
+      - say: During training, V3 lowers the selection bias for busy experts and raises it for quieter ones.
+          Adjusting that bias balances the batch. A separate small loss discourages extreme imbalance
+          within one sequence.
+        hold: 0.7
+        visual_cues:
+          - id: mo-selection-bias-op-2
+            phrase: During training, V3 lowers the selection bias for busy experts and raises it for quieter
+              ones. Adjusting that bias balances the batch. A separate small loss discourages extreme
+              imbalance within one sequence.
+            targets:
+              - mo-selection-bias-mechanism
+            color: cyan
+            linger: 0.35
+  - id: checkpoint-contract
+    title: Inspect the checkpoint routing contract
+    visual: Dated configuration cards turn into actual routing operations rather than benchmark rankings. GLM
+      selected weights normalize then scale by 2.5. DeepSeek-V4 contrasts token-ID hash selection in early
+      blocks with score-based later blocks. All changing vendor quantities remain clearly dated.
+    beats:
+      - say: The same architecture check matters for newer checkpoints. In the article snapshot, GLM-five-point-three
+          has three dense feed-forward layers followed by seventy-five MoE layers. Each sparse layer selects
+          eight of two hundred fifty-six routed experts and includes one shared expert. Its routed
+          contribution is scaled by two point five after selected-weight normalization. The final routed
+          weights therefore need not form a convex average.
+        hold: 0.7
+        visual_cues:
+          - id: mo-checkpoint-contract-op-0
+            phrase: The same architecture check matters for newer checkpoints. In the article snapshot,
+              GLM-five-point-three has three dense feed-forward layers followed by seventy-five MoE layers.
+              Each sparse layer selects eight of two hundred fifty-six routed experts and includes one shared
+              expert. Its routed contribution is scaled by two point five after selected-weight normalization.
+              The final routed weights therefore need not form a convex average.
+            targets:
+              - mo-checkpoint-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-checkpoint-scale
+            phrase: routed contribution is scaled by two point five after selected-weight normalization
+            targets:
+              - mo-checkpoint-contract-mechanism
+            color: yellow
+            linger: 0.45
+      - say: DeepSeek-V4-Flash zero seven three one uses forty-three MoE blocks, with token-ID hash routing in its
+          first three. Later routing uses the square root of softplus for affinities, rather than V3 sigmoid.
+          Its six selected routed experts and one shared expert are separate from the reported two hundred
+          eighty-four billion total and thirteen billion active core parameters.
+        hold: 0.7
+        visual_cues:
+          - id: mo-checkpoint-contract-op-1
+            phrase: DeepSeek-V4-Flash zero seven three one uses forty-three MoE blocks, with token-ID hash routing in its
+              first three. Later routing uses the square root of softplus for affinities, rather than V3
+              sigmoid. Its six selected routed experts and one shared expert are separate from the reported
+              two hundred eighty-four billion total and thirteen billion active core parameters.
+            targets:
+              - mo-checkpoint-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-checkpoint-hash
+            phrase: token-ID hash routing in its first three
+            targets:
+              - mo-checkpoint-contract-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-checkpoint-affinity
+            phrase: square root of softplus for affinities
+            targets:
+              - mo-checkpoint-contract-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The V4 report retains balancing bias and a small sequence-wise loss, and removes the earlier
+          routing-target node limit. Extra prediction modules can add checkpoint payload beyond a core
+          parameter headline. Likewise, GLM-five-point-three-Flash is a different hybrid architecture. A
+          shared family name is not enough to infer the router, attention type or stored-state budget.
+        hold: 0.7
+        visual_cues:
+          - id: mo-checkpoint-contract-op-2
+            phrase: The V4 report retains balancing bias and a small sequence-wise loss, and removes the earlier
+              routing-target node limit. Extra prediction modules can add checkpoint payload beyond a core
+              parameter headline. Likewise, GLM-five-point-three-Flash is a different hybrid architecture. A
+              shared family name is not enough to infer the router, attention type or stored-state budget.
+            targets:
+              - mo-checkpoint-contract-mechanism
+            color: cyan
+            linger: 0.35
+  - id: hybrid-mixer
+    title: Keep token mixing and expert selection independent
+    visual: A 40-layer strip repeats ten groups of three gated DeltaNet mixers and one gated attention mixer.
+      Every mixer is followed by the same sparse FFN icon. The two axes move independently when the learner
+      changes sequence mixing versus expert selection.
+    beats:
+      - say: Qwen-three-point-six thirty-five-B-A-three-B illustrates two independent design axes. In the
+          language-model configuration cited by the article, forty layers repeat groups of three gated
+          DeltaNet mixers and one gated attention mixer. Each layer also has a mixture-of-experts feed-forward
+          block.
+        hold: 0.7
+        visual_cues:
+          - id: mo-hybrid-mixer-op-0
+            phrase: Qwen-three-point-six thirty-five-B-A-three-B illustrates two independent design axes. In the
+              language-model configuration cited by the article, forty layers repeat groups of three gated
+              DeltaNet mixers and one gated attention mixer. Each layer also has a mixture-of-experts
+              feed-forward block.
+            targets:
+              - mo-hybrid-mixer-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-hybrid-pattern
+            phrase: forty layers repeat groups of three gated DeltaNet mixers and one gated attention mixer
+            targets:
+              - mo-hybrid-mixer-mechanism
+            color: yellow
+            linger: 0.45
+      - say: That sparse feed-forward block selects eight of two hundred fifty-six routed experts and includes
+          one shared expert. The sequence mixer determines how positions exchange or retain information.
+          The expert block chooses the feed-forward functions that transform each position.
+        hold: 0.7
+        visual_cues:
+          - id: mo-hybrid-mixer-op-1
+            phrase: That sparse feed-forward block selects eight of two hundred fifty-six routed experts and
+              includes one shared expert. The sequence mixer determines how positions exchange or retain
+              information. The expert block chooses the feed-forward functions that transform each
+              position.
+            targets:
+              - mo-hybrid-mixer-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-hybrid-experts
+            phrase: selects eight of two hundred fifty-six routed experts and includes one shared expert
+            targets:
+              - mo-hybrid-mixer-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The model card reports about thirty-five billion total and three billion active language-model
+          parameters. Budget memory for the full weights, then use the mixer configuration to size the
+          state each layer keeps. Measure latency on the hardware that will serve the requests.
+        hold: 0.7
+        visual_cues:
+          - id: mo-hybrid-mixer-op-2
+            phrase: The model card reports about thirty-five billion total and three billion active
+              language-model parameters. Budget memory for the full weights, then use the mixer
+              configuration to size the state each layer keeps. Measure latency on the hardware that will
+              serve the requests.
+            targets:
+              - mo-hybrid-mixer-mechanism
+            color: cyan
+            linger: 0.35
+  - id: expert-parallelism
+    title: Follow a token across the interconnect
+    visual: Four experts become resident on two GPU panels. Five explicit assignment rows mark three remote
+      routes; colored packets trace dispatch then return, accumulating exactly 48 KiB of simple payload for
+      4096 two-byte values in both directions. Expert weights remain stationary throughout.
+    beats:
+      - say: Expert parallelism assigns expert networks to different devices. When a selected expert lives elsewhere,
+          the hidden state travels to its owner. The output then returns to the original token position.
+        visual_cues:
+          - id: expert-owners
+            phrase: assigns expert networks to different devices
+            targets:
+              - expert-parallelism-expert
+            color: blue
+          - id: remote-state
+            phrase: hidden state travels to its owner
+            targets:
+              - remote-expert-routes
+            color: yellow
+        hold: 0.55
+      - say: Two assignments stay local and three cross the link. Packets move while expert weights stay in place.
+          Distributed runtimes commonly organize the exchange as all-to-all dispatch followed by all-to-all
+          combine.
+        visual_cues:
+          - id: cross-device
+            phrase: three cross the link
+            targets:
+              - remote-expert-routes
+            color: yellow
+          - id: fixed-weights
+            phrase: expert weights stay in place
+            targets:
+              - expert-parallelism-expert
+            color: blue
+        hold: 0.65
+      - say: Count both directions for each remote assignment. Our displayed vector size determines this simple
+          payload total. Actual protocols can combine messages, add metadata, and overlap transfers with
+          useful work.
+        visual_cues:
+          - id: both-directions
+            phrase: Count both directions
+            targets:
+              - remote-expert-routes
+            color: yellow
+          - id: payload-total
+            phrase: simple payload total
+            targets:
+              - expert-parallelism-readout-2
+            color: blue
+        hold: 0.55
+      - say: Tensor parallelism shards the matrices themselves. It can work with expert parallelism or on its own.
+          Routing chooses functions; parallel layout determines where their weights and operations live.
+        visual_cues:
+          - id: tensor-shards
+            phrase: Tensor parallelism shards the matrices themselves
+            targets:
+              - expert-parallelism-tp-shard-each-expert-matrix
+            color: pink
+          - id: parallel-layout
+            phrase: parallel layout determines where
+            targets:
+              - expert-parallelism-ep-assign-expert-ownership
+            color: blue
+        hold: 0.6
+  - id: wire-protocol
+    title: Hold the routes fixed and change the messages
+    visual: One token stays on G0 and selects E2 and E3 on G1. Four 8 KiB assignment messages become one
+      destination input plus one weighted return. The two expert computations stay fixed and the output vector
+      is compared coordinate by coordinate.
+    beats:
+      - say: The earlier two-device example has five assignments and three remote routes. A
+          four-thousand-ninety-six-coordinate vector at two bytes per coordinate is eight kibibytes. Three
+          remote assignments sent and returned give forty-eight kibibytes of simple payload. If all five were
+          remote, that same convention would give eighty kibibytes.
+        hold: 0.7
+        visual_cues:
+          - id: mo-wire-protocol-op-0
+            phrase: The earlier two-device example has five assignments and three remote routes. A
+              four-thousand-ninety-six-coordinate vector at two bytes per coordinate is eight kibibytes. Three
+              remote assignments sent and returned give forty-eight kibibytes of simple payload. If all five
+              were remote, that same convention would give eighty kibibytes.
+            targets:
+              - mo-wire-protocol-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-wire-vector
+            phrase: vector at two bytes per coordinate is eight kibibytes
+            targets:
+              - mo-wire-protocol-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-wire-three
+            phrase: Three remote assignments sent and returned give forty-eight kibibytes of simple payload
+            targets:
+              - mo-wire-protocol-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-wire-five
+            phrase: same convention would give eighty kibibytes
+            targets:
+              - mo-wire-protocol-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Now keep one token and its two selected remote experts on the same destination device. Sending and
+          returning a separate eight-kibibyte vector per assignment uses thirty-two kibibytes. A protocol that
+          dispatches the input once per destination, computes both experts there, and returns their weighted
+          sum uses sixteen kibibytes in this example.
+        hold: 0.7
+        visual_cues:
+          - id: mo-wire-protocol-op-1
+            phrase: Now keep one token and its two selected remote experts on the same destination device. Sending and
+              returning a separate eight-kibibyte vector per assignment uses thirty-two kibibytes. A protocol
+              that dispatches the input once per destination, computes both experts there, and returns their
+              weighted sum uses sixteen kibibytes in this example.
+            targets:
+              - mo-wire-protocol-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-wire-separate
+            phrase: separate eight-kibibyte vector per assignment uses thirty-two kibibytes
+            targets:
+              - mo-wire-protocol-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-wire-coalesced
+            phrase: returns their weighted sum uses sixteen kibibytes in this example
+            targets:
+              - mo-wire-protocol-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Both experts did the same work. The remote device combined their outputs, cutting the
+          vector count from two to one in each direction. The totals count vector bytes. To see how
+          the latency changes, time the exchange with its metadata, packing and synchronization.
+        hold: 0.7
+        visual_cues:
+          - id: mo-wire-protocol-op-2
+            phrase: Both experts did the same work. The remote device combined their outputs, cutting the
+              vector count from two to one in each direction. The totals count vector bytes. To see
+              how the latency changes, time the exchange with its metadata, packing and
+              synchronization.
+            targets:
+              - mo-wire-protocol-mechanism
+            color: cyan
+            linger: 0.35
+  - id: parallel-layout
+    title: Separate expert identity from matrix placement
+    visual: One expert matrix splits into four tensor-parallel shards. A second layout assigns expert IDs to
+      groups, then nests tensor shards inside each owner. Replicating one expert creates an identical copy and
+      an explicit extra resident-weight block without changing routing IDs.
+    beats:
+      - say: Tensor parallelism partitions an expert matrix across ranks. Expert parallelism assigns expert identities
+          to owning groups. A valid MoE can use tensor parallelism alone, expert parallelism alone, or a
+          combination, with data and pipeline parallelism chosen around them. Sparse routing does not require
+          one complete expert per GPU.
+        hold: 0.7
+        visual_cues:
+          - id: mo-parallel-layout-op-0
+            phrase: Tensor parallelism partitions an expert matrix across ranks. Expert parallelism assigns expert
+              identities to owning groups. A valid MoE can use tensor parallelism alone, expert parallelism
+              alone, or a combination, with data and pipeline parallelism chosen around them. Sparse routing
+              does not require one complete expert per GPU.
+            targets:
+              - mo-parallel-layout-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-layout-tensor
+            phrase: Tensor parallelism partitions an expert matrix across ranks
+            targets:
+              - mo-parallel-layout-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-layout-expert
+            phrase: Expert parallelism assigns expert identities to owning groups
+            targets:
+              - mo-parallel-layout-mechanism
+            color: yellow
+            linger: 0.45
+      - say: A serving load balancer can place extra identical copies of a popular expert on more ranks and direct its
+          existing assignments to those copies. When weights and computation agree, this preserves the learned
+          expert function while changing physical load. Selecting a different learned expert would instead
+          change the model computation.
+        hold: 0.7
+        visual_cues:
+          - id: mo-parallel-layout-op-1
+            phrase: A serving load balancer can place extra identical copies of a popular expert on more ranks and direct
+              its existing assignments to those copies. When weights and computation agree, this preserves the
+              learned expert function while changing physical load. Selecting a different learned expert would
+              instead change the model computation.
+            targets:
+              - mo-parallel-layout-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-layout-copy
+            phrase: extra identical copies of a popular expert on more ranks
+            targets:
+              - mo-parallel-layout-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-layout-preserve
+            phrase: this preserves the learned expert function while changing physical load
+            targets:
+              - mo-parallel-layout-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Copies consume resident memory and can compete with the key-value cache. The vLLM deployment
+          documentation makes this overhead explicit for redundant experts. Evaluate rank load, communication,
+          peak memory and end-to-end latency together. A perfectly uniform expert histogram can still hide
+          uneven device work.
+        hold: 0.7
+        visual_cues:
+          - id: mo-parallel-layout-op-2
+            phrase: Copies consume resident memory and can compete with the key-value cache. The vLLM deployment
+              documentation makes this overhead explicit for redundant experts. Evaluate rank load,
+              communication, peak memory and end-to-end latency together. A perfectly uniform expert histogram
+              can still hide uneven device work.
+            targets:
+              - mo-parallel-layout-mechanism
+            color: cyan
+            linger: 0.35
+  - id: prefetch-dependency
+    title: Distinguish moving weights from moving tokens
+    visual: A resident expert owner receives token packets. A separate offload branch must fetch weight pages from
+      CPU or SSD. A next-layer router remains locked behind the current hidden-state computation; predicted
+      pages can be used or discarded with visible transfer costs.
+    beats:
+      - say: Resident expert parallelism moves token states to weights that are already on their owners. Offloading
+          instead brings selected expert weights from another memory tier, such as CPU memory or storage.
+          Those weight transfers can be much larger than one hidden vector, so the two traffic estimates are
+          not interchangeable.
+        hold: 0.7
+        visual_cues:
+          - id: mo-prefetch-dependency-op-0
+            phrase: Resident expert parallelism moves token states to weights that are already on their owners. Offloading
+              instead brings selected expert weights from another memory tier, such as CPU memory or storage.
+              Those weight transfers can be much larger than one hidden vector, so the two traffic estimates
+              are not interchangeable.
+            targets:
+              - mo-prefetch-dependency-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-prefetch-token
+            phrase: Resident expert parallelism moves token states to weights that are already on their owners
+            targets:
+              - mo-prefetch-dependency-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-prefetch-weight
+            phrase: Offloading instead brings selected expert weights from another memory tier
+            targets:
+              - mo-prefetch-dependency-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Exact next-layer routing depends on that layer input, which depends on the current layer output. It
+          generally cannot be known before the current hidden state exists. A predictor may prefetch likely
+          experts, but an incorrect prediction can transfer unused weights or still leave a required expert
+          missing.
+        hold: 0.7
+        visual_cues:
+          - id: mo-prefetch-dependency-op-1
+            phrase: Exact next-layer routing depends on that layer input, which depends on the current layer output. It
+              generally cannot be known before the current hidden state exists. A predictor may prefetch
+              likely experts, but an incorrect prediction can transfer unused weights or still leave a
+              required expert missing.
+            targets:
+              - mo-prefetch-dependency-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-prefetch-input
+            phrase: Exact next-layer routing depends on that layer input
+            targets:
+              - mo-prefetch-dependency-mechanism
+            color: yellow
+            linger: 0.45
+          - id: mo-prefetch-miss
+            phrase: incorrect prediction can transfer unused weights or still leave a required expert missing
+            targets:
+              - mo-prefetch-dependency-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Measure prediction accuracy, unused transfer bytes, cache residency and stalls on the actual workload.
+          Grouping more assignments at an expert can improve matrix utilization, especially during prefill.
+          Single-token decode can expose routing and communication overhead repeatedly. Keep these workload
+          regimes separate when profiling.
+        hold: 0.7
+        visual_cues:
+          - id: mo-prefetch-dependency-op-2
+            phrase: Measure prediction accuracy, unused transfer bytes, cache residency and stalls on the actual workload.
+              Grouping more assignments at an expert can improve matrix utilization, especially during
+              prefill. Single-token decode can expose routing and communication overhead repeatedly. Keep
+              these workload regimes separate when profiling.
+            targets:
+              - mo-prefetch-dependency-mechanism
+            color: cyan
+            linger: 0.35
+  - id: evaluate-path
+    title: How many rows reach one expert call?
+    visual: Four dependent decode steps each contain one row for E1 and one for E3. A prefill batch stacks the
+      same four positions at both experts in one group. Each example contains eight expert rows.
+    beats:
+      - say: Give four positions the same pair of experts for this comparison. In one request, generate those
+          positions one step at a time. The next step needs the preceding token. Each step routes, groups and
+          dispatches a single row to each expert, then combines the returns. A remote expert adds a trip
+          across the link.
+        hold: 0.7
+        visual_cues:
+          - id: serial-steps
+            phrase: generate those positions one step at a time
+            targets:
+              - decode-steps
+            color: cyan
+            linger: 0.25
+      - say: Now suppose the four positions arrive together in a prompt. At this layer, group all four rows at each
+          expert for prefill. Each expert now processes four rows in one call. Batching several requests can
+          gather rows in much the same way.
+        hold: 0.75
+        visual_cues:
+          - id: prefill-group
+            phrase: group all four rows at each expert for prefill
+            targets:
+              - prefill-step
+            color: cyan
+            linger: 0.25
+      - say: Count the expert rows. There are eight in each case. One-row calls and four-row calls give the
+          hardware different amounts of work to do at once. Measure decode and prefill separately against a
+          dense baseline on the same hardware and requests. Check the time spent grouping, moving and
+          combining rows alongside expert time, peak memory, answer quality, throughput and user latency.
+        caption_starts:
+          - There are eight in each case
+        hold: 0.8
+        visual_cues:
+          - id: equal-work
+            phrase: There are eight in each case
+            targets:
+              - decode-steps
+              - prefill-step
+            color: cyan
+            linger: 0.25
+  - id: serving-gate
+    title: Which model can serve this workload?
+    visual: The synthetic dense and MoE values align with three requirements. Fixed latency dots share a ruler.
+      Only the budget line moves when the p95 requirement tightens from 60 to 50 milliseconds.
+    beats:
+      - say: Try these invented serving results. Each row belongs to one model. Read across it. Quality must reach
+          point eight two, the rate must reach a thousand tokens per second, and ninety-five percent of
+          requests must finish within sixty milliseconds. Which model clears all three?
+        hold: 2.4
+        visual_cues:
+          - id: read-results
+            phrase: Read across it
+            targets:
+              - serving-rows
+              - latency-budget
+            color: cyan
+            linger: 0.25
+      - say: The mixture clears all three. Its fifty-five milliseconds fits inside the line. Dense is quicker but
+          misses the rate requirement. On this worksheet the mixture delivers about thirty-four percent more
+          tokens per second and adds seven milliseconds to p95 latency.
+        hold: 0.8
+        visual_cues:
+          - id: first-decision
+            phrase: The mixture clears all three
+            targets:
+              - serving-rows
+            color: cyan
+            linger: 0.25
+      - say: The product now needs a faster response. Move the latency budget down to fifty milliseconds. Leave
+          both models' results and the other requirements where they are. Which model meets all three now?
+        hold: 2.6
+        visual_cues:
+          - id: move-budget
+            phrase: Move the latency budget down to fifty milliseconds
+            targets:
+              - latency-budget
+              - serving-rows
+            color: yellow
+            linger: 0.25
+      - say: Neither model qualifies. The mixture is five milliseconds over budget. Dense still misses throughput.
+          To make that decision for a real deployment, repeat the comparison on the target hardware and
+          request mix. Check quality, peak memory and the variation between runs.
+        hold: 0.85
+        visual_cues:
+          - id: second-decision
+            phrase: Neither model qualifies
+            targets:
+              - serving-rows
+              - latency-budget
+            color: cyan
+            linger: 0.25
+  - id: diagnose-routing
+    title: Find the failing mechanism before changing the router
+    visual: A memory shortfall points to residency, uniform-count/low-quality evidence points to learned behavior,
+      and a small-batch latency trace points to coordination. The same routing graph stays fixed while each
+      diagnostic changes only its relevant evidence layer.
+    beats:
+      - say: Three failures call for different investigations. A seven-billion-active model that does not fit a
+          fourteen-gigabyte budget first needs a complete residency calculation. Our hypothetical model
+          already needs thirty-eight gigabytes of raw weights. Changing a load-balancing coefficient does not
+          remove that stored pool.
+        hold: 0.7
+        visual_cues:
+          - id: mo-diagnose-routing-op-0
+            phrase: Three failures call for different investigations. A seven-billion-active model that does not fit a
+              fourteen-gigabyte budget first needs a complete residency calculation. Our hypothetical model
+              already needs thirty-eight gigabytes of raw weights. Changing a load-balancing coefficient does
+              not remove that stored pool.
+            targets:
+              - mo-diagnose-routing-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-diagnose-pool
+            phrase: hypothetical model already needs thirty-eight gigabytes of raw weights
+            targets:
+              - mo-diagnose-routing-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Uniform expert counts with worse answers call for task-quality and routing evidence. Raising balance
+          pressure can improve a histogram while harming useful specialization. Inspect per-expert traffic,
+          executed rather than requested assignments, and held-out interventions before attributing the
+          problem to one router component.
+        hold: 0.7
+        visual_cues:
+          - id: mo-diagnose-routing-op-1
+            phrase: Uniform expert counts with worse answers call for task-quality and routing evidence. Raising balance
+              pressure can improve a histogram while harming useful specialization. Inspect per-expert
+              traffic, executed rather than requested assignments, and held-out interventions before
+              attributing the problem to one router component.
+            targets:
+              - mo-diagnose-routing-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-diagnose-quality
+            phrase: Uniform expert counts with worse answers call for task-quality and routing evidence
+            targets:
+              - mo-diagnose-routing-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Higher batch throughput with slower interactive answers calls for a serving trace. Separate routing,
+          packing, communication, expert computation and combine time. Look at hot ranks, expert widths and
+          arrival bursts. Then change one candidate bottleneck and remeasure quality, memory, throughput and
+          user latency together.
+        hold: 0.7
+        visual_cues:
+          - id: mo-diagnose-routing-op-2
+            phrase: Higher batch throughput with slower interactive answers calls for a serving trace. Separate routing,
+              packing, communication, expert computation and combine time. Look at hot ranks, expert widths
+              and arrival bursts. Then change one candidate bottleneck and remeasure quality, memory,
+              throughput and user latency together.
+            targets:
+              - mo-diagnose-routing-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mo-diagnose-trace
+            phrase: Separate routing, packing, communication, expert computation and combine time
+            targets:
+              - mo-diagnose-routing-mechanism
+            color: yellow
+            linger: 0.45
+  - id: fresh-route
+    title: Will both of token three’s returns arrive?
+    visual: Twelve tickets fill four queues. Each load counts arriving assignments. Token three is fourth
+      in E1 and second in E3.
+      A fixed cutoff first admits only E3. The same queues then gain two slots and the missing E1 component
+      returns to that token.
+    beats:
+      - say: Watch for token three. Six tokens each send two assignments to four experts in token order.
+          The yellow tickets carry token three's weights, a quarter for expert one and three quarters for
+          expert three. Keep those weights if a route drops. At a capacity factor of one, how many slots
+          does each expert get? Which of token three's routes fits?
+        hold: 3.2
+        visual_cues:
+          - id: fresh-arrivals
+            phrase: Six tokens each send two assignments to four experts in token order
+            targets:
+              - queue-rows
+            color: cyan
+            linger: 0.25
+          - id: fresh-question
+            phrase: which of token three's routes fits
+            targets:
+              - queue-rows
+              - token-return
+            color: yellow
+            linger: 0.25
+      - say: Three slots per expert. That's twelve assignments divided by four. Token three is fourth in
+          the first queue. It falls beyond the line with one other ticket. In the third queue it's second.
+          Expert three returns its vector. Three quarters of zero, three gives zero, two point two five.
+          Token three still has its place in the sequence.
+        caption_starts:
+          - Token three is fourth
+          - In the third queue
+          - Expert three returns its vector
+          - gives zero, two point two five
+        hold: 1
+        visual_cues:
+          - id: locate-limit
+            phrase: Three slots per expert
+            targets:
+              - queue-budget
+              - queue-rows
+            color: pink
+            linger: 0.25
+          - id: fresh-survivor
+            phrase: Expert three returns its vector
+            targets:
+              - queue-rows
+              - token-return
+            color: cyan
+            linger: 0.25
+          - id: fresh-first-vector
+            phrase: gives zero, two point two five
+            targets: [token-return]
+            color: cyan
+            linger: 0.25
+      - say: Change just the capacity factor to one and a half. Keep both expert vectors in sight. With the larger
+          buffer, what routed vector will token three receive?
+        hold: 3.2
+        visual_cues:
+          - id: raise-factor
+            phrase: Change just the capacity factor to one and a half
+            targets:
+              - queue-budget
+            color: yellow
+            linger: 0.25
+      - say: Round four and a half up to five slots. All twelve assignments fit. Both of token three's routes
+          return. Expert one adds a quarter of two to the first coordinate. One half, two point two five.
+          That's token three's new vector.
+        caption_starts:
+          - One half, two point two five
+        hold: 1
+        visual_cues:
+          - id: extend-limit
+            phrase: Round four and a half up to five slots
+            targets:
+              - queue-budget
+            color: pink
+            linger: 0.25
+          - id: mo-fresh-fit
+            phrase: All twelve assignments fit
+            targets:
+              - queue-rows
+              - queue-cutoff
+            color: pink
+            caption_boundary: true
+            linger: 0.25
+          - id: fresh-pair
+            phrase: Both of token three's routes return
+            targets:
+              - token-return
+              - queue-rows
+            color: cyan
+            caption_boundary: true
+            linger: 0.25
+          - id: fresh-second-vector
+            phrase: One half, two point two five
+            targets: [token-return]
+            color: cyan
+            linger: 0.25
+      - say: Those extra slots cost buffer space and can add padding. When you change a serving policy, pick one
+          token and trace the expert IDs, the gates and the returns. That tells you whether the change
+          preserved its routed output. The next lesson turns to Mamba and how a layer carries information
+          from earlier tokens.
+        hold: 0.9

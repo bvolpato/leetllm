@@ -4,7 +4,7 @@ import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 export const width = 860
 export const height = 430
 export const alt =
-    'Walk-forward validation calendar matrix across January through August with two queries per month. Fold 1 fits Jan-Feb and scores Mar-Apr; Fold 2 fits Jan-Apr and scores May-Jun; Candidate fits Jan-Jun, tunes threshold in July, and locks August; Final Test freezes Jan-Jul and evaluates once on August. Aligned on the same timeline, prompt r2 opens on June 20 yet its label arrives on August 2 across the July 1 fit cutoff, excluding it from the July 1 training fit.'
+    'Walk-forward validation calendar matrix across January through August with two queries per month. Fold 1 fits Jan-Feb and scores Mar-Apr; Fold 2 fits Jan-Apr and scores May-Jun; Candidate fits Jan-Jun, tunes threshold in July, and locks August; Final Test freezes Jan-Jun weights and the July threshold and evaluates once on August. Aligned on the same timeline, prompt r2 opens on June 20 yet its label arrives on August 2 across the July 1 fit cutoff, excluding it from the July 1 training fit.'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'] as const
 
@@ -48,7 +48,8 @@ const SCHEDULE: readonly ScheduleRow[] = [
         label: 'Final Test',
         sub: 'score once',
         segments: [
-            { start: 0, span: 7, role: 'train', text: 'Frozen Jan–Jul (14)' },
+            { start: 0, span: 6, role: 'train', text: 'Frozen Jan–Jun (12)' },
+            { start: 6, span: 1, role: 'tune', text: 'θ fixed' },
             { start: 7, span: 1, role: 'test', text: 'Test' },
         ],
     },

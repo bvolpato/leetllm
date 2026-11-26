@@ -1,18 +1,24 @@
+// Scene 26: evaluation-scope - "A benchmark name needs its task and version scope"
+// Pure Cinema: View 1 renders an 8-category glowing MTEB dataset skyline (58 datasets, highlighting
+// STS vs Retrieval, expanding to MMTEB 500+ tasks / 250+ languages). View 2 renders a visual
+// context-window truncation guillotine slicing off required evidence before the encoder.
+import { arrow, line } from 'vizmatic/stage';
 import {
-  assertEqual,
-  barChart,
-  indicate,
-  place,
-  column,
-  namedBox,
-  rect,
-  arrow,
-  boxOf,
-} from 'vizmatic/stage';
-import { area, heading, label, mono, note } from '../../kit-narrated.mjs';
+  COSMOS,
+  ROLE,
+  cinemaAtmosphere,
+  guardedDynamic,
+  heroTitle,
+  lumBar,
+  playAfter,
+  playOn,
+  rule,
+  swapVis,
+  txt,
+  verifyInvariant,
+} from '../parts.mjs';
 
 export default function evaluationScope(s, c) {
-  const [top, body, foot] = area.rows([1, 5, 1], 'normal');
   const categories = [
     ['retrieval', 15],
     ['classify', 12],
@@ -23,82 +29,207 @@ export default function evaluationScope(s, c) {
     ['bitext', 2],
     ['summary', 1],
   ];
-  const total = categories.reduce((sum, [, n]) => sum + n, 0);
-  assertEqual(total, 58, 'original MTEB datasets');
-  const title = place(label('human relatedness ≠ operational relevance', { color: 'cyan' }), top);
-  const [chartHead, chartBody] = body.rows([1, 7], 'normal');
-  const snapshot = place(note('Original MTEB: datasets by category'), chartHead);
-  const chart = place(
-    barChart(
-      categories.map(([name, n]) => ({
-        label: name,
-        value: n,
-        color: name === 'retrieval' ? 'green' : 'blue',
-      })),
-      {
-        width: chartBody.width - 40,
-        height: chartBody.height - 100,
-        max: 15,
-        labelSize: 34,
-        showValues: true,
-      },
-    ),
-    chartBody,
-  );
-  const old = place(
-    mono(`original MTEB: 33 models · ${total} datasets · ${categories.length} categories`),
-    foot,
-  );
-  const expanded = place(
-    label('MMTEB 2025: >500 tasks · >250 languages', { color: 'yellow' }),
-    foot,
-  );
-  const cut = place(label('truncated evidence never reaches the encoder', { color: 'red' }), foot);
-  const [passage, encoderRegion] = body.rows([3, 2], 'loose');
-  const [kept, lost] = passage.columns([2, 1], 'loose');
-  const inputBoundary = place(
-    rect(kept.width, kept.height, { fill: null, stroke: 'yellow', width: 3 }),
-    kept,
-  );
-  const retained = place(
-    column(
-      [
-        note('Within the illustrated input cutoff'),
-        label('Rotate API key', { color: 'cyan' }),
-        label('Restart workers', { color: 'cyan' }),
-      ],
-      { gap: 'normal', align: 'center' },
-    ),
-    kept,
-  );
-  const omitted = place(
-    column(
-      [
-        note('Beyond cutoff'),
-        label('Revoke old key', { color: 'red' }),
-        note('required evidence is lost', { color: 'red' }),
-      ],
-      { gap: 'normal', align: 'center' },
-    ),
-    lost,
-  );
-  const encoder = place(
-    namedBox('encode retained text → pool states', { width: 950, height: 100, color: 'cyan' }),
-    encoderRegion,
-  );
-  const flow = arrow(boxOf(inputBoundary).point('bottom'), boxOf(encoder).point('top'), {
-    stroke: 'cyan',
-    width: 4,
-    pad: 6,
+  const total = categories.reduce((acc, [, n]) => acc + n, 0);
+  verifyInvariant(total === 58, 'original MTEB has 58 datasets');
+
+  const vChart = s.value(1);
+  const vTrunc = s.value(0);
+  const hiSts = s.value(0);
+  const showOld = s.value(0);
+  const hiRet = s.value(0);
+  const showMmteb = s.value(0);
+
+  const title = heroTitle(['A benchmark name needs', 'its task and version scope'], {
+    x: -860,
+    y: -450,
+    size: 46,
+    lineHeight: 54,
+    accent: ROLE.anchor,
   });
-  s.add(heading(c.title), title, snapshot, chart);
-  c.on('cl-evaluation-scope-sts', () => s.play(indicate(chart.bar(3), { scale: 1 })));
-  c.show('cl-evaluation-scope-mteb', old, { after: true });
-  c.on('cl-evaluation-scope-categories', () => s.play(indicate(chart.bar(0), { scale: 1 })));
-  c.swap('cl-evaluation-scope-languages', old, expanded, { after: true });
-  c.swap(
-    'cl-evaluation-scope-truncate',
-    [chart, snapshot, expanded],
-    [inputBoundary, retained, omitted, encoder, flow, cut],
-  );
+
+  // View 1: Original MTEB 8-Category Bar Skyline
+  const chartLayer = guardedDynamic(vChart, (alpha) => {
+    const sts = hiSts.value;
+    const old = showOld.value;
+    const ret = hiRet.value;
+    const mm = showMmteb.value;
+    const baseY = 205;
+    const maxH = 355;
+    const leftX = -755;
+    const stepX = 215;
+    const nodes = [
+      txt(
+        'HUMAN RELATEDNESS (STS)  ≠  OPERATIONAL RETRIEVAL',
+        0,
+        -295,
+        30,
+        ROLE.anchor,
+        'mono',
+        'center',
+      ).opacity(alpha),
+      txt(
+        'Original MTEB snapshot: datasets per category',
+        0,
+        -242,
+        26,
+        COSMOS.muted,
+        'sans',
+        'center',
+      ).opacity(alpha),
+      line([leftX - 75, baseY], [leftX + 7 * stepX + 75, baseY], {
+        stroke: '#4c6294',
+        width: 2.4,
+      }).opacity(alpha),
+    ];
+
+    categories.forEach(([name, count], idx) => {
+      const cx = leftX + idx * stepX;
+      const bh = (count / 15) * maxH;
+      const isRet = idx === 0;
+      const isSts = idx === 3;
+      const lit = (isRet && ret > 0.3) || (isSts && sts > 0.3 && ret < 0.3);
+      const col = isRet ? ROLE.positive : isSts && lit ? ROLE.focus : ROLE.unrelated;
+      nodes.push(
+        lumBar(cx, baseY - bh / 2, 118, bh, {
+          color: col,
+          fillAlpha: lit ? 0.52 : 0.28,
+          strokeWidth: lit ? 3.2 : 2.0,
+          glow: lit ? 12 : 5,
+          radius: 8,
+          opacity: alpha,
+        }),
+        txt(
+          String(count),
+          cx,
+          baseY - bh - 28,
+          30,
+          lit ? COSMOS.ink : col,
+          'mono',
+          'center',
+        ).opacity(alpha),
+        txt(name, cx, baseY + 38, 28, lit ? col : COSMOS.muted, 'sans', 'center').opacity(alpha),
+      );
+    });
+
+    nodes.push(rule(-850, 295, 850, 295, COSMOS.rule, 1.6).opacity(0.55 * alpha));
+    if (mm > 0.05) {
+      nodes.push(
+        txt(
+          'MMTEB (2025):  > 500 tasks   ·   > 250 languages   (always record exact subset & version)',
+          0,
+          365,
+          32,
+          ROLE.focus,
+          'mono',
+          'center',
+        )
+          .glow(7, ROLE.focus)
+          .opacity(mm * alpha),
+      );
+    } else if (old > 0.05) {
+      nodes.push(
+        txt(
+          'Original MTEB:  33 models   ·   58 datasets   ·   8 categories   (no single model dominated all)',
+          0,
+          365,
+          30,
+          ROLE.anchor,
+          'mono',
+          'center',
+        ).opacity(old * alpha),
+      );
+    } else {
+      nodes.push(
+        txt(
+          'High overall average can hide weak retrieval behind classification or clustering',
+          0,
+          365,
+          28,
+          COSMOS.muted,
+          'sans',
+          'center',
+        ).opacity(alpha),
+      );
+    }
+    return nodes;
+  });
+
+  // View 2: Context-Window Truncation Guillotine
+  const truncLayer = guardedDynamic(vTrunc, (alpha) => [
+    txt('INPUT TRUNCATION BEFORE ENCODING', 0, -285, 30, ROLE.competitor, 'mono', 'center')
+      .glow(6, ROLE.competitor)
+      .opacity(alpha),
+    // Retained window (left)
+    lumBar(-285, -70, 920, 220, {
+      color: ROLE.focus,
+      fillAlpha: 0.14,
+      strokeWidth: 3.0,
+      glow: 9,
+      radius: 14,
+      opacity: alpha,
+    }),
+    txt('WITHIN MAX INPUT LENGTH', -285, -135, 26, ROLE.focus, 'mono', 'center').opacity(alpha),
+    txt(
+      'Step 1: Rotate API key   ·   Step 2: Restart workers',
+      -285,
+      -45,
+      34,
+      ROLE.anchor,
+      'sans',
+      'center',
+    ).opacity(alpha),
+    // Guillotine cutoff line
+    line([215, -210], [215, 70], { stroke: ROLE.competitor, width: 4.5, dash: [10, 8] })
+      .glow(10, ROLE.competitor)
+      .opacity(alpha),
+    // Cut-off evidence (right)
+    lumBar(545, -70, 580, 220, {
+      color: ROLE.competitor,
+      fillAlpha: 0.16,
+      strokeWidth: 2.2,
+      glow: 7,
+      radius: 14,
+      dash: [8, 6],
+      opacity: alpha,
+    }),
+    txt('BEYOND CUTOFF (DROPPED)', 545, -135, 26, ROLE.competitor, 'mono', 'center').opacity(alpha),
+    txt('Step 3: Revoke old key', 545, -45, 34, ROLE.competitor, 'sans', 'center').opacity(alpha),
+    // Arrow down to encoder
+    arrow([-285, 52], [-285, 165], { stroke: ROLE.anchor, width: 4, tip: 14 }).opacity(alpha),
+    lumBar(-285, 225, 920, 86, {
+      color: ROLE.anchor,
+      fillAlpha: 0.24,
+      glow: 8,
+      radius: 12,
+      opacity: alpha,
+    }),
+    txt(
+      'Encoder + pooling sees ONLY retained tokens',
+      -285,
+      225,
+      30,
+      COSMOS.ink,
+      'mono',
+      'center',
+    ).opacity(alpha),
+    txt(
+      'Truncated evidence never reaches the encoder · pooling cannot rescue what was sliced away',
+      0,
+      365,
+      30,
+      ROLE.competitor,
+      'sans',
+      'center',
+    )
+      .glow(6, ROLE.competitor)
+      .opacity(alpha),
+  ]);
+
+  s.add(cinemaAtmosphere(ROLE.anchor, ROLE.positive), title, chartLayer, truncLayer);
+
+  playOn(s, c, 'cl-evaluation-scope-sts', (d) => hiSts.to(1, { duration: d }), 0.45);
+  playAfter(s, c, 'cl-evaluation-scope-mteb', (d) => showOld.to(1, { duration: d }), 0.45);
+  playOn(s, c, 'cl-evaluation-scope-categories', (d) => hiRet.to(1, { duration: d }), 0.45);
+  playAfter(s, c, 'cl-evaluation-scope-languages', (d) => showMmteb.to(1, { duration: d }), 0.45);
+  playOn(s, c, 'cl-evaluation-scope-truncate', (d) => swapVis(vChart, vTrunc, d), 0.7);
 }
