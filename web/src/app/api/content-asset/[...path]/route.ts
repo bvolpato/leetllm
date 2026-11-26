@@ -69,7 +69,7 @@ export async function GET(
                 "Content-Type": contentTypeForExtension(extname(filePath)),
                 "Content-Length": buffer.length.toString(),
                 "Content-Disposition": `attachment; filename="${basename(filePath)}"`,
-                "Cache-Control": "public, max-age=3600",
+                "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600",
             },
         })
     } catch {

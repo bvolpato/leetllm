@@ -91,7 +91,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, s-maxage=14400, stale-while-revalidate=3600, max-age=0",
+            value: "public, s-maxage=86400, stale-while-revalidate=86400, max-age=0",
           },
         ],
       },
@@ -101,7 +101,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, s-maxage=14400, stale-while-revalidate=3600, max-age=0",
+            value: "public, s-maxage=86400, stale-while-revalidate=86400, max-age=0",
           },
         ],
       },
@@ -111,7 +111,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, s-maxage=14400, stale-while-revalidate=3600, max-age=0",
+            value: "public, s-maxage=86400, stale-while-revalidate=86400, max-age=0",
           },
         ],
       },
@@ -121,7 +121,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, s-maxage=14400, stale-while-revalidate=3600, max-age=0",
+            value: "public, s-maxage=86400, stale-while-revalidate=86400, max-age=0",
           },
         ],
       },
@@ -131,7 +131,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, s-maxage=14400, stale-while-revalidate=3600, max-age=0",
+            value: "public, s-maxage=86400, stale-while-revalidate=86400, max-age=0",
           },
         ],
       },
@@ -141,7 +141,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, s-maxage=14400, stale-while-revalidate=3600, max-age=0",
+            value: "public, s-maxage=86400, stale-while-revalidate=86400, max-age=0",
           },
         ],
       },
@@ -151,7 +151,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, s-maxage=14400, stale-while-revalidate=3600, max-age=0",
+            value: "public, s-maxage=86400, stale-while-revalidate=86400, max-age=0",
           },
         ],
       },
@@ -161,7 +161,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, s-maxage=14400, stale-while-revalidate=3600, max-age=0",
+            value: "public, s-maxage=86400, stale-while-revalidate=86400, max-age=0",
           },
         ],
       },
@@ -171,7 +171,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, s-maxage=86400, stale-while-revalidate=3600, max-age=0",
+            value: "public, s-maxage=86400, stale-while-revalidate=86400, max-age=0",
           },
         ],
       },

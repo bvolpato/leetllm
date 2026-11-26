@@ -11,6 +11,26 @@ type ContentAliasesManifest = {
 const aliases = contentAliases as ContentAliasesManifest
 const LEGACY_AUTH_POST_PATHS = new Set(["/login", "/signup"])
 
+function isProtectedAppPath(pathname: string): boolean {
+    return (
+        pathname === "/dashboard" ||
+        pathname.startsWith("/dashboard/") ||
+        pathname === "/settings/personalization" ||
+        pathname.startsWith("/settings/personalization/")
+    )
+}
+
+function buildLoginRedirectUrl(request: NextRequest, host: string): string {
+    if (host) {
+        const isLocal = host.startsWith("localhost") || host.startsWith("127.0.0.1")
+        return `${isLocal ? "http" : "https"}://${host}/login`
+    }
+    const url = request.nextUrl.clone()
+    url.pathname = "/login"
+    url.search = ""
+    return url.toString()
+}
+
 function redirectContentAlias(request: NextRequest): NextResponse | null {
     const pathname = request.nextUrl.pathname
     const learnMatch = pathname.match(/^\/learn\/([^/]+?)(\.md)?$/)
@@ -124,6 +144,12 @@ export async function proxy(request: NextRequest) {
         // Logged-in user: refresh session so auth works on every route.
         const response = await updateSession(request)
         // Authenticated pages must never be CDN-cached (wrong login/progress state).
+        response.headers.set('Cache-Control', 'private, no-store, must-revalidate')
+        return response
+    }
+
+    if (isProtectedAppPath(pathname)) {
+        const response = NextResponse.redirect(buildLoginRedirectUrl(request, host), 307)
         response.headers.set('Cache-Control', 'private, no-store, must-revalidate')
         return response
     }

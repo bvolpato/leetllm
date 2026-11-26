@@ -382,7 +382,19 @@ export async function serveContentImage(
                     },
                 })
             }
-            return NextResponse.json({ error: "Not found" }, { status: 404 })
+            const isPrivatePath = pathSegments[0] === "blog" && pathSegments[1]?.includes("masterclass")
+            const notFoundCache = isPrivatePath ? "no-store" : "public, max-age=60, s-maxage=3600"
+            return NextResponse.json(
+                { error: "Not found" },
+                {
+                    status: 404,
+                    headers: {
+                        "Cache-Control": notFoundCache,
+                        "CDN-Cache-Control": notFoundCache,
+                        "Cloudflare-CDN-Cache-Control": notFoundCache,
+                    },
+                },
+            )
         }
         return NextResponse.json({ error: "Read error" }, { status: 500 })
     }

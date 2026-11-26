@@ -62,4 +62,36 @@ describe("comments route", () => {
         )
         error.mockRestore()
     })
+
+    test("skips auth.getUser and enables short public edge caching for anonymous readers", async () => {
+        const query = commentsQuery({ data: [], error: null, status: 200 })
+        const getUser = vi.fn()
+        createClientMock.mockResolvedValue({
+            auth: { getUser },
+            from: vi.fn().mockReturnValue(query),
+        })
+
+        const response = await GET(new NextRequest("https://leetllm.com/api/comments?slug=attention"))
+
+        expect(response.status).toBe(200)
+        expect(getUser).not.toHaveBeenCalled()
+        expect(response.headers.get("cache-control")).toBe("public, max-age=0, s-maxage=30, stale-while-revalidate=120")
+    })
+
+    test("resolves user session and disables caching when Supabase auth cookie is present", async () => {
+        const query = commentsQuery({ data: [], error: null, status: 200 })
+        const getUser = vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } })
+        createClientMock.mockResolvedValue({
+            auth: { getUser },
+            from: vi.fn().mockReturnValue(query),
+        })
+
+        const response = await GET(new NextRequest("https://leetllm.com/api/comments?slug=attention", {
+            headers: { cookie: "sb-project-auth-token.0=chunk" },
+        }))
+
+        expect(response.status).toBe(200)
+        expect(getUser).toHaveBeenCalledTimes(1)
+        expect(response.headers.get("cache-control")).toBe("private, no-store")
+    })
 })

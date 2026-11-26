@@ -71,6 +71,23 @@ describe("public lesson navigation", () => {
         expect(updateSession).toHaveBeenCalledWith(request)
         expect(response.headers.get("cache-control")).toBe("private, no-store, must-revalidate")
     })
+
+    test.each([
+        "/dashboard",
+        "/dashboard/practice",
+        "/settings/personalization",
+    ])("redirects unauthenticated %s directly to /login without hitting Supabase", async (pathname) => {
+        const request = new NextRequest(`https://leetllm.com${pathname}`, {
+            headers: { host: "leetllm.com" },
+        })
+
+        const response = await proxy(request)
+
+        expect(updateSession).not.toHaveBeenCalled()
+        expect(response.status).toBe(307)
+        expect(response.headers.get("location")).toBe("https://leetllm.com/login")
+        expect(response.headers.get("cache-control")).toBe("private, no-store, must-revalidate")
+    })
 })
 
 describe("content redirects", () => {

@@ -56,7 +56,7 @@ export function GET() {
     return new Response(xml, {
         headers: {
             "Content-Type": "application/rss+xml; charset=utf-8",
-            "Cache-Control": "s-maxage=14400, stale-while-revalidate=86400",
+            "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=86400, max-age=0",
         },
     })
 }

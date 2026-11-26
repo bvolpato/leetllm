@@ -45,6 +45,12 @@ export interface CommentWithAuthor {
     user_has_voted: boolean
 }
 
+function hasSupabaseAuthCookie(request: NextRequest): boolean {
+    return request.cookies.getAll().some(
+        (cookie) => cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token"),
+    )
+}
+
 // GET /api/comments?slug=xxx — Get all comments for an article
 export async function GET(request: NextRequest) {
     const slug = request.nextUrl.searchParams.get("slug")
@@ -52,12 +58,19 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Missing slug" }, { status: 400 })
     }
 
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const hasAuthCookie = hasSupabaseAuthCookie(request)
+    const cacheHeaders = hasAuthCookie
+        ? { "Cache-Control": "private, no-store" }
+        : { "Cache-Control": "public, max-age=0, s-maxage=30, stale-while-revalidate=120" }
 
-    const commentsResult = await loadComments(supabase, slug)
+    const supabase = await createClient()
+    const [user, commentsResult] = hasAuthCookie
+        ? await Promise.all([
+            supabase.auth.getUser().then(({ data }) => data.user),
+            loadComments(supabase, slug),
+        ])
+        : [null, await loadComments(supabase, slug)]
+
     const { data: comments, error } = commentsResult
 
     if (error) {
@@ -74,7 +87,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!comments || comments.length === 0) {
-        return NextResponse.json({ comments: [] })
+        return NextResponse.json({ comments: [] }, { headers: cacheHeaders })
     }
 
     // Get all unique user IDs for author lookup
@@ -125,7 +138,7 @@ export async function GET(request: NextRequest) {
         }
     })
 
-    return NextResponse.json({ comments: enriched })
+    return NextResponse.json({ comments: enriched }, { headers: cacheHeaders })
 }
 
 // POST /api/comments — Create a new comment
