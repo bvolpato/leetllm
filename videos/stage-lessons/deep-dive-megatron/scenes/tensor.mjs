@@ -5,18 +5,15 @@ import {
   SMALL_MLP,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function tensor(s, c) {
-  const phase = s.value(0);
   // step: 0=up shards, 1=pre [1,2]|[1,0.5], 2=local GeLU, 3=down rows, 4=partials, 5=sum, 6=matches serial
   const step = s.value(0);
 
@@ -32,7 +29,6 @@ export default function tensor(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const pre0 = SMALL_MLP.pre.slice(0, 2).map((v) => v.toFixed(1));
     const pre1 = SMALL_MLP.pre.slice(2, 4).map((v) => v.toFixed(1));
     const act0 = SMALL_MLP.activated.slice(0, 2).map((v) => v.toFixed(2));
@@ -105,9 +101,7 @@ export default function tensor(s, c) {
       ),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 260, { radius: 6, color: st >= 5 ? ROLE.good : ROLE.tp }),
       txt(
         'Elementwise GeLU needs zero cross-rank sync; add final output bias ONLY after summing partials',
         0,
@@ -121,7 +115,6 @@ export default function tensor(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['tensor-beat-1-focus-1', 0],
     ['tensor-project-coordinates', 1],

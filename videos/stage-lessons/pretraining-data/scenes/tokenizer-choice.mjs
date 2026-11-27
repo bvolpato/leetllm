@@ -13,12 +13,10 @@ import {
   photonStream,
   prism3d,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function tokenizerChoice(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const matrixOn = s.value(0);
 
@@ -168,7 +166,6 @@ export default function tokenizerChoice(s, c) {
   const part3Live = guardedDynamic(showPart3, (a) => {
     const fr = freezeOn.value;
     const sp = spaceOn.value;
-    const ph = phase.value;
     const fields = ['Normalization', 'Merge ranks', 'Revision hash', 'Special IDs'];
 
     const nodes = [
@@ -201,7 +198,7 @@ export default function tokenizerChoice(s, c) {
           opacity: a,
         }),
         txt(f, fx, -118, 30, COSMOS.cyan, 'mono').opacity(a),
-        ...photonStream([fx, -58], [0, 70], 20, ph + i * 0.5, {
+        ...photonStream([fx, -58], [0, 70], 20, 0, {
           color: COSMOS.emerald,
           count: 2,
           opacity: fr * a,
@@ -254,7 +251,6 @@ export default function tokenizerChoice(s, c) {
   });
 
   s.add(bgAura, vocab3d, part1Live, part2Live, part3Live);
-  runPhase(s, c, phase, 14);
   orbitScene(
     s,
     c,

@@ -12,12 +12,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function mixture(s, c) {
-  const phase = s.value(0);
   const drawsCount = s.value(0); // 0..10 columns visible
   const askNine = s.value(0);
   const revealNine = s.value(0);
@@ -164,7 +162,6 @@ export default function mixture(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-mixture-draws', () =>
     s.play(drawsCount.to(5, { duration: remainDuration(c, 'pt-mixture-draws', 0.9) })),

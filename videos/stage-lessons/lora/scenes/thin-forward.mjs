@@ -15,12 +15,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function thinForward(s, c) {
-  const phase = s.value(0);
   const showBase = s.value(0);
   const showDiff = s.value(0);
   const showScale = s.value(0);
@@ -215,7 +213,6 @@ export default function thinForward(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('forward-base', () => s.play(showBase.to(1, { duration: 0.4 })));
   c.on('forward-difference', () => s.play(showDiff.to(1, { duration: 0.4 })));

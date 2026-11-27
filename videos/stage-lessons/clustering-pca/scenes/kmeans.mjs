@@ -18,7 +18,6 @@ import {
   labels,
   makePlot,
   orbitScene,
-  runAmbientPhase,
   seeds,
   tweenCue,
   txt,
@@ -27,7 +26,6 @@ import {
 } from '../parts.mjs';
 
 export default function kmeans(s, c) {
-  const phase = s.value(0);
   const showSeeds = s.value(0);
   const assignAmt = s.value(0);
   const showPredict = s.value(0);
@@ -204,7 +202,6 @@ export default function kmeans(s, c) {
   });
 
   s.add(bgAura, bowl3d, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
   orbitScene(s, c, bowl3d, { theta: 0.45, phi: 0.96 });
 
   tweenCue(s, c, 'seed', showSeeds, 1, { duration: 0.45 });

@@ -7,18 +7,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function registerBlocking(s, c) {
-  const phase = s.value(0);
   const mode = s.value(0); // 1=1x4, 2=8x8
   const rev1x4 = s.value(0);
   const rev8x8 = s.value(0);
@@ -35,12 +32,10 @@ export default function registerBlocking(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const is8x8 = mode.value >= 1.5;
     const r4 = rev1x4.value;
     const r8 = rev8x8.value;
     const pr = pressure.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [];
 
@@ -62,8 +57,6 @@ export default function registerBlocking(s, c) {
           txt(`acc[${j}]`, cx, by, 30, ROLE.c, 'mono'),
         );
       }
-      const u = (p * 0.7) % 1;
-      nodes.push(glowDot(-6 + u * 660, -118, { radius: 7, color: COSMOS.gold }));
       // Lower right: live per-k FMA reuse breakdown (fills visual composition cleanly)
       nodes.push(
         txt('PER-STEP REGISTER TRAFFIC', 340, 108, 26, COSMOS.muted, 'mono'),
@@ -105,7 +98,7 @@ export default function registerBlocking(s, c) {
       }
       for (let r = 0; r < 8; r++) {
         for (let col = 0; col < 8; col++) {
-          const isHot = (r + col) % 5 === Math.floor(p * 2) % 5;
+          const isHot = (r + col) % 5 === 0;
           nodes.push(
             rect(cell, cell, {
               fill: pr > 0.5 ? '#2b1e10' : isHot ? '#14394a' : '#0d1e30',
@@ -114,7 +107,7 @@ export default function registerBlocking(s, c) {
               radius: 6,
             })
               .at(gx0 + col * stride, gy0 + r * stride)
-              .glow(isHot ? 7 * pulse : 0, ROLE.c),
+              .glow(isHot ? 7 : 0, ROLE.c),
           );
         }
       }
@@ -189,7 +182,6 @@ export default function registerBlocking(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('register-reuse', () =>
     s.play(mode.to(1, { duration: remainDuration(c, 'register-reuse', 0.4) })),

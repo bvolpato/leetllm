@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   submittedTokens,
@@ -41,7 +40,7 @@ export default function boundedContext(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const st = storeOn.value;
       const sl = selectOn.value;
       const gr = growthOn.value;
@@ -140,7 +139,6 @@ export default function boundedContext(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('bounded-context-b1-1', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('bounded-context-b1-1').start, 0.25) }));

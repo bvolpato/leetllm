@@ -11,12 +11,10 @@ import {
   line,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function scaleBudget(s, c) {
-  const phase = s.value(0);
   const show100M = s.value(0);
   const show5 = s.value(0);
   const show20 = s.value(0);
@@ -33,12 +31,10 @@ export default function scaleBudget(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const s100 = show100M.value;
     const s5 = show5.value;
     const s20 = show20.value;
     const sf = showFrontier.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     // Pareto frontier curve on right
     const ox = 165;
@@ -89,7 +85,7 @@ export default function scaleBudget(s, c) {
         s20 > 0.3 ? COSMOS.gold : s5 > 0.3 ? COSMOS.cyan : COSMOS.muted,
         {
           fill: '#10203a',
-          glow: s5 > 0.3 ? 8 * pulse : 2,
+          glow: s5 > 0.3 ? 8 : 2,
         },
       ),
       txt(
@@ -151,7 +147,6 @@ export default function scaleBudget(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('scale-budget-b1', () => s.play(show100M.to(1, { duration: 0.4 })));
   c.on('scale-budget-b2', () => s.play(show5.to(1, { duration: 0.4 })));

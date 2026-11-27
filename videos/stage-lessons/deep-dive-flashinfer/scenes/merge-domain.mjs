@@ -13,12 +13,10 @@ import {
   par,
   remainAfter,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function mergeDomain(s, c) {
-  const phase = s.value(0);
   const showEmpty = s.value(1);
   const emptyBranch = s.value(0);
   const showReject = s.value(0);
@@ -208,7 +206,6 @@ export default function mergeDomain(s, c) {
   });
 
   s.add(bgAura, title, eq, emptyView, rejectView, hugeView);
-  runPhase(s, c, phase, 14);
 
   c.on('fi-merge-domain-0', () =>
     s.play(emptyBranch.to(0.4, { duration: remainDuration(c, 'fi-merge-domain-0', 0.4) })),

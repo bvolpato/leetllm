@@ -9,12 +9,10 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function warps(s, c) {
-  const phase = s.value(0);
   const firstFill = s.value(0);
   const secondFill = s.value(0);
   const mode36 = s.value(0);
@@ -199,7 +197,6 @@ export default function warps(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('populate-warps', () => s.play(firstFill.to(1, { duration: 0.6 })));
   c.on('next-block-warp', () => s.play(secondFill.to(1, { duration: 0.6 })));

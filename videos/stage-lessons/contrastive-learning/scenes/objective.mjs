@@ -11,7 +11,6 @@ import {
   cinemaAtmosphere,
   comparisonRow,
   evaluate,
-  glowDot,
   glowTex,
   guardedDynamic,
   heroTitle,

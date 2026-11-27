@@ -85,7 +85,6 @@ export default function scoreContracts(s, c) {
   const part2Live = guardedDynamic(showPart2, (a) => {
     const lb = labelsOn.value;
     const cc = ccnetOn.value;
-    const ph = phase.value;
     const nodes = [
       txt('EDUCATIONAL & PERPLEXITY SCORERS', -855, -425, 26, COSMOS.cyan, 'mono', 'left').opacity(
         a,
@@ -114,7 +113,7 @@ export default function scoreContracts(s, c) {
         opacity: a,
       }),
 
-      ...photonStream([-720, 195], [720, 195], -12, ph, {
+      ...photonStream([-720, 195], [720, 195], -12, 0, {
         color: COSMOS.gold,
         count: 5,
         opacity: (0.4 + 0.6 * cc) * a,

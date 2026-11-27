@@ -5,7 +5,6 @@ import {
   aura,
   buildCluster3d,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -143,11 +142,6 @@ export default function ringPrefill(s, c) {
         mg ? ROLE.good : COSMOS.muted,
         'sans',
       ).opacity(a),
-      glowDot(-820 + ((phase.value * 0.55) % 1) * 960, 415, {
-        radius: 6,
-        color: ROLE.gpu1,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
@@ -256,11 +250,6 @@ export default function ringPrefill(s, c) {
         opacity: a,
       }),
       txt(foot, 0, 325, 28, wt ? ROLE.bad : dc > 0.4 ? COSMOS.gold : ROLE.good, 'sans').opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: wt ? ROLE.bad : ROLE.gpu1,
-        opacity: a,
-      }),
     );
 
     return group(...nodes);

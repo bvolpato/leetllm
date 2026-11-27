@@ -3,19 +3,16 @@ import {
   COSMOS,
   aura,
   circle,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function backendPolicy(s, c) {
-  const phase = s.value(0);
   const s1 = s.value(0.5);
   const s2 = s.value(0);
   const sErr = s.value(0);
@@ -33,13 +30,11 @@ export default function backendPolicy(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const a1 = s1.value;
     const a2 = Math.max(0.45, s2.value);
     const ae = Math.max(0.4, sErr.value);
     const a3 = Math.max(0.45, s3.value);
     const a4 = Math.max(0.45, s4.value);
-    const u = (p * 0.48) % 1;
 
     const yMain = -85;
     const x1 = -580;
@@ -59,27 +54,12 @@ export default function backendPolicy(s, c) {
         width: 4.2,
         opacity: 0.9 * a2,
       }),
-      glowDot(x1 + 66 + u * (x2 - x1 - 132), yMain, {
-        radius: 6.5,
-        color: COSMOS.cyan,
-        opacity: a1,
-      }),
-      glowDot(x2 + 66 + u * (x3 - x2 - 132), yMain, {
-        radius: 6.5,
-        color: COSMOS.gold,
-        opacity: a2,
-      }),
 
       // Downward crimson fork from Stage 2 for runtime OOM / device error propagation
       glowingArc([x2, yMain + 66], [x2, yErr - 54], 0, {
         color: COSMOS.rose,
         width: 4.0,
         opacity: 0.9 * ae,
-      }),
-      glowDot(x2, yMain + 66 + u * (yErr - yMain - 120), {
-        radius: 6,
-        color: COSMOS.rose,
-        opacity: ae,
       }),
 
       // Stage 1 glowing node
@@ -154,7 +134,6 @@ export default function backendPolicy(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('backend-policy-beat-1', () => s.play(s1.to(1, { duration: 0.4 })));
   c.on('backend-policy-beat-2', () => s.play(s2.to(1, { duration: 0.4 })));

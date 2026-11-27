@@ -15,12 +15,10 @@ import {
   nearestRank,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function latencyWaterfall(s, c) {
-  const phase = s.value(0);
   const act = s.value(0); // 0 = serial TTFT, 1 = 20-req p95, 2 = parallel fan-out
   const stageCount = s.value(0); // 0 .. 5
   const showTtft = s.value(0);
@@ -45,14 +43,12 @@ export default function latencyWaterfall(s, c) {
   const stageColors = [COSMOS.blue, COSMOS.cyan, COSMOS.emerald, COSMOS.gold, COSMOS.rose];
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const activeAct = Math.round(act.value);
     const sc = stageCount.value;
     const sTtft = showTtft.value;
     const sSort = showSort.value;
     const sP95 = showP95.value;
     const sFan = showFanout.value;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const nodes = [];
 
@@ -98,7 +94,7 @@ export default function latencyWaterfall(s, c) {
       nodes.push(
         glassCell(0, 212, 1020, 146, done ? COSMOS.gold : COSMOS.muted, {
           fill: done ? '#262010' : '#10182d',
-          glow: done ? 10 * pulse : 3,
+          glow: done ? 10 : 3,
         }),
         txt('TIME TO FIRST DELIVERED TOKEN (TTFT)', 0, 170, 26, COSMOS.muted, 'mono'),
         txt(
@@ -155,7 +151,7 @@ export default function latencyWaterfall(s, c) {
 
         glassCell(580, -124, 540, 106, done ? COSMOS.rose : COSMOS.gold, {
           fill: done ? '#2a121c' : '#10182d',
-          glow: done ? 10 * pulse : 3,
+          glow: done ? 10 : 3,
         }),
         txt(
           done ? `19th total = ${p95Total} ms` : '19th sorted total = ?',
@@ -244,7 +240,7 @@ export default function latencyWaterfall(s, c) {
     nodes.push(
       glassCell(0, 198, 1380, 166, fanDone ? COSMOS.amber : COSMOS.gold, {
         fill: fanDone ? '#261b10' : '#10182d',
-        glow: fanDone ? 10 * pulse : 4,
+        glow: fanDone ? 10 : 4,
       }),
       txt(
         'ALL THREE MUST FINISH BEFORE FUSION (WAIT FOR SLOWEST)',
@@ -282,7 +278,6 @@ export default function latencyWaterfall(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('time-0', () => s.play(stageCount.to(1, { duration: 0.3 })));
   c.on('time-1', () => s.play(stageCount.to(2, { duration: 0.3 })));

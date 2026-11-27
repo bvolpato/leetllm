@@ -26,7 +26,6 @@ import {
   glowTex,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   mix,
   neonCurve,
   orbitScene,
@@ -44,7 +43,6 @@ export function priorShift(s, c) {
   const predP = s.value(0);
   const shiftP = s.value(0);
   const resultP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.posterior, seed: 7 }));
   s.add(decorAura(340, 20, 540, '#ffd16622', '#5ce1e614'));
@@ -194,7 +192,6 @@ export function priorShift(s, c) {
 
   s.add(view3d, headline, leftPanel);
   orbitScene(s, c, view3d, { theta: -0.32, phi: 0.94 });
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'prior-prediction', predP, 1, { dur: 0.65 });
   cueTo(s, c, 'prior-change', shiftP, 1, { dur: 1.25 });
   cueTo(s, c, 'prior-result', resultP, 1, { after: true, dur: 0.6 });
@@ -208,7 +205,6 @@ export function independence(s, c) {
   const predP = s.value(0);
   const selP = s.value(0);
   const exclP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.clean, seed: 8 }));
   s.add(decorAura(0, 10, 560, '#5ce1e61a', '#a78bfa16'));
@@ -280,11 +276,9 @@ export function independence(s, c) {
   const view2 = guardedDynamic(
     () => fadeIn(exclP.value),
     (vis) => {
-      const ph = drift.value;
-      const pulse = 1 + 0.08 * Math.sin(ph * Math.PI * 8);
       return group(
         txt('MUTUALLY EXCLUSIVE EVENTS CANNOT CO-OCCUR', 0, -210, 28, ROLE.warning, 'mono'),
-        circle(145 * pulse, { fill: '#2a1220', stroke: ROLE.abuse, width: 3.5 })
+        circle(145, { fill: '#2a1220', stroke: ROLE.abuse, width: 3.5 })
           .at(-300, 10)
           .glow(12, ROLE.abuse),
         txt('ABUSIVE', -300, -12, 34, ROLE.abuse, 'mono'),
@@ -307,7 +301,6 @@ export function independence(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'independent-prediction', predP, 1, { dur: 0.6 });
   cueTo(s, c, 'independent-select', selP, 1, { dur: 0.95 });
   cueTo(s, c, 'exclude-update', exclP, 1, { dur: 0.9 });
@@ -322,7 +315,6 @@ export function copiedEvidence(s, c) {
   const resP = s.value(0);
   const indepP = s.value(0);
   const riskP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.likelihood, seed: 9 }));
   s.add(decorAura(-320, 40, 440, '#5ce1e61c', '#07091000'));
@@ -342,7 +334,6 @@ export function copiedEvidence(s, c) {
     const rs = resP.value;
     const ind = indepP.value;
     const rk = riskP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Left lane: Copied detector (same 590 IDs pass Gate 1 and Gate 2)
@@ -398,7 +389,6 @@ export function copiedEvidence(s, c) {
     const barW = 720;
     const redW = (abuseAfter2 / 590) * barW;
     const blueW = (cleanAfter2 / 590) * barW;
-    const pulse = 0.7 + 0.3 * Math.sin(ph * Math.PI * 8);
     const rightOp = mix(0.45, 1, ind);
 
     nodes.push(
@@ -423,7 +413,7 @@ export function copiedEvidence(s, c) {
           'left',
         ),
         scaleTrack(rx, 15, barW, 74, { stroke: '#3e4d78', radius: 12 }),
-        glowBar(rx, 15, Math.max(10, redW), 68, ROLE.abuse, { glow: 10 * pulse, radius: 10 }),
+        glowBar(rx, 15, Math.max(10, redW), 68, ROLE.abuse, { glow: 10, radius: 10 }),
         glowBar(rx + redW + 4, 15, Math.max(10, blueW), 68, ROLE.clean, { glow: 8, radius: 10 }),
         txt(`${abuseAfter2.toFixed(1)} red`, rx, 95, 28, ROLE.abuse, 'mono', 'left'),
         txt(`${cleanAfter2.toFixed(1)} blue`, rx + 260, 95, 28, ROLE.clean, 'mono', 'left'),
@@ -455,7 +445,6 @@ export function copiedEvidence(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'copied-pass', passP, 1, { dur: 0.95 });
   cueTo(s, c, 'copied-result', resP, 1, { after: true, dur: 0.6 });
   cueTo(s, c, 'independent-counterfactual', indepP, 1, { dur: 1.0 });
@@ -480,7 +469,6 @@ export function posteriorContract(s, c) {
   const rawResP = s.value(0);
   const logP = s.value(0);
   const stableP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.likelihood, seed: 10 }));
   s.add(decorAura(0, 30, 560, '#a78bfa1e', '#5ce1e612'));
@@ -728,7 +716,6 @@ export function posteriorContract(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'invalid-prior', invP, 1, { dur: 0.55 });
   cueTo(s, c, 'true-source', trueP, 1, { dur: 0.65 });
   cueTo(s, c, 'source-masses', massesP, 1, { dur: 0.65 });
@@ -753,7 +740,6 @@ export function likelihood(s, c) {
   const maxP = s.value(0);
   const seqP = s.value(0);
   const ansP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.posterior, seed: 11 }));
   s.add(decorAura(240, 40, 520, '#ffd1661e', '#a78bfa14'));
@@ -773,7 +759,6 @@ export function likelihood(s, c) {
     const mx = maxP.value;
     const sq = seqP.value;
     const an = ansP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Live candidate p: 0.20 -> 0.80 -> 2/3
@@ -888,14 +873,12 @@ export function likelihood(s, c) {
     }
 
     // Active glowing bead on curve
-    const pulse = 1 + 0.14 * Math.sin(ph * Math.PI * 10);
-    nodes.push(glowDot(xOf(p), yOf(L), { radius: 11 * pulse, color: ROLE.posterior, glow: 14 }));
+    nodes.push(glowDot(xOf(p), yOf(L), { radius: 11, color: ROLE.posterior, glow: 14 }));
 
     return group(...nodes);
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'likelihood-factors', factP, 1, { dur: 0.7 });
   cueTo(s, c, 'likelihood-candidate', candP, 1, { dur: 1.0 });
   cueTo(s, c, 'likelihood-maximum', maxP, 1, { dur: 0.9 });

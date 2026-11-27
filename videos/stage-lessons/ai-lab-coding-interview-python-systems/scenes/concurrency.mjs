@@ -6,10 +6,8 @@ import { line, rect } from 'vizmatic/stage';
 import {
   COSMOS,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   glowArrow,
-  glowDot,
   glowPill,
   guardedDynamic,
   hexAlpha,
@@ -24,7 +22,6 @@ import {
 export default function concurrency(s, c) {
   const title = sceneHeading(['Where does each page', 'spend its time?'], { accent: ROLE.workerB });
 
-  const amb = ambientClock(s, c);
   const waitProg = s.value(0); // 0 -> 1 fills 0..3s wait bars
   const cpuProg = s.value(0); // 0 -> 1 fills A (3..4s) and B (4..5s) CPU bars
   const sendProg = s.value(0); // 0 -> 1 sends t7 input
@@ -37,7 +34,6 @@ export default function concurrency(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const nodes = [];
 
       // Left hemisphere: Overlapped Wait + Single-GIL CPU Timeline (x = -720 .. 70)
@@ -212,12 +208,6 @@ export default function concurrency(s, c) {
           'center',
         ).opacity(alpha),
 
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5 + 1.5 * pulse,
-          color: ROLE.workerB,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'OVERLAP I/O WAITS  ·  ISOLATE CPU WORKERS',
           isMerged ? 'PARENT MERGED t7 -> 49' : '5s OVERLAPPED VS 8s SERIAL (0 OVERHEAD)',

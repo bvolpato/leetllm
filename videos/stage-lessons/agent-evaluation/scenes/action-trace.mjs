@@ -10,7 +10,6 @@ import {
   autoNode,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   railBar,
   river,
@@ -37,7 +36,7 @@ export default function actionTrace(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const cr = catResolved.value;
       const pm = permitted.value;
       const hc = holdCheckHi.value;
@@ -219,7 +218,6 @@ export default function actionTrace(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('catalog-resource', () => {
     s.play(catResolved.to(1, { duration: clampDur(c, c.cue('catalog-resource').start, 0.4) }));

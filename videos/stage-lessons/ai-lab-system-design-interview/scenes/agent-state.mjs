@@ -9,8 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   sysNode,
   trimSeg,
@@ -18,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function agentState(s, c) {
-  const phase = s.value(0);
   const acceptOn = s.value(0);
   const crashOn = s.value(0);
   const recOn = s.value(0); // STRICT after agent-reconcile!
@@ -42,7 +39,6 @@ export default function agentState(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ac = acceptOn.value;
       const cr = crashOn.value;
       const rc = recOn.value;
@@ -94,7 +90,7 @@ export default function agentState(s, c) {
       nodes.push(
         cr > 0.4 && rc < 0.4
           ? line(a, b, { stroke: ROLE.fail, width: 3.5, dash: [12, 10] }).glow(7, ROLE.fail)
-          : beamWithPhotons([a, b], rc > 0.4 ? ROLE.ok : ROLE.req, p, { width: 4, photonCount: 2 }),
+          : beamWithPhotons([a, b], rc > 0.4 ? ROLE.ok : ROLE.req, 0, { width: 4 }),
         nWk.node,
         nRp.node,
       );
@@ -165,22 +161,11 @@ export default function agentState(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: wkCol,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.after('agent-accept', () => {
     s.play(acceptOn.to(1, { duration: clampDur(c, c.cue('agent-accept').end, 0.35) }));
   });

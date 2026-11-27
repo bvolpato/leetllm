@@ -6,18 +6,15 @@ import {
   address,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   guardedDynamic,
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function tensorContract(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=TensorImpl/Storage, 1=view/reshape/contiguous, 2=sparse/meta/MPS/CUDA
 
   const bgAura = aura(0, 20, 640, '#60a5fa1c', '#5ce1e618');
@@ -37,7 +34,6 @@ export default function tensorContract(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = stage.value;
-    const p = phase.value;
     const idx3 = address([1, 0], [3, 1]);
 
     const nodes = [
@@ -89,9 +85,7 @@ export default function tensorContract(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 326, { radius: 6, color: COSMOS.gold }),
       txt(
         st >= 1.5
           ? 'Verify backend coverage, memory model, and numerics on the actual device'
@@ -108,7 +102,6 @@ export default function tensorContract(s, c) {
   });
 
   s.add(bgAura, title, formula, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-tensor-contract-0', () => s.play(stage.to(0, { duration: 0.25 })));
   c.on('pt-tensor-contract-1', () =>

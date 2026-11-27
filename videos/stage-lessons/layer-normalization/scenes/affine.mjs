@@ -21,7 +21,6 @@ import {
   mean,
   normal,
   playCue,
-  scenePulse,
   signed,
   variance,
 } from '../parts.mjs';
@@ -38,14 +37,12 @@ export default function affine(s, c) {
   const ruleGlow = s.value(0);
   const gain1 = s.value(1); // 1.0 -> 2.0
   const bias4 = s.value(0); // 0.0 -> 0.7
-  const pulse = s.value(0);
   const stageVis = s.value(1);
 
   const mainLayer = guardedDynamic(stageVis, (alpha) => {
     const nodes = [];
     const g1 = gain1.value;
     const b4 = bias4.value;
-    const p = pulse.value;
 
     const gamma = [g1, 1, 1, 1];
     const beta = [0, 0, 0, b4];
@@ -77,7 +74,7 @@ export default function affine(s, c) {
     const fy = spec.toY(vals[focusIdx]);
     nodes.push(
       glowDot(fx, fy, {
-        radius: 13 + Math.sin(p * Math.PI * 8) * 2.5,
+        radius: 13,
         color: ROLE.gold,
         glow: 18,
         opacity: 0.7 * alpha,
@@ -211,7 +208,6 @@ export default function affine(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.rms, ROLE.gold), title, mainLayer);
-  scenePulse(s, c, pulse);
 
   // Beat 0: Reveal learned affine equation on cue
   c.show('affine-learned-affine-rule-b1-1', affineEq);

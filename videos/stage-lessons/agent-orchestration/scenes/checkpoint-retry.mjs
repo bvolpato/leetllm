@@ -21,13 +21,11 @@ import {
   renderGauge,
   renderRetryPips,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function checkpointRetry(s, c) {
-  const phase = s.value(0);
   const st0 = s.value(1); // Beat 0-1: Checkpoint capsule + bounded retry + re-entry replay
   const st1 = s.value(0); // Beat 2: Thread auth + freshness clock (10s -> 210s vs 60s / 300s)
   const st2 = s.value(0); // Beat 3: 4 drawn failure-recovery signal tracks
@@ -518,7 +516,6 @@ export default function checkpointRetry(s, c) {
   });
 
   s.add(bgAtmo, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   // Beat 0
   tweenCue(s, c, 'cp-stores', cpStores, 1, { duration: 0.35 });

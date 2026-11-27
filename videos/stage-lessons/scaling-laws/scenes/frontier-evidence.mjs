@@ -5,7 +5,7 @@
 //   Act 2 (Beat 1): 57-task MMLU glowing constellation (53 Chinchilla wins, 4 Gopher wins).
 //   Act 3 (Beat 2): Llama lineage log-scale D/N ratio beams (143 -> 1,875 -> 38.5).
 import { COSMOS, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
-import { ROLE, cinemaAtmosphere, fmt, lumBar, playCue, scenePulse, swapVis } from '../parts.mjs';
+import { ROLE, cinemaAtmosphere, fmt, lumBar, playCue, swapVis } from '../parts.mjs';
 
 const LLAMA_ROWS = [
   { name: 'LLaMA 1 7B', ratio: 143, prefix: '', col: ROLE.params },
@@ -32,7 +32,6 @@ export default function frontierEvidence(s, c) {
   const proxyReveal = s.value(0); // sl-frontier-evidence-0
   const mmluGlow = s.value(0); // sl-frontier-evidence-1
   const llamaGrow = s.value(0); // sl-frontier-evidence-2
-  const pulse = s.value(0);
 
   // Act 1: Gopher vs Chinchilla dense compute area blocks
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
@@ -246,7 +245,6 @@ export default function frontierEvidence(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.tokens, ROLE.cap), title, act1Layer, act2Layer, act3Layer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'sl-frontier-evidence-0', (d) => s.play(proxyReveal.to(1, { duration: d })), {
     dur: 0.9,

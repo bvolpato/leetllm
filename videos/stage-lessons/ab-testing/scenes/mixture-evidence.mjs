@@ -16,7 +16,6 @@ import {
   lumBar,
   makePlot,
   mixtureEvidence,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -24,7 +23,6 @@ import {
 const ROWS = mixtureEvidence(); // n = 0..20
 
 export default function mixtureEvidenceScene(s, c) {
-  const phase = s.value(0);
   const step1 = s.value(0); // 0 -> 1 (first success), 2 (then failure)
   const hitA = s.value(0);
   const hitB = s.value(0);
@@ -242,7 +240,6 @@ export default function mixtureEvidenceScene(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'success', step1, 1, { duration: 0.45 });
   tweenCue(s, c, 'first-hit', hitA, 1, { duration: 0.35 });

@@ -12,12 +12,10 @@ import {
   par,
   remainAfter,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function sourceRoute(s, c) {
-  const phase = s.value(0);
   const showRoute = s.value(1);
   const routeStep = s.value(0);
   const showAudit = s.value(0);
@@ -202,7 +200,6 @@ export default function sourceRoute(s, c) {
   });
 
   s.add(bgAura, title, routeView, auditView, benchView);
-  runPhase(s, c, phase, 14);
 
   c.on('fi-source-route-0', () =>
     s.play(routeStep.to(0.2, { duration: remainDuration(c, 'fi-source-route-0', 0.35) })),

@@ -6,18 +6,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function edgeOwnership(s, c) {
-  const phase = s.value(0);
   const askPulse = s.value(0);
   // mode: 0=question, 1=skip(middle=0), 2=bad-sum(4), 3=keep(middle=+3), 4=fixed-sum(7)
   const mode = s.value(0);
@@ -34,13 +31,11 @@ export default function edgeOwnership(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const m = Math.round(mode.value);
     const sb = showBarriers.value;
     const isBug = m === 1 || m === 2;
     const isFixed = m >= 3;
     const trace = isBug ? RIGHT_BUG : RIGHT_SAFE;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8 + askPulse.value * 1.5);
 
     const nodes = [];
 
@@ -68,7 +63,7 @@ export default function edgeOwnership(s, c) {
         glassCell(cx, cy, 264, 126, stroke, {
           fill: t.hero ? (isBug ? '#2e101c' : isFixed ? '#0e2824' : '#262011') : '#0f182d',
           dash: !t.active && !t.hero ? [8, 6] : undefined,
-          glow: t.hero ? 11 * pulse : 4,
+          glow: t.hero ? 11 : 4,
         }),
         txt(`T(${t.ty},${t.tx}) · ${t.out}`, cx, cy - 30, 26, stroke, 'mono'),
         txt(
@@ -112,15 +107,6 @@ export default function edgeOwnership(s, c) {
         opacity: 0.85,
       }),
     );
-    if (isFixed) {
-      const u = (p * 0.7) % 1;
-      nodes.push(
-        glowDot(-286 + u * 646, 65 - u * 51 + Math.sin(u * Math.PI) * 14, {
-          radius: 6.5,
-          color: ROLE.good,
-        }),
-      );
-    }
 
     // Stored C[1,0] output (withheld until bad-sum / fixed-sum cues!)
     const outLabel =
@@ -159,7 +145,6 @@ export default function edgeOwnership(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('edge-question', () =>
     s.play(askPulse.to(1, { duration: remainDuration(c, 'edge-question', 0.45) })),

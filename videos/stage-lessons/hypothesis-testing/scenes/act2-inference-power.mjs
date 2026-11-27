@@ -36,7 +36,6 @@ import {
   guardedDynamic,
   heroTitle,
   jointDifferenceMoments,
-  livingDrift,
   makeAxes,
   markDecor,
   mix,
@@ -73,7 +72,6 @@ export function pValue(s, c) {
   const resP = s.value(0);
   const mirP = s.value(0);
   const retP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.threshold, seed: 6 }));
   s.add(decorAura(180, 20, 560, '#ffd1661c', '#60a5fa12'));
@@ -93,7 +91,6 @@ export function pValue(s, c) {
     const rs = resP.value;
     const mr = mirP.value;
     const rt = retP.value;
-    const ph = drift.value;
     const nodes = [];
 
     const x0 = -760;
@@ -152,14 +149,13 @@ export function pValue(s, c) {
     // Observed boundary laser at k = 8
     const obsX = x0 + 8.5 * step;
     const obsTopY = baseY - (BINOMIAL_13[8] / maxMass) * maxH;
-    const pulse = 1 + 0.08 * Math.sin(ph * Math.PI * 8);
     nodes.push(
       line([obsX, -230], [obsX, obsTopY - 14], {
         stroke: ROLE.threshold,
         width: 3,
         dash: [6, 6],
       }).opacity(0.45 + 0.55 * ob),
-      glowDot(obsX, obsTopY, { radius: 8 * pulse, color: ROLE.threshold, glow: 14 }),
+      glowDot(obsX, obsTopY, { radius: 8, color: ROLE.threshold, glow: 14 }),
       txt('Observed: 8 B wins', obsX, -262, 30, ROLE.threshold, 'mono'),
     );
 
@@ -241,7 +237,6 @@ export function pValue(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'tail-observed', obsP, 1, { dur: 0.65 });
   cueTo(s, c, 'tail-sum', sumP, 1, { dur: 1.1 });
   cueTo(s, c, 'tail-result', resP, 1, { after: true, dur: 0.65 });
@@ -265,7 +260,6 @@ export function nullContract(s, c) {
   const emptyP = s.value(0);
   const v3P = s.value(0);
   const c3P = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.lift, seed: 7 }));
   s.add(decorAura(-420, 40, 480, '#60a5fa1c', '#07091000'));
@@ -284,7 +278,6 @@ export function nullContract(s, c) {
   const view0 = guardedDynamic(
     () => fadeOut(v1P.value),
     (vis) => {
-      const ph = drift.value;
       const ax = makeAxes({
         x0: -700,
         y0: -140,
@@ -316,10 +309,6 @@ export function nullContract(s, c) {
         txt('Alternative:  q > 0.5', 350, -35, 38, ROLE.modelB, 'mono'),
         txt('Exact McNemar / sign test', 350, 32, 26, COSMOS.muted, 'sans'),
       ];
-
-      // Living sample pulse gliding inside null up to boundary
-      const qProbe = 0.25 + 0.25 * (0.5 + 0.5 * Math.sin(ph * Math.PI * 4));
-      nodes.push(glowDot(ax.px(qProbe), 170, { radius: 9, color: ROLE.threshold, glow: 12 }));
 
       nodes.push(
         txt(
@@ -570,7 +559,6 @@ export function nullContract(s, c) {
   );
 
   s.add(headline, view0, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'null-contract-0', c0P, 1, { dur: 0.5 });
   beatTo(s, c, 1, v1P, 1, { dur: 0.72 });
   cueTo(s, c, 'null-contract-1', c1P, 1, { dur: 0.5 });
@@ -597,7 +585,6 @@ export function errorsAndPower(s, c) {
   const pRecP = s.value(0);
   const growP = s.value(0);
   const lrgP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.modelB, seed: 8 }));
   s.add(decorAura(-440, 20, 480, '#60a5fa1a', '#07091000'));
@@ -842,7 +829,6 @@ export function errorsAndPower(s, c) {
   });
 
   s.add(headline, view3d, live);
-  livingDrift(s, c, drift, 1);
   orbitScene(s, c, view3d, { theta: -0.18, phi: 1.08 });
   cueTo(s, c, 'size-cutoff', cutP, 1, { dur: 0.6 });
   cueTo(s, c, 'size-studies', sStudP, 1, { dur: 1.4 });
@@ -867,7 +853,6 @@ export function search(s, c) {
   const v2P = s.value(0);
   const peekP = s.value(0);
   const retP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.danger, seed: 9 }));
   s.add(decorAura(0, 20, 560, '#ff6b8b1c', '#ffd16610'));
@@ -1087,7 +1072,6 @@ export function search(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'search-variants', varP, 1, { dur: 1.1 });
   cueTo(s, c, 'search-risk', riskP, 1, { after: true, dur: 0.65 });
   cueTo(s, c, 'search-budget', budP, 1, { dur: 0.65 });
@@ -1123,7 +1107,6 @@ export function varianceConstruction(s, c) {
   const negP = s.value(0);
   const resetP = s.value(0);
   const matchP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.lift, seed: 10 }));
   s.add(decorAura(-380, 30, 480, '#5ce1e61c', '#07091000'));
@@ -1413,7 +1396,6 @@ export function varianceConstruction(s, c) {
   );
 
   s.add(headline, view0, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'variance-construction-0', c0P, 1, { dur: 0.4 });
   cueTo(s, c, 'variance-product', prodP, 1, { dur: 0.75 });
   cueTo(s, c, 'hyp-variance-covariance', covP, 1, { after: true, dur: 0.65 });

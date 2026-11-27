@@ -11,7 +11,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function readerBeforeRanking(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const docBOn = s.value(0);
   const docCOn = s.value(0);
@@ -43,7 +41,6 @@ export default function readerBeforeRanking(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const filt = filterReady.value > 0.5;
       const b1 = b1On.value > 0.5;
       const emp = emptyOn.value > 0.5;
@@ -130,8 +127,8 @@ export default function readerBeforeRanking(s, c) {
                 [305, 245],
               ],
               ROLE.ok,
-              p,
-              { width: 4.5, glow: 10, photonCount: 2 },
+              0,
+              { width: 4.5, glow: 10 },
             ),
           );
         }
@@ -238,8 +235,6 @@ export default function readerBeforeRanking(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-reader-before-ranking-b0', b0On, 1);
   stepAfter(s, c, 'mt-reader-before-ranking-s0-0', docBOn, 1);
   stepAfter(s, c, 'mt-reader-before-ranking-s0-1', docCOn, 1);

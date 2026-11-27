@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function microbatchBudget(s, c) {
-  const phase = s.value(0);
   // step: 0=m=8 & 131,072 tokens, 1=m=8 highlight, 2=131,072 tokens, 3=bubble formulas, 4=1/9 vs 1/8, 5=1F1B schedule
   const step = s.value(0);
 
@@ -36,7 +33,6 @@ export default function microbatchBudget(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 4) {
@@ -116,9 +112,7 @@ export default function microbatchBudget(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: ROLE.pp }),
       txt(
         'TP and CP copies add zero independent examples; re-time if batch ramp or packing changes work',
         0,
@@ -132,7 +126,6 @@ export default function microbatchBudget(s, c) {
   });
 
   s.add(bgAura, title, ratioTex, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['mg-microbatch-budget-b0', 0],
     ['mg-micro-eight', 1],

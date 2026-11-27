@@ -22,12 +22,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function freshTrial(s, c) {
-  const phase = s.value(0);
   const showEdge = s.value(1);
   const showTrial = s.value(0);
 
@@ -57,12 +55,10 @@ export default function freshTrial(s, c) {
 
   // Beats 0, 1, 2: N=67, block (2,0), cols 64..66 valid (3 × 32 = 96), 256 threads arrive
   const edgeView = guardedDynamic(showEdge, (a) => {
-    const p = phase.value;
     const v96 = val96.value > 0.05;
     const b256 = bar256.value > 0.05;
     const v131 = val131.value > 0.3;
     const i4289 = idx4289.value > 0.3;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.6);
 
     const nodes = [
       txt(
@@ -92,7 +88,7 @@ export default function freshTrial(s, c) {
 
     if (v131) {
       nodes.push(
-        glowDot(-640, -125, { radius: 10, color: ROLE.gold, glow: 14 * pulse, opacity: a }),
+        glowDot(-640, -125, { radius: 10, color: ROLE.gold, glow: 14, opacity: a }),
         txt('A[1, 64] = 131', -405, -120, 28, ROLE.gold, 'mono').glow(6, ROLE.gold).opacity(a),
       );
     }
@@ -149,7 +145,6 @@ export default function freshTrial(s, c) {
 
   // Beats 3, 4, 5: Single-variable experiment design (Baseline | Padding alone | Combined edit)
   const trialView = guardedDynamic(showTrial, (a) => {
-    const p = phase.value;
     const gm = geomShow.value > 0.3;
     const cm = compShow.value > 0.3;
     const s33 = stride33.value > 0.05;
@@ -157,7 +152,6 @@ export default function freshTrial(s, c) {
     const dc = decShow.value > 0.3;
     const nx = nextShow.value > 0.3;
     const out = outroShow.value > 0.3;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.6);
 
     const nodes = [
       txt(
@@ -180,7 +174,7 @@ export default function freshTrial(s, c) {
       glassCell(0, 15, 420, 350, s33 ? ROLE.good : ROLE.gold, {
         fill: s33 ? '#0e2823' : '#241d10',
         dash: s33 ? undefined : [8, 6],
-        glow: nx ? 12 * pulse : 7,
+        glow: nx ? 12 : 7,
         opacity: a,
       }),
       txt(
@@ -260,16 +254,11 @@ export default function freshTrial(s, c) {
       promptCol = ROLE.gold;
     }
 
-    const u = (p * 0.45) % 1;
-    nodes.push(
-      glowDot(-580 + u * 1160, 235, { radius: 6, color: ROLE.good, opacity: 0.75 * a }),
-      txt(prompt, 0, 325, 30, promptCol, 'sans').glow(5, promptCol).opacity(a),
-    );
+    nodes.push(txt(prompt, 0, 325, 30, promptCol, 'sans').glow(5, promptCol).opacity(a));
     return group(...nodes);
   });
 
   s.add(bgAura, title, edgeView, trialView);
-  runPhase(s, c, phase, 18);
 
   c.on('gpu-fresh-trial-premises', () =>
     s.play(premShow.to(1, { duration: remainDuration(c, 'gpu-fresh-trial-premises', 0.45) })),

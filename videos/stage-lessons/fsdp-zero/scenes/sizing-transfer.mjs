@@ -10,19 +10,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function sizingTransfer(s, c) {
-  const phase = s.value(0);
   const show70 = s.value(1);
   const rev16 = s.value(0);
   const rev24 = s.value(0);
@@ -258,19 +255,12 @@ export default function sizingTransfer(s, c) {
       );
     }
 
-    nodes.push(
-      glowDot(-740 + ((phase.value * 0.65) % 1) * 1480, 355, {
-        radius: 6.5,
-        color: s3p ? ROLE.good : COSMOS.gold,
-        opacity: a,
-      }),
-    );
+    nodes.push();
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, view70, view30);
-  runPhase(s, c, phase, 14);
 
   c.after('price-sixteen', () => s.play(rev16.to(1, { duration: 0.4 })));
   c.after('try-twenty-four', () => s.play(rev24.to(1, { duration: 0.4 })));

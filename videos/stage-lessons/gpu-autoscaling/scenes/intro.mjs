@@ -14,7 +14,6 @@ import {
   cinematic3d,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInNodes,
   glowDot,
   guardedDynamic,
@@ -26,7 +25,6 @@ import {
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const pulse = s.value(0);
   const ticketVis = s.value(0);
   const waveStep = s.value(0); // 1=t0(1..5), 2=t10+t20(6..15), 3=t30(16..20, AFTER), 4=t40/expired(AFTER)
   const coldVis = s.value(0);
@@ -111,8 +109,6 @@ export default function intro(s, c) {
     () => 1,
     () => {
       const w = waveStep.value;
-      const p = pulse.value;
-      const blink = 0.68 + 0.32 * Math.sin(p * 5.2);
       const nodes = [
         txt('WARM GPU 1 (5 SLOTS)', 140, -432, 26, ROLE.warm, 'mono'),
         txt(
@@ -154,7 +150,7 @@ export default function intro(s, c) {
         nodes.push(
           txt('PREDICT: Does R21 get a slot by 30 s?', -860, 72, 30, ROLE.predict, 'sans', 'left')
             .glow(8, ROLE.predict)
-            .opacity(askVis.value * blink),
+            .opacity(askVis.value * 1),
         );
       }
 
@@ -193,7 +189,7 @@ export default function intro(s, c) {
             [baseX + 4 * stepX + 180, barY + 75],
           ],
           ROLE.active,
-          p * 0.45,
+          0,
           { width: 3.0, glow: 7, photonCount: 2 },
         ),
       );
@@ -261,7 +257,6 @@ export default function intro(s, c) {
 
   s.add(bgAura, gpuView, header, dyn);
   orbitScene(s, c, gpuView, { theta: -0.22, phi: 0.92 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, pulse, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0
   tweenOn(s, c, 'find-request', ticketVis, 1, 0.3);

@@ -15,7 +15,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowBar,
@@ -36,7 +35,6 @@ const FAMILY_PULSES = Object.freeze([
 ]);
 
 export default function arrivalFamilies(s, c) {
-  const phase = s.value(0);
   const famReveal = s.value(0.25);
   const mode01 = s.value(0); // 0 = CV families, 1 = vLLM rescaling
   const stretchProg = s.value(0); // 0 = 1.69s, 1 = 2.00s
@@ -301,7 +299,6 @@ export default function arrivalFamilies(s, c) {
   );
 
   s.add(stageAura, header, cvEq, view0, view1, view2);
-  driftValue(s, c, phase, 8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('arrival-families-beat-0', () => {
     const t = c.cue('arrival-families-beat-0').start;

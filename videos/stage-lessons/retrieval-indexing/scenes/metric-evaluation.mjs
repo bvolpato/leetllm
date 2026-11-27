@@ -10,12 +10,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function metricEvaluation(s, c) {
-  const phase = s.value(0);
   const showCut2 = s.value(0);
   const showAsk = s.value(0);
   const showRecall = s.value(0);
@@ -36,14 +34,12 @@ export default function metricEvaluation(s, c) {
   const ndcgStats = computeNdcg([3, 1, 2]);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const s2 = showCut2.value;
     const sa = showAsk.value;
     const sr = showRecall.value;
     const sm3 = showMrr3.value;
     const sm2 = showMrr2.value;
     const sn = showNdcg.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const kNow = sm3 > 0.4 && sm2 < 0.5 ? 3 : 2;
 
@@ -95,7 +91,7 @@ export default function metricEvaluation(s, c) {
       nodes.push(
         glassCell(-445, y, 810, 92, row.col, {
           fill: '#10182d',
-          glow: sr > 0.3 && i === 0 ? 8 * pulse : 3,
+          glow: sr > 0.3 && i === 0 ? 8 : 3,
         }),
         txt(row.q, -820, y - 16, 26, COSMOS.ink, 'mono', 'left'),
         txt(`need: ${row.need}  |  ${row.ranks}`, -820, y + 18, 26, COSMOS.muted, 'sans', 'left'),
@@ -135,7 +131,7 @@ export default function metricEvaluation(s, c) {
 
       glassCell(495, 42, 750, 128, sm3 > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10203a',
-        glow: sm3 > 0.3 ? 8 * pulse : 2,
+        glow: sm3 > 0.3 ? 8 : 2,
       }),
       txt('MEAN RECIPROCAL RANK (MRR)', 150, 10, 26, COSMOS.cyan, 'mono', 'left'),
       txt(
@@ -159,7 +155,7 @@ export default function metricEvaluation(s, c) {
 
       glassCell(495, 208, 750, 146, sn > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: sn > 0.3 ? '#231e10' : '#12182b',
-        glow: sn > 0.3 ? 9 * pulse : 2,
+        glow: sn > 0.3 ? 9 : 2,
       }),
       txt('GRADED NDCG@3 (grades [3, 1, 2])', 150, 168, 26, COSMOS.gold, 'mono', 'left'),
       txt('gain = 2^g - 1 -> [7, 1, 3]  /  log2(rank+1)', 150, 206, 26, COSMOS.ink, 'mono', 'left'),
@@ -195,7 +191,6 @@ export default function metricEvaluation(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('metric-two', () => s.play(showCut2.to(1, { duration: 0.4 })));
   c.on('metric-ask', () => s.play(showAsk.to(1, { duration: 0.4 })));

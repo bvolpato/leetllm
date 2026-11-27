@@ -5,7 +5,6 @@ import {
   aura,
   circle,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -13,13 +12,11 @@ import {
   rect,
   remainBeatDuration,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
 
 export default function inferenceContract(s, c) {
-  const phase = s.value(0);
   const showRanks = s.value(1);
   const showClock = s.value(0);
 
@@ -112,11 +109,6 @@ export default function inferenceContract(s, c) {
 
     nodes.push(
       txt(foot, 0, 275, 28, pRound.value > 0.5 ? ROLE.warn : COSMOS.ink, 'sans').opacity(a),
-      glowDot(x0 + ((phase.value * 0.55) % 1) * totalW, 350, {
-        radius: 6,
-        color: ROLE.gpu1,
-        opacity: a,
-      }),
     );
 
     return group(...nodes);
@@ -202,18 +194,12 @@ export default function inferenceContract(s, c) {
         COSMOS.muted,
         'sans',
       ).opacity(a),
-      glowDot(xs[0] + ((phase.value * 0.5) % 1) * (xs[2] - xs[0]), 360, {
-        radius: 6,
-        color: COSMOS.gold,
-        opacity: a,
-      }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, ranksView, clockView);
-  runPhase(s, c, phase, 14);
 
   c.on('mp-inference-contract-0', () =>
     s.play(pRank.to(1, { duration: remainDuration(c, 'mp-inference-contract-0', 0.4) })),

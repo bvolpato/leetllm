@@ -15,14 +15,12 @@ import {
   heroTitle,
   lumBar,
   makePlot,
-  runAmbientPhase,
   tweenCue,
   txt,
   xy,
 } from '../parts.mjs';
 
 export default function initialization(s, c) {
-  const phase = s.value(0);
   const showBad = s.value(0);
   const showCounts = s.value(0);
   const showEmpty = s.value(0);
@@ -226,7 +224,6 @@ export default function initialization(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'bad', showBad, 1, { duration: 0.5 });
   tweenCue(s, c, 'counts', showCounts, 1, { duration: 0.45 });

@@ -6,17 +6,14 @@ import {
   artifactLines,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function artifacts(s, c) {
-  const phase = s.value(0);
   const ptxStep = s.value(0); // 1=load-x, 2=load-y, 3=add, 4=store
   const virtFocus = s.value(0);
   const nativeStep = s.value(0); // 1=open, 2=R4&R7, 3=R9, 4=store
@@ -40,11 +37,9 @@ export default function artifacts(s, c) {
   const vals = [String(LANE_1.x), String(LANE_1.y), String(LANE_1.sum), `out[1] = ${LANE_1.sum}`];
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const ps = ptxStep.value;
     const vf = virtFocus.value;
     const ns = nativeStep.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('CUDA SOURCE', -615, -205, 28, ROLE.host, 'mono'),
@@ -80,7 +75,7 @@ export default function artifacts(s, c) {
       nodes.push(
         glassCell(-45, y, 560, 86, ptxStroke, {
           fill: ptxOn ? '#211c11' : '#0b101e',
-          glow: ptxOn ? (vf > 0.5 ? 10 * pulse : 6) : 0,
+          glow: ptxOn ? (vf > 0.5 ? 10 : 6) : 0,
         }),
         txt(
           ptxOn ? artifactLines.ptx[i] : '...',
@@ -124,9 +119,7 @@ export default function artifacts(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-820 + u * 1640, 342, { radius: 6.5, color: ns >= 3.5 ? ROLE.cubin : ROLE.ptx }),
       txt(
         ns >= 3.5
           ? 'Physical R4 (0.25) + R7 (-2) → R9 (-1.75) → out[1]'
@@ -145,7 +138,6 @@ export default function artifacts(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('load-x', () => s.play(ptxStep.to(1, { duration: remainDuration(c, 'load-x', 0.35) })));
   c.on('load-y', () => s.play(ptxStep.to(2, { duration: remainDuration(c, 'load-y', 0.35) })));

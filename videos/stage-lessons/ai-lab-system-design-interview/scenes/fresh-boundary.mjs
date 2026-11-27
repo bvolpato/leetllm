@@ -12,14 +12,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function freshBoundary(s, c) {
-  const phase = s.value(0);
   const capRev = s.value(0); // STRICT after sd-fresh-capacity!
   const aclRev = s.value(0); // STRICT after sd-fresh-acl!
   const relRev = s.value(0); // STRICT after sd-fresh-release!
@@ -40,7 +37,6 @@ export default function freshBoundary(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const cp = capRev.value;
       const ac = aclRev.value;
       const rl = relRev.value;
@@ -200,22 +196,11 @@ export default function freshBoundary(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.6);
-
   c.after('sd-fresh-capacity', () => {
     s.play(capRev.to(1, { duration: clampDur(c, c.cue('sd-fresh-capacity').end, 0.35) }));
   });

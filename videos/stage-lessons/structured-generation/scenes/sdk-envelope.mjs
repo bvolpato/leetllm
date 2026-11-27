@@ -14,7 +14,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fsmNode,
@@ -25,7 +24,6 @@ import {
 } from '../parts.mjs';
 
 export default function sdkEnvelope(s, c) {
-  const pulse = s.value(0);
   const act = s.value(0); // 0 = wire placement, 1 = 3-gate envelope, 2 = reasoning budget
   const b0Hi = s.value(0);
   const respHi = s.value(0);
@@ -47,7 +45,6 @@ export default function sdkEnvelope(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(Math.min(1, act.value)),
     (a) => {
-      const p = pulse.value;
       const b0 = b0Hi.value;
       const rs = respHi.value;
       const cl = claudeHi.value;
@@ -72,7 +69,7 @@ export default function sdkEnvelope(s, c) {
         beamWithPhotons(
           quadArcPts([-78, -95], [-430, 80], -35),
           rs > 0.3 ? ROLE.fsm : ROLE.schema,
-          p * 1.1,
+          0,
           {
             alpha: a * (0.45 + 0.55 * Math.max(b0, rs)),
             width: 3.4,
@@ -107,7 +104,7 @@ export default function sdkEnvelope(s, c) {
         beamWithPhotons(
           quadArcPts([78, -95], [430, 80], -35),
           cl > 0.3 ? ROLE.prefix : ROLE.schema,
-          p * 1.1 + 0.5,
+          0,
           {
             alpha: a * (0.45 + 0.55 * Math.max(b0, cl)),
             width: 3.4,
@@ -149,7 +146,6 @@ export default function sdkEnvelope(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(Math.min(1, act.value)) * fadeOutHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
       const g1 = gateComp.value;
       const g2 = gateRef.value;
       const g3 = gateParsed.value;
@@ -212,7 +208,7 @@ export default function sdkEnvelope(s, c) {
             beamWithPhotons(
               quadArcPts([g.x + 92, -30], [gates[idx + 1].x - 92, -30], -22),
               lit ? g.col : '#2a3960',
-              p * 1.1 + idx * 0.4,
+              0,
               {
                 alpha: a * (lit ? 0.95 : 0.35),
                 width: 3.4,
@@ -249,7 +245,6 @@ export default function sdkEnvelope(s, c) {
   const act2 = guardedDynamic(
     () => fadeInHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
       const b2 = b2Hi.value;
       const nodes = [];
 
@@ -300,7 +295,7 @@ export default function sdkEnvelope(s, c) {
           a,
         ),
 
-        beamWithPhotons(quadArcPts([428, yBar], [600, yBar], -20), ROLE.legal, p * 1.1, {
+        beamWithPhotons(quadArcPts([428, yBar], [600, yBar], -20), ROLE.legal, 0, {
           alpha: a,
           width: 3.6,
         }),
@@ -337,7 +332,6 @@ export default function sdkEnvelope(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-sdk-envelope-0', () => {
     s.play(b0Hi.to(1, { duration: clampDur(c, c.cue('sg-sdk-envelope-0').start, 0.35) }));

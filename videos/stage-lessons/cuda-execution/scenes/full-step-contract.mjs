@@ -11,12 +11,10 @@ import {
   rect,
   remainDuration,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function fullStepContract(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1); // Beat 0: Full step checks + Adam moments allocation
   const checkProg = s.value(0);
   const adamLit = s.value(0);
@@ -314,7 +312,6 @@ export default function fullStepContract(s, c) {
   });
 
   s.add(bgAura, title, part1, part2, part3);
-  runPhase(s, c, phase, 14);
 
   c.on('full-step-checks', () => s.play(checkProg.to(1, { duration: 1.0 })));
   c.on('full-step-moments', () => s.play(adamLit.to(1, { duration: 0.55 })));

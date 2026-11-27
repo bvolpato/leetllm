@@ -14,7 +14,6 @@ import {
   glowTex,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   metricReadout,
   mix,
   queuePackets,
@@ -32,7 +31,6 @@ export function intro(s, c) {
   const keepP = s.value(0);
   const cleanP = s.value(0);
   const riskP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.clean, seed: 1 }));
   s.add(decorAura(-440, 20, 440, '#ff6b8b26', '#161b3400'));
@@ -52,7 +50,6 @@ export function intro(s, c) {
     const k = keepP.value;
     const cl = cleanP.value;
     const rk = riskP.value;
-    const ph = drift.value;
 
     const nodes = [];
 
@@ -85,8 +82,7 @@ export function intro(s, c) {
           circle(9, { fill: null, stroke: ROLE.abuse, width: 2.2 }).at(gx, dropY).opacity(op),
         );
       } else {
-        const pulse = 1 + 0.12 * Math.sin(ph * Math.PI * 10 + i * 0.35);
-        const r = (9.5 + k * 1.5) * pulse;
+        const r = 9.5 + k * 1.5;
         nodes.push(
           dot(r, ROLE.abuse)
             .at(gx, gy)
@@ -180,7 +176,6 @@ export function intro(s, c) {
   });
 
   s.add(headline, visual);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'opening-misses', missesP, 1, { dur: 0.75 });
   cueTo(s, c, 'opening-keep', keepP, 1, { dur: 0.55 });
   cueTo(s, c, 'opening-clean', cleanP, 1, { dur: 1.0 });
@@ -194,7 +189,6 @@ export function intro(s, c) {
 export function population(s, c) {
   const buildP = s.value(0);
   const priorP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.clean, seed: 2 }));
   s.add(decorAura(-320, 10, 500, '#5ce1e61f', '#07091000'));
@@ -211,7 +205,6 @@ export function population(s, c) {
   const mosaic = dynamic(() => {
     const b = buildP.value;
     const pr = priorP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // 10x10 glowing tiles, each tile = 100 signups
@@ -224,7 +217,7 @@ export function population(s, c) {
       const cx = x0 + col * pitch;
       const cy = y0 + row * pitch;
       if (i === 0) {
-        const glowAmt = 8 + 4 * Math.sin(ph * Math.PI * 8);
+        const glowAmt = 10;
         nodes.push(
           rect(62, 62, { fill: ROLE.abuse, stroke: '#ffd6df', width: 2.2, radius: 10 })
             .at(cx, cy)
@@ -305,7 +298,6 @@ export function population(s, c) {
   });
 
   s.add(headline, mosaic);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'population-build', buildP, 1, { dur: 1.3 });
   cueTo(s, c, 'population-prior', priorP, 1, { after: true, dur: 0.65 });
 }
@@ -319,7 +311,6 @@ export function indicator(s, c) {
   const sqP = s.value(0);
   const wtP = s.value(0);
   const varP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.posterior, seed: 3 }));
   s.add(decorAura(0, 60, 560, '#ffd1661c', '#5ce1e60e'));
@@ -338,7 +329,6 @@ export function indicator(s, c) {
     const sq = sqP.value;
     const wt = wtP.value;
     const vr = varP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Number line from Y = 0 to Y = 1
@@ -346,14 +336,13 @@ export function indicator(s, c) {
     const x1 = 680;
     const axisY = -30;
     const xMean = mix(x0, x1, 0.01);
-    const pulse = 1 + 0.1 * Math.sin(ph * Math.PI * 8);
 
     nodes.push(
       line([x0, axisY], [x1, axisY], { stroke: '#4a5f8e', width: 3.5 }),
-      glowDot(x0, axisY, { radius: 22 * pulse, color: ROLE.clean, glow: 14 }),
+      glowDot(x0, axisY, { radius: 22, color: ROLE.clean, glow: 14 }),
       txt('Y = 0', x0 - 28, axisY - 56, 34, ROLE.clean, 'mono', 'right'),
       txt('99% clean', x0, axisY + 62, 28, ROLE.clean, 'sans'),
-      glowDot(x1, axisY, { radius: 13 * pulse, color: ROLE.abuse, glow: 14 }),
+      glowDot(x1, axisY, { radius: 13, color: ROLE.abuse, glow: 14 }),
       txt('Y = 1', x1, axisY - 68, 34, ROLE.abuse, 'mono'),
       txt('1% abusive', x1, axisY + 62, 28, ROLE.abuse, 'sans'),
     );
@@ -468,7 +457,6 @@ export function indicator(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'indicator-mean', meanP, 1, { dur: 0.7 });
   cueTo(s, c, 'variance-squares', sqP, 1, { dur: 0.75 });
   cueTo(s, c, 'variance-weights', wtP, 1, { dur: 0.75 });
@@ -485,7 +473,6 @@ export function filter(s, c) {
   const abuseP = s.value(0);
   const cleanP = s.value(0);
   const totalP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.clean, seed: 4 }));
   s.add(decorAura(-440, -140, 420, '#ff6b8b22', '#07091000'));
@@ -506,7 +493,6 @@ export function filter(s, c) {
     const ab = abuseP.value;
     const cl = cleanP.value;
     const tot = totalP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Top source fountains
@@ -532,27 +518,17 @@ export function filter(s, c) {
       );
     }
 
-    // Flowing photon connectors (terminate cleanly above the ribbon title)
+    // Source-to-ribbon connectors (terminate cleanly above the ribbon title)
     if (ar > 0.05 || ab > 0.05) {
-      const tFlow = (ph * 6) % 1;
       nodes.push(
         arrow([leftX, srcY + 92], [-660, 86], { stroke: ROLE.abuse, width: 3 }).opacity(
           Math.max(ar, ab),
         ),
-        glowDot(mix(leftX, -660, tFlow), mix(srcY + 92, 86, tFlow), {
-          radius: 7,
-          color: ROLE.abuse,
-        }).opacity(ab),
       );
     }
     if (cl > 0.05) {
-      const tFlow = (ph * 7) % 1;
       nodes.push(
         arrow([rightX, srcY + 92], [180, 86], { stroke: ROLE.clean, width: 3 }).opacity(cl),
-        glowDot(mix(rightX, 180, tFlow), mix(srcY + 92, 86, tFlow), {
-          radius: 7,
-          color: ROLE.clean,
-        }).opacity(cl),
       );
     }
 
@@ -652,7 +628,6 @@ export function filter(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'filter-rates', ratesP, 1, { dur: 0.65 });
   cueTo(s, c, 'queue-arrivals', arrivalsP, 1, { dur: 0.6 });
   cueTo(s, c, 'queue-abuse-arrivals', abuseP, 1, { dur: 0.95 });
@@ -668,7 +643,6 @@ export function conditional(s, c) {
   const selectP = s.value(0);
   const resultP = s.value(0);
   const reverseP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.posterior, seed: 5 }));
   s.add(decorAura(-220, 20, 520, '#ffd1661c', '#ff6b8b14'));
@@ -686,7 +660,6 @@ export function conditional(s, c) {
     const sel = selectP.value;
     const res = resultP.value;
     const rev = reverseP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // 2x2 cohort tiles: [Abusive/Flagged=95, Clean/Flagged=495, Abusive/Passed=5, Clean/Passed=9405]
@@ -709,8 +682,6 @@ export function conditional(s, c) {
     const cpOp = Math.max(0.12, 1 - sel * 0.88);
     const cpDy = sel * 75;
 
-    const pulse = 1 + 0.08 * Math.sin(ph * Math.PI * 8);
-
     // Column & row headers (floating, no box)
     nodes.push(
       txt('ABUSIVE (100)', cxL, cyT - 135, 26, ROLE.abuse, 'mono'),
@@ -723,7 +694,7 @@ export function conditional(s, c) {
     nodes.push(
       rect(w, h, { fill: '#2a1222', stroke: ROLE.abuse, width: 3.4, radius: 16 })
         .at(cxL, cyT)
-        .glow(10 * pulse, ROLE.abuse),
+        .glow(10, ROLE.abuse),
       txt('95', cxL, cyT - 18, 64, ROLE.abuse, 'mono'),
       txt('Abusive & Flagged', cxL, cyT + 48, 26, COSMOS.ink, 'sans'),
     );
@@ -823,7 +794,6 @@ export function conditional(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'select-flagged', selectP, 1, { dur: 0.85 });
   cueTo(s, c, 'conditional-result', resultP, 1, { after: true, dur: 0.65 });
   cueTo(s, c, 'reverse-condition', reverseP, 1, { dur: 0.95 });
@@ -836,7 +806,6 @@ export function conditional(s, c) {
 export function bayes(s, c) {
   const cancelP = s.value(0);
   const bayesP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.posterior, seed: 6 }));
   s.add(decorAura(0, -10, 580, '#ffd1661c', '#a78bfa16'));
@@ -853,7 +822,6 @@ export function bayes(s, c) {
   const live = dynamic(() => {
     const cn = cancelP.value;
     const by = bayesP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Top-right live count proportions
@@ -912,7 +880,7 @@ export function bayes(s, c) {
     // Stage 2: Full Bayes' Rule
     const v2 = fadeIn(by);
     if (v2 > 0.02) {
-      const glowAmt = 8 + 4 * Math.sin(ph * Math.PI * 6);
+      const glowAmt = 10;
       nodes.push(
         group(
           glowTex(
@@ -934,7 +902,6 @@ export function bayes(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'joint-to-conditional', cancelP, 1, { dur: 0.8 });
   cueTo(s, c, 'bayes-rule', bayesP, 1, { dur: 0.95 });
 }

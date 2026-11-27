@@ -10,13 +10,11 @@ import {
   heroTitle,
   line,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function launchEvent(s, c) {
-  const phase = s.value(0);
   const step = s.value(0);
 
   const bgAura = aura(0, 20, 620, '#ffd1661c', '#6ee7b718');
@@ -31,7 +29,6 @@ export default function launchEvent(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const mx = (ms) => -560 + ms * 120;
 
     const nodes = [
@@ -83,13 +80,10 @@ export default function launchEvent(s, c) {
       txt('Reader ALWAYS waits on event AFTER writes (9 ms)', 430, 218, 26, ROLE.good, 'mono'),
     );
 
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-760 + u * 1520, 305, { radius: 6, color: ROLE.good }));
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-launch-event-b0-s0', 0],
     ['nc-launch-event-b0-s1', 1],

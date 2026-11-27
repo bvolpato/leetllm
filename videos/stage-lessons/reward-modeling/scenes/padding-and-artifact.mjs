@@ -10,7 +10,6 @@ import {
   PAD_STATES,
   aura,
   circle,
-  glowDot,
   glowTex,
   glowingArc,
   group,
@@ -18,13 +17,11 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   tokenCell,
   txt,
 } from '../parts.mjs';
 
 export default function paddingAndArtifact(s, c) {
-  const phase = s.value(0);
   const selOn = s.value(0.35);
   const vecMatched = s.value(0);
   const scoreOn = s.value(0);
@@ -48,7 +45,6 @@ export default function paddingAndArtifact(s, c) {
   );
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sl = selOn.value;
     const vm = vecMatched.value;
     const sc = scoreOn.value;
@@ -184,20 +180,10 @@ export default function paddingAndArtifact(s, c) {
       ),
     );
 
-    // Moving photon cleanly between index 2 and pooled hub (never overlaps any box)
-    const u = (p * 0.55) % 1;
-    nodes.push(
-      glowDot(colX[2] + 122 + u * (hubX - 112 - (colX[2] + 122)), leftY + u * (hubY + 24 - leftY), {
-        radius: 5.5,
-        color: COSMOS.emerald,
-      }),
-    );
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, eqBias, live);
-  runPhase(s, c, phase, 14);
 
   c.on('padding-select', () => s.play(selOn.to(1, { duration: 0.4 })));
   c.on('padding-and-artifact-step-1', () => s.play(vecMatched.to(1, { duration: 0.45 })));

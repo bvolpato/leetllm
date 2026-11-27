@@ -14,7 +14,6 @@ import {
   clampDur,
   coldEvaluationMicro,
   coldNightExtraMicro,
-  driftValue,
   evaluationMicro,
   fadeInHalf,
   fadeOutHalf,
@@ -277,7 +276,6 @@ export default function nightlyReceipt(s, c) {
   );
 
   s.add(sceneAura, header, mode0, mode1);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('reprice-prefix', () => {
     const t = c.cue('reprice-prefix').start;

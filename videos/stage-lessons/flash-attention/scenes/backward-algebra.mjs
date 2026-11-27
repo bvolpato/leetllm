@@ -14,7 +14,6 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -169,7 +168,6 @@ export default function backwardAlgebra(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('gradient-question', () => s.play(phase.to(2, { duration: 0.35 })));
   c.on('raise-score', () => {

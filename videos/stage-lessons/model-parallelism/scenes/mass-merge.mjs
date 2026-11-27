@@ -7,7 +7,6 @@ import {
   aura,
   fmtNum,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
@@ -16,12 +15,10 @@ import {
   remainAfterDuration,
   remainBeatDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function massMerge(s, c) {
-  const phase = s.value(0);
   const pTwo = s.value(0);
   const pOne = s.value(0);
   const pShift = s.value(0);
@@ -184,13 +181,11 @@ export default function massMerge(s, c) {
     nodes.push(
       glassCell(0, 325, 1560, 82, footCol, { fill: '#10182b', glow: 8 }),
       txt(foot, 0, 325, 28, footCol, 'mono'),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, { radius: 6, color: COSMOS.gold }),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('two-keys', () => s.play(pTwo.to(1, { duration: remainDuration(c, 'two-keys', 0.4) })));
   c.on('one-key', () => s.play(pOne.to(1, { duration: remainDuration(c, 'one-key', 0.4) })));

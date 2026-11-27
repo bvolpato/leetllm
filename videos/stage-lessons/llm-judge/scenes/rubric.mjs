@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   policy,
   quadArcPts,
@@ -39,7 +38,7 @@ export default function rubric(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const po = policyOn.value;
       const fa = factsOn.value;
       const lv = levelsOn.value;
@@ -187,7 +186,6 @@ export default function rubric(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 3.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('policy-actions', () => {
     s.play(policyOn.to(1, { duration: clampDur(c, c.cue('policy-actions').start, 0.4) }));

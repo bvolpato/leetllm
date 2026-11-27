@@ -6,17 +6,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function pipeline(s, c) {
-  const phase = s.value(0);
   const beatIdx = s.value(0);
 
   const bgAura = aura(0, 20, 640, '#a78bfa1e', '#5ce1e618');
@@ -30,7 +27,6 @@ export default function pipeline(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const bi = Math.round(beatIdx.value);
     const ticks = PIPE_1F1B.ticks; // 22
     const cellW = 58;
@@ -87,15 +83,12 @@ export default function pipeline(s, c) {
       }),
       txt('8 STAGES, 32 MICROBATCHES BUBBLE', 430, 186, 26, COSMOS.gold, 'mono'),
       txt('Bubble 7/32 (21.9%) · Idle 7/39 (18.0%)', 430, 246, 26, COSMOS.gold, 'mono'),
-
-      glowDot(x0 + ((p * 0.55) % 1) * (ticks * cellW), 348, { radius: 6, color: ROLE.grads }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   c.onBeat(1, () => s.play(beatIdx.to(1, { duration: 0.4 })));
   c.onBeat(2, () => s.play(beatIdx.to(2, { duration: 0.4 })));
 }

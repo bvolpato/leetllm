@@ -12,7 +12,6 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -156,7 +155,6 @@ export default function populationGroup(s, c) {
   });
 
   s.add(bgAura, title, live, eqStd);
-  runPhase(s, c, phase, 14);
 
   c.on('vr-population-group-b0', () => s.play(phase.to(1.5, { duration: 0.4 })));
   c.on('vr-sum-population-group', () => s.play(sSum.to(1, { duration: 0.45 })));

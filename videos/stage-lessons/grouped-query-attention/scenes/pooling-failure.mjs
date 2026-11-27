@@ -16,7 +16,6 @@ import {
   range,
   rect,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -25,8 +24,6 @@ export default function poolingFailure(s, c) {
   const coords = [1, 3, 3, 5];
   const pooledMean = meanVisible(coords); // 3
   const model = chapterModel(c.id); // oldOutput ~8.808, pooledOutput = 5
-
-  const phase = s.value(0);
   const vMean = s.value(1); // View 1: 4 stems converging to mean 3
   const vOpp = s.value(0); // View 2: Opposing heads cancelling + uptraining recovery
 
@@ -338,7 +335,6 @@ export default function poolingFailure(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.key), title, poolEq, view1, view2);
-  runPhase(s, c, phase, 16);
 
   playCue(s, c, 'samples', (d) => s.play(showSamples.to(1, { duration: d })), { dur: 0.4 });
   playCue(s, c, 'pool', (d) => s.play(poolProg.to(1, { duration: d })), { after: true, dur: 0.7 });

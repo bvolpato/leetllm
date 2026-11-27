@@ -17,7 +17,6 @@ import {
   l2,
   lumBar,
   playCue,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -25,7 +24,6 @@ import { cinemaVectorPlane, guideVectors } from '../guide-plot.mjs';
 
 export default function magnitude(s, c) {
   const scale = s.value(1);
-  const phase = s.value(0);
   const vScaleBadge = s.value(1);
   const vAsk = s.value(0);
   const vGap = s.value(0);
@@ -59,8 +57,6 @@ export default function magnitude(s, c) {
     const curDot = dotProd(QUERY, curA);
     const curCos = cosine(QUERY, curA);
     const curL2 = l2(QUERY, curA);
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.2);
 
     const railL = -335;
     const railR = 315;
@@ -83,7 +79,7 @@ export default function magnitude(s, c) {
         color: ROLE.A,
         fillAlpha: 0.45,
         strokeWidth: 2,
-        glow: 8 * pulse,
+        glow: 8,
         radius: 6,
       }),
       // Tick marks 0, B=4, 10
@@ -99,7 +95,7 @@ export default function magnitude(s, c) {
         ];
       }),
       // Moving green A marker
-      glowDot(axPos, railY, { radius: 10, color: ROLE.A, glow: 13 * pulse }),
+      glowDot(axPos, railY, { radius: 10, color: ROLE.A, glow: 13 }),
       txt(`A = ${curDot.toFixed(1)}`, axPos, railY - 38, 30, ROLE.A, 'mono').glow(6, ROLE.A),
     ];
 
@@ -147,8 +143,6 @@ export default function magnitude(s, c) {
     scaleBadge,
     askBadge,
   );
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'ask', (d) => s.play(swapVis(vScaleBadge, vAsk, d)), { dur: 0.55 });
   playCue(s, c, 'four', (d) => s.play(vAsk.to(0, { duration: d })), { dur: 0.28 });

@@ -13,7 +13,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowMeter,
   guardedDynamic,
   matches,
@@ -50,7 +49,7 @@ export default function coverage(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const un = unresOn.value;
       const rv = revOn.value;
       const rs = resOn.value;
@@ -267,7 +266,6 @@ export default function coverage(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('all-attempts', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('all-attempts').start, 0.25) }));

@@ -11,14 +11,11 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function permissions(s, c) {
-  const phase = s.value(0);
   const finStop = s.value(0); // STRICT after permission-finance!
   const delStop = s.value(0); // STRICT after permission-deleted!
   const allowPass = s.value(0); // STRICT after permission-allow!
@@ -41,7 +38,6 @@ export default function permissions(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const fn = finStop.value;
       const dl = delStop.value;
       const al = allowPass.value;
@@ -104,8 +100,8 @@ export default function permissions(s, c) {
                 [310, y],
               ],
               ROLE.ok,
-              p,
-              { width: 4.2, photonCount: 2 },
+              0,
+              { width: 4.2 },
             ),
             txt(ELIGIBLE_DOCS[0].id, 330, y, 26, ROLE.ok, 'mono', 'left').glow(8, ROLE.ok),
           );
@@ -160,22 +156,11 @@ export default function permissions(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.after('permission-finance', () => {
     s.play(finStop.to(1, { duration: clampDur(c, c.cue('permission-finance').end, 0.35) }));
   });

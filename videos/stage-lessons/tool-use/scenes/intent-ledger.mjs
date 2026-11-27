@@ -13,7 +13,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -45,7 +44,7 @@ export default function intentLedger(s, c) {
   const mainAct = guardedDynamic(
     () => fadeOutHalf(durableMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const ls = lostOn.value;
       const rp = replayOn.value;
       const oe = oneEffOn.value;
@@ -154,7 +153,7 @@ export default function intentLedger(s, c) {
   const durableAct = guardedDynamic(
     () => fadeInHalf(durableMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const nodes = [];
 
       nodes.push(
@@ -219,7 +218,6 @@ export default function intentLedger(s, c) {
   );
 
   s.add(stageAura, header, mainAct, durableAct);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-intent-ledger-1', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('tu-intent-ledger-1').start, 0.25) }));

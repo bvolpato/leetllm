@@ -9,8 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   sysNode,
   trimSeg,
@@ -18,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function decisionRehearsal(s, c) {
-  const phase = s.value(0);
   const splitOn = s.value(0); // STRICT after rehearsal-split!
   const clockOn = s.value(0);
   const lookupOn = s.value(0);
@@ -40,7 +37,6 @@ export default function decisionRehearsal(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const sp = splitOn.value;
       const cl = clockOn.value;
       const lk = lookupOn.value;
@@ -61,8 +57,8 @@ export default function decisionRehearsal(s, c) {
         const [ea1, ea2] = trimSeg(qPt, aPt, nQ.r + 14, nA.r + 14);
         const [eb1, eb2] = trimSeg(qPt, bPt, nQ.r + 14, nB.r + 14);
         nodes.push(
-          beamWithPhotons([ea1, ea2], ROLE.req, p, { width: 3.6, photonCount: 1 }),
-          beamWithPhotons([eb1, eb2], ROLE.policy, p + 0.5, { width: 3.6, photonCount: 1 }),
+          beamWithPhotons([ea1, ea2], ROLE.req, 0, { width: 3.6 }),
+          beamWithPhotons([eb1, eb2], ROLE.policy, 0, { width: 3.6 }),
           nQ.node,
           nA.node,
           nB.node,
@@ -78,8 +74,8 @@ export default function decisionRehearsal(s, c) {
         const [ea1, ea2] = trimSeg(fPt, qaPt, nF.r + 14, nQa.r + 14);
         const [eb1, eb2] = trimSeg(fPt, qbPt, nF.r + 14, nQb.r + 14);
         nodes.push(
-          beamWithPhotons([ea1, ea2], ROLE.worker, p, { width: 3.6, photonCount: 1 }),
-          beamWithPhotons([eb1, eb2], ROLE.ok, p + 0.5, { width: 4, photonCount: 2 }),
+          beamWithPhotons([ea1, ea2], ROLE.worker, 0, { width: 3.6 }),
+          beamWithPhotons([eb1, eb2], ROLE.ok, 0, { width: 4 }),
           nF.node,
           nQa.node,
           nQb.node,
@@ -150,12 +146,6 @@ export default function decisionRehearsal(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.req,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -163,8 +153,6 @@ export default function decisionRehearsal(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.after('rehearsal-split', () => {
     s.play(splitOn.to(1, { duration: clampDur(c, c.cue('rehearsal-split').end, 0.4) }));
   });

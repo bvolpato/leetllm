@@ -13,7 +13,6 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   sampleCurve,
   stablePairLoss,
   tokenCell,
@@ -21,7 +20,6 @@ import {
 } from '../parts.mjs';
 
 export default function lengthMarginCounterexample(s, c) {
-  const phase = s.value(0);
   const weightB = s.value(0); // sweeps 0 -> 3 -> 6
   const showFormula = s.value(0.45);
   const showHeldout = s.value(0);
@@ -185,7 +183,6 @@ export default function lengthMarginCounterexample(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('length-margin-counterexample-step-1', () => s.play(showFormula.to(1, { duration: 0.4 })));
   c.on('length-losses', () => s.play(weightB.to(6, { duration: 1.5 })));

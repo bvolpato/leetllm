@@ -15,7 +15,6 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   silhouette,
   tweenCue,
   txt,
@@ -29,7 +28,6 @@ const SIL_K3 = xy.map((_, i) => silhouette(xy, K3.labels, i));
 const SIL_K4 = xy.map((_, i) => silhouette(xy, K4.labels, i));
 
 export default function silhouetteLedger(s, c) {
-  const phase = s.value(0);
   const showOwn = s.value(0);
   const showOther = s.value(0);
   const showScore = s.value(0);
@@ -201,7 +199,6 @@ export default function silhouetteLedger(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'own', showOwn, 1, { duration: 0.4 });
   tweenCue(s, c, 'other', showOther, 1, { duration: 0.4 });

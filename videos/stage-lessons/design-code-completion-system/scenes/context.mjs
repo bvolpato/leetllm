@@ -9,14 +9,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function context(s, c) {
-  const phase = s.value(0);
   const snipOn = s.value(0);
 
   const header = cinemaHeader(
@@ -36,7 +33,6 @@ export default function context(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const sn = snipOn.value;
       const nodes = [];
 
@@ -127,12 +123,6 @@ export default function context(s, c) {
           'sans',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.focus,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -140,8 +130,6 @@ export default function context(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('context-additional-snippet', () => {
     s.play(snipOn.to(1, { duration: clampDur(c, c.cue('context-additional-snippet').start, 0.4) }));
   });

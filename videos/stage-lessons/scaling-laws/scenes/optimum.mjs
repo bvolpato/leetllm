@@ -23,7 +23,6 @@ import {
   playCue,
   plotPlane,
   sampleCurve,
-  scenePulse,
 } from '../parts.mjs';
 
 const PLANS = [
@@ -45,7 +44,6 @@ export default function optimumScene(s, c) {
   const hideForQuiz = s.value(0); // 1 during coefficient shift & 3s hold, back to 0 after optimum-tall
   const revealSecond = s.value(0); // AFTER optimum-tall
   const shiftBack = s.value(0); // optimum-shift: N slides 10 -> 5
-  const pulse = s.value(0);
 
   const stageLayer = guardedDynamic(s.value(1), (alpha) => {
     const nodes = [];
@@ -222,7 +220,6 @@ export default function optimumScene(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.optimal, ROLE.params), title, stageLayer, eq);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'optimum-square', (d) => s.play(revealFirst.to(1, { duration: d })), {
     after: true,

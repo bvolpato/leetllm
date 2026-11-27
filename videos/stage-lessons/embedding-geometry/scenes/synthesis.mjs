@@ -18,7 +18,6 @@ import {
   orbitScene,
   playCue,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -35,7 +34,6 @@ export default function synthesis(s, c) {
     return { id: g.id, name: g.name, color: g.color, cos, gap2: l2(qUp, u) ** 2 };
   });
 
-  const phase = s.value(0);
   const angle = s.value(0);
   const mix = s.value(0);
   const extent = s.value(5.6);
@@ -342,8 +340,6 @@ export default function synthesis(s, c) {
     rawPanel,
     unitPanel,
   );
-
-  runPhase(s, c, phase, 10);
 
   playCue(
     s,

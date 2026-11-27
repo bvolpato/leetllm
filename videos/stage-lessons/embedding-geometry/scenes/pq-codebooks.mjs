@@ -14,7 +14,6 @@ import {
   heroTitle,
   lumBar,
   playCue,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -22,7 +21,6 @@ export default function pqCodebooks(s, c) {
   const books = PQ_PAIRS.map((pair) => [[0, 0], pair]);
   const slotCols = [ROLE.code, ROLE.A, ROLE.B, ROLE.violet];
 
-  const phase = s.value(0);
   const splitMix = s.value(0);
   const bookOpen = s.value(0);
   const activeBook = s.value(0); // 0..3
@@ -39,8 +37,6 @@ export default function pqCodebooks(s, c) {
   });
 
   const stageLayer = dynamic(() => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const sp = splitMix.value;
     const bo = bookOpen.value;
     const idx = Math.max(0, Math.min(3, Math.round(activeBook.value)));
@@ -73,7 +69,7 @@ export default function pqCodebooks(s, c) {
             color: col,
             fillAlpha: isCur ? 0.26 : 0.12,
             strokeWidth: isCur ? 3.2 : 1.8,
-            glow: isCur ? 11 * pulse : 4,
+            glow: isCur ? 11 : 4,
             opacity: sp,
           }),
         );
@@ -122,7 +118,7 @@ export default function pqCodebooks(s, c) {
         line(c0Pt, c1Pt, { stroke: '#4d608e', width: 2, dash: [6, 6] }).opacity(0.65 * bo),
         glowRing(c1Pt[0], c1Pt[1], matched ? 24 : 16, matched ? ROLE.gold : ROLE.A, {
           width: matched ? 3.6 : 2.6,
-          glow: matched ? 12 * pulse : 8,
+          glow: matched ? 12 : 8,
           opacity: bo,
         }),
         glowDot(c1Pt[0], c1Pt[1], {
@@ -162,7 +158,7 @@ export default function pqCodebooks(s, c) {
         color: matched ? ROLE.gold : ROLE.A,
         fillAlpha: matched ? 0.24 : 0.14,
         strokeWidth: matched ? 3.2 : 2.2,
-        glow: matched ? 12 * pulse : 6,
+        glow: matched ? 12 : 6,
       }),
       txt('ID 1', bx + 165, -2, 34, matched ? ROLE.gold : ROLE.A, 'mono'),
       line([bx + 55, 38], [bx + 275, 38], { stroke: '#2c3d63', width: 1.8 }),
@@ -188,7 +184,7 @@ export default function pqCodebooks(s, c) {
           color: hasId ? ROLE.gold : '#3c507c',
           fillAlpha: hasId ? 0.24 : 0.1,
           strokeWidth: hasId ? 2.8 : 2,
-          glow: hasId ? 9 * pulse : 3,
+          glow: hasId ? 9 : 3,
         }),
       );
       if (hasId) {
@@ -225,8 +221,6 @@ export default function pqCodebooks(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.code, ROLE.gold), title, stageLayer);
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'split', (d) => s.play(splitMix.to(1, { duration: d })), { dur: 0.65 });
   playCue(s, c, 'nearest', (d) => s.play(bookOpen.to(1, { duration: d })), { dur: 0.6 });

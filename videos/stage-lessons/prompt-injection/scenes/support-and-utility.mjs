@@ -16,7 +16,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -234,7 +233,6 @@ export default function supportAndUtility(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('report-counts', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('report-counts').start, 0.25) }));

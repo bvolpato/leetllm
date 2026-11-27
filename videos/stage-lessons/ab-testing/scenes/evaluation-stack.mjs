@@ -12,13 +12,11 @@ import {
   guardedDynamic,
   heroTitle,
   lumBar,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function evaluationStack(s, c) {
-  const phase = s.value(0);
   const showHuman = s.value(0);
   const showJudge = s.value(0);
   const showAsk = s.value(0);
@@ -209,7 +207,6 @@ export default function evaluationStack(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'human', showHuman, 1, { duration: 0.45 });
   tweenCue(s, c, 'judge', showJudge, 1, { duration: 0.45 });

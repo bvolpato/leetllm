@@ -12,14 +12,12 @@ import {
   buildSpanRibbonNodes,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   quoteReceipt,
   txt,
 } from '../parts.mjs';
 
 export default function exactSpan(s, c) {
-  const pulse = s.value(0);
   const originOn = s.value(0);
   const shortenProg = s.value(0);
   const askOn = s.value(0);
@@ -110,8 +108,6 @@ export default function exactSpan(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('span-origin', () => {
     s.play(originOn.to(1, { duration: clampDur(c, c.cue('span-origin').start, 0.3) }));
   });

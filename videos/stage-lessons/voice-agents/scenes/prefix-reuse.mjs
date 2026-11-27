@@ -2,20 +2,9 @@
 // Prompt block layout (Policy + Tools + Committed History + Dynamic State) contrasting
 // implicit full-request cache miss (Req A -> Req B) vs explicit breakpoint reuse!
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function prefixReuse(s, c) {
-  const phase = s.value(0);
   const dynamicOn = s.value(0);
   const missOn = s.value(0);
   const breakOn = s.value(0);
@@ -33,7 +22,6 @@ export default function prefixReuse(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const dn = dynamicOn.value;
       const ms = missOn.value;
       const br = breakOn.value;
@@ -150,12 +138,6 @@ export default function prefixReuse(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -163,8 +145,6 @@ export default function prefixReuse(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('va-prefix-reuse-0-2', () => {
     s.play(dynamicOn.to(1, { duration: clampDur(c, c.cue('va-prefix-reuse-0-2').start, 0.35) }));
   });

@@ -15,7 +15,6 @@ import {
   line,
   number,
   remainDuration,
-  runPhase,
   traceBeaconNodes,
   tracePolylineNodes,
   txt,
@@ -26,7 +25,6 @@ const ODD_OFFSET = ODD_SCORES[4]; // 5
 const FINAL_TOTAL = ODD_SCORES[7]; // 13
 
 export default function freshOddRow(s, c) {
-  const phase = s.value(0);
   const localAsk = s.value(0);
   const showOffsetFive = s.value(0);
   const showLiftedB = s.value(0);
@@ -246,7 +244,6 @@ export default function freshOddRow(s, c) {
   });
 
   s.add(bgAura, live);
-  runPhase(s, c, phase, 14);
 
   c.on('fresh-ask', () => s.play(localAsk.to(1, { duration: 0.65 })));
   c.after('fresh-offset-five', () => s.play(showOffsetFive.to(1, { duration: 0.4 })));

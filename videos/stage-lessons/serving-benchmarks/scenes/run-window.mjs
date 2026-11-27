@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function runWindow(s, c) {
-  const phase = s.value(0);
   const phaseLit = s.value(0.3);
   const cohortLit = s.value(0);
   const horizonLit = s.value(0);
@@ -155,7 +153,6 @@ export default function runWindow(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, phase, 7, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('run-window-beat-0', () => {
     const t = c.cue('run-window-beat-0').start;

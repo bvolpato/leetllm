@@ -10,12 +10,10 @@ import {
   guardedDynamic,
   heroTitle,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function transfer(s, c) {
-  const phase = s.value(0);
   const tailNeutral = s.value(0);
   const askPred = s.value(0);
   const showSums = s.value(0);
@@ -185,7 +183,6 @@ export default function transfer(s, c) {
   });
 
   s.add(bgAura, title, live, eqPending);
-  runPhase(s, c, phase, 14);
 
   c.on('final-tail', () => s.play(tailNeutral.to(1, { duration: 0.55 })));
   c.on('final-predict', () => s.play(askPred.to(1, { duration: 0.35 })));

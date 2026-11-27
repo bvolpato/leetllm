@@ -9,12 +9,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function checkedParent(s, c) {
-  const phase = s.value(0);
   const modeVal = s.value(0); // 0=ok(20w), 1=stale(v2), 2=denied, 3=small(10w), 4=restored
 
   const bgAura = aura(0, 10, 680, '#12335e26', '#2e1a4e16');
@@ -51,9 +49,7 @@ export default function checkedParent(s, c) {
   ];
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const m = Math.round(modeVal.value);
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt(
@@ -74,7 +70,7 @@ export default function checkedParent(s, c) {
       nodes.push(
         glassCell(0, y, 1680, 92, col, {
           fill: active ? (item.col === COSMOS.emerald ? '#0e2824' : '#28111a') : '#101629',
-          glow: active ? 10 * pulse : 2,
+          glow: active ? 10 : 2,
         }),
         txt(item.label, -815, y - 14, 26, active ? item.col : COSMOS.ink, 'mono', 'left'),
         txt(
@@ -107,7 +103,6 @@ export default function checkedParent(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('checked-parent-0', () => s.play(modeVal.to(0, { duration: 0.35 })));
   c.on('parent-dedup', () => s.play(modeVal.to(0, { duration: 0.35 })));

@@ -10,7 +10,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   glowTex,
   guardedDynamic,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function maskSchedule(s, c) {
-  const pulse = s.value(0);
   const mode = s.value(0); // 0 = serial (12 ms), 1 = overlap fast mask (9 ms), 2 = overlap slow mask (11 ms)
   const clockMs = s.value(0);
   const sampleShow = s.value(0);
@@ -165,7 +163,6 @@ export default function maskSchedule(s, c) {
   );
 
   s.add(stageAura, header, overlapEq, stageView);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-mask-schedule-0', () => {
     s.play(clockMs.to(8, { duration: clampDur(c, c.cue('sg-mask-schedule-0').start, 1.2) }));

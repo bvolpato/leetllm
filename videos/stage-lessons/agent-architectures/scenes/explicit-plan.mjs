@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   quadArcPts,
@@ -39,7 +38,7 @@ export default function explicitPlan(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const hi = hoursIn.value;
       const ar = artRouteOn.value;
       const mm = mismatchReveal.value;
@@ -156,7 +155,6 @@ export default function explicitPlan(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('plan-hours', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('plan-hours').start, 0.25) }));

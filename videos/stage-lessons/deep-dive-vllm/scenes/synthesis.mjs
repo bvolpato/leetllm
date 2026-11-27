@@ -5,11 +5,9 @@ import {
   SYNTHESIS_DURATIONS,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
@@ -23,7 +21,6 @@ const PHASES = [
 const TOTAL_MS = 150;
 
 export default function synthesis(s, c) {
-  const phase = s.value(0);
   // clockStage: 0..4 additive fill of [Input, Queue, Prefill, Deliver]
   const clockStage = s.value(0);
   // step:
@@ -47,7 +44,6 @@ export default function synthesis(s, c) {
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
     const clk = Math.round(clockStage.value);
-    const p = phase.value;
     const rulerLeft = -830;
     const rulerW = 1660;
     const xOf = (ms) => rulerLeft + (ms / TOTAL_MS) * rulerW;
@@ -181,16 +177,11 @@ export default function synthesis(s, c) {
             ? 'Opening the 80 ms queue reveals R1 waited for 1 more KV block at 20 ms'
             : 'Follow the longest interval on R1’s arrival-to-first-token clock';
 
-    const u = (p * 0.65) % 1;
-    nodes.push(
-      glowDot(-780 + u * 1560, 336, { radius: 6, color: st >= 4 ? ROLE.kv : COSMOS.gold }),
-      txt(caption, 0, 388, 26, st === 1 ? COSMOS.gold : COSMOS.ink, 'sans'),
-    );
+    nodes.push(txt(caption, 0, 388, 26, st === 1 ? COSMOS.gold : COSMOS.ink, 'sans'));
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   c.on('synthesis-input', () => s.play(clockStage.to(1, { duration: 0.2 })));
   c.on('synthesis-queue', () => s.play(clockStage.to(2, { duration: 0.2 })));
   c.on('synthesis-prefill', () => s.play(clockStage.to(3, { duration: 0.2 })));

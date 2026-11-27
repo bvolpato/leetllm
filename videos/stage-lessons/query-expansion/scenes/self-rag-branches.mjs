@@ -13,13 +13,11 @@ import {
   meterBar,
   rect,
   remainDuration,
-  runPhase,
   supportScore,
   txt,
 } from '../parts.mjs';
 
 export default function selfRagBranches(s, c) {
-  const phase = s.value(0);
   const showNorm = s.value(0);
   const showDenom = s.value(0);
   const showHalf = s.value(0);
@@ -47,7 +45,6 @@ export default function selfRagBranches(s, c) {
   const supVal = supportScore(SUPPORT_PIECES);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sDen = showDenom.value;
     const sHalf = showHalf.value;
     const sZero = showZero.value;
@@ -58,7 +55,6 @@ export default function selfRagBranches(s, c) {
     const sB = showTotalB.value;
     const sWin = showWinner.value;
     const sLim = showLimits.value;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const branchMode = sBr > 0.5;
     const winner = sWin > 0.5;
@@ -67,7 +63,7 @@ export default function selfRagBranches(s, c) {
       // Persistent source E1 quote bar
       glassCell(0, -214, 1710, 68, winner ? COSMOS.emerald : COSMOS.cyan, {
         fill: winner ? '#0d2624' : '#10203a',
-        glow: winner ? 8 * pulse : 4,
+        glow: winner ? 8 : 4,
       }),
       txt('SOURCE E1:', -832, -212, 26, COSMOS.cyan, 'mono', 'left'),
       txt(
@@ -140,7 +136,7 @@ export default function selfRagBranches(s, c) {
 
         glassCell(445, 194, 820, 152, hasSup ? COSMOS.emerald : COSMOS.gold, {
           fill: hasSup ? '#0d2723' : '#10182d',
-          glow: hasSup ? 10 * pulse : 3,
+          glow: hasSup ? 10 : 3,
         }),
         txt('NORMALIZED SUPPORT SCORE', 65, 152, 26, COSMOS.gold, 'mono', 'left'),
         txt(
@@ -200,7 +196,7 @@ export default function selfRagBranches(s, c) {
       nodes.push(
         glassCell(0, y, 1710, 162, border, {
           fill: isWin ? '#0d2723' : idx === 1 && winner ? '#28131d' : '#10182d',
-          glow: isWin ? 10 * pulse : 3,
+          glow: isWin ? 10 : 3,
         }),
         txt(
           `Branch ${row.id}`,
@@ -269,7 +265,6 @@ export default function selfRagBranches(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('reflection-normalization', () => s.play(showNorm.to(1, { duration: 0.4 })));
   c.on('support-denominator', () => s.play(showDenom.to(1, { duration: 0.4 })));

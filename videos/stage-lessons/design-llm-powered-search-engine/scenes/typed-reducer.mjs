@@ -8,14 +8,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   strictPublication,
   txt,
 } from '../parts.mjs';
 
 export default function typedReducer(s, c) {
-  const pulse = s.value(0);
   const typeRuleOn = s.value(0);
   const invalidProg = s.value(0);
   const beat1On = s.value(0);
@@ -151,8 +149,6 @@ export default function typedReducer(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-typed-reducer-0', () => {
     s.play(typeRuleOn.to(1, { duration: clampDur(c, c.cue('se-typed-reducer-0').start, 0.3) }));
   });

@@ -9,12 +9,10 @@ import {
   COSMOS,
   ROLE,
   actorOrb,
-  ambientClock,
   cinemaAtmosphere,
   glowArcArrow,
   glowArrow,
   glowCross,
-  glowDot,
   glowPill,
   guardedDynamic,
   hexAlpha,
@@ -33,7 +31,6 @@ const PARENTS = [
 export default function claimFailure(s, c) {
   const title = sceneHeading(['What may a crawler', 'worker publish?'], { accent: ROLE.focus });
 
-  const amb = ambientClock(s, c);
   const viewMode = s.value(0); // 0=early race, 1=buffered replay, 2=stop event, 3=retry policy
 
   // Stage 0 (early claim)
@@ -51,7 +48,6 @@ export default function claimFailure(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const mode = Math.round(viewMode.value);
       const nodes = [];
 
@@ -88,7 +84,7 @@ export default function claimFailure(s, c) {
               'center',
             )
               .glow(7, ROLE.focus)
-              .opacity(alpha * (0.82 + 0.18 * pulse)),
+              .opacity(alpha),
           );
         } else if (es >= 7) {
           nodes.push(
@@ -262,12 +258,10 @@ export default function claimFailure(s, c) {
           glowArcArrow([activeX - 118, activeY + 45], [waitX - 118, waitY - 45], 0, {
             color: ROLE.warn,
             alpha: isWait ? alpha : 0.45 * alpha,
-            photonT: isWait ? (amb.value * 4) % 1 : null,
           }),
           glowArcArrow([waitX + 118, waitY - 45], [activeX + 118, activeY + 45], 0, {
             color: ROLE.workerB,
             alpha: rs >= 2 ? alpha : 0.45 * alpha,
-            photonT: rs === 2 ? (amb.value * 4) % 1 : null,
           }),
           glowArrow(activeX + 125, activeY - 15, okX - 115, okY + 15, ROLE.ok, {
             width: 3.5,

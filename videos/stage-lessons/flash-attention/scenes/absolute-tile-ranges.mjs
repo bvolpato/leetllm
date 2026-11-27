@@ -11,14 +11,12 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 const UNEQUAL_CLASS = causalTileClass(128, 255, 128, 191);
 
 export default function absoluteTileRanges(s, c) {
-  const phase = s.value(0);
   const showCounts = s.value(0);
   const showFrac = s.value(0);
   const showUnequal = s.value(0);
@@ -44,7 +42,6 @@ export default function absoluteTileRanges(s, c) {
   );
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sc = showCounts.value;
     const sf = showFrac.value;
     const su = showUnequal.value;
@@ -133,7 +130,6 @@ export default function absoluteTileRanges(s, c) {
     const qx1 = mapPos(256);
     const kx0 = mapPos(128);
     const kx1 = mapPos(192);
-    const pulse = 0.72 + 0.28 * Math.sin(p * 4);
 
     nodes.push(
       rect(qx1 - qx0, 56, { fill: '#282112', stroke: COSMOS.gold, width: 2.6, radius: 8 })
@@ -145,7 +141,7 @@ export default function absoluteTileRanges(s, c) {
       ),
       rect(kx1 - kx0, 56, { fill: '#0f2836', stroke: COSMOS.cyan, width: 2.6, radius: 8 })
         .at((kx0 + kx1) * 0.5, axisY + 108)
-        .glow(8 * pulse, COSMOS.cyan)
+        .glow(8, COSMOS.cyan)
         .opacity(Math.max(0.35, su)),
       txt('K2: 128–191', (kx0 + kx1) * 0.5, axisY + 108, 26, COSMOS.cyan, 'mono').opacity(
         Math.max(0.35, su),
@@ -171,7 +167,6 @@ export default function absoluteTileRanges(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 12);
 
   c.on('absolute-tile-ranges-beat-1', () => s.play(showCounts.to(0.6, { duration: 0.35 })));
   c.on('fa-tile-count', () => s.play(showCounts.to(1, { duration: 0.4 })));

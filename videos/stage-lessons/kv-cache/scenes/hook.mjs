@@ -20,7 +20,6 @@ import {
   hideNodes,
   memCell,
   orbitScene,
-  quadArcPoint,
   quadArcPts,
   txt,
 } from '../parts.mjs';
@@ -276,11 +275,9 @@ export default function hook(s, c) {
             'left',
           ).opacity(mA),
         );
-        // Subtle glowing photon connecting left readout toward 3D crystal
+        // Static anchor dot connecting left readout toward 3D crystal
         const arcPts = quadArcPts([-345, 170], [-140, 120], -28, 16);
-        const pt = quadArcPoint([-345, 170], [-140, 120], -28, phase.value % 1);
         nodes.push(
-          glowDot(pt[0], pt[1], { radius: 5.5, color: ROLE.fresh, glow: 10, opacity: mA }),
           glowDot(arcPts[0][0], arcPts[0][1], {
             radius: 4,
             color: ROLE.value,

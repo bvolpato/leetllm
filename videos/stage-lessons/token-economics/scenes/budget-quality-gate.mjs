@@ -13,7 +13,6 @@ import {
   clampDur,
   coldNightExtraMicro,
   dashedRule,
-  driftValue,
   evaluationMicro,
   guardedDynamic,
   monthlyMicro,
@@ -220,7 +219,6 @@ export default function budgetQualityGate(s, c) {
   );
 
   s.add(sceneAura, header, stageCanvas);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('grow-support', () => {
     const t = c.cue('grow-support').start;

@@ -7,7 +7,6 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -15,12 +14,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function contextBudget(s, c) {
-  const phase = s.value(0);
   const p0 = s.value(0);
   const pTrain = s.value(0);
   const p1 = s.value(0);
@@ -158,17 +155,12 @@ export default function contextBudget(s, c) {
         glow: 8,
       }),
       txt(foot, 0, 330, 26, fail ? ROLE.bad : COSMOS.ink, 'sans'),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: fail ? ROLE.bad : ROLE.gpu1,
-      }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('mp-context-budget-0', () =>
     s.play(p0.to(1, { duration: remainDuration(c, 'mp-context-budget-0', 0.35) })),

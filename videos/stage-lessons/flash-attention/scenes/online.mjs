@@ -7,14 +7,12 @@ import {
   VALUES,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -24,7 +22,6 @@ const V_FIX = W_FIX * VALUES[0]; // 3.679
 const V_THIS = W_THIS * VALUES[1]; // 20.0
 
 export default function online(s, c) {
-  const phase = s.value(0);
   const showRef = s.value(0);
   const showWFix = s.value(0);
   const showWThis = s.value(0);
@@ -53,7 +50,6 @@ export default function online(s, c) {
   const vScale = trackMaxW / 54; // fits 23.68 and later 48.71
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sr = showRef.value;
     const wf = showWFix.value;
     const wt = showWThis.value;
@@ -209,18 +205,6 @@ export default function online(s, c) {
       ).glow(6, COSMOS.emerald),
     );
 
-    // Ambient moving energy sparks on active tracks
-    if (curW > 0.1) {
-      const u = (p * 0.6) % 1;
-      nodes.push(
-        glowDot(trackX0 + u * (wFixPx + wThisPx), -182, { radius: 4.5, color: '#ffffff' }),
-      );
-    }
-    if (curV > 1) {
-      const u = (p * 0.6 + 0.5) % 1;
-      nodes.push(glowDot(trackX0 + u * (vFixPx + vThisPx), 112, { radius: 4.5, color: '#ffffff' }));
-    }
-
     // Tile 1 average readout -> Prediction prompt on beat 3
     if (avg > 0.02) {
       const promptActive = ask > 0.5;
@@ -246,7 +230,6 @@ export default function online(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('tile-reference', () => s.play(showRef.to(1, { duration: 0.4 })));
   c.on('first-weight', () => s.play(showWFix.to(1, { duration: 0.4 })));

@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function expertCapacity(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 0=2 assignments/token, 1=capacity drop preserves token, 2=hot expert queue, 3=grouped GEMM / no over-sharding
 
   const bgAura = aura(0, 15, 620, '#f59e0b1a', '#fb718518');
@@ -30,7 +27,6 @@ export default function expertCapacity(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     const totalTok = typeof EXP_CAP.tokens === 'number' ? EXP_CAP.tokens : 8;
@@ -81,9 +77,7 @@ export default function expertCapacity(s, c) {
       txt('2nd expert / resid.', 685, 92, 26, COSMOS.muted, 'sans'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 225, { radius: 6, color: ROLE.ep }),
       txt(
         st >= 2
           ? 'A hot expert forms a queue even when total tokens (8) and assignments (16) stay fixed'
@@ -107,7 +101,6 @@ export default function expertCapacity(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
   wireStepCues(s, c, step, [
     ['mg-expert-capacity-b0', 0],
     ['mg-drop-assignment', 1],

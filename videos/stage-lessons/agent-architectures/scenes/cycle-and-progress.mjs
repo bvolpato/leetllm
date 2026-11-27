@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   periodicWithoutProgress,
@@ -43,7 +42,7 @@ export default function cycleAndProgress(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const tr = traceOn.value;
       const st = stillOn.value;
       const fl = flagOn.value;
@@ -173,7 +172,6 @@ export default function cycleAndProgress(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('cycle-space', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('cycle-space').start, 0.25) }));

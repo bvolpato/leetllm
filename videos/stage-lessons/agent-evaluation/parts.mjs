@@ -410,45 +410,23 @@ export function quadArcPts(a, b, liftY = -80, steps = 28) {
   return pts;
 }
 
-/** Glowing beam with traveling photon dots along a point path. */
-export function beamWithPhotons(
-  pts,
-  color,
-  phaseVal,
-  { width = 3.4, glow = 9, photonCount = 2, alpha = 1 } = {},
-) {
-  const nodes = [glowingTrail(pts, { color, width, glow, opacity: 0.9 * alpha })];
-  if (photonCount > 0) {
-    const last = pts.length - 1;
-    for (let i = 0; i < photonCount; i++) {
-      const u = ((((phaseVal ?? 0) + i / photonCount) % 1) + 1) % 1;
-      const idx = u * last;
-      const k = Math.min(last - 1, Math.floor(idx));
-      const f = idx - k;
-      const px = pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f;
-      const py = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f;
-      nodes.push(glowDot(px, py, { radius: 5.2, color: '#ffffff', glow: 11, opacity: alpha }));
-    }
-  }
-  return group(...nodes);
+/** Glowing beam along a point path. */
+export function beamWithPhotons(pts, color, _phaseVal, { width = 3.4, glow = 9, alpha = 1 } = {}) {
+  return glowingTrail(pts, { color, width, glow, opacity: 0.9 * alpha });
 }
 
-/** Glowing straight segment with traveling photon dot (never crosses trimmed nodes). */
+/** Glowing straight segment (never crosses trimmed nodes). */
 export function segmentWithPhoton(
   a,
   b,
   color,
-  phaseVal,
-  { width = 3.2, glow = 8, alpha = 1, dash = null, photon = true } = {},
+  _phaseVal,
+  { width = 3.2, glow = 8, alpha = 1, dash = null } = {},
 ) {
   const segOpts = { stroke: color, width, ...(dash ? { dash } : {}) };
   const seg = line(a, b, segOpts).opacity(0.9 * alpha);
   if (glow > 0) seg.glow(glow, color);
-  if (!photon) return seg;
-  const u = (((phaseVal ?? 0) % 1) + 1) % 1;
-  const px = a[0] + (b[0] - a[0]) * u;
-  const py = a[1] + (b[1] - a[1]) * u;
-  return group(seg, glowDot(px, py, { radius: 5, color: '#ffffff', glow: 10, opacity: alpha }));
+  return seg;
 }
 
 /** Vertical optical rail accent without any rectangular card box. */

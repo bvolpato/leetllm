@@ -12,9 +12,7 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
-  glowDot,
   guardedDynamic,
   hexGate,
   quadArcPts,
@@ -41,7 +39,7 @@ export default function promptVsCapability(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const dh = devHi.value;
       const eh = evHi.value;
       const fo = followOn.value;
@@ -168,7 +166,6 @@ export default function promptVsCapability(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('prompt-vs-capability-beat-1-focus-1', () => {
     s.play(

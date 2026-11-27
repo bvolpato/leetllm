@@ -45,7 +45,6 @@ export default function opening(s, c) {
   const soupD4 = TOKENS.d4.filter((t) => t === 'soup').length;
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sc = showCount.value;
     const sa = showAsk.value;
     const sm = showMenuWin.value;
@@ -53,7 +52,6 @@ export default function opening(s, c) {
     const sq = showMatchQ.value;
     const sn = showNeither.value;
     const sj = showJudged.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const lx = -390;
     const nodes = [
@@ -71,7 +69,7 @@ export default function opening(s, c) {
       // Page d1 (Recipe)
       glassCell(lx, -100, 920, 108, sj > 0.4 ? COSMOS.emerald : COSMOS.cyan, {
         fill: sj > 0.4 ? '#0d2624' : '#101d35',
-        glow: sc > 0.4 || sj > 0.4 ? 8 * pulse : 3,
+        glow: sc > 0.4 || sj > 0.4 ? 8 : 3,
       }),
       txt('d1 · RECIPE', -825, -124, 26, COSMOS.emerald, 'mono', 'left'),
       txt(
@@ -96,7 +94,7 @@ export default function opening(s, c) {
       // Page d4 (Lunch menu)
       glassCell(lx, 42, 920, 108, sm > 0.4 ? COSMOS.amber : COSMOS.muted, {
         fill: sm > 0.4 ? '#281d10' : '#12182b',
-        glow: sm > 0.4 ? 9 * pulse : 3,
+        glow: sm > 0.4 ? 9 : 3,
       }),
       txt('d4 · LUNCH MENU', -825, 18, 26, COSMOS.amber, 'mono', 'left'),
       txt(
@@ -127,7 +125,7 @@ export default function opening(s, c) {
         sj > 0.4 ? COSMOS.emerald : sn > 0.4 ? COSMOS.rose : COSMOS.muted,
         {
           fill: sj > 0.4 ? '#0d2624' : sn > 0.4 ? '#28111a' : '#12182b',
-          glow: sp > 0.4 ? 8 * pulse : 2,
+          glow: sp > 0.4 ? 8 : 2,
           opacity: Math.max(0.74, sp),
         },
       ),

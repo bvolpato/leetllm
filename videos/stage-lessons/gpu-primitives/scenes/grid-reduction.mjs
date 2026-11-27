@@ -5,9 +5,7 @@ import {
   aura,
   box3d,
   cinematic3d,
-  evalArc2d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -73,9 +71,7 @@ export default function gridReduction(s, c) {
 
   // Beat 0: 3-pass shrinking pyramid
   const passesView = guardedDynamic(showPasses, (a) => {
-    const p = phase.value;
     const q = [1, pass1.value, pass2.value, pass3.value];
-    const u = (p * 0.85) % 1;
     const xs = [-645, -215, 215, 645];
     const widths = [320, 290, 260, 240];
     const heights = [180, 146, 118, 102];
@@ -127,7 +123,6 @@ export default function gridReduction(s, c) {
             core: false,
           }),
           txt('÷ 512', (x1 + x2) * 0.5, -24, 26, COSMOS.gold, 'mono').opacity(vis * a),
-          glowDot(x1 + u * (x2 - x1), 30, { radius: 6, color: COSMOS.gold, opacity: vis * a }),
         );
       }
     });
@@ -213,10 +208,8 @@ export default function gridReduction(s, c) {
 
   // Beat 2: Atomic accumulation contention funnel
   const atomicsView = guardedDynamic(showAtomics, (a) => {
-    const p = phase.value;
     const ct = atomicContend.value;
     const xs = [-630, -210, 210, 630];
-    const u = (p * 0.95) % 1;
 
     const nodes = [
       heroTitle(['Global Atomics:', 'Single-Address Funnel'], {
@@ -238,15 +231,6 @@ export default function gridReduction(s, c) {
           width: 4,
           opacity: 0.85 * a,
           core: false,
-        }),
-      );
-      const t = (u + i * 0.23) % 1;
-      const [px, py] = evalArc2d([cx, -92], [0, 138], 55, t);
-      nodes.push(
-        glowDot(px, py, {
-          radius: 8,
-          color: ct > 0.5 ? COSMOS.rose : COSMOS.gold,
-          opacity: a,
         }),
       );
     });

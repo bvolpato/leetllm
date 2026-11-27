@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -39,7 +38,7 @@ export default function reflexionFeedback(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const fp = falsePassOn.value;
       const rr = revRejectOn.value;
       const sl = storeLessonOn.value;
@@ -163,7 +162,6 @@ export default function reflexionFeedback(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-reflexion-feedback-0', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('aa-reflexion-feedback-0').start, 0.25) }));

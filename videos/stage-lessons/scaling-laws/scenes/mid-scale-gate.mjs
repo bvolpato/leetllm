@@ -4,7 +4,7 @@
 // Right (Beat 2): Separate hardware throughput gauge (useful tokens / GPU-s & MFU) keeping
 //   loss diagnosis cleanly separated from cluster efficiency.
 import { line } from 'vizmatic/stage';
-import { COSMOS, glowDot, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
+import { COSMOS, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
 import {
   ROLE,
   cinemaAtmosphere,
@@ -171,12 +171,6 @@ export default function midScaleGate(s, c) {
       txt('without changing loss at step T', rx, 178, 26, ROLE.optimal, 'sans', 'left').opacity(
         rightA,
       ),
-      glowDot(rx + ((p * 2.2) % 1) * gaugeW, -70, {
-        radius: 5.5,
-        color: ROLE.compute,
-        glow: 10,
-        opacity: rightA,
-      }),
     );
 
     return nodes;

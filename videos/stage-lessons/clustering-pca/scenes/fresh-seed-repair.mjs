@@ -14,7 +14,6 @@ import {
   heroTitle,
   makePlot,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -27,7 +26,6 @@ const RECT_PTS = [
 ];
 
 export default function freshSeedRepair(s, c) {
-  const phase = s.value(0);
   const stretch = s.value(0); // 0 = 2x2 square, 1 = 8x2 rectangle
   const showSeeds = s.value(0);
   const showAssign = s.value(0);
@@ -208,7 +206,6 @@ export default function freshSeedRepair(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'stretch', stretch, 1, { duration: 0.85 });
   tweenCue(s, c, 'seeds', showSeeds, 1, { duration: 0.45 });

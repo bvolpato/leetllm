@@ -11,13 +11,11 @@ import {
   rect,
   remainDuration,
   residentResources,
-  runPhase,
   tileReuse,
   txt,
 } from '../parts.mjs';
 
 export default function occupancyResources(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1); // Beats 0 & 1: 64-warp SM grid (8 -> 32 -> 16 warps)
   const block1Prog = s.value(0);
   const fill4Prog = s.value(0);
@@ -240,7 +238,6 @@ export default function occupancyResources(s, c) {
   });
 
   s.add(bgAura, title, part1, part2);
-  runPhase(s, c, phase, 14);
 
   c.on('occupancy-block', () => s.play(block1Prog.to(1, { duration: 0.7 })));
   c.on('occupancy-four', () => s.play(fill4Prog.to(1, { duration: 0.75 })));

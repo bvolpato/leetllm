@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   glowDot,
   glowTex,
   glowingTrail,
@@ -24,7 +23,6 @@ import {
 } from '../parts.mjs';
 
 export default function rateAndConcurrency(s, c) {
-  const phase = s.value(0);
   const sweepT = s.value(0); // 0 -> 3000 ms across beat 0
   const showLittle = s.value(0); // beat 1
   const showCounters = s.value(0); // beat 2
@@ -185,7 +183,6 @@ export default function rateAndConcurrency(s, c) {
   );
 
   s.add(stageAura, header, cascadeView);
-  driftValue(s, c, phase, 7, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('rate-and-concurrency-beat-1-focus-1', () => {
     const t = c.cue('rate-and-concurrency-beat-1-focus-1').start;

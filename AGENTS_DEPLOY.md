@@ -67,6 +67,10 @@ Do not submit a bare clean or detached production worktree when generated conten
 - `--rebuild`: Force a clean container build and dependency refresh.
 - `--with-sandbox`: Also rebuild and deploy the isolated `leetllm-sandbox` Cloud Run service before deploying the web app.
 - `--with-codex`: Also rebuild and deploy the isolated `leetllm-codex` Cloud Run service before deploying the web app.
+- `--render-videos`: Render missing or stale stage lesson MP4s, captions, and bloom posters via `scripts/render-publish-videos.mjs` before deploying.
+- `--publish-videos`: Upload verified lesson MP4s, captions, and posters to Cloudflare R2 (`videos.leetllm.com`), update `web/src/generated/lesson-videos.json`, and prune superseded entries in `web/src/lib/withheld-lesson-videos.json` before deploying.
+- `--video-lessons=IDS`: Optional comma-separated lesson IDs to scope `--render-videos` and `--publish-videos` (uses `--merge-existing-manifest` on subset publish).
+- `--video-output=DIR`: Optional render output directory (defaults to `/mnt/bbackup/leetllm-stage-cinema` when writable, else `build/video-cinema`).
 
 ## Infrastructure
 

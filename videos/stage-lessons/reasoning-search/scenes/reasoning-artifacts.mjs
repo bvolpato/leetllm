@@ -14,7 +14,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowMeter,
@@ -42,7 +41,7 @@ export default function reasoningArtifacts(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const s2 = stage2.value;
       const bf = budgetFill.value;
       const inc = incompleteOn.value;
@@ -191,7 +190,6 @@ export default function reasoningArtifacts(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('reasoning-artifacts-b1', () => {
     s.play(pulse.to(0.35, { duration: clampDur(c, c.cue('reasoning-artifacts-b1').start, 0.25) }));

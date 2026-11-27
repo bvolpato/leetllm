@@ -10,12 +10,10 @@ import {
   line,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function evaluationLimits(s, c) {
-  const phase = s.value(0);
   const showStudy = s.value(0);
   const showRulers = s.value(0);
   const showFiveK = s.value(0);
@@ -32,12 +30,10 @@ export default function evaluationLimits(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const ss = showStudy.value;
     const sr = showRulers.value;
     const s5 = showFiveK.value;
     const sm = showMetrics.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Top context banner (frameless eyebrow note)
@@ -79,7 +75,7 @@ export default function evaluationLimits(s, c) {
       // Lower Ruler: Retrieved Context Budget (500 to 10,000 tokens) with 5,000 crossover
       glassCell(-20, 16, 1670, 140, s5 > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#231c10',
-        glow: s5 > 0.3 ? 9 * pulse : 2,
+        glow: s5 > 0.3 ? 9 : 2,
       }),
       txt(
         'LOWER RULER: RETRIEVED CONTEXT BUDGET (500 to 10,000 tokens)',
@@ -144,7 +140,6 @@ export default function evaluationLimits(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('evaluation-limits-0', () => s.play(showStudy.to(1, { duration: 0.4 })));
   c.on('evaluation-limits-1', () => s.play(showRulers.to(1, { duration: 0.4 })));

@@ -12,7 +12,6 @@ import {
   cinematic3d,
   clampDur,
   driftValue,
-  glowDot,
   guardedDynamic,
   orbitScene,
   txt,
@@ -74,7 +73,6 @@ export default function mediaAffinity(s, c) {
   const overlay = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const hs = hashOn.value;
       const di = dieOn.value;
       const nodes = [];
@@ -128,12 +126,6 @@ export default function mediaAffinity(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.media,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);

@@ -16,7 +16,6 @@ import {
   heroTitle,
   lumBar,
   orbitScene,
-  runAmbientPhase,
   stableSoftmax,
   tweenCue,
   txt,
@@ -24,7 +23,6 @@ import {
 } from '../parts.mjs';
 
 export default function mass(s, c) {
-  const phase = s.value(0);
   const add0 = s.value(0);
   const add1 = s.value(0);
   const add2 = s.value(0);
@@ -205,7 +203,6 @@ export default function mass(s, c) {
   });
 
   s.add(bgAura, simplex, title, eqNorm, live);
-  runAmbientPhase(s, c, phase, 2.2);
   orbitScene(s, c, simplex, { theta: 0.42, phi: 0.96 });
 
   tweenCue(s, c, 'mass-add-0', add0, 1, { duration: 0.4 });

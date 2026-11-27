@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   quadArcPts,
@@ -39,7 +38,7 @@ export default function planRuntime(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const r3 = ready3On.value;
       const dr = decReadyOn.value;
       const df = diffFailOn.value;
@@ -139,7 +138,6 @@ export default function planRuntime(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-plan-runtime-0', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('aa-plan-runtime-0').start, 0.25) }));

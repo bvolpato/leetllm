@@ -16,12 +16,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function boundaries(s, c) {
-  const phase = s.value(0);
   const idsShown = s.value(0);
   const packedLit = s.value(0);
   const maskVisible = s.value(0);
@@ -257,7 +255,6 @@ export default function boundaries(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('boundaries-b1-1', () =>
     s.play(idsShown.to(1, { duration: remainDuration(c, 'boundaries-b1-1', 0.5) })),

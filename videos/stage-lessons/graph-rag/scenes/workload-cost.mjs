@@ -12,12 +12,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function workloadCost(s, c) {
-  const phase = s.value(0);
   const showTen = s.value(0);
   const showMove = s.value(0);
   const showMany = s.value(0);
@@ -35,13 +33,11 @@ export default function workloadCost(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const s10 = showTen.value;
     const smv = showMove.value;
     const s500 = showMany.value;
     const sf = showFact.value;
     const st = showTrend.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     // Left: Break-even chart (0 to 500 queries, 0 to 900 cost units)
     const ox = -785;
@@ -136,7 +132,7 @@ export default function workloadCost(s, c) {
         st > 0.4 ? COSMOS.emerald : sf > 0.4 ? COSMOS.cyan : COSMOS.gold,
         {
           fill: '#12182d',
-          glow: st > 0.4 ? 9 * pulse : 3,
+          glow: st > 0.4 ? 9 : 3,
         },
       ),
       txt('RELEASE GATE: >= 90% ACCURACY + LATENCY CAP', 140, 48, 26, COSMOS.gold, 'mono', 'left'),
@@ -188,7 +184,6 @@ export default function workloadCost(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('workload-cost-volume', () => s.play(showTen.to(0.15, { duration: 0.3 })));
   c.after('workload-cost-volume-ten', () => s.play(showTen.to(1, { duration: 0.4 })));

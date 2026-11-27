@@ -15,7 +15,6 @@ import {
   heroTitle,
   onCue,
   probBarH,
-  startAmbient,
   tokenPill,
   transferSnapshot,
   txt,
@@ -29,7 +28,6 @@ import {
  *   Prediction withheld during beat 2 until spoken cue `sd-service-verdict`!
  */
 export function pairedService(s, c) {
-  const amb = startAmbient(s, c);
   const p1 = s.value(1);
   const p2 = s.value(0);
   const p3 = s.value(0);
@@ -52,7 +50,6 @@ export function pairedService(s, c) {
 
   // Phase 1: Paired A/B protocol
   const v1 = guardedDynamic(p1, (a) => {
-    const t = amb.value;
     const fields = ['Target + Quant', 'Prompts + Sampling', 'Hardware', 'Offered Arrivals'];
     const nodes = [];
     fields.forEach((f, i) => {
@@ -91,12 +88,6 @@ export function pairedService(s, c) {
         wordSize: 30,
         opacity: a,
       }),
-      glowDot(-380 + ((t * 1.4) % 1) * 760, 325, {
-        radius: 5,
-        color: COSMOS.cyan,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Pair identical prompts, weights, and arrivals: watch TTFT as well as decode rate',
         0,
@@ -111,7 +102,6 @@ export function pairedService(s, c) {
 
   // Phase 2: Client stream timeline 300, 301, 302, 500 ms
   const v2 = guardedDynamic(p2, (a) => {
-    const t = amb.value;
     const xL = -680;
     const xR = 680;
     const y = -45;
@@ -170,12 +160,6 @@ export function pairedService(s, c) {
       );
     }
     nodes.push(
-      glowDot(xs[2] + ((t * 1.4) % 1) * (xs[3] - xs[2]), y, {
-        radius: 6,
-        color: '#ffffff',
-        glow: 14,
-        opacity: a,
-      }),
       txt(
         'Average inter-token time hides bursty stalls; bundled arrivals mask individual gaps',
         0,
@@ -190,7 +174,6 @@ export function pairedService(s, c) {
 
   // Phase 3: Trial A (174/180 = 96.67%) vs Trial B (204/220 = 92.73%) at 95% SLO
   const v3 = guardedDynamic(p3, (a) => {
-    const t = amb.value;
     const verd = showVerdict.value;
     const cap = showCap.value;
     const trials = [
@@ -252,12 +235,6 @@ export function pairedService(s, c) {
       }
     }
     nodes.push(
-      glowDot(-430 + ((t * 1.4) % 1) * 860, 345, {
-        radius: 5,
-        color: COSMOS.gold,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         verd > 0.25
           ? 'Trial A passes (8.7 qualified/s at 9 offered/s): keep failures & cancellations in denominator'
@@ -289,7 +266,6 @@ export function pairedService(s, c) {
  * Two-stage diagnostic pipeline: Stage 1 fixed-table sampler tests -> Stage 2 serial vs verify logit diff.
  */
 export function diagnose(s, c) {
-  const amb = startAmbient(s, c);
   const stage1 = s.value(0);
   const stage2 = s.value(0);
 
@@ -305,7 +281,6 @@ export function diagnose(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const s1 = stage1.value;
       const s2 = stage2.value;
       const nodes = [];
@@ -375,12 +350,6 @@ export function diagnose(s, c) {
       );
 
       nodes.push(
-        glowDot(-700 + ((t * 1.4) % 1) * 1400, 275, {
-          radius: 5,
-          color: COSMOS.gold,
-          glow: 10,
-          opacity: 0.7,
-        }),
         txt(
           'Greedy or few-seed checks miss rare stochastic drift: test exact tables before model kernels',
           0,
@@ -408,7 +377,6 @@ export function diagnose(s, c) {
  *   Beat 2: Trims provisional KV [sang, softly, today] -> retains [sang] -> forwards nearby -> caches [sang, nearby]!
  */
 export function transfer(s, c) {
-  const amb = startAmbient(s, c);
   const row = CHAIN[1]; // words:['softly','nearby','today'], p:[0.3,0.5,0.2], q:[0.6,0.2,0.2], u=0.8
   const dec = decomposition(row.p, row.q);
   const tx = transferSnapshot(1, 0.9);
@@ -443,7 +411,6 @@ export function transfer(s, c) {
 
   // Beats 0 & 1: Probability test + residual sampling
   const v1 = guardedDynamic(p1, (a) => {
-    const t = amb.value;
     const nodes = [];
 
     // Prefix & draft proposal strip
@@ -584,12 +551,6 @@ export function transfer(s, c) {
           ? COSMOS.rose
           : COSMOS.amber;
     nodes.push(
-      glowDot(barLeft + ((t * 1.4) % 1) * barW, 330, {
-        radius: 5,
-        color: drawCol,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(drawStr, 0, 415, 28, drawCol, 'mono').opacity(Math.max(0.25, showDraw.value) * a),
     );
     return group(...nodes);
@@ -597,7 +558,6 @@ export function transfer(s, c) {
 
   // Beat 2: KV trim & forward pass for nearby
   const v2 = guardedDynamic(p2, (a) => {
-    const t = amb.value;
     const tr = trimKV.value;
     const kp = keepSang.value;
     const fw = fwdNearby.value;
@@ -654,12 +614,6 @@ export function transfer(s, c) {
     }
 
     nodes.push(
-      glowDot(-440 + ((t * 1.4) % 1) * 880, 325, {
-        radius: 5,
-        color: COSMOS.emerald,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         ca > 0.35
           ? 'Clean KV cache now holds [sang, nearby]: ready for the next decode step'
@@ -702,7 +656,6 @@ export function transfer(s, c) {
  *   - Beat 3: Bridge to long-context KV cache management.
  */
 export function freshState(s, c) {
-  const amb = startAmbient(s, c);
   const f = freshStateFrame({ beat: 0, beatP: 0 }); // p=[0.15,0.25,0.60], q=[0.45,0.35,0.20], alpha=5/7, 8->82->823 vs 8->83
 
   const p1 = s.value(1);
@@ -733,7 +686,6 @@ export function freshState(s, c) {
 
   // Beats 0 & 1: New probabilities + rejection + correction "today"
   const v1 = guardedDynamic(p1, (a) => {
-    const t = amb.value;
     const nodes = [
       txt(
         'PREFIX: "The bird sang"   |   DRAFT: softly -> today',
@@ -847,21 +799,12 @@ export function freshState(s, c) {
       foot = 'u = 0.80 on softly: which word goes in the space immediately after "sang"?';
       fCol = COSMOS.amber;
     }
-    nodes.push(
-      glowDot(barLeft + ((t * 1.4) % 1) * barW, 325, {
-        radius: 5,
-        color: fCol,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
-      txt(foot, 0, 415, 29, fCol, 'sans').opacity(Math.max(0.3, showDraw.value) * a),
-    );
+    nodes.push(txt(foot, 0, 415, 29, fCol, 'sans').opacity(Math.max(0.3, showDraw.value) * a));
     return group(...nodes);
   });
 
   // Beats 2 & 3: Decimal cache branching 8 -> 82 -> 823 vs rollback 8 -> 83
   const v2 = guardedDynamic(p2, (a) => {
-    const t = amb.value;
     const s82 = show82.value;
     const s823 = show823.value;
     const roll = showRoll.value;
@@ -955,12 +898,6 @@ export function freshState(s, c) {
     }
 
     nodes.push(
-      glowDot(-610 + ((t * 1.4) % 1) * 1030, 325, {
-        radius: 5,
-        color: COSMOS.gold,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         nxt > 0.25
           ? 'Next up: fitting those saved keys and values into long-context memory budgets'

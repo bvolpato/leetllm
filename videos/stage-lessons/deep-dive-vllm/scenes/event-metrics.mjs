@@ -10,13 +10,11 @@ import {
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function eventMetrics(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = op-0 (inter_token_latency_seconds measures engine output events, can bundle tokens)
   // 1 = op-1 / events (0ms: T0+T1, 12ms: T2, 24ms: T3)
@@ -37,7 +35,6 @@ export default function eventMetrics(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const xOf = (ms) => -620 + (ms / 24) * 1240;
     const axisY = 20;
     const nodes = [];
@@ -122,9 +119,7 @@ export default function eventMetrics(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 332, { radius: 6, color: st >= 4 ? ROLE.bad : ROLE.kv }),
       txt(
         'Track TTFT, queueing, errors, KV occupancy & preemptions with explicit latency graders',
         0,
@@ -138,7 +133,6 @@ export default function eventMetrics(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['vv-event-metrics-op-0', 0],
     ['vv-event-metrics-op-1', 1],

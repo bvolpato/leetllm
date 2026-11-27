@@ -14,12 +14,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function attention(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=dot, 2=scale, 3=softmax, 4=mix, 5=h-val, 6=v-val
   const masked = s.value(0); // 1=block k1 -> [1, 0], out=(10,0)
   const askCached = s.value(0);
@@ -40,7 +38,6 @@ export default function attention(s, c) {
     const mk = masked.value;
     const ac = askCached.value;
     const rc = revCached.value;
-    const p = phase.value;
 
     const isMasked = mk > 0.5 && rc < 0.5;
     const w0 = isMasked ? 1.0 : ATTN_WEIGHTS_BOTH[0];
@@ -168,9 +165,7 @@ export default function attention(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 295, { radius: 6, color: rc > 0.5 ? ROLE.good : ROLE.copy }),
       txt(
         rc > 0.5
           ? 'Upper-left is_causal=True hides K1; cached decode at pos 1 needs both keys allowed'
@@ -189,7 +184,6 @@ export default function attention(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('dot-pair', () => s.play(step.to(1, { duration: remainDuration(c, 'dot-pair', 0.35) })));
   c.on('scale-pair', () => s.play(step.to(2, { duration: remainDuration(c, 'scale-pair', 0.35) })));

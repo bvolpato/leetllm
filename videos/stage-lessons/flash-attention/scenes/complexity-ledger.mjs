@@ -11,7 +11,6 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -24,7 +23,6 @@ const mapX = (n) => X0 + ((n - 1) / 3) * (X1 - X0);
 const mapY = (v) => Y0 - (Math.min(16, v) / 16) * (Y0 - Y1);
 
 export default function complexityLedger(s, c) {
-  const phase = s.value(0);
   const drawCurves = s.value(0.35);
   const showIoFormula = s.value(0);
   const doubleN = s.value(0);
@@ -166,7 +164,6 @@ export default function complexityLedger(s, c) {
   });
 
   s.add(bgAura, title, eqIo, live);
-  runPhase(s, c, phase, 10);
 
   c.on('complexity-ledger-beat-1', () => s.play(drawCurves.to(1, { duration: 1.0 })));
   c.on('complexity-ledger-beat-2', () => s.play(showIoFormula.to(1, { duration: 0.5 })));

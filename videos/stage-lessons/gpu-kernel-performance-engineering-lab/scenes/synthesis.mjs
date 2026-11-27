@@ -20,12 +20,10 @@ import {
   recordedTiming,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function synthesis(s, c) {
-  const phase = s.value(0);
   const showOverview = s.value(1);
   const showPairs = s.value(0);
 
@@ -55,13 +53,11 @@ export default function synthesis(s, c) {
 
   // Beat 0: 5-round dot-strip distribution plot (0.17 .. 0.35 ms -> x in [-520, 480])
   const overviewView = guardedDynamic(showOverview, (a) => {
-    const p = phase.value;
     const pp = plotProg.value;
     const tg = tileGap.value;
     const md = mediansShow.value;
     const mapX = (ms) => -520 + ((ms - 0.17) / 0.18) * 1000;
     const count = Math.min(5, Math.floor(pp * 5.99));
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.5);
 
     const nodes = [
       txt(
@@ -121,7 +117,7 @@ export default function synthesis(s, c) {
             [x1, -55],
             [x2, -55],
           ],
-          { color: ROLE.good, width: 4.0, glow: 10 * pulse, opacity: tg * a },
+          { color: ROLE.good, width: 4.0, glow: 10, opacity: tg * a },
         ),
         txt('clear win: tiled < naive', (x1 + x2) * 0.5, -88, 26, ROLE.good, 'mono').opacity(
           tg * a,
@@ -148,7 +144,6 @@ export default function synthesis(s, c) {
 
   // Beats 1 & 2: Paired within-round delta (padded - tiled in µs)
   const pairsView = guardedDynamic(showPairs, (a) => {
-    const p = phase.value;
     const pr = pairProg.value;
     const vd = verdictShow.value;
     const po = profileOpen.value;
@@ -156,7 +151,6 @@ export default function synthesis(s, c) {
     const mapUs = (us) => 340 + us * 58; // -6..+6 µs -> [-8, 688]
     const fasterCount = PADDED_DELTA_US.filter((d) => d < 0).length;
     const slowerCount = PADDED_DELTA_US.length - fasterCount;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.6);
 
     const nodes = [
       txt('ROUND', -760, -212, 26, COSMOS.muted, 'mono').opacity(a),
@@ -222,9 +216,7 @@ export default function synthesis(s, c) {
     const verdictCol = vd > 0.05 ? ROLE.warn : ROLE.gold;
 
     nodes.push(
-      txt(verdictTxt, 0, 312, 34, verdictCol, 'mono')
-        .glow(7 * pulse, verdictCol)
-        .opacity(a),
+      txt(verdictTxt, 0, 312, 34, verdictCol, 'mono').glow(7, verdictCol).opacity(a),
       txt(
         po > 0.3
           ? 'Next step: permitted Nsight profile of this exact kernel & launch + raw logs'
@@ -242,7 +234,6 @@ export default function synthesis(s, c) {
   });
 
   s.add(bgAura, title, overviewView, pairsView);
-  runPhase(s, c, phase, 16);
 
   c.on('plot-times', () =>
     s.play(plotProg.to(1, { duration: remainDuration(c, 'plot-times', 0.95) })),

@@ -10,14 +10,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function batchAndPages(s, c) {
-  const phase = s.value(0);
   const pageOn = s.value(0);
   const dualOn = s.value(0);
 
@@ -38,7 +35,6 @@ export default function batchAndPages(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const pg = pageOn.value;
       const dl = dualOn.value;
       const nodes = [];
@@ -149,12 +145,6 @@ export default function batchAndPages(s, c) {
         ).opacity(dAlpha),
         txt('SEPARATE OBJECTS', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Batch Slot != Physical Page Map', 480, -378, 26, COSMOS.ink, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.worker,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -162,8 +152,6 @@ export default function batchAndPages(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('sd-batch-and-pages-1-operation', () => {
     s.play(
       pageOn.to(1, { duration: clampDur(c, c.cue('sd-batch-and-pages-1-operation').start, 0.35) }),

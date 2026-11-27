@@ -5,17 +5,14 @@ import {
   aura,
   byteOffset,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function inplaceOffset(s, c) {
-  const phase = s.value(0);
   // step: 0..3=in-place contract (rank*count*bytes), 4=R2 view, 5=byte 8, 6=write 3333, 7=wrong base ptr (100), 8=correct byte 8 (3333)
   const step = s.value(0);
 
@@ -31,7 +28,6 @@ export default function inplaceOffset(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const vals = [100, 200, st >= 6 ? 3333 : 300, 400];
     const offBytes = byteOffset(2, 1, 4); // 8
 
@@ -106,9 +102,7 @@ export default function inplaceOffset(s, c) {
       txt('Matches NCCL ReduceScatter / AllGather contract', 420, 202, 26, COSMOS.muted, 'sans'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: st >= 8 ? ROLE.good : COSMOS.gold }),
       txt(
         'In-place AllReduce uses sendBuff == recvBuff; ReduceScatter & AllGather index at rank * count',
         0,
@@ -122,7 +116,6 @@ export default function inplaceOffset(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-inplace-offset-b0-s0', 0],
     ['nc-inplace-offset-b0-s1', 1],

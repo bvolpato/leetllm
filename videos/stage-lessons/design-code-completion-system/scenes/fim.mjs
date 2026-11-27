@@ -8,14 +8,11 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function fim(s, c) {
-  const phase = s.value(0);
   const reorderOn = s.value(0);
 
   const header = cinemaHeader('FILL-IN-THE-MIDDLE (FIM)', 'Send both sides', 'before generating', {
@@ -30,7 +27,6 @@ export default function fim(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ro = reorderOn.value;
       const nodes = [];
 
@@ -89,8 +85,8 @@ export default function fim(s, c) {
             [80, y2 - 36],
           ],
           ROLE.ok,
-          p,
-          { width: 3.6, photonCount: 2, alpha: roAlpha },
+          0,
+          { width: 3.6, alpha: roAlpha },
         ),
       );
 
@@ -107,12 +103,6 @@ export default function fim(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.model,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -120,8 +110,6 @@ export default function fim(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('fim-beat-2-focus-1', () => {
     s.play(reorderOn.to(1, { duration: clampDur(c, c.cue('fim-beat-2-focus-1').start, 0.4) }));
   });

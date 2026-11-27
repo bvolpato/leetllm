@@ -16,7 +16,6 @@ import {
   line,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
   verifyInvariant,
@@ -26,8 +25,6 @@ export default function teardownLifecycle(s, c) {
   const cleanup = cleanupFixture();
   verifyInvariant(cleanup.lateOld.status === 'running', 'stale g7 leaves g8 running');
   verifyInvariant(cleanup.reusable.status === 'reusable', 'reset completes to reusable');
-
-  const phase = s.value(0);
 
   // Process tree states
   const mountVis = s.value(0);
@@ -404,7 +401,6 @@ export default function teardownLifecycle(s, c) {
   });
 
   s.add(bgAtmo, title, live);
-  runAmbientPhase(s, c, phase, 2.4);
 
   // Beat 0: parent stops, 3 children remain
   c.on('td-children', () => {

@@ -7,7 +7,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   pillNode,
   scores,
@@ -32,12 +31,10 @@ export function buildTree(s, c) {
     ),
   );
 
-  const pulse = s.value(0);
   const d1On = s.value(0);
   const failOn = s.value(0);
   const compOn = s.value(0);
   const winOn = s.value(0);
-  driftValue(s, c, pulse, 3.0);
 
   c.on('tree-beat-1-focus-1', () =>
     s.play(d1On.to(1, { duration: clampDur(c, c.cue('tree-beat-1-focus-1').start, 0.5) })),
@@ -56,7 +53,6 @@ export function buildTree(s, c) {
     guardedDynamic(
       () => 1,
       () => {
-        const p = pulse.value;
         const d1 = d1On.value;
         const fl = failOn.value;
         const cp = compOn.value;
@@ -85,7 +81,7 @@ export function buildTree(s, c) {
               [d1Pts[0][0] + 40, d1Pts[0][1] - 32],
             ],
             ROLE.agent,
-            p,
+            0,
           ),
           beamWithPhotons(
             [
@@ -93,8 +89,8 @@ export function buildTree(s, c) {
               [d1Pts[1][0], d1Pts[1][1] - 32],
             ],
             ROLE.fail,
-            p,
-            { photonCount: 0, alpha: 0.42 },
+            0,
+            { alpha: 0.42 },
           ),
           beamWithPhotons(
             [
@@ -102,7 +98,7 @@ export function buildTree(s, c) {
               [d1Pts[2][0] - 40, d1Pts[2][1] - 32],
             ],
             ROLE.ok,
-            p + 0.25,
+            0,
           ),
         );
 
@@ -115,7 +111,7 @@ export function buildTree(s, c) {
               [d2Pts[0][0] + 20, d2Pts[0][1] - 32],
             ],
             ROLE.ok,
-            p + 0.1,
+            0,
             { alpha: d2Alpha },
           ),
           beamWithPhotons(
@@ -124,8 +120,8 @@ export function buildTree(s, c) {
               [d2Pts[1][0] - 20, d2Pts[1][1] - 32],
             ],
             ROLE.fail,
-            p,
-            { photonCount: 0, alpha: 0.4 * d2Alpha },
+            0,
+            { alpha: 0.4 * d2Alpha },
           ),
           beamWithPhotons(
             [
@@ -133,7 +129,7 @@ export function buildTree(s, c) {
               [d2Pts[2][0] + 20, d2Pts[2][1] - 32],
             ],
             wn > 0.5 ? ROLE.focus : ROLE.ok,
-            p + 0.35,
+            0,
             { alpha: d2Alpha },
           ),
           beamWithPhotons(
@@ -142,8 +138,8 @@ export function buildTree(s, c) {
               [d2Pts[3][0] - 20, d2Pts[3][1] - 32],
             ],
             ROLE.fail,
-            p,
-            { photonCount: 0, alpha: 0.4 * d2Alpha },
+            0,
+            { alpha: 0.4 * d2Alpha },
           ),
         );
 

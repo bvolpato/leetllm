@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function metadataReady(s, c) {
-  const phase = s.value(0);
   // step: 0=Batch B prepared with rev 2 -> consumer expects rev 2 (READY),
   // 1=late grammar/KV update -> consumer requires rev 3 (HOLD at GPU launch),
   // 2=identify first consumer & readiness event
@@ -33,7 +30,6 @@ export default function metadataReady(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const late = st >= 1;
     const nodes = [];
 
@@ -107,9 +103,7 @@ export default function metadataReady(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-40 + u * 90, 140, { radius: 6, color: late ? ROLE.fail : ROLE.decode }),
       txt(
         st >= 2
           ? 'Preserve output correctness and completion time; trace the first consumer readiness event.'
@@ -127,7 +121,6 @@ export default function metadataReady(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-metadata-ready-beat-0', 0],
     ['sg-metadata-late', 1],

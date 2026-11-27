@@ -12,7 +12,6 @@ import {
   aura,
   buildLedgerNodes,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function recovery(s, c) {
-  const pulse = s.value(0);
   const oldOn = s.value(0);
   const usageOn = s.value(0);
   const fenceOn = s.value(0);
@@ -300,8 +298,6 @@ export default function recovery(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'recovery-old-attempt', oldOn, 1);
   stepAfter(s, c, 'recovery-usage', usageOn, 1);
   // Strict prediction withholding: fence attempt-2 ONLY after "Keep the seven hundred units held"!

@@ -5,11 +5,9 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
@@ -21,7 +19,6 @@ const BLOCK_META = {
 };
 
 export default function queueOrder(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = release-backward (R1 releases 90, 73, 12 in reverse order into free queue)
   // 1 = free-order (PREDICTION HOLD: Free queue = [90, 73, 12]; new request needs 2 blocks -> Which cached block is taken?)
@@ -43,7 +40,6 @@ export default function queueOrder(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const queue = QUEUE_RELEASE_RESULT.free; // [90, 73, 12]
     const took90 = st >= 2;
     const took73 = st >= 3;
@@ -146,16 +142,13 @@ export default function queueOrder(s, c) {
                 ? 'Predict: Which cached block (73 or 12) will the new request take?'
                 : 'R1 releases blocks backward: 90 -> head, then 73 -> tail, then 12 -> tail';
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 315, { radius: 6, color: st >= 5 ? ROLE.good : COSMOS.gold }),
       txt(caption, 0, 378, 26, st === 1 ? COSMOS.gold : st >= 5 ? ROLE.good : COSMOS.ink, 'sans'),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['vv-queue-order-release-backward', 0],
     ['vv-queue-order-free-order', 1],

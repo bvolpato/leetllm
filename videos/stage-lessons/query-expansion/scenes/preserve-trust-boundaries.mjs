@@ -10,12 +10,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function preserveTrustBoundaries(s, c) {
-  const phase = s.value(0);
   const showScope = s.value(0);
   const showMatch = s.value(0);
   const showFilter = s.value(0);
@@ -35,13 +33,11 @@ export default function preserveTrustBoundaries(s, c) {
   const model = accessConstruction(1, 1);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sScope = showScope.value;
     const sMatch = showMatch.value;
     const sFilt = showFilter.value;
     const sRank = showRank.value;
     const sRech = showRecheck.value;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const matched = sMatch > 0.35;
     const filtered = sFilt > 0.5;
@@ -52,7 +48,7 @@ export default function preserveTrustBoundaries(s, c) {
       // Request-scoped authorization banner
       glassCell(0, -192, 1710, 68, sScope > 0.3 ? COSMOS.blue : COSMOS.muted, {
         fill: '#10203a',
-        glow: sScope > 0.3 ? 8 * pulse : 3,
+        glow: sScope > 0.3 ? 8 : 3,
       }),
       txt(
         'CALLER: support agent  ·  TENANT: support  ·  GRANT: support.read  ·  QUERY: "burst quota"',
@@ -123,7 +119,7 @@ export default function preserveTrustBoundaries(s, c) {
       // Right permitted ranking vault
       glassCell(575, 76, 560, 368, ranked ? COSMOS.emerald : COSMOS.muted, {
         fill: ranked ? '#0d2624' : '#10182d',
-        glow: ranked ? 9 * pulse : 3,
+        glow: ranked ? 9 : 3,
       }),
       txt('PERMITTED RANKED OUTPUT', 575, -62, 26, ranked ? COSMOS.emerald : COSMOS.muted, 'mono'),
     );
@@ -166,7 +162,6 @@ export default function preserveTrustBoundaries(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('access-scope', () => s.play(showScope.to(1, { duration: 0.4 })));
   c.on('access-match', () => s.play(showMatch.to(1, { duration: 0.4 })));

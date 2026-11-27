@@ -16,12 +16,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function freshCacheRepair(s, c) {
-  const phase = s.value(0);
   // modeStage: 0=premise/question, 1=upper-left(2), 2=open(255.25), 3=absolute@5(7), 4=query@4 question, 5=absolute@4(6)
   const stageMode = s.value(0);
   const answerKnown = s.value(0);
@@ -180,7 +178,6 @@ export default function freshCacheRepair(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('cache-premise', () => s.play(stageMode.to(0, { duration: 0.01 })));
   c.on('cache-question', () => s.play(answerKnown.to(0, { duration: 0.01 })));

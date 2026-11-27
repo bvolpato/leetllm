@@ -44,7 +44,6 @@ export default function earnedTransfer(s, c) {
   const strata3d = makeChunkStrata3D(540, -15, phase, 'transfer');
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sh = showHits.value;
     const a18 = showAns18.value;
     const c12 = showCut12.value;
@@ -53,7 +52,6 @@ export default function earnedTransfer(s, c) {
     const c11 = showCut11.value;
     const ab = showAbstain.value;
     const r12 = showRetry12.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: 3-stage interactive budget workbench (strict prediction withholding via c.after)
@@ -91,7 +89,7 @@ export default function earnedTransfer(s, c) {
         p12 > 0.4 ? COSMOS.emerald : dr > 0.4 ? COSMOS.rose : COSMOS.amber,
         {
           fill: p12 > 0.4 ? '#0e2824' : dr > 0.4 ? '#28111a' : '#181e34',
-          glow: c12 > 0.3 ? 9 * pulse : 3,
+          glow: c12 > 0.3 ? 9 : 3,
         },
       ),
       txt(
@@ -135,7 +133,7 @@ export default function earnedTransfer(s, c) {
         r12 > 0.4 ? COSMOS.emerald : ab > 0.4 ? COSMOS.rose : COSMOS.gold,
         {
           fill: r12 > 0.4 ? '#0e2824' : ab > 0.4 ? '#28111a' : '#231c10',
-          glow: c11 > 0.3 ? 10 * pulse : 3,
+          glow: c11 > 0.3 ? 10 : 3,
         },
       ),
       txt(

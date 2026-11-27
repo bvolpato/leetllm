@@ -4,7 +4,6 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -74,9 +73,7 @@ export default function topologyLinks(s, c) {
       }
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-640 + u * 1280, 224, { radius: 7, color: rs >= 3 ? ROLE.good : COSMOS.gold }),
       txt(
         'Compare unidirectional rates, shared ports & contention · time GPU-host-storage offload separately',
         0,

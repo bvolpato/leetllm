@@ -9,12 +9,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function analyzerContract(s, c) {
-  const phase = s.value(0);
   const showRecords = s.value(0);
   const showRel = s.value(0);
   const showTerms = s.value(0);
@@ -33,14 +31,12 @@ export default function analyzerContract(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sr = showRecords.value;
     const sRel = showRel.value;
     const st = showTerms.value;
     const sp = showPostings.value;
     const sc = showCollision.value;
     const sRep = showRepair.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('4-PASSAGE API KEY CORPUS', -855, -205, 26, COSMOS.cyan, 'mono', 'left'),
@@ -54,7 +50,7 @@ export default function analyzerContract(s, c) {
       nodes.push(
         glassCell(-445, y, 810, 88, col, {
           fill: sRel > 0.3 && row.relevant ? '#0e2824' : '#101629',
-          glow: sRel > 0.3 && row.relevant ? 8 * pulse : 3,
+          glow: sRel > 0.3 && row.relevant ? 8 : 3,
         }),
         txt(row.id, -820, y - 16, 26, col, 'mono', 'left'),
         txt(
@@ -89,7 +85,7 @@ export default function analyzerContract(s, c) {
 
       glassCell(495, 58, 750, 134, sc > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: sc > 0.3 ? '#291019' : '#12182b',
-        glow: sc > 0.3 ? 9 * pulse : 2,
+        glow: sc > 0.3 ? 9 : 2,
       }),
       txt('IDENTIFIER COLLISION (LETTERS-ONLY)', 150, 24, 26, COSMOS.rose, 'mono', 'left'),
       txt('AUTH_401 -> "auth"  |  AUTH_403 -> "auth"', 150, 68, 26, COSMOS.ink, 'mono', 'left'),
@@ -97,7 +93,7 @@ export default function analyzerContract(s, c) {
 
       glassCell(495, 224, 750, 124, sRep > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: sRep > 0.3 ? '#0e2824' : '#12182b',
-        glow: sRep > 0.3 ? 9 * pulse : 2,
+        glow: sRep > 0.3 ? 9 : 2,
       }),
       txt('DUAL-FIELD REPAIR', 150, 192, 26, COSMOS.emerald, 'mono', 'left'),
       txt('· keyword field: exact code AUTH_401', 150, 232, 26, COSMOS.ink, 'sans', 'left'),
@@ -127,7 +123,6 @@ export default function analyzerContract(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('credential-records', () => s.play(showRecords.to(1, { duration: 0.45 })));
   c.on('credential-relevance', () => s.play(showRel.to(1, { duration: 0.45 })));

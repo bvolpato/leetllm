@@ -12,12 +12,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function postings(s, c) {
-  const phase = s.value(0);
   const showDocs = s.value(0);
   const showRecipeCounts = s.value(0);
   const showIds = s.value(0);
@@ -35,13 +33,11 @@ export default function postings(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sd = showDocs.value;
     const sr = showRecipeCounts.value;
     const si = showIds.value;
     const sm = showDedupMenu.value;
     const sp = showPositions.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const docRows = [
       {
@@ -77,7 +73,7 @@ export default function postings(s, c) {
       nodes.push(
         glassCell(-465, y, 760, 88, col, {
           fill: hi ? '#13263d' : '#101629',
-          glow: hi ? 9 * pulse : 3,
+          glow: hi ? 9 : 3,
           opacity: Math.max(0.75, sd),
         }),
         txt(`${row.id} (${row.tag})`, -820, y - 16, 26, col, 'mono', 'left'),
@@ -119,7 +115,7 @@ export default function postings(s, c) {
         sp > 0.4 ? COSMOS.cyan : sm > 0.4 ? COSMOS.amber : COSMOS.muted,
         {
           fill: sp > 0.4 ? '#0f233c' : '#12182b',
-          glow: sp > 0.4 ? 9 * pulse : 3,
+          glow: sp > 0.4 ? 9 : 3,
           opacity: Math.max(0.76, sm),
         },
       ),
@@ -157,7 +153,6 @@ export default function postings(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('postings-documents', () => s.play(showDocs.to(1, { duration: 0.45 })));
   c.on('postings-recipe-counts', () => s.play(showRecipeCounts.to(1, { duration: 0.45 })));

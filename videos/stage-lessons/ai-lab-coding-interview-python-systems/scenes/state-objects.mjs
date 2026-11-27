@@ -10,7 +10,6 @@ import {
   ROLE,
   URLS,
   actorOrb,
-  ambientClock,
   buildComplexityManifold3d,
   cinemaAtmosphere,
   glowArcArrow,
@@ -29,7 +28,6 @@ import {
 export default function stateObjects(s, c) {
   const title = sceneHeading(['How much work did', 'four pages take?'], { accent: ROLE.workerB });
 
-  const amb = ambientClock(s, c);
   const stage = s.value(0); // 0=state ownership, 1=4-page graph tally, 2=3D heap complexity
   const litRow = s.value(0); // 1=deque, 2=counter, 3=condition, 4=event
   const crawledCount = s.value(0); // 0..4
@@ -58,7 +56,6 @@ export default function stateObjects(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(stage.value);
       const nodes = [];
 
@@ -243,7 +240,7 @@ export default function stateObjects(s, c) {
             glowPill('/guide adds duplicate /api (+1 link)', 435, 224, ROLE.focus, {
               size: 26,
               fixedW: 740,
-              alpha: alpha * (seven ? 1 : 0.8 + 0.2 * pulse),
+              alpha,
             }),
           );
         }

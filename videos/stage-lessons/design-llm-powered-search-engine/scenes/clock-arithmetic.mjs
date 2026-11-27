@@ -11,13 +11,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function clockArithmetic(s, c) {
-  const pulse = s.value(0);
   const stageReveal = s.value(0);
   const overlapOn = s.value(0);
   const clockReach = s.value(260);
@@ -142,8 +140,6 @@ export default function clockArithmetic(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-clock-arithmetic-0', () => {
     s.play(stageReveal.to(1, { duration: clampDur(c, c.cue('se-clock-arithmetic-0').start, 0.5) }));
   });

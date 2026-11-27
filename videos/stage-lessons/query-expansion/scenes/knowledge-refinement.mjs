@@ -10,12 +10,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function knowledgeRefinement(s, c) {
-  const phase = s.value(0);
   const splitProg = s.value(0);
   const keepProg = s.value(0);
 
@@ -32,12 +30,10 @@ export default function knowledgeRefinement(s, c) {
   const keptList = REFINEMENT_STRIPS.filter((st) => st.keep);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sp = splitProg.value;
     const kp = keepProg.value;
     const isSplit = sp > 0.4;
     const isFiltered = kp > 0.5;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const nodes = [
       txt(
@@ -67,7 +63,7 @@ export default function knowledgeRefinement(s, c) {
       nodes.push(
         glassCell(-295, y, 1120, 88, border, {
           fill: isFiltered && strip.keep ? '#0d2723' : '#10182d',
-          glow: isFiltered && strip.keep ? 9 * pulse : 2,
+          glow: isFiltered && strip.keep ? 9 : 2,
           opacity: alpha,
           radius: 10,
         }),
@@ -151,7 +147,6 @@ export default function knowledgeRefinement(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('refinement-split', () => s.play(splitProg.to(1, { duration: 0.65 })));
   c.on('refinement-keep', () =>

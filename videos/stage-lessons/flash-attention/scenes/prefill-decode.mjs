@@ -7,19 +7,16 @@ import {
   PREFILL_SQUARE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function prefillDecode(s, c) {
-  const phase = s.value(0);
   const showPrefill = s.value(0.5);
   const showDecode = s.value(0);
   const showRatio = s.value(0);
@@ -36,7 +33,6 @@ export default function prefillDecode(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const pf = showPrefill.value;
     const dc = showDecode.value;
     const rt = showRatio.value;
@@ -104,11 +100,6 @@ export default function prefillDecode(s, c) {
         .at(440, -40)
         .glow(10, COSMOS.gold)
         .opacity(Math.max(0.28, dc)),
-      glowDot(135 + ((p * 0.6) % 1) * 610, -40, {
-        radius: 6,
-        color: '#ffffff',
-        opacity: Math.max(0.28, dc),
-      }),
 
       txt(
         `Valid pairs: ${PREFILL_N.toLocaleString('en-US')}`,
@@ -164,7 +155,6 @@ export default function prefillDecode(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('prefill-decode-beat-1', () => s.play(showPrefill.to(1, { duration: 0.45 })));
   c.on('prefill-decode-beat-2', () => s.play(showDecode.to(1, { duration: 0.45 })));

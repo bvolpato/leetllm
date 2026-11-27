@@ -40,19 +40,17 @@ export default function earnedTransfer(s, c) {
   const dA2 = distance(pointById('A'), QUERY_NEAR_D);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sh = showHold.value;
     const q2 = showQ2.value;
     const q2a = showQ2Ans.value;
     const cmp = showCompare.value;
     const fin = showFinal.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Trial 1: Held-out 5-ID check (4/5 = 80% < 90% -> HOLD, strictly withheld before earned-transfer-result!)
       glassCell(-405, -142, 920, 134, sh > 0.4 ? COSMOS.rose : COSMOS.gold, {
         fill: sh > 0.4 ? '#28111a' : '#181e34',
-        glow: sh > 0.4 ? 9 * pulse : 3,
+        glow: sh > 0.4 ? 9 : 3,
       }),
       txt(
         '1. HELD-OUT GATE (REQ >= 90% RECALL, <= 20 ms | 12 ms)',
@@ -93,7 +91,7 @@ export default function earnedTransfer(s, c) {
         q2a > 0.4 ? COSMOS.emerald : q2 > 0.3 ? COSMOS.cyan : COSMOS.muted,
         {
           fill: q2a > 0.4 ? '#0e2824' : '#101d35',
-          glow: q2 > 0.3 ? 8 * pulse : 2,
+          glow: q2 > 0.3 ? 8 : 2,
         },
       ),
       txt('2. SECOND QUERY NEAR D (RIGHT LIST SCORED)', -835, -16, 26, COSMOS.cyan, 'mono', 'left'),
@@ -127,7 +125,7 @@ export default function earnedTransfer(s, c) {
         fin > 0.4 ? COSMOS.emerald : cmp > 0.3 ? COSMOS.gold : COSMOS.muted,
         {
           fill: fin > 0.4 ? '#0e2824' : '#231c10',
-          glow: cmp > 0.3 ? 10 * pulse : 2,
+          glow: cmp > 0.3 ? 10 : 2,
         },
       ),
       txt(

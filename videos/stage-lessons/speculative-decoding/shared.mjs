@@ -1,17 +1,5 @@
 // Shared cinema primitives and verified build-time math invariants for speculative-decoding.
-import {
-  Node,
-  circle,
-  delay,
-  dot,
-  group,
-  line,
-  linear,
-  par,
-  polyPath,
-  radialGradient,
-  rect,
-} from 'vizmatic/stage';
+import { Node, circle, delay, dot, group, line, linear, par, polyPath, rect } from 'vizmatic/stage';
 import {
   COSMOS,
   aura,
@@ -402,21 +390,7 @@ export function probBarH(
   return group(...parts);
 }
 
-/** Glow aura helper whose geometric perimeter stays off-canvas (never crowds text under checkFilm). */
-export function heroAura(x, y, radius = 460, inner = '#38bdf822', mid = '#a78bfa12') {
-  const outerR = Math.max(1250, radius * 2.4);
-  const midStop = Math.min(0.45, (radius * 0.5) / outerR);
-  const fadeStop = Math.min(0.75, radius / outerR);
-  return circle(outerR, {
-    fill: radialGradient([0, 0], outerR, [
-      [0, inner],
-      [midStop, mid],
-      [fadeStop, '#07091000'],
-      [1, '#07091000'],
-    ]),
-    stroke: null,
-  })
-    .at(x, y)
-    .set('blend', 'screen')
-    .zIndex(-80);
+/** Ambient aura helper (no-op decoration; film-wide Float32+IGN dithered bloom replaces 8-bit radial gradients). */
+export function heroAura() {
+  return group().zIndex(-80);
 }

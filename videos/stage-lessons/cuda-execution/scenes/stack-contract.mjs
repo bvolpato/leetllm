@@ -10,12 +10,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function stackContract(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const driverLit = s.value(0);
   const compilerLit = s.value(0);
@@ -252,7 +250,6 @@ export default function stackContract(s, c) {
   });
 
   s.add(bgAura, title, part1, part2, part3);
-  runPhase(s, c, phase, 12);
 
   c.on('stack-driver', () => s.play(driverLit.to(1, { duration: 0.45 })));
   c.on('stack-compiler', () => s.play(compilerLit.to(1, { duration: 0.45 })));

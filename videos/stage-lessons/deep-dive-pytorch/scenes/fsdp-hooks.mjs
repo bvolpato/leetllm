@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function fsdpHooks(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=bottom-up fully_shard, 1=model(x) vs model.forward(x), 2=reshard policies + TP compose
 
   const bgAura = aura(0, 20, 620, '#5ce1e61e', '#60a5fa1c');
@@ -30,7 +27,6 @@ export default function fsdpHooks(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = stage.value;
-    const p = phase.value;
 
     const nodes = [
       // Top path: model(x) -> pre-hook all_gather -> forward -> post-hook reshard
@@ -116,9 +112,7 @@ export default function fsdpHooks(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 290, { radius: 6, color: ROLE.copy }),
       txt(
         'Manual unshard() is NOT recursive and does not reproduce the full pre/post hook lifecycle',
         0,
@@ -133,7 +127,6 @@ export default function fsdpHooks(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-fsdp-hooks-0', () => s.play(stage.to(0, { duration: 0.25 })));
   c.on('pt-fsdp-hooks-1', () =>

@@ -8,7 +8,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   glowDot,
   guardedDynamic,
   tweenOn,
@@ -16,7 +15,6 @@ import {
 } from '../parts.mjs';
 
 export default function engineContract(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=fixed trace + 3 engines, 2=TRT-LLM PyTorch + TGI maintenance, 3=vLLM config
 
   const header = cinemaHeader(
@@ -69,7 +67,6 @@ export default function engineContract(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const nodes = [];
 
       // Left anchor: Shared frozen incident trace hub
@@ -93,7 +90,7 @@ export default function engineContract(s, c) {
               [-190, eng.y],
             ],
             eng.col,
-            active ? p * 0.85 : null,
+            0,
             { width: 3.0, glow: active ? 7 : 0, photonCount: 1, alpha: op },
           ),
           glowDot(-180, eng.y, { radius: 9, color: eng.col, glow: 11, opacity: op }),
@@ -140,7 +137,6 @@ export default function engineContract(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-engine-contract-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-engine-contract-b1', step, 2, 0.35);

@@ -4,19 +4,16 @@ import {
   COSMOS,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   photonStream,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function decontamination(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const pinOn = s.value(0);
   const layersOn = s.value(0);
@@ -37,7 +34,6 @@ export default function decontamination(s, c) {
   const part1Live = guardedDynamic(showPart1, (a) => {
     const pn = pinOn.value;
     const ly = layersOn.value;
-    const ph = phase.value;
     const tiers = [
       { label: 'Repo blocklist', sub: 'Tier 1', x: -645, color: COSMOS.blue },
       { label: 'Literal n-gram', sub: 'Tier 2', x: -215, color: COSMOS.cyan },
@@ -65,7 +61,7 @@ export default function decontamination(s, c) {
 
     tiers.forEach((t, i) => {
       nodes.push(
-        ...photonStream([320, -298], [t.x, -128], -30, ph + i * 0.6, {
+        ...photonStream([320, -298], [t.x, -128], -30, 0, {
           color: t.color,
           count: 3,
           opacity: (0.4 + 0.6 * pn) * a,
@@ -125,7 +121,6 @@ export default function decontamination(s, c) {
   const part2Live = guardedDynamic(showPart2, (a) => {
     const fl = flagsOn.value;
     const rb = runbookOn.value;
-    const ph = phase.value;
     const rows = [
       { name: 'Marker copy', rule: 'Canary GUID match', flag: true, color: COSMOS.amber },
       {
@@ -168,7 +163,7 @@ export default function decontamination(s, c) {
         }),
         txt(row.name, -745, y + 2, 32, row.color, 'mono', 'left').opacity(a),
         txt(row.rule, -365, y + 2, 28, COSMOS.ink, 'sans', 'left').opacity(a),
-        ...photonStream([385, y], [510, y], 0, ph + i, {
+        ...photonStream([385, y], [510, y], 0, 0, {
           color: row.color,
           count: 2,
           opacity: showVerdict * a,
@@ -300,7 +295,6 @@ export default function decontamination(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live, part3Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-decontamination-pin', () =>
     s.play(pinOn.to(1, { duration: remainDuration(c, 'pt-decontamination-pin', 0.6) })),

@@ -19,13 +19,11 @@ import {
   radialDial,
   rect,
   remainDuration,
-  runPhase,
   sampleCurve,
   txt,
 } from '../parts.mjs';
 
 export default function groupWeightSoftTarget(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const pairMass = s.value(0.35);
   const groupAvg = s.value(0);
@@ -282,7 +280,6 @@ export default function groupWeightSoftTarget(s, c) {
   });
 
   s.add(bgAura, title, part1, part2, part3);
-  runPhase(s, c, phase, 14);
 
   c.on('group-pairs', () => s.play(pairMass.to(1, { duration: 0.45 })));
   c.on('group-weights', () => s.play(groupAvg.to(0.65, { duration: 0.4 })));

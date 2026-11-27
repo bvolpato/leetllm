@@ -13,12 +13,10 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function targetBudget(s, c) {
-  const phase = s.value(0);
   const show7B = s.value(1);
   const show7BQV = s.value(0);
   const show7BAll = s.value(0);
@@ -224,7 +222,6 @@ export default function targetBudget(s, c) {
   });
 
   s.add(bgAura, title, part7B, partTiny);
-  runPhase(s, c, phase, 14);
 
   c.on('target-budget-1', () => s.play(show7B.to(1, { duration: 0.2 })));
   c.on('target-large-qv', () => s.play(show7BQV.to(1, { duration: 0.4 })));

@@ -11,7 +11,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -22,7 +21,6 @@ import {
 } from '../parts.mjs';
 
 export default function scorerContract(s, c) {
-  const phase = s.value(0);
   const showBoolVerdict = s.value(0); // strictly AFTER scorer-contract-beat-0
   const mode01 = s.value(0); // 0 = boolean flags, 1 = schema checks
   const mode12 = s.value(0); // 0 = schema checks, 1 = qualification matrix
@@ -231,7 +229,6 @@ export default function scorerContract(s, c) {
   );
 
   s.add(stageAura, header, view0, view1, view2);
-  driftValue(s, c, phase, 7, { startOffset: 0.1, endMargin: 0.5 });
 
   c.after('scorer-contract-beat-0', () => {
     const t = c.cue('scorer-contract-beat-0').end;

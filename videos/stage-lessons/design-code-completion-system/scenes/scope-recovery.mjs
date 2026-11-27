@@ -1,20 +1,9 @@
 // Scene 04: scope-recovery - Keep a preceding header separate from enclosing scope
 // Tree-sitter incremental syntax-node range vs naive upward text scan after dedenting past a function!
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function scopeRecovery(s, c) {
-  const phase = s.value(0);
   const dedentOn = s.value(0);
 
   const header = cinemaHeader(
@@ -34,7 +23,6 @@ export default function scopeRecovery(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const dd = dedentOn.value;
       const nodes = [];
 
@@ -99,12 +87,6 @@ export default function scopeRecovery(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ed,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -112,8 +94,6 @@ export default function scopeRecovery(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('cc-scope-dedent', () => {
     s.play(dedentOn.to(1, { duration: clampDur(c, c.cue('cc-scope-dedent').start, 0.4) }));
   });

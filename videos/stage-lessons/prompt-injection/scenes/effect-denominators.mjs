@@ -12,7 +12,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -187,7 +186,7 @@ export default function effectDenominators(s, c) {
   const mode1 = guardedDynamic(
     () => fadeInHalf(ratesMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const fr = frrOn.value;
       const wi = wilsonOn.value;
       const nodes = [];
@@ -317,12 +316,6 @@ export default function effectDenominators(s, c) {
           'mono',
           'center',
         ).opacity(a),
-        glowDot(rx0 + ((p * 0.28) % 1) * (rx1 - rx0), 215, {
-          radius: 4.5,
-          color: ROLE.host,
-          glow: 8,
-          opacity: a,
-        }),
       );
 
       return group(...nodes);
@@ -330,7 +323,6 @@ export default function effectDenominators(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('trace-intro', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('trace-intro').start, 0.25) }));

@@ -6,18 +6,15 @@ import {
   aura,
   fmtNum,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function initialization(s, c) {
-  const phase = s.value(0);
   const hlA = s.value(0);
   const hlB = s.value(0);
   const traceToB = s.value(0);
@@ -59,7 +56,6 @@ export default function initialization(s, c) {
   );
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const ha = hlA.value;
     const hb = hlB.value;
     const tb = traceToB.value;
@@ -128,27 +124,23 @@ export default function initialization(s, c) {
 
     // Backward gradient flow arcs underneath the chain
     if (tb > 0.05) {
-      const u = (p * 0.8) % 1;
       nodes.push(
         arrow([540, yFlow + 88], [130, yFlow + 88], {
           stroke: COSMOS.rose,
           width: 4.5,
           tip: 13,
         }).glow(9, COSMOS.rose),
-        glowDot(540 - u * 410, yFlow + 88, { radius: 6, color: COSMOS.rose }),
         txt('error reaches B', 335, yFlow + 124, 26, COSMOS.rose, 'mono'),
       );
     }
 
     if (st2 && ttb) {
-      const u = (p * 0.8 + 0.5) % 1;
       nodes.push(
         arrow([20, yFlow + 88], [-270, yFlow + 88], {
           stroke: COSMOS.emerald,
           width: 4.5,
           tip: 13,
         }).glow(10, COSMOS.emerald),
-        glowDot(20 - u * 290, yFlow + 88, { radius: 6, color: COSMOS.emerald }),
         txt('passes B = 0.1 -> reaches A!', -125, yFlow + 124, 26, COSMOS.emerald, 'mono'),
       );
     } else if (rga && !st2) {
@@ -203,7 +195,6 @@ export default function initialization(s, c) {
   });
 
   s.add(bgAura, title, eqGradB, eqGradA, live);
-  runPhase(s, c, phase, 14);
 
   c.on('initialization-b1-1', () => s.play(hlA.to(1, { duration: 0.4 })));
   c.on('initialization-b1-2', () => s.play(hlB.to(1, { duration: 0.4 })));

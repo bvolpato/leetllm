@@ -12,12 +12,10 @@ import {
   orbitScene,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function budget(s, c) {
-  const phase = s.value(0);
   const wProg = s.value(0);
   const gProg = s.value(0);
   const mProg = s.value(0);
@@ -158,7 +156,6 @@ export default function budget(s, c) {
   });
 
   s.add(bgAura, tower3d, title, live);
-  runPhase(s, c, phase, 14);
   orbitScene(s, c, tower3d, { theta: -0.22, phi: 0.94 });
 
   c.on('weight-bytes', () => s.play(wProg.to(1, { duration: 0.5 })));

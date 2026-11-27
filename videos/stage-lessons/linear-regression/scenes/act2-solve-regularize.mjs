@@ -20,7 +20,6 @@ import {
   heroTitle,
   interceptEstimatorState,
   lassoLine,
-  livingDrift,
   mix,
   predict,
   quadratic,
@@ -39,7 +38,6 @@ import {
 export function solverScale(s, c) {
   const growP = s.value(0);
   const dupP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.data, seed: 7 }));
   s.add(decorAura(0, 20, 560, '#ffd1661c', '#5ce1e614'));
@@ -114,7 +112,6 @@ export function solverScale(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'grow-gram', growP, 1, { dur: 1.1 });
   cueTo(s, c, 'duplicate-design', dupP, 1, { dur: 0.9 });
 }
@@ -128,7 +125,6 @@ export function stepBound(s, c) {
   const largeP = s.value(0);
   const limP = s.value(0);
   const nullP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.line, seed: 8 }));
   s.add(decorAura(0, 30, 560, '#5ce1e61c', '#ff6b8b14'));
@@ -241,7 +237,6 @@ export function stepBound(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'safe-step', safeP, 1, { dur: 0.9 });
   cueTo(s, c, 'large-step', largeP, 1, { dur: 0.9 });
   cueTo(s, c, 'rate-limit', limP, 1, { dur: 0.7 });
@@ -257,7 +252,6 @@ export function complexity(s, c) {
   const halfP = s.value(0);
   const ridgeP = s.value(0);
   const lassoP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.curve, seed: 9 }));
   s.add(decorAura(0, 30, 560, '#ff6b8b1c', '#ffd16614'));
@@ -337,7 +331,6 @@ export function complexity(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'curve-fit', fitP, 1, { dur: 0.9 });
   cueTo(s, c, 'half-question', halfP, 1, { dur: 0.65 });
   cueTo(s, c, 'curve-ridge', ridgeP, 1, { after: true, dur: 0.85 });
@@ -352,7 +345,6 @@ export function penaltyContract(s, c) {
   const rsP = s.value(0);
   const riP = s.value(0);
   const lsP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.ridge, seed: 10 }));
   s.add(decorAura(0, 30, 560, '#60a5fa1c', '#ff6b8b14'));
@@ -426,7 +418,6 @@ export function penaltyContract(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'ridge-slope', rsP, 1, { dur: 0.9 });
   cueTo(s, c, 'ridge-intercept', riP, 1, { dur: 0.9 });
   cueTo(s, c, 'lasso-slope', lsP, 1, { dur: 1.0 });
@@ -441,7 +432,6 @@ export function statisticalContract(s, c) {
   const resP = s.value(0);
   const futP = s.value(0);
   const matP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.good, seed: 11 }));
   s.add(decorAura(0, 30, 560, '#6ee7b71c', '#ff6b8b14'));
@@ -556,7 +546,6 @@ export function statisticalContract(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'weights-spread', spP, 1, { dur: 0.9 });
   cueTo(s, c, 'resample-errors', resP, 1, { dur: 0.7 });
   cueTo(s, c, 'future-interval', futP, 1, { dur: 0.85 });
@@ -578,7 +567,6 @@ export function generalize(s, c) {
   const sqP = s.value(0);
   const poolP = s.value(0);
   const fallP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.data, seed: 12 }));
   s.add(decorAura(0, 20, 580, '#ffd1661c', '#5ce1e614'));
@@ -740,7 +728,6 @@ export function generalize(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'test-predict', predP, 1, { dur: 0.7 });
   cueTo(s, c, 'test-reveal', rev1P, 1, { after: true, dur: 0.6 });
   cueTo(s, c, 'test-errors', err1P, 1, { after: true, dur: 0.65 });

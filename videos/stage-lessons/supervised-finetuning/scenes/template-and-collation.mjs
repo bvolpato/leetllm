@@ -6,7 +6,6 @@ import {
   PAD_TOKENS,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,

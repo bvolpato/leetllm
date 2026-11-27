@@ -17,12 +17,10 @@ import {
   rect,
   remainAfter,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function splitSchedule(s, c) {
-  const phase = s.value(0);
   const showClock = s.value(1);
   const laneMode = s.value(0); // 0=4 lanes, 1=2 lanes
   const show4Res = s.value(0);
@@ -222,7 +220,6 @@ export default function splitSchedule(s, c) {
   });
 
   s.add(bgAura, title, clockView, tradeView);
-  runPhase(s, c, phase, 14);
 
   c.on('fi-split-schedule-0', () =>
     s.play(show4Res.to(0.2, { duration: remainDuration(c, 'fi-split-schedule-0', 0.35) })),

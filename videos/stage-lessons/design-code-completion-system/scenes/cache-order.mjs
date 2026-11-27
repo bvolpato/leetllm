@@ -2,20 +2,9 @@
 // Parallel PSM vs Suffix-First SPM strips showing how an early prefix edit invalidates downstream
 // suffix KV in PSM while SPM preserves earlier suffix KV as the prefix grows!
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function cacheOrder(s, c) {
-  const phase = s.value(0);
   const editOn = s.value(0);
 
   const header = cinemaHeader(
@@ -35,7 +24,6 @@ export default function cacheOrder(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ed = editOn.value;
       const nodes = [];
 
@@ -129,12 +117,6 @@ export default function cacheOrder(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.warn,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -142,8 +124,6 @@ export default function cacheOrder(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('cc-cache-early-edit', () => {
     s.play(editOn.to(1, { duration: clampDur(c, c.cue('cc-cache-early-edit').start, 0.4) }));
   });

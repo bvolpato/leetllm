@@ -3,9 +3,7 @@ import {
   COSMOS,
   SCAN,
   aura,
-  evalArc2d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -13,12 +11,10 @@ import {
   number,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function inclusiveScan(s, c) {
-  const phase = s.value(0);
   const showMarks = s.value(0);
   const stride1 = s.value(0);
   const askMissing = s.value(0);
@@ -41,7 +37,6 @@ export default function inclusiveScan(s, c) {
   const roundY = (round) => -165 + round * 215;
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const mk = showMarks.value;
     const s1 = stride1.value;
     const ask = askMissing.value;
@@ -49,7 +44,6 @@ export default function inclusiveScan(s, c) {
     const s2 = stride2.value;
     const sev = revealSeven.value;
     const six = revealSix.value;
-    const u = (p * 0.85) % 1;
 
     const nodes = [
       // Lane column headers
@@ -131,10 +125,6 @@ export default function inclusiveScan(s, c) {
             core: false,
           }),
         );
-        if (lane === 3 && s2 < 0.05) {
-          const [dx, dy] = evalArc2d(p0, p1, 0, u);
-          nodes.push(glowDot(dx, dy, { radius: 7, color: COSMOS.gold, opacity: s1 }));
-        }
       }
     }
 
@@ -150,8 +140,6 @@ export default function inclusiveScan(s, c) {
         nodes.push(
           glowingArc(p0, p1, 14, { color: col, width: 4.2, opacity: 0.92 * s2, core: false }),
         );
-        const [dx, dy] = evalArc2d(p0, p1, 14, u);
-        nodes.push(glowDot(dx, dy, { radius: 7, color: col, opacity: s2 }));
       }
     }
 
@@ -179,7 +167,6 @@ export default function inclusiveScan(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('scan-input', () => s.play(showMarks.to(1, { duration: 0.45 })));
   c.on('scan-first-stride', () => s.play(stride1.to(1, { duration: 0.55 })));

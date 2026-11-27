@@ -46,7 +46,6 @@ export default function ivfProbes(s, c) {
   const rf = flatRoute(4.9);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sl = showLists.value;
     const sq = showQuery.value;
     const sa = showAsk.value;
@@ -54,7 +53,6 @@ export default function ivfProbes(s, c) {
     const sg = showGap.value;
     const s2 = showSecond.value;
     const sc = showCounts.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const twoOpen = s2 > 0.5;
     const revealed = sL > 0.4 || twoOpen;
@@ -90,7 +88,7 @@ export default function ivfProbes(s, c) {
 
       glassCell(-200, -110, 430, 108, twoOpen ? COSMOS.emerald : COSMOS.muted, {
         fill: twoOpen ? '#0e2824' : '#12182b',
-        glow: twoOpen ? 9 * pulse : 2,
+        glow: twoOpen ? 9 : 2,
       }),
       txt('LIST 1  (x >= 5.0)', -200, -132, 26, twoOpen ? COSMOS.emerald : COSMOS.muted, 'mono'),
       txt('key_rot (5.1), quota (9)', -200, -88, 26, COSMOS.ink, 'mono'),
@@ -122,7 +120,7 @@ export default function ivfProbes(s, c) {
         twoOpen ? COSMOS.emerald : revealed ? COSMOS.rose : COSMOS.muted,
         {
           fill: '#10182d',
-          glow: sc > 0.3 ? 8 * pulse : 3,
+          glow: sc > 0.3 ? 8 : 3,
         },
       ),
       txt(

@@ -149,16 +149,6 @@ export default function policyAndJudge(s, c) {
       txt('2.0', mapR(2.0), axisY + 190, 26, COSMOS.dim, 'mono'),
     ];
 
-    // Live photon traveling into scorer
-    const u = (p * 0.55) % 1;
-    nodes.push(
-      glowDot(-520 + u * 320, -60 - u * 75, { radius: 6, color: COSMOS.cyan }),
-      glowDot(165 + u * 115, (sb > 0.5 ? 135 : -135) * (1 - u), {
-        radius: 6,
-        color: sb > 0.5 ? COSMOS.rose : COSMOS.emerald,
-      }),
-    );
-
     if (sa > 0.1) {
       nodes.push(
         glowDot(xA, axisY + 150, { radius: 10, color: COSMOS.emerald, opacity: sa }),

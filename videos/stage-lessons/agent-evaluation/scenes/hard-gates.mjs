@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   railBar,
@@ -39,7 +38,7 @@ export default function hardGates(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const ra = readArrived.value;
       const fc = fieldsChecked.value;
       const pv = passVerdict.value;
@@ -193,7 +192,6 @@ export default function hardGates(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('fresh-read', () => {
     s.play(readArrived.to(1, { duration: clampDur(c, c.cue('fresh-read').start, 0.45) }));

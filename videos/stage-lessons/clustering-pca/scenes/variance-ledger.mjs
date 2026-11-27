@@ -18,7 +18,6 @@ import {
   makePlot,
   pca,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -26,7 +25,6 @@ import {
 const ROW_C = ENERGY_ROWS[2];
 
 export default function varianceLedger(s, c) {
-  const phase = s.value(0);
   const showOrigin = s.value(0);
   const showSplit = s.value(0);
   const showOrtho = s.value(0);
@@ -182,7 +180,6 @@ export default function varianceLedger(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'origin', showOrigin, 1, { duration: 0.45 });
   tweenCue(s, c, 'split', showSplit, 1, { duration: 0.5 });

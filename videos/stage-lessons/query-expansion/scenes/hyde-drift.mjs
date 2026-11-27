@@ -10,13 +10,11 @@ import {
   heroTitle,
   proxyEvidence,
   remainDuration,
-  runPhase,
   search,
   txt,
 } from '../parts.mjs';
 
 export default function hydeDrift(s, c) {
-  const phase = s.value(0);
   const showInitial = s.value(0);
   const showEdit = s.value(0);
   const showCause = s.value(0);
@@ -35,11 +33,9 @@ export default function hydeDrift(s, c) {
   const driftRun = proxyEvidence(true);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sInit = showInitial.value;
     const sEdit = showEdit.value;
     const sCause = showCause.value;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const edited = sEdit > 0.4;
     const initialDone = sInit > 0.5;
@@ -51,7 +47,7 @@ export default function hydeDrift(s, c) {
       // Generated search proxy bar
       glassCell(0, -190, 1710, 86, edited ? COSMOS.amber : COSMOS.blue, {
         fill: edited ? '#261b10' : '#10203a',
-        glow: 8 * pulse,
+        glow: 8,
       }),
       txt('GENERATED PROXY:', -832, -188, 26, COSMOS.muted, 'mono', 'left'),
       txt('"For batch jobs,', -525, -188, 32, COSMOS.ink, 'sans', 'left'),
@@ -93,7 +89,7 @@ export default function hydeDrift(s, c) {
       nodes.push(
         glassCell(0, y, 1710, 102, border, {
           fill: dropped ? '#2a121c' : inTop2 && isReq ? '#0d2723' : '#10182d',
-          glow: dropped ? 10 * pulse : inTop2 ? 6 : 2,
+          glow: dropped ? 10 : inTop2 ? 6 : 2,
         }),
         txt(doc.id, -832, y + 2, 30, dropped ? COSMOS.rose : COSMOS.ink, 'mono', 'left'),
         txt(doc.text, -515, y + 2, 28, COSMOS.ink, 'sans', 'left'),
@@ -162,7 +158,6 @@ export default function hydeDrift(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.after('hyde-find-policies', () => s.play(showInitial.to(1, { duration: 0.45 })));
   c.on('hyde-edit-proxy', () => s.play(showEdit.to(1, { duration: 0.45 })));

@@ -10,12 +10,10 @@ import {
   meterBar,
   pagingContext,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function labeledRetrieval(s, c) {
-  const phase = s.value(0);
   const showCounts = s.value(0);
   const showPack10 = s.value(0);
   const showNine = s.value(0);
@@ -36,13 +34,11 @@ export default function labeledRetrieval(s, c) {
   const p9 = pagingContext(9);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sc = showCounts.value;
     const s10 = showPack10.value;
     const s9 = showNine.value;
     const sv = showVerdict.value;
     const se = showEqual.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: Lexical overlap counts & 10-word pack (both halves fit!)
@@ -82,7 +78,7 @@ export default function labeledRetrieval(s, c) {
 
       glassCell(-455, 86, 810, 178, s10 > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: '#0e2824',
-        glow: s10 > 0.3 ? 9 * pulse : 3,
+        glow: s10 > 0.3 ? 9 : 3,
       }),
       txt(
         `BUDGET = 10 WORDS  (USED ${p10.used}/10 -> COMPLETE!)`,
@@ -124,7 +120,7 @@ export default function labeledRetrieval(s, c) {
         sv > 0.4 ? COSMOS.rose : s9 > 0.3 ? COSMOS.gold : COSMOS.muted,
         {
           fill: sv > 0.4 ? '#29111a' : '#181e34',
-          glow: sv > 0.4 ? 10 * pulse : 3,
+          glow: sv > 0.4 ? 10 : 3,
         },
       ),
       txt('BUDGET = 9 WORDS  |  HIT #1 USES 5 SPACES', 145, -130, 26, COSMOS.gold, 'mono', 'left'),
@@ -154,7 +150,7 @@ export default function labeledRetrieval(s, c) {
 
       glassCell(495, 152, 760, 178, se > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10203a',
-        glow: se > 0.3 ? 9 * pulse : 2,
+        glow: se > 0.3 ? 9 : 2,
       }),
       txt('COMPARE AT EQUAL EVIDENCE BUDGET (120 TOK)', 145, 94, 26, COSMOS.cyan, 'mono', 'left'),
       txt('2 x 60-token chunks = 120 tok  (full budget)', 145, 140, 26, COSMOS.ink, 'mono', 'left'),
@@ -193,7 +189,6 @@ export default function labeledRetrieval(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('count-matches', () => s.play(showCounts.to(0.5, { duration: 0.35 })));
   c.on('retrieval-suite', () => s.play(showCounts.to(1, { duration: 0.4 })));

@@ -13,12 +13,10 @@ import {
   heroTitle,
   rect,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function profileChoice(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1); // Beat 0: Nsight Systems timeline -> zoom kernel for Nsight Compute
   const zoomKernel = s.value(0);
 
@@ -248,7 +246,6 @@ export default function profileChoice(s, c) {
   });
 
   s.add(bgAura, title, part1, part2, part3);
-  runPhase(s, c, phase, 14);
 
   c.on('profile-kernel', () => s.play(zoomKernel.to(1, { duration: 0.55 })));
 

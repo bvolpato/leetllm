@@ -3,17 +3,14 @@ import {
   ARTICLE_INPUT,
   COSMOS,
   aura,
-  evalArc2d,
   exclusive,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   number,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
@@ -22,8 +19,6 @@ const BLOCK_B_LOCAL = exclusive(ARTICLE_INPUT.slice(4)); // [0, 5, -4, -2]
 const BLOCK_B_EXPECTED = exclusive(ARTICLE_INPUT).slice(4); // [7, 12, 3, 5]
 
 export default function hazardProof(s, c) {
-  const phase = s.value(0);
-
   const showHazards = s.value(1);
   const highlightWaw = s.value(0);
   const highlightSafe = s.value(0);
@@ -38,10 +33,8 @@ export default function hazardProof(s, c) {
 
   // Beat 0: Shared slot s hazard matrix (RAW, WAR, WAW vs safe Read+Read)
   const hazardsView = guardedDynamic(showHazards, (a) => {
-    const p = phase.value;
     const waw = highlightWaw.value;
     const saf = highlightSafe.value;
-    const u = (p * 0.9) % 1;
 
     const rows = [
       {
@@ -114,7 +107,6 @@ export default function hazardProof(s, c) {
           opacity: a,
           core: false,
         }),
-        glowDot(-360 + u * 215, row.y, { radius: 5.5, color: col, opacity: a }),
 
         txt(row.tag, 705, row.y, 27, col, 'mono')
           .glow(emph ? 7 : 0, col)
@@ -143,8 +135,6 @@ export default function hazardProof(s, c) {
 
   // Beat 1: Compute Sanitizer diagnostic trio
   const toolsView = guardedDynamic(showTools, (a) => {
-    const p = phase.value;
-    const u = (p * 0.9) % 1;
     const tools = [
       {
         name: 'memcheck',
@@ -188,11 +178,6 @@ export default function hazardProof(s, c) {
           opacity: a,
           core: false,
         }),
-        glowDot(-290 + ((u + i * 0.3) % 1) * 195, tool.y, {
-          radius: 7,
-          color: tool.col,
-          opacity: a,
-        }),
 
         glassCell(360, tool.y, 880, 108, COSMOS.cyan, { fill: '#0e1d30', glow: 6, opacity: a }),
         txt(tool.scope, 360, tool.y, 30, COSMOS.ink, 'sans').opacity(a),
@@ -218,8 +203,6 @@ export default function hazardProof(s, c) {
   const evidenceView = guardedDynamic(showEvidence, (a) => {
     const off = applyOffset.value;
     const cpu = showCpuNote.value;
-    const p = phase.value;
-    const u = (p * 0.9) % 1;
     const xs = [-435, -145, 145, 435];
 
     const nodes = [
@@ -266,8 +249,6 @@ export default function hazardProof(s, c) {
           }),
           txt('+7', cx + 44, 5, 28, COSMOS.gold, 'mono').opacity(off * a),
         );
-        const [dx, dy] = evalArc2d([cx, -68], [cx, 78], 0, u);
-        nodes.push(glowDot(dx, dy, { radius: 6.5, color: COSMOS.gold, opacity: off * a }));
       }
     });
 
@@ -293,7 +274,6 @@ export default function hazardProof(s, c) {
   });
 
   s.add(bgAura, hazardsView, toolsView, evidenceView);
-  runPhase(s, c, phase, 14);
 
   c.on('hazard-writes', () => s.play(highlightWaw.to(1, { duration: 0.4 })));
   c.on('hazard-proof-step-1', () => s.play(highlightSafe.to(1, { duration: 0.4 })));

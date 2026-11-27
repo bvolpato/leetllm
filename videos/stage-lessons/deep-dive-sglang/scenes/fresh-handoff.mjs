@@ -6,19 +6,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   kvHandoff,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function freshHandoff(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = 7 leading token IDs match path stored in ns A (page size 4)
   // 1 = request needs namespace B
@@ -45,7 +42,6 @@ export default function freshHandoff(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 5) {
@@ -235,9 +231,7 @@ export default function freshHandoff(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 292, { radius: 6, color: st >= 8 ? ROLE.decode : COSMOS.gold }),
       txt(
         st <= 1
           ? 'Seven tokens match A (page 4), while our request requires Namespace B.'
@@ -267,7 +261,6 @@ export default function freshHandoff(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['fresh-path', 0],
     ['fresh-b', 1],

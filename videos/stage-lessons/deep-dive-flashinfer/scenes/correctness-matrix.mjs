@@ -12,12 +12,10 @@ import {
   par,
   remainAfter,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function correctnessMatrix(s, c) {
-  const phase = s.value(0);
   const showCases = s.value(1);
   const stressOn = s.value(0);
   const showTol = s.value(0);
@@ -219,7 +217,6 @@ export default function correctnessMatrix(s, c) {
   });
 
   s.add(bgAura, title, tolEq, casesView, tolView, statusView);
-  runPhase(s, c, phase, 14);
 
   c.on('fi-correctness-matrix-0', () =>
     s.play(stressOn.to(0.2, { duration: remainDuration(c, 'fi-correctness-matrix-0', 0.35) })),

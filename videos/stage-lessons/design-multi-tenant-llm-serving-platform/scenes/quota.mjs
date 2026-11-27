@@ -9,7 +9,6 @@ import {
   buildLedgerNodes,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   playOn,
   quota,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function quotaScene(s, c) {
-  const pulse = s.value(0);
   const reserveP = s.value(0);
   const conserveOn = s.value(0);
   const heldFocus = s.value(0);
@@ -132,8 +130,6 @@ export default function quotaScene(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.0);
-
   playOn(s, c, 'quota-reserve-before-dispatch', reserveP, 1, 0.9);
   stepOn(s, c, 'quota-conserve-allowance', conserveOn, 1);
   stepOn(s, c, 'quota-into-held', heldFocus, 1);

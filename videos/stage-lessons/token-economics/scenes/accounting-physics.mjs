@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   clampDur,
   coldMicro,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowBar,
@@ -125,7 +124,7 @@ export default function accountingPhysics(s, c) {
     () => Math.min(fadeInHalf(mode.value), fadeOutHalf(Math.max(0, mode.value - 1))),
     (a) => {
       const u = flowProg.value;
-      const p = pulseT.value;
+      const p = 0;
       const nodes = [
         txt('EXECUTION', -580, -195, 26, ROLE.input, 'mono').opacity(a),
         txt('INVOICE CATEGORIES', 430, -195, 26, ROLE.cached, 'mono').opacity(a),
@@ -190,7 +189,7 @@ export default function accountingPhysics(s, c) {
     (a) => {
       const u = timeoutProg.value;
       const m = matchedVal.value;
-      const p = pulseT.value;
+      const p = 0;
       const isMatched = m > 0.5;
       const ledgerColor = isMatched ? ROLE.ok : ROLE.cached;
 
@@ -266,7 +265,6 @@ export default function accountingPhysics(s, c) {
   );
 
   s.add(sceneAura, header, mode0, mode1, mode2);
-  driftValue(s, c, pulseT, 4.5, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('te-accounting-physics-0', () => {
     const t = c.cue('te-accounting-physics-0').start;

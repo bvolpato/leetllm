@@ -17,12 +17,10 @@ import {
   range,
   rect,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function opening(s, c) {
-  const phase = s.value(0);
   const showFell = s.value(0);
   const privateWritten = s.value(0);
   const showPrivateTotal = s.value(0);
@@ -42,7 +40,6 @@ export default function opening(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const ph = phase.value;
     const fellOp = showFell.value;
     const privW = privateWritten.value;
     const privTot = showPrivateTotal.value;
@@ -128,17 +125,6 @@ export default function opening(s, c) {
             opacity: isHi ? 1 : 0.78,
           }),
           glowDot(qx, wireTopY, { radius: isHi ? 5.5 : 4, color: col, glow: isHi ? 10 : 5 }),
-        );
-
-        const u = (ph * 0.45 + i * 0.13 + (ch.shared ? 0.5 : 0)) % 1;
-        const idx = Math.min(pts.length - 1, Math.floor(u * (pts.length - 1)));
-        nodes.push(
-          glowDot(pts[idx][0], pts[idx][1], {
-            radius: isHi ? 4.8 : 3.2,
-            color: isHi ? '#fff6d0' : col,
-            glow: isHi ? 10 : 6,
-            opacity: isHi ? 0.95 : 0.6,
-          }),
         );
       }
 
@@ -255,7 +241,6 @@ export default function opening(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.query, ROLE.gold), title, live);
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'next', (d) => s.play(showFell.to(1, { duration: d })), { dur: 0.45 });
   playCue(s, c, 'private-write', (d) => s.play(privateWritten.to(HEADS.mhaKV, { duration: d })), {

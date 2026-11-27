@@ -7,19 +7,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function dot(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1: -2, 2: +3 -> 1, 3: +6 -> 7
   const showFlops = s.value(0);
 
@@ -49,7 +46,6 @@ export default function dot(s, c) {
   const runningSums = [terms[0].prod, terms[0].prod + terms[1].prod, FULL_C[1][0]];
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const st = step.value;
     const fl = showFlops.value;
     const activeK = st < 0.5 ? -1 : st < 1.5 ? 0 : st < 2.5 ? 1 : 2;
@@ -161,10 +157,8 @@ export default function dot(s, c) {
         ).opacity(vis),
       );
       if (done) {
-        const u = (p * 0.7 + k * 0.27) % 1;
         nodes.push(
           glowingArc([lx, -6], [175, 118], 20, { color: ROLE.c, width: 3.0, opacity: 0.75 }),
-          glowDot(lx + (175 - lx) * u, -6 + 124 * u, { radius: 5, color: COSMOS.gold }),
         );
       }
     }
@@ -198,7 +192,6 @@ export default function dot(s, c) {
   });
 
   s.add(bgAura, title, formula, live);
-  runPhase(s, c, phase, 14);
 
   c.on('minus-two', () => s.play(step.to(1, { duration: remainDuration(c, 'minus-two', 0.45) })));
   c.on('plus-three', () => s.play(step.to(2, { duration: remainDuration(c, 'plus-three', 0.45) })));

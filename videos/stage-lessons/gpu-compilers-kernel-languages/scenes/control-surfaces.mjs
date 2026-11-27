@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function controlSurfaces(s, c) {
-  const phase = s.value(0);
   // focus: 0=cuda/triton, 1=cute, 2=cuda-tile, 3=tile-13.3, 4=pallas, 5=nki-move, 6=nki-store
   const focus = s.value(0);
 
@@ -31,9 +28,7 @@ export default function controlSurfaces(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const fc = Math.round(focus.value);
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [];
 
@@ -119,7 +114,7 @@ export default function controlSurfaces(s, c) {
       nodes.push(
         glassCell(lg.x, -125, 258, 122, lg.on ? lg.col : COSMOS.dim, {
           fill: lg.on ? '#142038' : '#0b101d',
-          glow: lg.on ? 10 * pulse : 0,
+          glow: lg.on ? 10 : 0,
         }),
         txt(lg.name, lg.x, -150, 26, lg.on ? lg.col : COSMOS.muted, 'mono'),
         txt(lg.sub, lg.x, -100, 26, COSMOS.ink, 'sans'),
@@ -147,7 +142,7 @@ export default function controlSurfaces(s, c) {
 
       glassCell(320, 130, 360, 118, nkiOn ? COSMOS.gold : COSMOS.dim, {
         fill: '#241e11',
-        glow: nkiOn ? 10 * pulse : 0,
+        glow: nkiOn ? 10 : 0,
       }),
       txt('SBUF + ENGINE', 320, 102, 26, COSMOS.gold, 'mono'),
       txt('+1 → 2 becomes 3', 320, 152, 26, COSMOS.gold, 'mono'),
@@ -178,9 +173,7 @@ export default function controlSurfaces(s, c) {
       }),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 315, { radius: 6, color: nkiStored ? ROLE.cubin : ROLE.ir }),
       txt(
         'Start with tuned libraries · drop down only when you need control over layout or movement',
         0,
@@ -195,7 +188,6 @@ export default function controlSurfaces(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('thread-addresses', () => s.play(focus.to(0, { duration: 0.35 })));
   c.on('cute-layout', () => s.play(focus.to(1, { duration: 0.4 })));

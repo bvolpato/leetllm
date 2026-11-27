@@ -15,7 +15,6 @@ import {
   guardedDynamic,
   heroTitle,
   lumBar,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -23,7 +22,6 @@ import {
 const DEFF = clusterDesignEffect(20, 0.1); // 2.9
 
 export default function unitAndInterference(s, c) {
-  const phase = s.value(0);
   const showPolicy = s.value(0);
   const showVersions = s.value(0);
   const showLearning = s.value(0);
@@ -125,7 +123,6 @@ export default function unitAndInterference(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'policy', showPolicy, 1, { duration: 0.45 });
   tweenCue(s, c, 'versions', showVersions, 1, { duration: 0.45 });

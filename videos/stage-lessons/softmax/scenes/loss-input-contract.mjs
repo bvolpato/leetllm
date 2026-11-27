@@ -19,7 +19,6 @@ import {
   guardedDynamic,
   heroTitle,
   lumBar,
-  runAmbientPhase,
   tweenCue,
   txt,
   unitRibbon,
@@ -30,7 +29,6 @@ const SEQ_SCORES = [LOGITS, FRESH_LOGITS];
 const SEQ_TARGETS = [1, 2];
 
 export default function lossInputContract(s, c) {
-  const phase = s.value(0);
   const vDouble = s.value(1);
   const vLayout = s.value(0);
 
@@ -317,7 +315,6 @@ export default function lossInputContract(s, c) {
   });
 
   s.add(bgAura, title, viewDouble, viewLayout);
-  runAmbientPhase(s, c, phase, 2.2);
 
   // Beat 0-2 cues
   c.on('loss-input-contract-0', () => {

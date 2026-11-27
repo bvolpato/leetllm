@@ -13,12 +13,10 @@ import {
   rect,
   remainAfter,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function startupLogging(s, c) {
-  const phase = s.value(0);
   const showStart = s.value(1);
   const staleWarn = s.value(0);
   const showPrivacy = s.value(0);
@@ -201,7 +199,6 @@ export default function startupLogging(s, c) {
   });
 
   s.add(bgAura, title, startView, privView, dumpView);
-  runPhase(s, c, phase, 14);
 
   c.on('fi-startup-logging-0', () =>
     s.play(staleWarn.to(0.1, { duration: remainDuration(c, 'fi-startup-logging-0', 0.25) })),

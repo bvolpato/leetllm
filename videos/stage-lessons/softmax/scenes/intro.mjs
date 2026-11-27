@@ -18,14 +18,12 @@ import {
   heroTitle,
   lumBar,
   orbitScene,
-  runAmbientPhase,
   tweenCue,
   txt,
   unitRibbon,
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   const liftCard = s.value(0);
   const showObserved = s.value(0);
   const showPrompt = s.value(0);
@@ -51,13 +49,11 @@ export default function intro(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const lift = liftCard.value;
     const obs = showObserved.value;
     const prm = showPrompt.value;
     const lnk = showTargetLink.value;
     const scr = showScoresHint.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.0);
 
     const nodes = [
       // Sentence with live floating prediction slot (no heavy slide chrome)
@@ -76,7 +72,7 @@ export default function intro(s, c) {
     if (obs > 0.02) {
       nodes.push(
         txt('slept', -385, -108, 66, TARGET_COLOR, 'serif', 'center')
-          .glow(10 * pulse, TARGET_COLOR)
+          .glow(10, TARGET_COLOR)
           .opacity(obs),
         txt('OBSERVED TARGET', -385, -206, 26, TARGET_COLOR, 'mono', 'center').opacity(obs),
       );
@@ -178,7 +174,7 @@ export default function intro(s, c) {
         glowRing(targetX, ribY, 44, TARGET_COLOR, {
           width: 3.5,
           glow: 12,
-          opacity: ansOp * pulse,
+          opacity: ansOp,
         }),
         txt('Green slice: slept gets 11.4%', -855, 318, 34, TARGET_COLOR, 'sans', 'left')
           .glow(6, TARGET_COLOR)
@@ -216,7 +212,6 @@ export default function intro(s, c) {
   });
 
   s.add(bgAura, simplex, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
   orbitScene(s, c, simplex, { theta: 0.45, phi: 0.94 });
 
   tweenCue(s, c, 'intro-uncover', liftCard, 0.25, { duration: 0.45 });

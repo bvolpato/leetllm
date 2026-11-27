@@ -14,7 +14,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   glowMeter,
   guardedDynamic,
@@ -64,7 +63,7 @@ export default function strictProposal(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const ph = parserHi.value;
       const u8 = utf8Hi.value;
       const sh = structHi.value;
@@ -210,7 +209,6 @@ export default function strictProposal(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('pi-strict-proposal-0', () => {
     s.play(parserHi.to(1, { duration: clampDur(c, c.cue('pi-strict-proposal-0').start, 0.45) }));

@@ -8,7 +8,6 @@ import {
   boundaries,
   buildScoreTraceNodes,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -16,7 +15,6 @@ import {
   line,
   number,
   remainDuration,
-  runPhase,
   swapViews,
   traceBeaconNodes,
   tracePolylineNodes,
@@ -28,7 +26,6 @@ const RIGHT_SCORES = boundaries(ARTICLE_INPUT.slice(4)); // [0, 5, -4, -2, 4]
 const OFFSET = LEFT_SCORES.at(-1); // 7
 
 export default function blockOffsets(s, c) {
-  const phase = s.value(0);
   const showTraces = s.value(1);
   const leftSteps = s.value(0);
   const rightSteps = s.value(0);
@@ -201,9 +198,7 @@ export default function blockOffsets(s, c) {
 
   // Beat 2: Recursive tile-hierarchy boundary (512^2 vs 512^2 + 1)
   const hierarchyView = guardedDynamic(showHierarchy, (a) => {
-    const p = phase.value;
     const res = showBoundaryResult.value;
-    const u = (p * 0.85) % 1;
     const cols = ['INPUTS', 'BLOCK TOTALS', 'LEVEL 2', 'ROOT'];
     const xs = [-615, -205, 205, 615];
 
@@ -249,7 +244,6 @@ export default function blockOffsets(s, c) {
               opacity: a,
               core: false,
             }),
-            glowDot(x1 + u * (x2 - x1), y, { radius: 6, color: rowCol, opacity: a }),
           );
         }
       });
@@ -277,7 +271,6 @@ export default function blockOffsets(s, c) {
   });
 
   s.add(bgAura, tracesView, hierarchyView);
-  runPhase(s, c, phase, 14);
 
   c.on('offset-left', () => s.play(leftSteps.to(1, { duration: 0.7 })));
   c.on('offset-right', () => s.play(rightSteps.to(1, { duration: 0.7 })));

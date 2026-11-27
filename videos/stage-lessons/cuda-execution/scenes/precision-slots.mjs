@@ -16,13 +16,11 @@ import {
   rect,
   remainDuration,
   rule,
-  runPhase,
   storedInFormat,
   txt,
 } from '../parts.mjs';
 
 export default function precisionSlots(s, c) {
-  const phase = s.value(0);
   const showRuler = s.value(1); // Beats 0..2: weight update ruler near 1.0
   const candProg = s.value(0);
   const writeProg = s.value(0);
@@ -329,7 +327,6 @@ export default function precisionSlots(s, c) {
   });
 
   s.add(bgAura, title, partRuler, partBits, partOverflow, partCompare);
-  runPhase(s, c, phase, 14);
 
   c.on('precision-small-update', () => s.play(candProg.to(1, { duration: 0.75 })));
   c.on('precision-write', () => s.play(writeProg.to(1, { duration: 0.75 })));

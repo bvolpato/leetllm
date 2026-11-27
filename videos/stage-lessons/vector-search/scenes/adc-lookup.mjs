@@ -10,12 +10,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function adcLookup(s, c) {
-  const phase = s.value(0);
   const showAdc = s.value(0);
   const showTable = s.value(0);
   const showCollide = s.value(0);
@@ -33,13 +31,11 @@ export default function adcLookup(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sa = showAdc.value;
     const st = showTable.value;
     const sc = showCollide.value;
     const sr = showRerank.value;
     const sd = showResid.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const t0 = COMP_FIX.tables[0];
     const t1 = COMP_FIX.tables[1];
@@ -126,7 +122,7 @@ export default function adcLookup(s, c) {
         sr > 0.3 ? COSMOS.emerald : sc > 0.3 ? COSMOS.rose : COSMOS.muted,
         {
           fill: sr > 0.3 ? '#0e2824' : '#26111a',
-          glow: sc > 0.3 ? 9 * pulse : 2,
+          glow: sc > 0.3 ? 9 : 2,
         },
       ),
       txt('A & B both encode [0,0] -> tie (A by ID)', 145, -132, 26, COSMOS.amber, 'mono', 'left'),
@@ -154,7 +150,7 @@ export default function adcLookup(s, c) {
 
       glassCell(495, 146, 750, 168, sd > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#101d35',
-        glow: sd > 0.3 ? 8 * pulse : 2,
+        glow: sd > 0.3 ? 8 : 2,
       }),
       txt('Coarse center c = [10, 0, 10, 0]', 145, 92, 26, COSMOS.cyan, 'mono', 'left'),
       txt(
@@ -184,7 +180,6 @@ export default function adcLookup(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('adc-lookup-b1', () => s.play(showAdc.to(0.35, { duration: 0.3 })));
   c.on('adc-first-byte', () => s.play(showAdc.to(0.6, { duration: 0.3 })));

@@ -13,7 +13,6 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -287,7 +286,6 @@ export default function harnessIntegrity(s, c) {
 
   s.add(stageAura, header, view3d, mode0, mode1);
   orbitScene(s, c, view3d, { theta: -0.25, phi: 0.94 });
-  driftValue(s, c, pulse, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('reset-remote', () => {
     s.play(remoteReset.to(1, { duration: clampDur(c, c.cue('reset-remote').start, 0.4) }));

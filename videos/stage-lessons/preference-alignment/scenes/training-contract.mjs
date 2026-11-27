@@ -3,7 +3,6 @@ import {
   COSMOS,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -60,7 +59,6 @@ export default function trainingContract(s, c) {
 
       // Center artifact handoff arrow (saved weights + tokenizer)
       line([-42, 25], [42, 25], { stroke: COSMOS.gold, width: 4 }),
-      glowDot(-42 + ((p * 55) % 84), 25, { radius: 7, color: COSMOS.gold, glow: 12 }),
 
       // RIGHT LANE: Independent Generation & Blind Human Eval
       glassCell(445, 25, 790, 446, gn > 0.2 ? COSMOS.emerald : COSMOS.dim, {

@@ -19,13 +19,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function ordering(s, c) {
-  const phase = s.value(0);
-
   // Act 1: Clip ordering
   const showAct1 = s.value(1);
   const clipEarly = s.value(0);
@@ -480,7 +477,6 @@ export default function ordering(s, c) {
     act3Live,
     act4Live,
   );
-  runPhase(s, c, phase, 16);
 
   // Act 1 cues
   c.on('clip-too-early', () => s.play(clipEarly.to(1, { duration: 1.0 })));

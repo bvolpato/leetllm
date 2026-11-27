@@ -8,7 +8,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   glowingTrail,
   guardedDynamic,
@@ -16,7 +15,6 @@ import {
 } from '../parts.mjs';
 
 export default function reads(s, c) {
-  const phase = s.value(0);
   const growth = s.value(0.25); // grows 0.25 -> 1.0 along linear read curve
   const scanVis = s.value(0);
   const slowerVis = s.value(0);
@@ -40,7 +38,6 @@ export default function reads(s, c) {
     () => 1,
     () => {
       const g = growth.value;
-      const ph = phase.value;
       const nodes = [];
 
       // Left-middle: Live Growing Row Scanner (1 green write square + yellow full-row read frame)
@@ -74,18 +71,11 @@ export default function reads(s, c) {
       const frameW = nCells * 86 + 10;
       const frameCx = startX - 43 + frameW * 0.5;
       if (scanVis.value > 0.05) {
-        const scanX = startX - 38 + ((ph * 0.55) % 1) * (frameW - 14);
         nodes.push(
           rect(frameW, 84, { fill: null, stroke: ROLE.focus, width: 3.0, radius: 12 })
             .at(frameCx, rowY)
             .glow(10, ROLE.focus)
             .opacity(scanVis.value),
-          glowDot(scanX, rowY + 42, {
-            radius: 7,
-            color: ROLE.focus,
-            glow: 14,
-            opacity: scanVis.value,
-          }),
           txt(
             `1 new K, V written  ·  ${nCells} positions read`,
             -855,
@@ -177,20 +167,11 @@ export default function reads(s, c) {
         ),
       );
 
-      // Streaming photon markers racing up the linear read slope
-      for (let p = 0; p < 4; p++) {
-        const u = (ph * 0.45 + p * 0.25) % 1;
-        const px = chartLeft + u * (xTip - chartLeft);
-        const py = chartBot - 52 - u * (chartBot - 52 - readTipY);
-        nodes.push(glowDot(px, py, { radius: 5.2, color: ROLE.focus, glow: 10, opacity: 0.85 }));
-      }
-
       return group(...nodes);
     },
   );
 
   s.add(stageAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('saves', () => {
     s.play(growth.to(0.38, { duration: clampDur(c, c.cue('saves').start, 0.35) }));

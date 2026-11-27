@@ -723,18 +723,6 @@ export function renderGqaRack2d({
         opacity: alpha,
       }),
     );
-    // Travelling pulse photon
-    const u = (phase * 0.45 + i * 0.14) % 1;
-    const pIdx = Math.min(pts.length - 1, Math.floor(u * (pts.length - 1)));
-    const [px, py] = pts[pIdx];
-    nodes.push(
-      glowDot(px, py, {
-        radius: isLit ? 5 : 3.2,
-        color: isLit ? '#fff6d0' : col,
-        glow: isLit ? 11 : 6,
-        opacity: (isLit ? 0.95 : 0.55) * alpha,
-      }),
-    );
   }
 
   // Unique stored K/V rows

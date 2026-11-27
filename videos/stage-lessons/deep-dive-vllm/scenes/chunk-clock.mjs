@@ -11,7 +11,6 @@ import {
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
@@ -23,7 +22,6 @@ const TOTAL_6 = COST_6_A + COST_6_B; // 15 ms
 const COST_10 = OVERHEAD + SCHED_10[0].used; // 12 ms
 
 export default function chunkClock(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = inputs (slices of 5 and 4 under Cap 6)
   // 1 = cost-eight (8 ms -> R0 token at 8 ms)
@@ -46,7 +44,6 @@ export default function chunkClock(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const xOf = (ms) => -640 + (ms / 15) * 1440;
     const nodes = [];
 
@@ -199,16 +196,11 @@ export default function chunkClock(s, c) {
                   ? 'First 6-input step takes 8 ms -> R0 gets its decode token there'
                   : 'Decode-first budget splits R1’s 9-token prompt into chunks of 5 and 4';
 
-    const u = (p * 0.65) % 1;
-    nodes.push(
-      glowDot(-780 + u * 1560, 330, { radius: 6, color: st >= 4 ? ROLE.kv : COSMOS.gold }),
-      txt(caption, 0, 385, 26, st === 3 ? COSMOS.gold : COSMOS.ink, 'sans'),
-    );
+    nodes.push(txt(caption, 0, 385, 26, st === 3 ? COSMOS.gold : COSMOS.ink, 'sans'));
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['vv-chunk-clock-inputs', 0],
     ['vv-chunk-clock-cost-eight', 1, true],

@@ -7,10 +7,8 @@ import { line } from 'vizmatic/stage';
 import {
   COSMOS,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   glowCross,
-  glowDot,
   glowPill,
   guardedDynamic,
   hexAlpha,
@@ -23,7 +21,6 @@ import {
 export default function casBoundary(s, c) {
   const title = sceneHeading(['Two writers at', 'the deadline'], { accent: ROLE.focus });
 
-  const amb = ambientClock(s, c);
   const stage = s.value(0); // 0=untimed CAS, 1=split-lock race, 2=atomic replay, 3=snapshot isolation
   const casStep = s.value(0); // 0..3
   const raceStep = s.value(0); // 0=reset, 1=A cleans, 2=gap, 3=B writes queued, 4=question, 5=A overwrites ready!
@@ -33,7 +30,6 @@ export default function casBoundary(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(stage.value);
       const nodes = [];
 
@@ -178,7 +174,7 @@ export default function casBoundary(s, c) {
               'center',
             )
               .glow(7, ROLE.focus)
-              .opacity(alpha * (0.82 + 0.18 * pulse)),
+              .opacity(alpha),
           );
         } else if (rs >= 5) {
           nodes.push(
@@ -363,12 +359,6 @@ export default function casBoundary(s, c) {
       }
 
       nodes.push(
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5,
-          color: ROLE.focus,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'COMPARE-AND-SET + EXPIRY BOUNDARY',
           st === 3

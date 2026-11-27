@@ -14,7 +14,6 @@ import {
   canonicalVote,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowTex,
   guardedDynamic,
   txt,
@@ -55,7 +54,7 @@ export default function canonicalAnswerVote(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const th = threeOn.value;
       const rv = reviewOn.value;
       const iv = invalidOn.value;
@@ -230,7 +229,6 @@ export default function canonicalAnswerVote(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('vote-three', () => {
     s.play(threeOn.to(1, { duration: clampDur(c, c.cue('vote-three').start, 0.35) }));

@@ -10,12 +10,10 @@ import {
   line,
   minMaxScale,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function fusionScale(s, c) {
-  const phase = s.value(0);
   const showRulers = s.value(0);
   const showBefore = s.value(0);
   const showOutlier = s.value(0);
@@ -39,14 +37,12 @@ export default function fusionScale(s, c) {
   const afterNorm = minMaxScale(afterVals);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sr = showRulers.value;
     const sb = showBefore.value;
     const so = showOutlier.value;
     const sa = showAsk.value;
     const sf = showAfter.value;
     const st = showTie.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const rx0 = -760;
     const rw = 1520;
@@ -139,7 +135,7 @@ export default function fusionScale(s, c) {
           COSMOS.rose,
           'mono',
           'left',
-        ).glow(8 * pulse, COSMOS.rose),
+        ).glow(8, COSMOS.rose),
         glowDot(mapX(1), 210, { radius: 11, color: COSMOS.amber }),
         txt('raw 100 -> 1.00', mapX(1) - 12, 184, 28, COSMOS.amber, 'mono', 'right'),
       );
@@ -182,7 +178,6 @@ export default function fusionScale(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('scale-rulers', () => s.play(showRulers.to(1, { duration: 0.45 })));
   c.on('scale-range', () => s.play(showBefore.to(0.5, { duration: 0.35 })));

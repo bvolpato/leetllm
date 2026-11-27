@@ -13,7 +13,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   expected,
   fadeInHalf,
   fadeOutHalf,
@@ -383,7 +382,6 @@ export default function agreement(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('human-labels', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('human-labels').start, 0.25) }));

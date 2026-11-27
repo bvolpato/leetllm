@@ -12,7 +12,7 @@ import {
   heroTitle,
   txt,
 } from '../../cinematic-kit.mjs';
-import { ROLE, cinemaAtmosphere, fmt, lumBar, playCue, scenePulse, swapVis } from '../parts.mjs';
+import { ROLE, cinemaAtmosphere, fmt, lumBar, playCue, swapVis } from '../parts.mjs';
 
 const ANSWERS = [
   '10110',
@@ -43,7 +43,6 @@ export default function capabilityMetrics(s, c) {
   const testGlow = s.value(0); // sl-capability-metrics-0
   const probT = s.value(0); // sl-capability-metrics-1: p sweeps 0.30 -> 0.90
   const scoredRows = s.value(0); // Beat 2: 0 -> 3 -> 4 -> 10
-  const pulse = s.value(0);
 
   // Act 1: Loss / perplexity vs deployed task evaluation
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
@@ -344,7 +343,6 @@ export default function capabilityMetrics(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.tokens, ROLE.compute), title, act1Layer, act2Layer, act3Layer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'sl-capability-metrics-0', (d) => s.play(testGlow.to(1, { duration: d })), {
     dur: 0.8,

@@ -7,19 +7,16 @@ import {
   aura,
   fmtVec,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   mpReference,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function transfer(s, c) {
-  const phase = s.value(0);
   const pPartials = s.value(0);
   const pMean = s.value(0);
   const pMeanChk = s.value(0);
@@ -118,17 +115,12 @@ export default function transfer(s, c) {
 
     nodes.push(
       txt(foot, 0, 362, 28, chkDone ? (equal ? ROLE.good : COSMOS.gold) : COSMOS.muted, 'sans'),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 418, {
-        radius: 6,
-        color: chkDone && equal ? ROLE.good : COSMOS.gold,
-      }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('inspect-partials', () =>
     s.play(pPartials.to(1, { duration: remainDuration(c, 'inspect-partials', 0.4) })),

@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowMeter,
@@ -47,7 +46,7 @@ export default function pagingAndAdmission(s, c) {
   const mode0 = guardedDynamic(
     () => fadeOutHalf(writeMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const ac = archCopyOn.value;
       const ev = evictFoldOn.value;
       const nodes = [];
@@ -242,7 +241,6 @@ export default function pagingAndAdmission(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('archive-insert', () => {
     s.play(archCopyOn.to(1, { duration: clampDur(c, c.cue('archive-insert').start, 0.4) }));

@@ -18,13 +18,11 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function gradient(s, c) {
-  const phase = s.value(0);
   const showTarget = s.value(0);
   const g0 = s.value(0);
   const g1 = s.value(0);
@@ -179,7 +177,6 @@ export default function gradient(s, c) {
   });
 
   s.add(bgAura, title, eqGrad, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'gradient-target', showTarget, 1, { duration: 0.45 });
   tweenCue(s, c, 'gradient-0', g0, 1, { duration: 0.45, after: true });

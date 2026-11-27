@@ -42,12 +42,10 @@ export default function subjectIntro(s, c) {
   const mapY = (vy) => 60 - (vy - 5.0) * 390;
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sr = showReceipt.value;
     const sq = showQuery.value;
     const lc = showLineC.value;
     const lb = showLineB.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const qx = mapX(QUERY.x);
     const qy = mapY(QUERY.y);

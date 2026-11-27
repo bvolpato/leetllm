@@ -28,11 +28,9 @@ import {
   fadeIn,
   fadeOut,
   glowBar,
-  glowDot,
   glowTex,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   mix,
   orbitScene,
   routeRulerNodes,
@@ -60,7 +58,6 @@ export function intro(s, c) {
   const resultP = s.value(0);
   const readScoresP = s.value(0);
   const gapP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.forward, seed: 1 }));
   s.add(decorAura(-460, -60, 480, '#60a5fa20', '#07091000'));
@@ -84,7 +81,6 @@ export function intro(s, c) {
     const rs = resultP.value;
     const rd = readScoresP.value;
     const gp = gapP.value;
-    const ph = drift.value;
 
     const nodes = [];
 
@@ -139,10 +135,6 @@ export function intro(s, c) {
     nodes.push(
       circle(rad, { fill: null, stroke: '#2c3d66', width: 3.5, dash: [10, 10] }).at(rx, ry),
     );
-    const orbitAngle = ph * Math.PI * 6;
-    const orbX = rx + Math.cos(orbitAngle) * rad;
-    const orbY = ry + Math.sin(orbitAngle) * rad;
-    nodes.push(glowDot(orbX, orbY, { radius: 7, color: ROLE.forward, glow: 12 }));
 
     const ringNodes = [
       { label: 'forward()', ang: -Math.PI / 2, color: ROLE.forward, active: 0.45 },
@@ -162,9 +154,8 @@ export function intro(s, c) {
     for (const item of ringNodes) {
       const nx = rx + Math.cos(item.ang) * rad;
       const ny = ry + Math.sin(item.ang) * rad;
-      const pulse = 1 + 0.08 * Math.sin(ph * Math.PI * 10 + item.ang);
       nodes.push(
-        circle(26 * pulse, { fill: '#10182d', stroke: item.color, width: 3 })
+        circle(26, { fill: '#10182d', stroke: item.color, width: 3 })
           .at(nx, ny)
           .glow(item.active > 0.3 ? 12 : 4, item.color),
       );
@@ -227,7 +218,6 @@ export function intro(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'intro-score-tie', tieP, 1, { dur: 0.6 });
   cueTo(s, c, 'intro-pin', pinP, 1, { dur: 0.55 });
   cueTo(s, c, 'intro-choose', chooseP, 1, { dur: 0.65 });
@@ -246,7 +236,6 @@ export function tensors(s, c) {
   const rowIntroP = s.value(0);
   const stackP = s.value(0);
   const splitP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.forward, seed: 2 }));
   s.add(decorAura(-360, 0, 480, '#5ce1e61c', '#07091000'));
@@ -273,7 +262,6 @@ export function tensors(s, c) {
     const ri = rowIntroP.value;
     const st = stackP.value;
     const sp = splitP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Left: Full 6x2 feature matrix X and 6-vector y with ID tether
@@ -299,7 +287,7 @@ export function tensors(s, c) {
       const isEsc = row.label === 1;
       const col = isEsc ? ROLE.escalate : ROLE.standard;
       const op = inBatch ? 1 : 0.34;
-      const pulse = inBatch ? 6 + 3 * Math.sin(ph * Math.PI * 8 + i) : 0;
+      const pulse = inBatch ? 7 : 0;
       const segOpts = {
         stroke: inBatch ? col : '#2a3758',
         width: inBatch ? 2.6 : 1.4,
@@ -385,7 +373,6 @@ export function tensors(s, c) {
   });
 
   s.add(headline, shapeEq, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'tensors-beat-1-focus-2', rowIntroP, 1, { dur: 0.7 });
   cueTo(s, c, 'tensors-beat-1-focus-1', stackP, 1, { dur: 0.7 });
   cueTo(s, c, 'tensors-beat-2-focus-1', splitP, 1, { dur: 0.85 });
@@ -400,7 +387,6 @@ export function lossContract(s, c) {
   const b1P = s.value(0);
   const b2P = s.value(0);
   const shufP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.grad, seed: 3 }));
   s.add(decorAura(0, 40, 560, '#ffd16618', '#5ce1e614'));
@@ -419,8 +405,7 @@ export function lossContract(s, c) {
     () => fadeOut(b1P.value),
     (vis) => {
       const b0 = b0P.value;
-      const ph = drift.value;
-      const pulse = 6 + 3 * Math.sin(ph * Math.PI * 8);
+      const pulse = 7;
       const nodes = [
         txt('HARD-LABEL ROUTER CONTRACT', -855, -200, 28, ROLE.forward, 'mono', 'left'),
         // Features [B, 2]
@@ -601,7 +586,6 @@ export function lossContract(s, c) {
   );
 
   s.add(headline, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'loss-contract-beat-0', b0P, 1, { dur: 0.7 });
   cueTo(s, c, 'loss-contract-beat-1', b1P, 1, { dur: 0.8 });
   cueTo(s, c, 'loss-contract-beat-2', b2P, 1, { dur: 0.8 });
@@ -617,7 +601,6 @@ export function scores(s, c) {
   const selectP = s.value(0);
   const ticket1P = s.value(0);
   const meanP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.forward, seed: 4 }));
   s.add(decorAura(-440, 20, 460, '#60a5fa1e', '#07091000'));
@@ -637,7 +620,6 @@ export function scores(s, c) {
     const sl = selectP.value;
     const t1 = ticket1P.value;
     const mn = meanP.value;
-    const ph = drift.value;
     const nodes = [];
 
     const tickets = [
@@ -685,7 +667,7 @@ export function scores(s, c) {
         const by = -60 + k * 92;
         const isTarget = k === tk.target;
         const barW = tk.probs[k] * 470 * tk.fillP;
-        const pulse = isTarget && sl > 0.2 ? 12 + 3 * Math.sin(ph * Math.PI * 8) : 6;
+        const pulse = isTarget && sl > 0.2 ? 12 : 6;
         nodes.push(
           txt(barLabels[k], tk.x0, by, 26, isTarget ? barColors[k] : COSMOS.muted, 'sans', 'left'),
           scaleTrack(tk.x0 + 185, by, 470, 44, {
@@ -754,7 +736,6 @@ export function scores(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'scores-beat-1-focus-1', headP, 1, { dur: 0.85 });
   cueTo(s, c, 'scores-beat-1-focus-2', selectP, 1, { dur: 0.7 });
   cueTo(s, c, 'scores-beat-2-focus-1', ticket1P, 1, { dur: 0.85 });
@@ -775,7 +756,6 @@ export function phases(s, c) {
   const stillZeroP = s.value(0);
   const stepP = s.value(0);
   const rescoreP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.escalate, seed: 5 }));
   s.add(decorAura(-420, 40, 460, '#ffd16618', '#07091000'));
@@ -856,7 +836,6 @@ export function phases(s, c) {
     const sz = stillZeroP.value;
     const st = stepP.value;
     const rs = rescoreP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Top-left ticket pair and derivative contributions
@@ -912,7 +891,7 @@ export function phases(s, c) {
           const isHi = highlightEscUrg && r === 1 && k === 0;
           const cellCol = isHi ? ROLE.grad : col;
           const str = filled ? signed(vals[r][k], 2) : '\u00b7';
-          const pulse = isHi ? 12 + 3 * Math.sin(ph * Math.PI * 8) : filled ? 6 : 2;
+          const pulse = isHi ? 12 : filled ? 6 : 2;
           nodes.push(
             tensorCell(xLeft + 75 + k * 160, yTop + 34 + r * 88, 146, 74, str, cellCol, {
               size: 32,
@@ -990,7 +969,6 @@ export function phases(s, c) {
   });
 
   s.add(headline, view3d, leftPanel);
-  livingDrift(s, c, drift, 1);
   orbitScene(s, c, view3d, { theta: -0.34, phi: 0.96 });
   cueTo(s, c, 'phases-inputs', inputsP, 1, { dur: 0.65 });
   cueTo(s, c, 'phases-loss', lossP, 1, { dur: 0.65 });

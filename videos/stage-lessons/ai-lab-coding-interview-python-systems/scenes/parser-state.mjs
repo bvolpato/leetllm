@@ -8,12 +8,10 @@ import {
   COSMOS,
   PARSER_LINES,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   codeSpotlight,
   glowArrow,
   glowCross,
-  glowDot,
   glowPill,
   guardedDynamic,
   lowerFooter,
@@ -26,7 +24,6 @@ import {
 export default function parserState(s, c) {
   const title = sceneHeading(['Does retry belong', 'to this error?'], { accent: ROLE.workerB });
 
-  const amb = ambientClock(s, c);
   const stage = s.value(0); // 0=multiline ownership, 1=streaming chunks
   // Stage 0 step: 0=focus line 0, 1=save header, 2=focus line 1, 3=append timeout,
   // 4=focus line 2 (broken), 5=clear current=None, 6=focus line 3 (PREDICTION HOLD!), 7=skip retry!
@@ -43,7 +40,6 @@ export default function parserState(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(stage.value);
       const nodes = [];
 
@@ -129,7 +125,7 @@ export default function parserState(s, c) {
               'center',
             )
               .glow(7, ROLE.focus)
-              .opacity(alpha * (0.82 + 0.18 * pulse)),
+              .opacity(alpha),
           );
         } else if (ps >= 7) {
           nodes.push(
@@ -250,12 +246,6 @@ export default function parserState(s, c) {
       }
 
       nodes.push(
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5,
-          color: ROLE.workerB,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'MULTILINE OWNERSHIP + CHUNK-SAFE STREAMING',
           st === 1

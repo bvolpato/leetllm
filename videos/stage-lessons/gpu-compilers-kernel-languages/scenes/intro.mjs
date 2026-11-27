@@ -6,7 +6,6 @@ import {
   aura,
   buildLoweringConduit3d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -47,7 +46,6 @@ export default function intro(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const se = showExp.value;
     const sd = showDev.value;
     const st = showTargets.value;
@@ -56,7 +54,6 @@ export default function intro(s, c) {
     const aw = aWrote.value;
     const bs = bStopped.value;
     const ia = inspectA.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('IR → PTX → CUBIN LOWERING PIPELINE', 420, -405, 26, ROLE.ir, 'mono').glow(5, ROLE.ir),
@@ -84,7 +81,7 @@ export default function intro(s, c) {
     nodes.push(
       glassCell(-545, -30, 620, 68, jo > 0.5 ? ROLE.warn : ROLE.ptx, {
         fill: jo > 0.5 ? '#2b1610' : '#1b1a14',
-        glow: jo > 0.5 ? 9 * pulse : 3,
+        glow: jo > 0.5 ? 9 : 3,
       }),
       txt(
         jo > 0.5 ? 'PTX JIT FALLBACK: OFF (native-only)' : 'Both carry compute_90 PTX fallback',
@@ -103,7 +100,7 @@ export default function intro(s, c) {
     nodes.push(
       glassCell(-705, 138, 316, 168, colA, {
         fill: aw > 0.5 ? '#0d2924' : '#0f1c32',
-        glow: aw > 0.5 ? 11 * pulse : 4,
+        glow: aw > 0.5 ? 11 : 4,
       }),
       txt(`BUILD A · ${nativeOnlyRuns[0].image}`, -705, 90, 28, colA, 'mono'),
       txt(
@@ -145,11 +142,6 @@ export default function intro(s, c) {
         'mono',
       ),
     );
-
-    if (sn > 0.3 && aw < 0.5 && bs < 0.5) {
-      const u = (p * 0.7) % 1;
-      nodes.push(glowDot(-840 + u * 600, 232, { radius: 7, color: COSMOS.gold }));
-    }
 
     // Bottom prompt/verdict (withhold answer during prediction hold!)
     const footer =

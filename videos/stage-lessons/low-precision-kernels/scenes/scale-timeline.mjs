@@ -5,14 +5,12 @@ import {
   aura,
   delayedScaleReplay,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
   roundTrip,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -20,7 +18,6 @@ const TENSOR_VALS = [4, 16, 64, 700, -2, -8, -32, -250];
 const REVERSE_RT = roundTrip(0.001, 500 / 448);
 
 export default function scaleTimeline(s, c) {
-  const phase = s.value(0);
   const showCurrent = s.value(1);
   const curScan = s.value(0);
   const curSecond = s.value(0);
@@ -206,8 +203,6 @@ export default function scaleTimeline(s, c) {
 
   // Part 3: Opposite lag hazard (history still has 500 while today's input is 0.001 -> flushes to 0)
   const partReverse = guardedDynamic(showReverse, (a) => {
-    const p = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.2);
     const nodes = [
       txt(
         'OPPOSITE SHIFT: STALE LARGE SCALE FLUSHES SMALL INPUTS',
@@ -229,7 +224,7 @@ export default function scaleTimeline(s, c) {
         'mono',
       ).opacity(a),
 
-      glassCell(435, -75, 750, 190, COSMOS.rose, { fill: '#221020', glow: 10 * pulse, opacity: a }),
+      glassCell(435, -75, 750, 190, COSMOS.rose, { fill: '#221020', glow: 10, opacity: a }),
       txt('TODAY’S TINY INPUT', 435, -135, 26, COSMOS.muted, 'mono').opacity(a),
       txt(`x = 0.001  →  x̂ = ${REVERSE_RT.reconstructed}`, 435, -75, 42, COSMOS.rose, 'mono')
         .glow(8, COSMOS.rose)
@@ -246,13 +241,11 @@ export default function scaleTimeline(s, c) {
         COSMOS.ink,
         'sans',
       ).opacity(a),
-      glowDot(-740 + ((p * 0.5) % 1) * 1480, 95, { radius: 5.5, color: COSMOS.rose, opacity: a }),
     ];
     return group(...nodes);
   });
 
   s.add(bgAura, title, partCurrent, partDelayed, partReverse);
-  runPhase(s, c, phase, 16);
 
   c.on('lp-scale-timeline-build-0', () =>
     s.play(curScan.to(1, { duration: remainDuration(c, 'lp-scale-timeline-build-0', 1.4) })),

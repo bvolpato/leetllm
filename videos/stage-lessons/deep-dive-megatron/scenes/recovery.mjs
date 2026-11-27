@@ -6,17 +6,14 @@ import {
   TRACKED_COL,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function recovery(s, c) {
-  const phase = s.value(0);
   // step: 0=3 shards arrived (HOLD!), 1=find 2 missing cols (HOLD!), 2=cols 4&5 empty, 3=rank2 lands at offsets, 4=replay probe, 5=both give 3.0
   const step = s.value(0);
 
@@ -32,7 +29,6 @@ export default function recovery(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     nodes.push(
@@ -115,9 +111,7 @@ export default function recovery(s, c) {
       txt(statusHeadline, 0, 192, 26, COSMOS.ink, 'sans'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 305, { radius: 6, color: COSMOS.gold }),
       txt(
         'Publish a checkpoint only after every required shard and global offset manifest completes',
         0,
@@ -131,7 +125,6 @@ export default function recovery(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['recover-probe', 0],
     ['recover-gap', 1],

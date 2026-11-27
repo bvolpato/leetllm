@@ -159,7 +159,9 @@ test('cinematicLesson integrates with compileStageLesson, checkFilm, 3D orbit, m
   assert.equal(report.summary.errors, 0, JSON.stringify(report.diagnostics));
   const crowded = report.diagnostics.filter((d) => d.code === 'film.text_crowded');
   assert.equal(crowded.length, 0, JSON.stringify(crowded));
-  // Backdrop persists after c.swapAll because cinematicLesson pins it in keep.
+  // Backdrop starfield persists after c.swapAll because cinematicLesson pins it in keep,
+  // while nebula/aura omit 8-bit SVG radialGradient banding rings in favor of dithered bloom.
   const endSvg = compiled.svg(duration - 0.4);
-  assert.match(endSvg, /<radialGradient/);
+  assert.doesNotMatch(endSvg, /<radialGradient/);
+  assert.match(endSvg, /rgb\(142,164,210\)/);
 });

@@ -9,7 +9,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function dispatchCommit(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const commitOn = s.value(0);
   const intentOn = s.value(0);
@@ -40,7 +38,6 @@ export default function dispatchCommit(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const committed = commitOn.value > 0.5;
       const intent = intentOn.value > 0.5;
       const b1 = b1On.value > 0.5;
@@ -129,8 +126,8 @@ export default function dispatchCommit(s, c) {
                 [108, 145],
               ],
               ROLE.ok,
-              p,
-              { width: 4.5, glow: 10, photonCount: 2 },
+              0,
+              { width: 4.5, glow: 10 },
             ),
             rect(610, 150, { fill: '#0b221c', stroke: ROLE.ok, width: 3.0, radius: 14 })
               .at(475, 145)
@@ -187,8 +184,8 @@ export default function dispatchCommit(s, c) {
                 [108, 25],
               ],
               ROLE.fail,
-              p,
-              { width: 4.5, glow: 10, photonCount: 2 },
+              0,
+              { width: 4.5, glow: 10 },
             ),
             rect(610, 148, { fill: '#280f1a', stroke: ROLE.fail, width: 3.2, radius: 14 })
               .at(475, 25)
@@ -299,8 +296,6 @@ export default function dispatchCommit(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-dispatch-commit-b0', b0On, 1);
   stepAfter(s, c, 'mt-dispatch-commit-s0-2', commitOn, 1);
   stepOn(s, c, 'mt-dispatch-commit-s0-3', intentOn, 1);

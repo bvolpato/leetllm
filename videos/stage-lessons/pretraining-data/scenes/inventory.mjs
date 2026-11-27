@@ -11,12 +11,10 @@ import {
   heroTitle,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function inventory(s, c) {
-  const phase = s.value(0);
   const dropD = s.value(0);
   const askFrac = s.value(0);
   const dropB = s.value(0);
@@ -195,7 +193,6 @@ export default function inventory(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-inventory-filter', () =>
     s.play(dropD.to(1, { duration: remainDuration(c, 'pt-inventory-filter', 0.8) })),

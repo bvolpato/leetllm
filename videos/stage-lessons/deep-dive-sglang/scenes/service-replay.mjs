@@ -7,18 +7,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function serviceReplay(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = CPU helper same ns A
   // 1 = returns 4
@@ -42,7 +39,6 @@ export default function serviceReplay(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 3) {
@@ -170,9 +166,7 @@ export default function serviceReplay(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 315, { radius: 6, color: ROLE.radix }),
       txt(
         st >= 7
           ? 'A mock checks call order; the live worker batch trace proves which GPU prefill was skipped.'
@@ -190,7 +184,6 @@ export default function serviceReplay(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['replay-base', 0],
     ['replay-four', 1, true],

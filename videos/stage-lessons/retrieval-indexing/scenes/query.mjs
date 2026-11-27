@@ -11,12 +11,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function query(s, c) {
-  const phase = s.value(0);
   const showMake = s.value(0);
   const showMerge = s.value(0);
   const showWork = s.value(0);
@@ -32,11 +30,9 @@ export default function query(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sm = showMake.value;
     const sg = showMerge.value;
     const sw = showWork.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const makeLen = POSTINGS.make.length;
     const soupLen = POSTINGS.soup.length;
@@ -46,14 +42,14 @@ export default function query(s, c) {
       txt('TOUCHED POSTING LISTS', -855, -205, 26, COSMOS.cyan, 'mono', 'left'),
       glassCell(-575, -100, 560, 108, sm > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10223b',
-        glow: sm > 0.3 ? 9 * pulse : 3,
+        glow: sm > 0.3 ? 9 : 3,
       }),
       txt('make ->', -825, -100, 27, COSMOS.cyan, 'mono', 'left'),
       txt(`[${POSTINGS.make.join(', ')}] (len ${makeLen})`, -510, -100, 26, COSMOS.emerald, 'mono'),
 
       glassCell(-575, 55, 560, 108, sg > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#201c11',
-        glow: sg > 0.3 ? 9 * pulse : 3,
+        glow: sg > 0.3 ? 9 : 3,
       }),
       txt('soup ->', -825, 55, 27, COSMOS.gold, 'mono', 'left'),
       txt(`[${POSTINGS.soup.join(', ')}] (len ${soupLen})`, -495, 55, 26, COSMOS.gold, 'mono'),
@@ -79,21 +75,21 @@ export default function query(s, c) {
       txt('ROUTING MODES', 80, -205, 26, COSMOS.emerald, 'mono', 'left'),
       glassCell(445, -100, 740, 108, sg > 0.4 ? COSMOS.gold : COSMOS.muted, {
         fill: sg > 0.4 ? '#1e1c12' : '#12182b',
-        glow: sg > 0.4 ? 9 * pulse : 3,
+        glow: sg > 0.4 ? 9 : 3,
       }),
       txt('OR UNION:', 105, -100, 28, COSMOS.gold, 'mono', 'left'),
       txt('visits [ d1, d4 ]', 540, -100, 32, COSMOS.ink, 'mono'),
 
       glassCell(445, 55, 740, 108, sg > 0.4 ? COSMOS.emerald : COSMOS.muted, {
         fill: sg > 0.4 ? '#0e2824' : '#12182b',
-        glow: sg > 0.4 ? 9 * pulse : 3,
+        glow: sg > 0.4 ? 9 : 3,
       }),
       txt('AND INTERSECT:', 105, 55, 28, COSMOS.emerald, 'mono', 'left'),
       txt(`keeps [ ${QUERY_INTERSECTION.join(', ')} ]`, 560, 55, 32, COSMOS.emerald, 'mono'),
 
       glassCell(445, 212, 740, 108, sw > 0.4 ? COSMOS.cyan : COSMOS.muted, {
         fill: sw > 0.4 ? '#0f233b' : '#12182b',
-        glow: sw > 0.4 ? 9 * pulse : 3,
+        glow: sw > 0.4 ? 9 : 3,
       }),
       txt('LIST WORK:', 105, 192, 26, COSMOS.cyan, 'mono', 'left'),
       txt(
@@ -122,7 +118,6 @@ export default function query(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('query-make', () => s.play(showMake.to(1, { duration: 0.45 })));
   c.on('query-beat-2-focus-1', () => s.play(showMerge.to(1, { duration: 0.5 })));

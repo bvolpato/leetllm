@@ -16,7 +16,6 @@ import {
   liftInterval,
   lumBar,
   rule,
-  runAmbientPhase,
   seLift,
   tweenCue,
   txt,
@@ -27,7 +26,6 @@ const FALSE_LO = lift - 1.96 * FALSE_SE;
 const FALSE_HI = lift + 1.96 * FALSE_SE;
 
 export default function independentUnits(s, c) {
-  const phase = s.value(0);
   const dupAmt = s.value(0);
   const showFalseSe = s.value(0);
   const showAgg = s.value(0);
@@ -170,7 +168,6 @@ export default function independentUnits(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'duplicate', dupAmt, 1, { duration: 0.6 });
   tweenCue(s, c, 'false-se', showFalseSe, 1, { duration: 0.5 });

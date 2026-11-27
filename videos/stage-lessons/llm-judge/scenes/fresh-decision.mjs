@@ -17,7 +17,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -65,7 +64,7 @@ export default function freshDecision(s, c) {
       const al = alphaReveal.value;
       const tm = tieMode.value;
       const to = tieOutcome.value;
-      const p = pulse.value;
+      const p = 0;
       const nodes = [];
 
       const c1X = -510;
@@ -287,7 +286,7 @@ export default function freshDecision(s, c) {
   const act2 = guardedDynamic(
     () => fadeInHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const cr = compRecOn.value;
       const rf = repeatFailOn.value;
       const rp = repairReveal.value;
@@ -410,7 +409,6 @@ export default function freshDecision(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.6, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0: Restore-41 swap resolution + tie counterfactual
   c.on('fresh-slots', () => {

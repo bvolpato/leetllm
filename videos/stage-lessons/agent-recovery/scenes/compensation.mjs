@@ -10,7 +10,6 @@ import {
   cinemaAtmosphere,
   glowArrow,
   glowCross,
-  glowDot,
   glowPill,
   glowRing,
   guardedDynamic,

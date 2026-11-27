@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function synthesis(s, c) {
-  const phase = s.value(0);
   // step: 0=two JSON replies shown, 1=both pass JSON schema -> PREDICT HOLD ("Which one should the desk accept?"),
   // 2=accept "feature", send "bug" for review!
   const step = s.value(0);
@@ -32,7 +29,6 @@ export default function synthesis(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const parsed = st >= 1;
     const decided = st >= 2;
     const nodes = [];
@@ -101,9 +97,7 @@ export default function synthesis(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 290, { radius: 6, color: decided ? ROLE.decode : COSMOS.gold }),
       txt(
         decided
           ? 'Accept "feature" (matches ticket); route "bug" to review despite passing the same schema.'
@@ -121,7 +115,6 @@ export default function synthesis(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['synthesis-output', 0],
     ['synthesis-parse', 1],

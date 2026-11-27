@@ -12,7 +12,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowMeter,
   guardedDynamic,
   txt,
@@ -155,7 +154,6 @@ export default function slidingWindow(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('fourth-message', () => {
     s.play(stepStage.to(1, { duration: clampDur(c, c.cue('fourth-message').start, 0.45) }));

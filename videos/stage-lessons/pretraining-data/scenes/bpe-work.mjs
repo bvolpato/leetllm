@@ -11,12 +11,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function bpeWork(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const initShown = s.value(0);
   const corpusShown = s.value(0);
@@ -258,7 +256,6 @@ export default function bpeWork(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live, part3Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-bpe-work-initial', () =>
     s.play(initShown.to(1, { duration: remainDuration(c, 'pt-bpe-work-initial', 0.5) })),

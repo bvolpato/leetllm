@@ -4,11 +4,9 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
@@ -23,7 +21,6 @@ const CODE_ROUTE = [
 ];
 
 export default function sourceDiagnosis(s, c) {
-  const phase = s.value(0);
   // step: 0=op-0 6-file source route, 1=op-1 / kv-first telemetry dashboard, 2=op-2 / input-trace Request A [80,5,7,3], 3=queue-trace Request B [3,75,6,2]
   const step = s.value(0);
 
@@ -39,7 +36,6 @@ export default function sourceDiagnosis(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st === 0) {
@@ -157,9 +153,7 @@ export default function sourceDiagnosis(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 325, { radius: 6, color: ROLE.kv }),
       txt(
         st === 0
           ? 'Follow one request ID through these six V1 files instead of blaming the attention kernel first'
@@ -177,7 +171,6 @@ export default function sourceDiagnosis(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['vv-source-diagnosis-op-0', 0],
     ['vv-source-diagnosis-op-1', 1],

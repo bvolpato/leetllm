@@ -12,12 +12,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function autograd(s, c) {
-  const phase = s.value(0);
   const mode = s.value(0); // 0=valid x=3 v0, 1=alias mutation x=4 v1 rejected, 2=clone x=3/clone=4 grad=6
   const focus = s.value(0);
 
@@ -40,7 +38,6 @@ export default function autograd(s, c) {
 
   const live = guardedDynamic(1, () => {
     const m = Math.round(mode.value);
-    const p = phase.value;
 
     // Left: live y = x^2 curve with tangent at x = 3
     const ox = -690;
@@ -144,9 +141,7 @@ export default function autograd(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 326, { radius: 6, color: m === 1 ? ROLE.bad : ROLE.good }),
       txt(
         'detach() stops grad history, NOT storage sharing; use detach().clone() before writing',
         0,
@@ -161,7 +156,6 @@ export default function autograd(s, c) {
   });
 
   s.add(bgAura, title, formula, live);
-  runPhase(s, c, phase, 14);
 
   c.on('autograd-beat-1-focus-1', () => s.play(focus.to(1, { duration: 0.3 })));
   c.on('autograd-beat-1-focus-2', () => s.play(focus.to(2, { duration: 0.3 })));

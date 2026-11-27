@@ -46,7 +46,6 @@ export default function hydeVectors(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const se = showEncode.value;
     const sa = showAverage.value;
     const sm = showMean.value;
@@ -54,7 +53,6 @@ export default function hydeVectors(s, c) {
     const encoded = se > 0.35;
     const averaging = sa > 0.35;
     const ready = sm > 0.5;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const colXs = [-255, -75, 105];
     const nodes = [
@@ -112,7 +110,7 @@ export default function hydeVectors(s, c) {
         ready ? COSMOS.emerald : averaging ? COSMOS.gold : COSMOS.dim,
         {
           fill: ready ? '#0d2723' : '#11182c',
-          glow: ready ? 10 * pulse : 3,
+          glow: ready ? 10 : 3,
         },
       ),
       txt('COLUMN MEAN  (pair / 2)', -835, 152, 26, COSMOS.emerald, 'mono', 'left'),

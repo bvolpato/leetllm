@@ -16,7 +16,6 @@ import {
   glowTex,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   loopAmpOrder,
   loopClip,
   mix,
@@ -49,7 +48,6 @@ export function numericalTriage(s, c) {
   const paramsP = s.value(0);
   const reportP = s.value(0);
   const detachP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.stale, seed: 15 }));
   s.add(decorAura(-420, 0, 480, '#5ce1e61a', '#07091000'));
@@ -283,7 +281,6 @@ export function numericalTriage(s, c) {
   );
 
   s.add(headline, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'triage-nine', nineP, 1, { after: true, dur: 0.55 });
   cueTo(s, c, 'triage-six', sixP, 1, { after: true, dur: 0.55 });
   cueTo(s, c, 'triage-control', ctrlP, 1, { dur: 0.6 });
@@ -309,7 +306,6 @@ export function globalClipping(s, c) {
   const b1P = s.value(0);
   const rescaleP = s.value(0);
   const b2P = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.escalate, seed: 16 }));
   s.add(decorAura(-350, 40, 500, '#6ee7b71c', '#07091000'));
@@ -450,7 +446,6 @@ export function globalClipping(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'global-clipping-beat-0', b0P, 1, { dur: 0.7 });
   cueTo(s, c, 'global-clipping-beat-1', b1P, 1, { dur: 0.65 });
   cueTo(s, c, 'loop-clip-rescale', rescaleP, 1, { dur: 0.9 });
@@ -467,7 +462,6 @@ export function inferenceFeatureBoundary(s, c) {
   const b1P = s.value(0);
   const cloneP = s.value(0);
   const b2P = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.forward, seed: 17 }));
   s.add(decorAura(-450, 0, 480, '#60a5fa1a', '#07091000'));
@@ -487,7 +481,6 @@ export function inferenceFeatureBoundary(s, c) {
     const b1 = b1P.value;
     const cl = cloneP.value;
     const b2 = b2P.value;
-    const ph = drift.value;
     const nodes = [];
 
     const repaired = cl > 0.4;
@@ -525,7 +518,7 @@ export function inferenceFeatureBoundary(s, c) {
     );
 
     if (repaired) {
-      const pulse = 10 + 3 * Math.sin(ph * Math.PI * 10);
+      const pulse = 11;
       nodes.push(
         tensorCell(275, 45, 320, 76, 'feats.clone()', ROLE.escalate, { size: 30, glow: pulse }),
         arrow([235, -100], [455, -100], { stroke: ROLE.escalate, width: 4.5 }).glow(
@@ -580,7 +573,6 @@ export function inferenceFeatureBoundary(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'inference-feature-boundary-beat-0', b0P, 1, { dur: 0.7 });
   cueTo(s, c, 'inference-feature-boundary-beat-1', b1P, 1, { dur: 0.7 });
   cueTo(s, c, 'loop-inference-clone', cloneP, 1, { dur: 0.85 });
@@ -595,7 +587,6 @@ export function ampPolicy(s, c) {
   const b0P = s.value(0);
   const b1P = s.value(0);
   const b2P = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.momentum, seed: 18 }));
   s.add(decorAura(-400, 0, 500, '#a78bfa1a', '#07091000'));
@@ -767,7 +758,6 @@ export function ampPolicy(s, c) {
   );
 
   s.add(headline, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'amp-policy-beat-0', b0P, 1, { dur: 0.7 });
   cueTo(s, c, 'amp-policy-beat-1', b1P, 1, { dur: 0.85 });
   cueTo(s, c, 'amp-policy-beat-2', b2P, 1, { dur: 0.85 });
@@ -787,7 +777,6 @@ export function scaleAndStep(s, c) {
   const correctP = s.value(0);
   const stepP = s.value(0);
   const growthP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.grad, seed: 19 }));
   s.add(decorAura(-420, 0, 480, '#ff6b8b1a', '#07091000'));
@@ -996,7 +985,6 @@ export function scaleAndStep(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'scale-input', inputP, 1, { dur: 0.65 });
   cueTo(s, c, 'scale-upper', upperP, 1, { dur: 0.65 });
   cueTo(s, c, 'scale-ask', askP, 1, { dur: 0.55 });
@@ -1017,7 +1005,6 @@ export function compileContract(s, c) {
   const b1P = s.value(0);
   const b2P = s.value(0);
   const breakP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.forward, seed: 20 }));
   s.add(decorAura(-420, 0, 480, '#5ce1e61a', '#07091000'));
@@ -1164,7 +1151,6 @@ export function compileContract(s, c) {
   );
 
   s.add(headline, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'compile-contract-beat-0', b0P, 1, { dur: 0.7 });
   cueTo(s, c, 'compile-contract-beat-1', b1P, 1, { dur: 0.85 });
   cueTo(s, c, 'compile-contract-beat-2', b2P, 1, { dur: 0.85 });

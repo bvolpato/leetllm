@@ -10,7 +10,6 @@ import {
   MICROBATCH_TOKEN_MEAN,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,

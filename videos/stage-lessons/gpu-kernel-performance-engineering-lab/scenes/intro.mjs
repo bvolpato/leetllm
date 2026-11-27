@@ -14,12 +14,10 @@ import {
   heroTitle,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   const copySix = s.value(0);
   const skipStore = s.value(0);
   const staleMatch = s.value(0);
@@ -39,13 +37,11 @@ export default function intro(s, c) {
   const row1 = TRANSPOSE_4.filter((e) => e.source[0] === 1); // [4, 5, 6, 7]
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const cs = copySix.value;
     const ss = skipStore.value;
     const sm = staleMatch.value;
     const sr = staleRetest.value;
     const second = isSecond.value > 0.5;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.5);
 
     const stores = second ? Math.min(15, Math.floor(ss * 15.99)) : cs > 0.85 ? 16 : 15;
     const snap = copyPass(second ? 'previous' : 'empty', second ? 'skipped' : 'repaired', stores);
@@ -73,7 +69,7 @@ export default function intro(s, c) {
         txt(`col ${col}`, cx, -108, 26, isSix ? ROLE.gold : COSMOS.muted, 'mono'),
         glassCell(cx, -25, 130, 110, isSix ? ROLE.gold : ROLE.input, {
           fill: isSix ? '#2c2210' : '#101d36',
-          glow: isSix ? 10 * pulse : 4,
+          glow: isSix ? 10 : 4,
         }),
         txt(String(entry.value), cx, -25, 44, isSix ? ROLE.gold : COSMOS.ink, 'mono'),
       );
@@ -119,7 +115,7 @@ export default function intro(s, c) {
         nodes.push(
           glassCell(cx, cy, cellW, cellH, border, {
             fill,
-            glow: isTarget ? 10 * pulse : fresh ? 5 : 0,
+            glow: isTarget ? 10 : fresh ? 5 : 0,
             dash: isTarget && !fresh && !second ? [7, 5] : undefined,
           }),
           txt(
@@ -200,7 +196,6 @@ export default function intro(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('copy-six', () => s.play(copySix.to(1, { duration: remainDuration(c, 'copy-six', 1.1) })));
   c.onBeat(1, () => s.play(isSecond.to(1, { duration: 0.2 })));

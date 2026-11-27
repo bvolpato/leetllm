@@ -13,7 +13,6 @@ import {
   cinemaAtmosphere,
   glowArrow,
   glowCross,
-  glowDot,
   glowPill,
   guardedDynamic,
   heroTitle,
@@ -139,9 +138,6 @@ export default function workflowWorld(s, c) {
               diskCrash.value * alpha,
             ),
           );
-        } else if (diskSent.value > 0.2) {
-          const px = lx + 115 + (rx - 115 - (lx + 115)) * ((amb.value * 3) % 1);
-          nodes.push(glowDot(px, -195, { radius: 9, color: ROLE.agent, glow: 12, opacity: alpha }));
         }
 
         // Bottom question / answer caption

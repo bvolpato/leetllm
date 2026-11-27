@@ -4,16 +4,7 @@
 // (prediction pause!) -> Health expires, Decision inherits invalidation -> fresh Health
 // recomputes Decision -> switching revision invalidates ALL 3 reads!
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function receiptExpiry(s, c) {
   const pulse = s.value(0);
@@ -148,7 +139,6 @@ export default function receiptExpiry(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('expiry-health-row', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('expiry-health-row').start, 0.25) }));

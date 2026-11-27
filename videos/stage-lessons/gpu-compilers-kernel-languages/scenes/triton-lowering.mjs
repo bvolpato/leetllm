@@ -5,7 +5,6 @@ import {
   aura,
   buildLoweringConduit3d,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -43,7 +42,6 @@ export default function tritonLowering(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const st = showStages.value;
     const sm = showMask.value;
     const sl = showLayout.value;
@@ -125,9 +123,6 @@ export default function tritonLowering(s, c) {
         txt('CUDA: 12 regs · time both on GPU', -525, 318, 26, COSMOS.ink, 'mono').opacity(sr),
       );
     }
-
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-840 + u * 590, 212, { radius: 6, color: ROLE.triton }));
 
     return group(...nodes);
   });

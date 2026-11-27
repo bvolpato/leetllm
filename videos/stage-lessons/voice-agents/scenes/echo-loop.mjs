@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   clampDur,
   driftValue,
-  glowDot,
   guardedDynamic,
   quadArcPts,
   txt,
@@ -68,9 +67,8 @@ export default function echoLoop(s, c) {
         );
       } else {
         nodes.push(
-          beamWithPhotons(bounceArc, ROLE.echo, p * 1.3, {
+          beamWithPhotons(bounceArc, ROLE.echo, 0, {
             width: 3.8,
-            photonCount: 2,
             alpha: 0.4 + bnc * 0.6,
           }),
         );
@@ -148,12 +146,6 @@ export default function echoLoop(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: echoCol,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);

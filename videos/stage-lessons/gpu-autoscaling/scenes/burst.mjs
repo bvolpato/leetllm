@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
   fadeInNodes,
   glowBar,
   guardedDynamic,
@@ -22,7 +21,6 @@ import {
 } from '../parts.mjs';
 
 export default function burst(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=1 warm (20/80), 2=3 warm ask(PREDICT!), 3=R21 on GPU2@10s(AFTER!), 4=60/40(AFTER!), 5=20 warm, 6=all 100@0s
 
   const header = cinemaHeader(
@@ -93,8 +91,6 @@ export default function burst(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
-      const blink = 0.68 + 0.32 * Math.sin(p * 5.0);
 
       const warmCount = st >= 4.5 ? 20 : st >= 1.5 ? 3 : 1;
       const admitted = st >= 5.5 ? 100 : st >= 3.5 ? 60 : st >= 1.5 ? null : 20;
@@ -134,7 +130,7 @@ export default function burst(s, c) {
           nodes.push(
             txt('PREDICT: Which GPU takes R21 at 10 s?', -860, 82, 30, ROLE.predict, 'sans', 'left')
               .glow(8, ROLE.predict)
-              .opacity(blink),
+              .opacity(1),
             txt(
               'Fill GPU 1 (R16..20), then GPU 2, then GPU 3',
               -860,
@@ -203,7 +199,6 @@ export default function burst(s, c) {
 
   s.add(bgAura, poolView, header, dyn);
   orbitScene(s, c, poolView, { theta: -0.22, phi: 0.88 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, phase, 6.5, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('one-warm-outcome', () => {
     s.play(step.to(1, { duration: clampDur(c, c.cue('one-warm-outcome').start, 0.3) }));

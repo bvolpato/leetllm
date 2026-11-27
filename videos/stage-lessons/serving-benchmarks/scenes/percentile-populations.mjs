@@ -12,10 +12,8 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
-  glowDot,
   glowTex,
   glowingTrail,
   guardedDynamic,
@@ -24,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function percentilePopulations(s, c) {
-  const phase = s.value(0);
   const rankLit = s.value(0.25);
   const mode01 = s.value(0); // 0 = nearest-rank 1..20, 1 = pooled vs per-request
   const showPooled = s.value(0);
@@ -240,7 +237,6 @@ export default function percentilePopulations(s, c) {
   );
 
   s.add(stageAura, header, rankEq, view0, view1);
-  driftValue(s, c, phase, 7, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('percentile-populations-beat-0', () => {
     const t = c.cue('percentile-populations-beat-0').start;

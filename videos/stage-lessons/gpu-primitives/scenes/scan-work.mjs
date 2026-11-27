@@ -11,7 +11,6 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -27,7 +26,6 @@ const DATA_32 = roundCounts(32, SCAN_WORK_32.hillisStages);
 const DATA_512 = roundCounts(512, SCAN_WORK_512.hillisStages);
 
 export default function scanWorkScene(s, c) {
-  const phase = s.value(0);
   const showH2 = s.value(0);
   const showHRest = s.value(0);
   const showHTotal = s.value(0);
@@ -42,7 +40,6 @@ export default function scanWorkScene(s, c) {
   const bgAura = aura(0, 15, 620, '#60a5fa20', '#5ce1e618');
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const is512 = scale512.value > 0.5;
     const size = is512 ? 512 : 32;
     const work = is512 ? SCAN_WORK_512 : SCAN_WORK_32;
@@ -58,7 +55,6 @@ export default function scanWorkScene(s, c) {
 
     const hTotalOn = is512 ? show512Counts.value > 0.5 : showHTotal.value > 0.5;
     const bTotalOn = is512 ? show512Counts.value > 0.5 : showBTotal.value > 0.5;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.5);
 
     const chartLeft = -475;
     const chartWidth = 960;
@@ -110,7 +106,7 @@ export default function scanWorkScene(s, c) {
       nodes.push(
         glassCell(675, baseY - 72, 310, 108, totalShown ? col : COSMOS.dim, {
           fill: totalShown ? '#0e2036' : '#0f1422',
-          glow: totalShown ? 10 * pulse : 0,
+          glow: totalShown ? 10 : 0,
         }),
         txt(
           totalShown ? totalVal.toLocaleString('en-US') : '?',
@@ -144,7 +140,6 @@ export default function scanWorkScene(s, c) {
   });
 
   s.add(bgAura, live);
-  runPhase(s, c, phase, 14);
 
   c.on('work-second-stride', () => s.play(showH2.to(1, { duration: 0.35 })));
   c.on('work-final-strides', () => s.play(showHRest.to(1, { duration: 0.5 })));

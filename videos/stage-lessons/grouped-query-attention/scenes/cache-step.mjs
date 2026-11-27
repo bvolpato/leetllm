@@ -11,12 +11,10 @@ import {
   playCue,
   renderGqaRack2d,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function cacheStep(s, c) {
-  const phase = s.value(0);
   const rackTokens = s.value(1); // Rain at pos 0 -> append fell at pos 1
   const lit = s.value(-1);
   const cursorCol = s.value(-1);
@@ -52,7 +50,6 @@ export default function cacheStep(s, c) {
         slots: 4,
         lit: lit.value,
         cursor: cursorCol.value,
-        phase: phase.value,
         colNames: ['Rain', 'fell', 'p2', 'p3'],
       }),
       rule(-85, -310, -85, 405, COSMOS.rule, 1.6).opacity(0.6),
@@ -160,7 +157,6 @@ export default function cacheStep(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.query, ROLE.alert), title, live);
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'project', (d) => s.play(showProject.to(1, { duration: d })), { dur: 0.45 });
   playCue(s, c, 'rotate', (d) => s.play(rotAngle.to(Math.PI / 4, { duration: d })), { dur: 0.75 });

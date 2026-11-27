@@ -13,7 +13,6 @@ import {
   cinematic3d,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInHalf,
   fadeInNodes,
   fadeOutHalf,
@@ -29,7 +28,6 @@ export default function waste(s, c) {
   const coldCount = s.value(0);
   const warmState = s.value(0);
   const readSweep = s.value(0);
-  const phase = s.value(0);
 
   // ── Act 1: Cold vs Warm on "The fox ran" ────────────────────────────────────
   const act1Header = cinemaHeader(
@@ -397,7 +395,6 @@ export default function waste(s, c) {
 
   // Initial picture (Act 1)
   s.add(act1Aura, act1Header, act1Dyn, act2Overlay);
-  driftValue(s, c, phase, 6, { startOffset: 0.1, endMargin: 0.5 });
 
   // Act 1 cues
   c.on('cold', () => {

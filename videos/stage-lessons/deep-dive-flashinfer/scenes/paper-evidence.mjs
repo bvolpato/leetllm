@@ -12,12 +12,10 @@ import {
   rect,
   remainAfter,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function paperEvidence(s, c) {
-  const phase = s.value(0);
   const showSetup = s.value(1);
   const setupHist = s.value(0);
   const showSglang = s.value(0);
@@ -217,7 +215,6 @@ export default function paperEvidence(s, c) {
   });
 
   s.add(bgAura, title, setupView, sglangView, parView);
-  runPhase(s, c, phase, 14);
 
   c.on('fi-paper-evidence-0', () =>
     s.play(setupHist.to(0.01, { duration: remainDuration(c, 'fi-paper-evidence-0', 0.2) })),

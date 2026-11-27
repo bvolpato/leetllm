@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   glowMeter,
   glowTex,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function retrievalArithmetic(s, c) {
-  const pulse = s.value(0);
   const termsProg = s.value(0);
   const lexSumOn = s.value(0);
   const beat1On = s.value(0);
@@ -55,7 +53,6 @@ export default function retrievalArithmetic(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const tp = termsProg.value;
       const ls = lexSumOn.value > 0.5;
       const b1 = beat1On.value > 0.5;
@@ -127,10 +124,9 @@ export default function retrievalArithmetic(s, c) {
           if (j % 2 === 0) {
             const qx = -640 + Math.min(2, Math.floor(j / 2)) * 320;
             nodes.push(
-              beamWithPhotons(quadArcPts([qx, 164], [px, 256], 0, 14), ROLE.dense, p + j * 0.2, {
+              beamWithPhotons(quadArcPts([qx, 164], [px, 256], 0, 14), ROLE.dense, 0, {
                 width: 2.6,
                 glow: 7,
-                photonCount: 1,
               }),
             );
           }
@@ -358,8 +354,6 @@ export default function retrievalArithmetic(s, c) {
   );
 
   s.add(stageAura, header, view, cosEq);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-retrieval-arithmetic-0', () => {
     s.play(
       termsProg.to(1, { duration: clampDur(c, c.cue('se-retrieval-arithmetic-0').start, 1.3) }),

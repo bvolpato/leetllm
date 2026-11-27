@@ -5,7 +5,6 @@ import {
   arrow,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
@@ -117,11 +116,6 @@ export default function shift(s, c) {
             width: 5,
             tip: 14,
           }).glow(10, COSMOS.gold),
-          glowDot(
-            sx + (dx - sx) * ((p * 0.65 + k * 0.3) % 1),
-            topY + 50 + (botY - 50 - (topY + 50)) * ((p * 0.65 + k * 0.3) % 1),
-            { radius: 5.5, color: '#ffffff' },
-          ),
         );
       }
     }

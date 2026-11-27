@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   quadArcPts,
@@ -37,7 +36,7 @@ export default function replan(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const tr = trainOn.value;
       const cn = cancelOn.value;
       const rf = refreshReveal.value;
@@ -149,7 +148,6 @@ export default function replan(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('replan-hours', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('replan-hours').start, 0.25) }));

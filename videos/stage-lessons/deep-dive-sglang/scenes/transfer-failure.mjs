@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   kvHandoff,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function transferFailure(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = 3/4 segments (384/512 MiB) PREDICT HOLD 1 ("How much still has to arrive?")
   // 1 = 128 MiB missing!
@@ -39,7 +36,6 @@ export default function transferFailure(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
 
     const received = st >= 2 ? 512 : 384;
     const signal = st >= 4 ? 8 : st === 3 ? 7 : null;
@@ -172,9 +168,7 @@ export default function transferFailure(s, c) {
       txt(verdictTxt, 520, 162, 34, verdictCol, 'mono'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 278, { radius: 6, color: verdictCol }),
       txt(
         st === 0
           ? 'Predict: 3 of 4 segments (128 MiB each) arrived. How much still has to arrive?'
@@ -202,7 +196,6 @@ export default function transferFailure(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['transfer-segments', 0],
     ['transfer-short', 1, true],

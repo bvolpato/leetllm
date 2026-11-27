@@ -3,7 +3,6 @@ import {
   COSMOS,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -11,12 +10,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function warpOwnership(s, c) {
-  const phase = s.value(0);
   const showSplitK = s.value(0.5);
   const showSplitQ = s.value(0);
   const showBench = s.value(0);
@@ -34,11 +31,9 @@ export default function warpOwnership(s, c) {
   const warpCols = [COSMOS.gold, COSMOS.cyan, COSMOS.violet, COSMOS.emerald];
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sk = showSplitK.value;
     const sq = showSplitQ.value;
     const bn = showBench.value;
-    const u = (p * 0.5) % 1;
 
     const nodes = [
       line([0, -245], [0, 255], { stroke: '#253355', width: 2, dash: [8, 8] }).opacity(0.65),
@@ -57,11 +52,6 @@ export default function warpOwnership(s, c) {
             color: COSMOS.rose,
             width: 3.0,
             opacity: 0.85 * sk,
-          }),
-          glowDot(wx + (-440 - wx) * u, -90 + 138 * u, {
-            radius: 5,
-            color: COSMOS.rose,
-            opacity: sk,
           }),
         );
       }),
@@ -83,7 +73,6 @@ export default function warpOwnership(s, c) {
           txt(`Warp ${i}`, wx, -152, 26, warpCols[i], 'mono').opacity(a),
           txt(`Q rows ${i}`, wx, -114, 26, COSMOS.ink, 'mono').opacity(a),
           glowingArc([wx, -90], [wx, 68], 0, { color: warpCols[i], width: 3.4, opacity: 0.9 * a }),
-          glowDot(wx, -90 + u * 158, { radius: 5.5, color: warpCols[i], opacity: a }),
           rect(168, 72, { fill: '#0e2324', stroke: warpCols[i], width: 2.2, radius: 8 })
             .at(wx, 118)
             .glow(7, warpCols[i])
@@ -124,7 +113,6 @@ export default function warpOwnership(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('warp-ownership-beat-1', () => s.play(showSplitK.to(1, { duration: 0.4 })));
   c.on('warp-ownership-beat-2', () => s.play(showSplitQ.to(0.65, { duration: 0.4 })));

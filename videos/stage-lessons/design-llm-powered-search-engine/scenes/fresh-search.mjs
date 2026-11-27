@@ -15,7 +15,6 @@ import {
   buildSpanRibbonNodes,
   cinemaHeader,
   clampDur,
-  driftValue,
   freshSearchState,
   guardedDynamic,
   migrationDecision,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function freshSearch(s, c) {
-  const pulse = s.value(0);
   // Part 1 (Beats 0-2): Pack A vs Pack B -> Restore -> Release
   const rev2On = s.value(0);
   const askPackOn = s.value(0);
@@ -263,8 +261,6 @@ export default function freshSearch(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
-
   // Part 1 cues (Beats 0-2)
   c.on('se-fresh-search-new-input', () => {
     s.play(rev2On.to(1, { duration: clampDur(c, c.cue('se-fresh-search-new-input').start, 0.3) }));

@@ -15,7 +15,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   glowingTrail,
   guardedDynamic,
@@ -223,7 +222,6 @@ export default function budgetAndClaims(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('budget-root', () => {
     s.play(rootDone.to(1, { duration: clampDur(c, c.cue('budget-root').start, 0.35) }));

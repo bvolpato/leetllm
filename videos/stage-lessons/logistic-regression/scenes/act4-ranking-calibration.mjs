@@ -21,7 +21,6 @@ import {
   guardedDynamic,
   heroTitle,
   isotonicFixture,
-  livingDrift,
   makeAxes,
   mix,
   neonCurve,
@@ -51,7 +50,6 @@ export function rankingScene(s, c) {
   const winP = s.value(0);
   const pairsP = s.value(0);
   const resP = s.value(0);
-  const drift = s.value(0);
 
   const positives = validationScores.filter((v) => v.label === 1);
   const negatives = validationScores.filter((v) => v.label === 0);
@@ -171,7 +169,6 @@ export function rankingScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'auc-first', firstP, 1, { dur: 0.7 });
   cueTo(s, c, 'auc-loss', lossP, 1, { after: true, dur: 0.6 });
   cueTo(s, c, 'auc-switch', switchP, 1, { dur: 0.7 });
@@ -194,7 +191,6 @@ export function rareEventPopulation(s, c) {
   const repP = s.value(0);
   const s2P = s.value(0);
   const easyP = s.value(0);
-  const drift = s.value(0);
 
   const base = prevalenceFixture('base');
   const rep = prevalenceFixture('repeat');
@@ -218,7 +214,6 @@ export function rareEventPopulation(s, c) {
     (vis) => {
       const ac = accP.value;
       const mj = majP.value;
-      const ph = drift.value;
       const nodes = [
         txt('100 REQUESTS:  4 REQUIRED REVIEW  ·  96 ROUTINE', 0, -225, 28, COSMOS.muted, 'mono'),
       ];
@@ -227,9 +222,8 @@ export function rareEventPopulation(s, c) {
         const cy = -140 + Math.floor(i / 20) * 68;
         const isPos = i < 4;
         const col = isPos ? ROLE.positive : ROLE.negative;
-        const pulse = isPos ? 1 + 0.1 * Math.sin(ph * Math.PI * 10 + i) : 1;
         nodes.push(
-          rect(50 * pulse, 44 * pulse, { fill: col, stroke: null, radius: 8 })
+          rect(50, 44, { fill: col, stroke: null, radius: 8 })
             .at(cx, cy)
             .glow(isPos ? 12 : 3, col),
         );
@@ -354,7 +348,6 @@ export function rareEventPopulation(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-rare-event-population-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'automatic-accuracy', accP, 1, { dur: 0.75 });
   cueTo(s, c, 'lr-majority-baseline', majP, 1, { dur: 0.75 });
@@ -377,7 +370,6 @@ export function apAndTies(s, c) {
   const s2P = s.value(0);
   const tieP = s.value(0);
   const trapP = s.value(0);
-  const drift = s.value(0);
 
   const baseRank = rankingMetrics(validationScores);
   const tiedRows = validationScores.map((v) => ({
@@ -542,7 +534,6 @@ export function apAndTies(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-ap-and-ties-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-pr-membership', memP, 1, { dur: 1.2 });
   cueTo(s, c, 'lr-ap-and-ties-step-1', s1P, 1, { dur: 0.85 });
@@ -559,7 +550,6 @@ export function apAndTies(s, c) {
 export function rescalingScene(s, c) {
   const scaleP = s.value(0);
   const cutP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.loss, seed: 22 }));
   s.add(decorAura(0, 0, 560, '#a78bfa1c', '#5ce1e614'));
@@ -627,7 +617,6 @@ export function rescalingScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'rescale-scores', scaleP, 1, { dur: 1.0 });
   cueTo(s, c, 'rescale-threshold', cutP, 1, { dur: 0.9 });
 }
@@ -640,7 +629,6 @@ export function calibrationScene(s, c) {
   const collP = s.value(0);
   const outP = s.value(0);
   const flipP = s.value(0);
-  const drift = s.value(0);
 
   const binLabels = ['[0.00, 0.25)', '[0.25, 0.50)', '[0.50, 0.75)', '[0.75, 1.00]'];
 
@@ -720,7 +708,6 @@ export function calibrationScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'collect-calibration', collP, 1, { dur: 0.9 });
   cueTo(s, c, 'calibration-outcomes', outP, 1, { dur: 1.0 });
   cueTo(s, c, 'calibration-one-label', flipP, 1, { dur: 0.85 });
@@ -743,7 +730,6 @@ export function calibrationError(s, c) {
   const flipP = s.value(0);
   const f1P = s.value(0);
   const dispP = s.value(0);
-  const drift = s.value(0);
 
   const cal4 = calibrationAudit({ binCount: 4 });
   const cal8 = calibrationAudit({ binCount: 8 });
@@ -943,7 +929,6 @@ export function calibrationError(s, c) {
   );
 
   s.add(headline, view01, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-calibration-error-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-bin-contribution', binP, 1, { dur: 0.8 });
   cueTo(s, c, 'lr-calibration-error-step-1', s1P, 1, { dur: 0.8 });
@@ -972,7 +957,6 @@ export function calibrationMaps(s, c) {
   const tempP = s.value(0);
   const s2P = s.value(0);
   const polP = s.value(0);
-  const drift = s.value(0);
 
   const iso = isotonicFixture();
   const [pA, pB] = plattFitStates[1000];
@@ -1204,7 +1188,6 @@ export function calibrationMaps(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-calibration-maps-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-calibrator-data', dataP, 1, { dur: 0.85 });
   cueTo(s, c, 'lr-platt-fit', plattP, 1, { dur: 0.85 });

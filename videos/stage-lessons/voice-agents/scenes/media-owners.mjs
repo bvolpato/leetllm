@@ -9,8 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   quadArcPts,
   trimSeg,
@@ -19,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function mediaOwners(s, c) {
-  const phase = s.value(0);
   const mediaOn = s.value(0);
   const inferOn = s.value(0);
   const sfuOn = s.value(0);
@@ -38,7 +35,6 @@ export default function mediaOwners(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const md = mediaOn.value;
       const inf = inferOn.value;
       const sfu = sfuOn.value;
@@ -69,10 +65,9 @@ export default function mediaOwners(s, c) {
       const [b1a, b1b] = trimSeg(cliPt, medPt, nCli.r + 18, nMed.r + 18);
       const [b2a, b2b] = trimSeg(medPt, infPt, nMed.r + 18, nInf.r + 18);
       nodes.push(
-        beamWithPhotons([b1a, b1b], ROLE.client, p * 1.1, { width: 4, photonCount: 2 }),
-        beamWithPhotons([b2a, b2b], ROLE.media, p * 1.1 + 0.4, {
+        beamWithPhotons([b1a, b1b], ROLE.client, 0, { width: 4 }),
+        beamWithPhotons([b2a, b2b], ROLE.media, 0, {
           width: 4,
-          photonCount: 2,
           alpha: 0.45 + inf * 0.55,
         }),
         nCli.node,
@@ -104,9 +99,8 @@ export default function mediaOwners(s, c) {
         20,
       );
       nodes.push(
-        beamWithPhotons(muteArc, ROLE.cut, p * 1.4, {
+        beamWithPhotons(muteArc, ROLE.cut, 0, {
           width: 3.4,
-          photonCount: 1,
           alpha: muteAlpha,
         }),
         line([-820, muteY - 36], [-110, muteY - 36], { stroke: ROLE.cut, width: 2.5 }).opacity(
@@ -128,9 +122,8 @@ export default function mediaOwners(s, c) {
       const ledAlpha = 0.35 + lg * 0.65;
       const ledArc = quadArcPts([medPt[0] + 30, medPt[1] + nMed.r + 64], [380, muteY - 40], 25, 24);
       nodes.push(
-        beamWithPhotons(ledArc, ROLE.ok, p * 1.1 + 0.5, {
+        beamWithPhotons(ledArc, ROLE.ok, 0, {
           width: 3.4,
-          photonCount: 2,
           alpha: ledAlpha,
         }),
         line([90, muteY - 36], [830, muteY - 36], { stroke: ROLE.ok, width: 2.5 }).opacity(
@@ -161,12 +154,6 @@ export default function mediaOwners(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 445, {
-          radius: 4.5,
-          color: ROLE.media,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -174,8 +161,6 @@ export default function mediaOwners(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('va-media-owners-0-1', () => {
     s.play(mediaOn.to(1, { duration: clampDur(c, c.cue('va-media-owners-0-1').start, 0.35) }));
   });

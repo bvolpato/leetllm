@@ -15,7 +15,6 @@ import {
   lumBar,
   playCue,
   rule,
-  runPhase,
   swapVis,
   txt,
   withAlpha,
@@ -30,7 +29,6 @@ export default function indexMemory(s, c) {
     { ef: 96, recall: 0.99, ms: 78, ok: false },
   ];
 
-  const phase = s.value(0);
   const vLayer = s.value(1);
   const vGate = s.value(0);
   const vMem = s.value(0);
@@ -56,8 +54,6 @@ export default function indexMemory(s, c) {
 
   // View 1: Exponential HNSW layer retention + parameters
   const layerView = guardedDynamic(vLayer, (alpha) => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const barL = -595;
     const maxW = 660;
     const p1 = l1Prog.value;
@@ -83,7 +79,7 @@ export default function indexMemory(s, c) {
       lumBar(barL + Math.max(14, maxW * 0.08 * p1) / 2, -35, Math.max(14, maxW * 0.08 * p1), 50, {
         color: ROLE.A,
         fillAlpha: 0.45,
-        glow: 8 * pulse,
+        glow: 8,
         opacity: Math.max(0.15, p1) * alpha,
       }),
       ...(p1 > 0.02
@@ -99,7 +95,7 @@ export default function indexMemory(s, c) {
       lumBar(barL + 7, 75, 14, 50, {
         color: ROLE.B,
         fillAlpha: 0.55,
-        glow: 9 * pulse,
+        glow: 9,
         opacity: Math.max(0.15, p2) * alpha,
       }),
       ...(p2 > 0.02
@@ -137,8 +133,6 @@ export default function indexMemory(s, c) {
 
   // View 2: Recall@10 vs p99 Latency Gate Quadrant
   const gateView = guardedDynamic(vGate, (alpha) => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const ch = showChoice.value;
 
     // Plot area on left: x = p99 ms [30..90], y = Recall@10 [0.85..1.00]
@@ -196,7 +190,7 @@ export default function indexMemory(s, c) {
       nodes.push(
         glowRing(cx, cy, lit ? 24 : 14, col, {
           width: lit ? 3.8 : 2.5,
-          glow: lit ? 13 * pulse : 7,
+          glow: lit ? 13 : 7,
           opacity: alpha,
         }),
         glowDot(cx, cy, { radius: 7, color: col, glow: 10, opacity: alpha }),
@@ -222,7 +216,7 @@ export default function indexMemory(s, c) {
             color: ROLE.A,
             fillAlpha: 0.2,
             strokeWidth: 2.8,
-            glow: 10 * pulse,
+            glow: 10,
             opacity: ch * alpha,
           }),
         );
@@ -269,8 +263,6 @@ export default function indexMemory(s, c) {
 
   // View 3: Per-row graph link memory vs compressed PQ code
   const memView = guardedDynamic(vMem, (alpha) => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const sp = slotProg.value;
     const barL = -475;
     const maxW = 720;
@@ -301,7 +293,7 @@ export default function indexMemory(s, c) {
               color: ROLE.warn,
               fillAlpha: 0.34,
               strokeWidth: 2.8,
-              glow: 10 * pulse,
+              glow: 10,
               opacity: sp * alpha,
             }),
             txt(
@@ -352,8 +344,6 @@ export default function indexMemory(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.code, ROLE.gold), title, levelFormula, layerView, gateView, memView);
-
-  runPhase(s, c, phase, 10);
 
   playCue(s, c, 'layer1', (d) => s.play(l1Prog.to(1, { duration: d })), { after: true, dur: 0.9 });
   playCue(s, c, 'layer2', (d) => s.play(l2Prog.to(1, { duration: d })), { after: true, dur: 0.5 });

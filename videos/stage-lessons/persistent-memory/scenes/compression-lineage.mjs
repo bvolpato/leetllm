@@ -9,9 +9,7 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
-  glowDot,
   guardedDynamic,
   memNode,
   quadArcPts,
@@ -47,7 +45,7 @@ export default function compressionLineage(s, c) {
   const visual = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
+      const p = 0;
       const gSt = grpStage.value;
       const aSt = apexStage.value;
       const lost = lostCond.value;
@@ -188,15 +186,11 @@ export default function compressionLineage(s, c) {
         ),
       );
 
-      const dotX = -760 + ((p * 110) % 240);
-      nodes.push(glowDot(dotX, 425, { radius: 4.5, color: ROLE.score, glow: 8, opacity: 0.7 }));
-
       return group(...nodes);
     },
   );
 
   s.add(bgAuras, header, visual);
-  driftValue(s, c, phase, 3.8);
 
   c.on('compress-groups', () => {
     s.play(grpStage.to(1, { duration: clampDur(c, c.cue('compress-groups').start, 0.5) }));

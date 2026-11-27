@@ -2,20 +2,9 @@
 // 1200ms utterance + 300ms endpoint wait + 450ms batch STT = 1950ms (750ms post-speech delay)
 // contrasted with streaming recognition overlapping speech.
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function batchRecognition(s, c) {
-  const phase = s.value(0);
   const batchOn = s.value(0);
   const postOn = s.value(0);
   const downOn = s.value(0);
@@ -38,7 +27,6 @@ export default function batchRecognition(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const bt = batchOn.value;
       const ps = postOn.value;
       const dn = downOn.value;
@@ -177,12 +165,6 @@ export default function batchRecognition(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.warn,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -190,8 +172,6 @@ export default function batchRecognition(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('va-batch-recognition-0-1', () => {
     s.play(batchOn.to(1, { duration: clampDur(c, c.cue('va-batch-recognition-0-1').start, 0.4) }));
   });

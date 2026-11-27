@@ -9,12 +9,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function manifestRelease(s, c) {
-  const phase = s.value(0);
   const showManifest = s.value(0);
   const showAdmit = s.value(0);
   const showHash = s.value(0);
@@ -31,12 +29,10 @@ export default function manifestRelease(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sm = showManifest.value;
     const sa = showAdmit.value;
     const sh = showHash.value;
     const ss = showScope.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const hOrig = CHECKSUMS.originalHash.slice(0, 16);
     const hEdit = CHECKSUMS.editedHash.slice(0, 16);
@@ -47,7 +43,7 @@ export default function manifestRelease(s, c) {
 
       glassCell(-465, -96, 780, 134, sa > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: '#0e2824',
-        glow: sa > 0.3 ? 9 * pulse : 3,
+        glow: sa > 0.3 ? 9 : 3,
       }),
       txt('RECORD A · Complete Rollback Passage', -825, -130, 26, COSMOS.emerald, 'mono', 'left'),
       txt('src + locator + heading + sha256 -> READY', -825, -86, 26, COSMOS.ink, 'mono', 'left'),
@@ -82,7 +78,7 @@ export default function manifestRelease(s, c) {
 
       glassCell(495, -96, 750, 148, sh > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#231c10',
-        glow: sh > 0.3 ? 9 * pulse : 2,
+        glow: sh > 0.3 ? 9 : 2,
       }),
       txt(`15 min -> sha256: ${hOrig}...`, 145, -134, 26, COSMOS.cyan, 'mono', 'left'),
       txt(`20 min -> sha256: ${hEdit}...`, 145, -90, 26, COSMOS.gold, 'mono', 'left'),
@@ -93,7 +89,7 @@ export default function manifestRelease(s, c) {
 
       glassCell(495, 152, 750, 198, ss > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#101d35',
-        glow: ss > 0.3 ? 8 * pulse : 2,
+        glow: ss > 0.3 ? 8 : 2,
       }),
       txt('· 1 section per heading; keep table headers', 145, 92, 26, COSMOS.ink, 'sans', 'left'),
       txt(
@@ -140,7 +136,6 @@ export default function manifestRelease(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('manifest-release-0', () => s.play(showManifest.to(1, { duration: 0.4 })));
   c.on('manifest-ready', () => s.play(showAdmit.to(1, { duration: 0.4 })));

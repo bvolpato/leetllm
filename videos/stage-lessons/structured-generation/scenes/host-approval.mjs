@@ -12,7 +12,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fsmNode,
   guardedDynamic,
   opticalRail,
@@ -21,7 +20,6 @@ import {
 } from '../parts.mjs';
 
 export default function hostApproval(s, c) {
-  const pulse = s.value(0);
   const b0Hi = s.value(0);
   const noneDeny = s.value(0);
   const wrongDeny = s.value(0);
@@ -42,7 +40,6 @@ export default function hostApproval(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const b0 = b0Hi.value;
       const nd = noneDeny.value;
       const wd = wrongDeny.value;
@@ -174,7 +171,7 @@ export default function hostApproval(s, c) {
 
       if (mo > 0.4 && !isRollback) {
         nodes.push(
-          beamWithPhotons(quadArcPts([295, y2], [405, y2], -12), ROLE.legal, p * 1.2, {
+          beamWithPhotons(quadArcPts([295, y2], [405, y2], -12), ROLE.legal, 0, {
             width: 3.2,
             photonCount: 1,
           }),
@@ -208,7 +205,6 @@ export default function hostApproval(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-host-approval-0', () => {
     s.play(b0Hi.to(1, { duration: clampDur(c, c.cue('sg-host-approval-0').start, 0.35) }));

@@ -5,7 +5,6 @@ import {
   aura,
   buildHybridNodes3d,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -142,11 +141,6 @@ export default function topologyPlacement(s, c) {
         dm ? COSMOS.gold : COSMOS.ink,
         'mono',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 410, {
-        radius: 6,
-        color: COSMOS.gold,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
@@ -213,11 +207,6 @@ export default function topologyPlacement(s, c) {
         ROLE.good,
         'sans',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: ROLE.good,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });

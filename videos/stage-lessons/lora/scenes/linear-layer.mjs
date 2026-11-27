@@ -14,12 +14,10 @@ import {
   line,
   matrixGrid,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function linearLayer(s, c) {
-  const phase = s.value(0);
   const hlMatrix = s.value(0);
   const col1Prog = s.value(0);
   const col2Prog = s.value(0);
@@ -169,7 +167,6 @@ export default function linearLayer(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 12);
 
   c.on('linear-layer-b1-1', () => s.play(hlMatrix.to(1, { duration: 0.4 })));
   c.on('linear-layer-b2-1', () => s.play(col1Prog.to(1, { duration: 0.55 })));

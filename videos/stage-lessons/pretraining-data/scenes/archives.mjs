@@ -5,7 +5,6 @@ import {
   aura,
   cinematic3d,
   glassCell,
-  glowDot,
   glowingTrail,
   group,
   guardedDynamic,
@@ -16,12 +15,10 @@ import {
   prism3d,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function archives(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const warcOn = s.value(0);
   const watOn = s.value(0);
@@ -103,7 +100,6 @@ export default function archives(s, c) {
   // Part 2: Diverse source streams with attached lineage constellation
   const part2Live = guardedDynamic(showPart2, (a) => {
     const idOn = identityOn.value;
-    const ph = phase.value;
     const sources = [
       { label: 'Web prose', sub: 'Crawl snapshot', color: COSMOS.blue, x: -640 },
       { label: 'Books', sub: 'Long argument', color: COSMOS.cyan, x: -215 },
@@ -125,7 +121,7 @@ export default function archives(s, c) {
         txt(src.label, src.x, -130, 34, src.color, 'serif').opacity(a),
         txt(src.sub, src.x, -72, 26, COSMOS.muted, 'sans').opacity(a),
         txt('License & format', src.x, -18, 26, COSMOS.dim, 'mono').opacity(a),
-        ...photonStream([src.x, 26], [src.x * 0.45, 162], -10, ph + i * 0.7, {
+        ...photonStream([src.x, 26], [src.x * 0.45, 162], -10, 0, {
           color: src.color,
           count: 3,
           opacity: (0.35 + 0.65 * idOn) * a,
@@ -165,7 +161,6 @@ export default function archives(s, c) {
   // Part 3: Side-by-side WARC vs Extracted code inspection
   const part3Live = guardedDynamic(showPart3, (a) => {
     const ins = inspectOn.value;
-    const ph = phase.value;
     const lines = ['def add(a, b):', '    return a + b', 'The cat sat on the mat.'];
     const nodes = [
       txt('WARC EXTRACTION VERIFICATION', -855, -415, 26, COSMOS.emerald, 'mono', 'left').opacity(
@@ -191,7 +186,7 @@ export default function archives(s, c) {
 
       if (ins > 0.02) {
         nodes.push(
-          ...photonStream([-85, y], [85, y], 0, ph + i, {
+          ...photonStream([-85, y], [85, y], 0, 0, {
             color: isReturn ? COSMOS.gold : COSMOS.cyan,
             count: 2,
             opacity: ins * a,
@@ -259,7 +254,6 @@ export default function archives(s, c) {
   });
 
   s.add(bgAura, view3d, title1, part1Live, part2Live, part3Live);
-  runPhase(s, c, phase, 14);
   orbitScene(
     s,
     c,

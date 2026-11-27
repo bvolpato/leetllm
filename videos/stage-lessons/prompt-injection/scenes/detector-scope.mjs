@@ -11,9 +11,7 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
-  glowDot,
   guardedDynamic,
   hexGate,
   quadArcPts,
@@ -37,7 +35,7 @@ export default function detectorScope(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const p2 = pg2Hi.value;
       const l4 = lg4Hi.value;
       const nodes = [];
@@ -162,7 +160,6 @@ export default function detectorScope(s, c) {
           opacity: bAlpha,
           glow: l4 > 0.3 ? 11 : 4,
         }),
-        glowDot(-840 + ((p * 0.25) % 1) * 1680, 68, { radius: 4.5, color: ROLE.host, glow: 8 }),
       );
 
       return group(...nodes);
@@ -170,7 +167,6 @@ export default function detectorScope(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('pi-detector-scope-0', () => {
     s.play(pg2Hi.to(1, { duration: clampDur(c, c.cue('pi-detector-scope-0').start, 0.45) }));

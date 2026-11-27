@@ -11,12 +11,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function indexComposition(s, c) {
-  const phase = s.value(0);
   const showComp = s.value(0);
   const showExh = s.value(0);
   const showLife = s.value(0);
@@ -33,18 +31,16 @@ export default function indexComposition(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sc = showComp.value;
     const se = showExh.value;
     const sl = showLife.value;
     const sm = showMig.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Top row: Stage 1 Routing + Stage 2 Compression -> Composite Index
       glassCell(-575, -108, 560, 152, sc > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10213b',
-        glow: sc > 0.3 ? 8 * pulse : 3,
+        glow: sc > 0.3 ? 8 : 3,
       }),
       txt('1. WHERE TO LOOK (ROUTING)', -825, -150, 26, COSMOS.cyan, 'mono', 'left'),
       txt('IVF -> picks Voronoi lists (nprobe)', -825, -104, 26, COSMOS.ink, 'sans', 'left'),
@@ -54,7 +50,7 @@ export default function indexComposition(s, c) {
 
       glassCell(140, -108, 560, 152, se > 0.3 ? COSMOS.amber : COSMOS.muted, {
         fill: '#231c10',
-        glow: se > 0.3 ? 9 * pulse : 3,
+        glow: se > 0.3 ? 9 : 3,
       }),
       txt('2. HOW TO SCORE (COMPRESSION)', -110, -150, 26, COSMOS.amber, 'mono', 'left'),
       txt('PQ replaces exact floats with codes', -110, -104, 26, COSMOS.ink, 'sans', 'left'),
@@ -78,7 +74,7 @@ export default function indexComposition(s, c) {
       // Bottom left: Exhaustive scan of PQ codes still has quantization error
       glassCell(-455, 142, 790, 210, se > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: se > 0.3 ? '#28111a' : '#12182b',
-        glow: se > 0.3 ? 9 * pulse : 2,
+        glow: se > 0.3 ? 9 : 2,
       }),
       txt('EVEN OPENING EVERY LIST LEAVES CODE ERROR', -825, 76, 26, COSMOS.rose, 'mono', 'left'),
       txt(
@@ -112,7 +108,7 @@ export default function indexComposition(s, c) {
       // Bottom right: Lifecycle, freshness, and encoder migration
       glassCell(445, 142, 850, 210, sm > 0.3 || sl > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: sm > 0.3 ? '#0e2824' : '#11182c',
-        glow: sm > 0.3 ? 8 * pulse : 2,
+        glow: sm > 0.3 ? 8 : 2,
       }),
       txt('OPERATIONAL LIFECYCLE & MIGRATION', 50, 76, 26, COSMOS.emerald, 'mono', 'left'),
       txt(
@@ -159,7 +155,6 @@ export default function indexComposition(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('routing-compression', () => s.play(showComp.to(1, { duration: 0.45 })));
   c.on('exhaustive-codes', () => s.play(showExh.to(1, { duration: 0.45 })));

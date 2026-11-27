@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   quadArcPts,
@@ -38,7 +37,7 @@ export default function durableSession(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const ar = archOn.value;
       const ft = fetchOn.value;
       const ct = ctxOn.value;
@@ -135,7 +134,6 @@ export default function durableSession(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-durable-session-0', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('aa-durable-session-0').start, 0.25) }));

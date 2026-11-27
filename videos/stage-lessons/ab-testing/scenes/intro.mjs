@@ -15,13 +15,11 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   const showMarked = s.value(0);
   const showSource = s.value(0);
   const showAsk = s.value(0);
@@ -42,7 +40,6 @@ export default function intro(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const pulse = 0.72 + 0.28 * Math.sin(phase.value * 2.8);
     const nodes = [
       // Left: Runbook source sentence (always present as quiet skeleton from t=0)
       txt('RUNBOOK POLICY (SOURCE)', -855, -245, 26, CTRL_COLOR, 'mono', 'left').opacity(
@@ -101,9 +98,7 @@ export default function intro(s, c) {
 
     if (showAlone.value > 0.02) {
       nodes.push(
-        rule(345, -142, 422, -142, BAD_COLOR, 4.5 + 1.2 * pulse)
-          .glow(9, BAD_COLOR)
-          .opacity(showAlone.value),
+        rule(345, -142, 422, -142, BAD_COLOR, 5.5).glow(9, BAD_COLOR).opacity(showAlone.value),
       );
     }
 
@@ -228,7 +223,6 @@ export default function intro(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'marked', showMarked, 1, { duration: 0.45 });
   tweenCue(s, c, 'source', showSource, 1, { duration: 0.45 });

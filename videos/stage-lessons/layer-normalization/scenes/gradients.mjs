@@ -23,7 +23,6 @@ import {
   playBeat,
   playCue,
   scale,
-  scenePulse,
 } from '../parts.mjs';
 
 export default function gradients(s, c) {
@@ -38,7 +37,6 @@ export default function gradients(s, c) {
   const idGlow = s.value(0); // highlights additive identity vector I * v
   const branchCancel = s.value(0); // 0 -> 1 drives branch vector [-2, 2, 1, -1] back to origin
   const measureNote = s.value(0); // beat 2: measure actual gradients & updates across depth
-  const pulse = s.value(0);
   const stageVis = s.value(1);
 
   const mainLayer = guardedDynamic(stageVis, (alpha) => {
@@ -46,7 +44,6 @@ export default function gradients(s, c) {
     const ig = idGlow.value;
     const bc = branchCancel.value;
     const mn = measureNote.value;
-    const p = pulse.value;
 
     // LEFT/CENTER: 2D equal-unit vector plane for probe components 1 and 2
     const plane = coordPlane({
@@ -74,9 +71,9 @@ export default function gradients(s, c) {
     const curY = direction[1] + bc * branch[1];
     const sumTip = plane.toScreen(curX, curY);
 
-    // Subtle pulsing origin target ring
+    // Origin target ring
     nodes.push(
-      glowRing(origin[0], origin[1], 16 + Math.sin(p * Math.PI * 8) * 3, ROLE.gold, {
+      glowRing(origin[0], origin[1], 16, ROLE.gold, {
         width: 2.2,
         glow: 6,
         fillOpacity: 0.08,
@@ -120,9 +117,8 @@ export default function gradients(s, c) {
       }),
     );
 
-    // Subtle flowing backward-signal ribbon on right connecting the two Jacobian views
+    // Subtle backward-signal ribbon on right connecting the two Jacobian views
     const rx = 435;
-    const flowX = rx - 250 + ((p * 2.2) % 1) * 500;
     nodes.push(
       glowingTrail(
         [
@@ -131,7 +127,6 @@ export default function gradients(s, c) {
         ],
         { color: ROLE.stream, width: 2.6, glow: 7, core: false, opacity: 0.68 * alpha },
       ),
-      glowDot(flowX, -135, { radius: 5.5, color: ROLE.stream, glow: 12, opacity: 0.85 * alpha }),
     );
 
     // Right panel captions & live vector telemetry
@@ -202,7 +197,6 @@ export default function gradients(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.stream, ROLE.alert), title, mainLayer, preEq, postEq);
-  scenePulse(s, c, pulse);
 
   // Beat 0: Emphasize additive identity route
   playCue(

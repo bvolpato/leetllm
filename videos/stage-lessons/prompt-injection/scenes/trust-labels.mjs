@@ -12,9 +12,7 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
-  glowDot,
   guardedDynamic,
   quadArcPts,
   txt,
@@ -38,7 +36,7 @@ export default function trustLabels(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const fh = fetchHi.value;
       const dh = delimHi.value;
       const es = escapeOn.value;
@@ -144,7 +142,6 @@ export default function trustLabels(s, c) {
       // Bottom summary bar
       nodes.push(
         line([-855, 345], [840, 345], { stroke: '#243356', width: 2 }),
-        glowDot(-840 + ((p * 0.22) % 1) * 1660, 345, { radius: 4.5, color: ROLE.source, glow: 9 }),
         txt(
           kf > 0.3
             ? 'PRESERVE FULL TEXT FOR FACTUAL REVIEW  ·  SOURCE TAG NEVER DROPS'
@@ -172,7 +169,6 @@ export default function trustLabels(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('trust-labels-beat-1-focus-1', () => {
     s.play(

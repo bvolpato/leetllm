@@ -8,7 +8,6 @@ import {
   buildCluster3d,
   checkpointGB,
   deviceGB,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -233,11 +232,6 @@ export default function weightBudget(s, c) {
       )
         .glow(6, raw4 ? COSMOS.gold : ROLE.gpu0)
         .opacity(a),
-      glowDot(-820 + ((phase.value * 0.55) % 1) * 1160, 385, {
-        radius: 6,
-        color: raw4 ? COSMOS.gold : ROLE.gpu1,
-        opacity: a,
-      }),
     );
 
     return group(...nodes);

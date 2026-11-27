@@ -5,16 +5,13 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function processGroups(s, c) {
-  const phase = s.value(0);
   // mode: 0=call7 mismatch, 1=stalled, 2=all-reduce, 3=reduce-scatter, 4=all-gather, 5=all-to-all, 6=broadcast, 7=replay fixed, 8=returned [11,22]
   const mode = s.value(0);
 
@@ -30,7 +27,6 @@ export default function processGroups(s, c) {
 
   const live = guardedDynamic(1, () => {
     const m = Math.round(mode.value);
-    const p = phase.value;
 
     const specs = {
       0: {
@@ -148,14 +144,10 @@ export default function processGroups(s, c) {
       ),
     ];
 
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-760 + u * 1520, 315, { radius: 6, color: sp.col }));
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('other-call', () => s.play(mode.to(0, { duration: 0.25 })));
   c.on('stalled', () => s.play(mode.to(1, { duration: remainDuration(c, 'stalled', 0.35) })));

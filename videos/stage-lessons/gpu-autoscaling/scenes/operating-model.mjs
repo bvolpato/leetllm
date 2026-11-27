@@ -8,7 +8,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowBar,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function operatingModel(s, c) {
-  const phase = s.value(0);
   const mode = s.value(0); // 0=capacity layers, 1=ownership spectrum
 
   const header = cinemaHeader(
@@ -39,7 +37,6 @@ export default function operatingModel(s, c) {
   const waveLayer = guardedDynamic(
     () => fadeOutHalf(mode.value),
     (a) => {
-      const p = phase.value;
       const x0 = -820;
       const x1 = 820;
       const yBase = 280;
@@ -49,7 +46,7 @@ export default function operatingModel(s, c) {
       for (let i = 0; i <= 48; i++) {
         const u = i / 48;
         const x = x0 + u * (x1 - x0);
-        const surge = Math.exp(-((u - 0.55) ** 2) / 0.045) * 280 + Math.sin(u * 10 + p * 0.6) * 20;
+        const surge = Math.exp(-((u - 0.55) ** 2) / 0.045) * 280 + Math.sin(u * 10) * 20;
         const y = 12 - surge;
         wavePts.push([x, y]);
       }
@@ -98,7 +95,7 @@ export default function operatingModel(s, c) {
         txt('Preemptible burst tier', 90, -78, 26, COSMOS.muted, 'sans').opacity(a),
 
         // Demand wave curve
-        beamWithPhotons(wavePts, ROLE.warm, p * 0.5, {
+        beamWithPhotons(wavePts, ROLE.warm, 0, {
           width: 4.2,
           glow: 10,
           photonCount: 3,
@@ -189,7 +186,6 @@ export default function operatingModel(s, c) {
   );
 
   s.add(bgAura, header, waveLayer, ownerLayer);
-  driftValue(s, c, phase, 5.5, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-operating-model-b0', mode, 0, 0.2);
   tweenOn(s, c, 'ga-operating-model-b1', mode, 1, 0.4);

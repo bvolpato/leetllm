@@ -7,18 +7,15 @@ import {
   X,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function linear(s, c) {
-  const phase = s.value(0);
   const colIdx = s.value(0);
   const showOut = s.value(0);
   const showRef = s.value(0);
@@ -125,16 +122,12 @@ export default function linear(s, c) {
           ? 'Exact reference xW = [1, 4, 6, 5] every sharded layout must match'
           : 'Multiply each input coordinate by its matching column weight, then sum';
 
-    nodes.push(
-      txt(foot, 0, 365, 28, cs || rs ? COSMOS.gold : COSMOS.ink, 'sans'),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 420, { radius: 6, color: ROLE.gpu1 }),
-    );
+    nodes.push(txt(foot, 0, 365, 28, cs || rs ? COSMOS.gold : COSMOS.ink, 'sans'));
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('linear-input', () =>
     s.play(showOut.to(0.4, { duration: remainDuration(c, 'linear-input', 0.35) })),

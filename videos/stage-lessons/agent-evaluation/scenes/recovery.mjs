@@ -13,7 +13,6 @@ import {
   autoNode,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -53,7 +52,7 @@ export default function recovery(s, c) {
   const mode0 = guardedDynamic(
     () => fadeOutHalf(twinMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const rr = readRetry.value;
       const rb = readBack.value;
       const wl = writeLost.value;
@@ -172,7 +171,7 @@ export default function recovery(s, c) {
   const mode1 = guardedDynamic(
     () => fadeInHalf(twinMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const nk = newKeyHi.value;
       const ch = chooseHi.value;
       const ss = sendSame.value;
@@ -333,7 +332,6 @@ export default function recovery(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('retry-read', () => {
     s.play(readRetry.to(1, { duration: clampDur(c, c.cue('retry-read').start, 0.4) }));

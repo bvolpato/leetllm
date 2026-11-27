@@ -20,12 +20,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function rangeCheck(s, c) {
-  const phase = s.value(0);
   const showLarge = s.value(0);
   const revealFp16 = s.value(0);
   const revealBf16 = s.value(0);
@@ -61,8 +59,6 @@ export default function rangeCheck(s, c) {
     const lg = showLarge.value;
     const r16 = revealFp16.value;
     const rbf = revealBf16.value;
-    const ph = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(ph * 3.5);
 
     const nodes = [
       // Main log axis + glowing safe FP16 zone between the two rose cliffs
@@ -88,7 +84,7 @@ export default function rangeCheck(s, c) {
         stroke: COSMOS.rose,
         width: 4,
         dash: [8, 5],
-      }).glow(8 * pulse, COSMOS.rose),
+      }).glow(8, COSMOS.rose),
       txt('2⁻²⁵ half-step', xUnderCliff, axisY - 110, 26, COSMOS.rose, 'mono'),
 
       // Right overflow cliff wall (stops cleanly above axis labels)
@@ -96,7 +92,7 @@ export default function rangeCheck(s, c) {
         stroke: COSMOS.rose,
         width: 4,
         dash: [8, 5],
-      }).glow(8 * pulse, COSMOS.rose),
+      }).glow(8, COSMOS.rose),
       txt('65,504 max', xOverCliff, axisY - 110, 26, COSMOS.rose, 'mono'),
 
       // Left yellow beacon: backward gradient 1.2e-8
@@ -189,7 +185,6 @@ export default function rangeCheck(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('range-large', () => s.play(showLarge.to(1, { duration: 0.5 })));
   c.after('range-half', () =>

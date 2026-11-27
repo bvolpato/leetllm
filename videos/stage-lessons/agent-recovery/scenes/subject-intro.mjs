@@ -9,7 +9,6 @@ import {
   ambientClock,
   cinemaAtmosphere,
   glowCross,
-  glowDot,
   glowPill,
   glowRing,
   guardedDynamic,
@@ -311,15 +310,6 @@ export default function subjectIntro(s, c) {
               ? 'RECONCILED BY KEY'
               : 'TIMEOUT -> OUTCOME UNKNOWN',
           { accent: showReply.value > 0.5 ? ROLE.sure : ROLE.agent, alpha },
-        ),
-      );
-
-      // Gentle ambient orbit ring around timer
-      nodes.push(
-        glowDot(
-          dialX + Math.cos(amb.value * Math.PI * 8) * (dialR + 18),
-          dialY + Math.sin(amb.value * Math.PI * 8) * (dialR + 18),
-          { radius: 5, color: dialCol, glow: 8, opacity: 0.7 * alpha },
         ),
       );
 

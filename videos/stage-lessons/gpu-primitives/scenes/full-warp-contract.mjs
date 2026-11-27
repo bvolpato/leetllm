@@ -6,7 +6,6 @@ import {
   box3d,
   cinematic3d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -202,9 +201,7 @@ export default function fullWarpContract(s, c) {
 
   // Beat 2: 8 Warp Leaders -> Shared Memory -> __syncthreads() -> Warp 0
   const part2 = guardedDynamic(showBarrier, (a) => {
-    const p = phase.value;
     const lw = leadersWritten.value;
-    const u = (p * 0.7) % 1;
 
     const nodes = [
       heroTitle(['Block Handoff:', '8 Warp Leaders'], {
@@ -249,7 +246,6 @@ export default function fullWarpContract(s, c) {
             opacity: 0.9 * a,
             core: false,
           }),
-          glowDot(cx, -118 + u * 106, { radius: 5, color: COSMOS.gold, opacity: a }),
         );
       }
     }

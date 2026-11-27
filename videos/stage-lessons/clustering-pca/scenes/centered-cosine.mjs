@@ -13,7 +13,6 @@ import {
   guardedDynamic,
   heroTitle,
   makePlot,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -28,7 +27,6 @@ const DIST1 = distance(Q_RAW, D1_RAW);
 const DIST2 = distance(Q_RAW, D2_RAW);
 
 export default function centeredCosine(s, c) {
-  const phase = s.value(0);
   const showOrig = s.value(0);
   const shiftAmt = s.value(0);
   const showVals = s.value(0);
@@ -183,7 +181,6 @@ export default function centeredCosine(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'original', showOrig, 1, { duration: 0.45 });
   tweenCue(s, c, 'translate', shiftAmt, 1, { duration: 0.9 });

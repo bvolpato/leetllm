@@ -19,7 +19,6 @@ import {
   projectedInterval,
   requiredN,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -30,7 +29,6 @@ const IV2000 = projectedInterval(2000);
 const N_REQ = Math.round(requiredN(0.38, 0.02)); // 9246
 
 export default function powerScene(s, c) {
-  const phase = s.value(0);
   const show200 = s.value(0);
   const show500 = s.value(0);
   const show2000 = s.value(0);
@@ -170,7 +168,6 @@ export default function powerScene(s, c) {
   });
 
   s.add(bgAura, power3d, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
   orbitScene(s, c, power3d, { theta: 0.46, phi: 0.98 });
 
   tweenCue(s, c, 'n200', show200, 1, { duration: 0.45 });

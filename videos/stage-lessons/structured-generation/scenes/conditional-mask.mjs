@@ -16,7 +16,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowTex,
   guardedDynamic,
   quadArcPts,
@@ -24,7 +23,6 @@ import {
 } from '../parts.mjs';
 
 export default function conditionalMask(s, c) {
-  const pulse = s.value(0);
   const expOn = s.value(0);
   const removeOn = s.value(0);
   const resultOn = s.value(0);
@@ -49,7 +47,6 @@ export default function conditionalMask(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const ex = expOn.value;
       const rm = removeOn.value;
       const rs = resultOn.value;
@@ -139,7 +136,7 @@ export default function conditionalMask(s, c) {
           );
           if (ok) {
             const arc = quadArcPts([380, y], [540, y], i === 0 ? -24 : 24);
-            nodes.push(beamWithPhotons(arc, rowCol, p * 1.2 + i * 0.4, { alpha: rs, width: 3.4 }));
+            nodes.push(beamWithPhotons(arc, rowCol, 0, { alpha: rs, width: 3.4 }));
           }
         } else {
           nodes.push(
@@ -208,7 +205,6 @@ export default function conditionalMask(s, c) {
 
   s.add(stageAura, header, stageView);
   c.show('weights-result', ratioEq, { after: true });
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('weights-exp', () => {
     s.play(expOn.to(1, { duration: clampDur(c, c.cue('weights-exp').start, 0.45) }));

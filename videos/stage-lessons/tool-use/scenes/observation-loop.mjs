@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -49,7 +48,7 @@ export default function observationLoop(s, c) {
   const loopAct = guardedDynamic(
     () => fadeOutHalf(untrustedMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const cl = callOn.value;
       const ct = countOn.value;
       const rc = recordOn.value;
@@ -156,7 +155,7 @@ export default function observationLoop(s, c) {
   const quarantineAct = guardedDynamic(
     () => fadeInHalf(untrustedMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const wp = writePropOn.value;
       const pg = policyGateOn.value;
       const nodes = [];
@@ -264,7 +263,6 @@ export default function observationLoop(s, c) {
   );
 
   s.add(stageAura, header, loopAct, quarantineAct);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('observation-loop-beat-1-focus-1', () => {
     s.play(

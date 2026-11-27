@@ -8,8 +8,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   memNode,
   trimSeg,
@@ -36,7 +34,7 @@ export default function tenantBoundary(s, c) {
   const visual = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
+      const p = 0;
       const rls = showRls.value;
       const byp = showBypass.value;
       const clr = clearPool.value;
@@ -162,15 +160,11 @@ export default function tenantBoundary(s, c) {
         ),
       );
 
-      const dotX = -760 + ((p * 120) % 240);
-      nodes.push(glowDot(dotX, 445, { radius: 4.5, color: poolCol, glow: 8, opacity: 0.7 }));
-
       return group(...nodes);
     },
   );
 
   s.add(bgAuras, header, visual);
-  driftValue(s, c, phase, 4.0);
 
   c.on('same-username', () => {
     s.play(showSame.to(1, { duration: clampDur(c, c.cue('same-username').start, 0.4) }));

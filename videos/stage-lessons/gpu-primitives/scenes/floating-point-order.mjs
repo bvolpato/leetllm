@@ -4,9 +4,7 @@ import {
   LEFT,
   RIGHT,
   aura,
-  evalArc2d,
   glassCell,
-  glowDot,
   glowTex,
   glowingArc,
   group,
@@ -14,12 +12,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function floatingPointOrder(s, c) {
-  const phase = s.value(0);
   const showInputs = s.value(1);
   const showLeftTree = s.value(0);
   const showRightRound = s.value(0);
@@ -65,12 +61,10 @@ export default function floatingPointOrder(s, c) {
   });
 
   const live = guardedDynamic(showInputs, () => {
-    const p = phase.value;
     const lt = showLeftTree.value;
     const rr = showRightRound.value;
     const rz = showRightZero.value;
     const cn = showConclusion.value;
-    const u = (p * 0.85) % 1;
 
     const nodes = [
       // Subtle center vertical split between the two reduction trees
@@ -152,8 +146,6 @@ export default function floatingPointOrder(s, c) {
           .glow(8, COSMOS.emerald)
           .opacity(lt),
       );
-      const [px, py] = evalArc2d([lxR, lyTop + 42], [-440, lyBot - 42], 24, u);
-      nodes.push(glowDot(px, py, { radius: 6.5, color: COSMOS.emerald, opacity: lt }));
     }
 
     // RIGHT TREE: (-10^20 + 3.14) -> -10^20 (rounded away!), then 10^20 + (-10^20) -> 0
@@ -222,8 +214,6 @@ export default function floatingPointOrder(s, c) {
           glassCell(440, lyBot, 270, 84, COSMOS.rose, { fill: '#2a101d', glow: 11, opacity: rz }),
           txt(`= ${RIGHT}`, 440, lyBot, 42, COSMOS.rose, 'mono').glow(8, COSMOS.rose).opacity(rz),
         );
-        const [px, py] = evalArc2d([rxA, lyTop + 42], [440, lyBot - 42], 24, (u + 0.5) % 1);
-        nodes.push(glowDot(px, py, { radius: 6.5, color: COSMOS.rose, opacity: rz }));
       }
     }
 
@@ -241,7 +231,6 @@ export default function floatingPointOrder(s, c) {
   });
 
   s.add(bgAura, title, eqInputs, live);
-  runPhase(s, c, phase, 14);
 
   c.on('floating-point-order-beat-1-focus-1', () => s.play(showInputs.to(1, { duration: 0.3 })));
   c.show('floating-point-order-beat-2-focus-1', eqLeft, { fade: 0.35 });

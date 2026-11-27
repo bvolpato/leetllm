@@ -14,7 +14,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   glowBar,
   guardedDynamic,
   memCell,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function share(s, c) {
-  const phase = s.value(0);
   // 0=fork, 1..4=beam panel, 5=slot focus, 6=want-a, 7=want-b, 8=unsafe-a, 9=unsafe-b,
   // 10=ask-read (HOLD!), 11=bad-read (AFTER!), 12=rewind, 13=copy, 14=remap,
   // 15=safe-a, 16=safe-b, 17=read-a, 18=read-b, 19=name, 20=total-partial
@@ -54,7 +52,6 @@ export default function share(s, c) {
       const v = st.value;
       const bVis = beamVis.value;
       const bLvl = beamLevel.value;
-      const ph = phase.value;
       const nodes = [];
 
       const isRemapped = v >= 13.5;
@@ -198,7 +195,7 @@ export default function share(s, c) {
         if (v >= 12.5 && v < 14.5) {
           const copyPts = quadArcPts([blk0X - 240, blkY - 40], [blk1X + 240, blkY - 40], -75, 24);
           nodes.push(
-            beamWithPhotons(copyPts, ROLE.fresh, ph * 0.9, {
+            beamWithPhotons(copyPts, ROLE.fresh, 0, {
               width: 3.8,
               glow: 10,
               photonCount: 2,
@@ -213,8 +210,8 @@ export default function share(s, c) {
       const aBeamPts = quadArcPts([aX, tblY + 48], [aTargetX, blkY - 108], 18, 22);
       const bBeamPts = quadArcPts([bX, tblY + 48], [bTargetX, blkY - 108], 18, 22);
       nodes.push(
-        beamWithPhotons(aBeamPts, ROLE.reqA, ph * 0.65, { width: 3.6, glow: 9, photonCount: 2 }),
-        beamWithPhotons(bBeamPts, ROLE.reqB, (ph * 0.65 + 0.5) % 1, {
+        beamWithPhotons(aBeamPts, ROLE.reqA, 0, { width: 3.6, glow: 9, photonCount: 2 }),
+        beamWithPhotons(bBeamPts, ROLE.reqB, 0, {
           width: 3.6,
           glow: 9,
           photonCount: 2,
@@ -324,11 +321,10 @@ export default function share(s, c) {
 
       // Bottom Status / Prediction / Verdict Strip (y = 308..405)
       if (v >= 9.5 && v < 10.5) {
-        const pulse = 0.68 + 0.32 * Math.sin(ph * 5.2);
         nodes.push(
           txt('PREDICT: A reads slot 3 again -> which word?', 0, 326, 34, ROLE.focus, 'mono')
             .glow(8, ROLE.focus)
-            .opacity(pulse),
+            .opacity(1),
         );
       } else if (v >= 10.5 && v < 11.5) {
         nodes.push(
@@ -368,7 +364,6 @@ export default function share(s, c) {
   );
 
   s.add(stageAura, header, sceneDyn);
-  driftValue(s, c, phase, 11.0, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0
   c.on('fork', () => {

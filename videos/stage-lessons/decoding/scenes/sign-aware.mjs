@@ -4,7 +4,7 @@
 // negative multiplying further downward (-0.5 -> -0.6), and unseen staying fixed (0.7 -> 0.7),
 // revealing outputs AFTER dec-sign-values + MathJax piecewise rule.
 import { line } from 'vizmatic/stage';
-import { COSMOS, glowDot, glowTex, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
+import { COSMOS, glowTex, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
 import {
   ROLE,
   cinemaAtmosphere,

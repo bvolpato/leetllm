@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   gateNode,
   guardedDynamic,
@@ -40,7 +39,7 @@ export default function writeGate(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const rq = reqOn.value;
       const tg = targetOn.value;
       const gr = grantOn.value;
@@ -205,7 +204,6 @@ export default function writeGate(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('write-gate-beat-1-focus-1', () => {
     s.play(reqOn.to(1, { duration: clampDur(c, c.cue('write-gate-beat-1-focus-1').start, 0.3) }));

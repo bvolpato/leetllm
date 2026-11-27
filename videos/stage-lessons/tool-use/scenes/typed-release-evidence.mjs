@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -269,7 +268,6 @@ export default function typedReleaseEvidence(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-typed-release-evidence-1', () => {
     s.play(

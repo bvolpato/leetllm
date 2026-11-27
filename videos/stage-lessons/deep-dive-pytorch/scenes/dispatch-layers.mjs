@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function dispatchLayers(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=schema contract, 1=DispatchKeySet stack, 2=functionalization & fake tensor
 
   const bgAura = aura(0, 20, 640, '#a78bfa1e', '#5ce1e618');
@@ -30,7 +27,6 @@ export default function dispatchLayers(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = stage.value;
-    const p = phase.value;
 
     const layers = [
       {
@@ -124,9 +120,7 @@ export default function dispatchLayers(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-820 + u * 1640, 275, { radius: 6, color: ROLE.grad }),
       txt(
         'Every custom op or mode must return the exact dtype, stride, and alias metadata promised',
         0,
@@ -141,7 +135,6 @@ export default function dispatchLayers(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-dispatch-layers-0', () => s.play(stage.to(0, { duration: 0.25 })));
   c.on('pt-dispatch-layers-1', () =>

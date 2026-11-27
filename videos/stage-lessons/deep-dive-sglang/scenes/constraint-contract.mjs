@@ -5,18 +5,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function constraintContract(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = JSON schema for label
   // 1 = server options: JSON schema / regex / EBNF
@@ -43,7 +40,6 @@ export default function constraintContract(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 3) {
@@ -185,12 +181,7 @@ export default function constraintContract(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 305, {
-        radius: 6,
-        color: st >= 10 || st === 8 ? ROLE.fail : ROLE.grammar,
-      }),
       txt(
         st >= 10
           ? 'Always check finish reason, validate parsed JSON against schema, then check label accuracy.'
@@ -208,7 +199,6 @@ export default function constraintContract(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-constraint-contract-beat-0', 0],
     ['constraint-server-options', 1],

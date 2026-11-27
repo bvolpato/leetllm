@@ -11,7 +11,6 @@ import {
   aura,
   cinemaHeader,
   dashedRule,
-  driftValue,
   guardedDynamic,
   phases,
   tweenOn,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function coldpath(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=chain, 2=207s ready, 3=08:58 ask(PREDICT!), 4=+87s late(AFTER!), 5=08:56 ask(PREDICT!), 6=-33s early(AFTER!)
 
   const header = cinemaHeader(
@@ -90,8 +88,6 @@ export default function coldpath(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
-      const blink = 0.68 + 0.32 * Math.sin(p * 5.0);
       const nodes = [];
 
       // Fixed vertical gates segmented strictly in the gaps between rows so strokes never cross bar text during fades
@@ -141,7 +137,7 @@ export default function coldpath(s, c) {
           // Only show up to 09:00 (Node + Image done) while asking the viewer!
           nodes.push(
             ...drawChain(-120, 10, { showEndpoint: false, alpha: 0.9, clipAt: -3 }),
-            txt('???', secX(45), 10, 30, ROLE.predict, 'mono').glow(8, ROLE.predict).opacity(blink),
+            txt('???', secX(45), 10, 30, ROLE.predict, 'mono').glow(8, ROLE.predict).opacity(1),
           );
         }
       }
@@ -155,9 +151,7 @@ export default function coldpath(s, c) {
         } else {
           nodes.push(
             ...drawChain(-240, 155, { showEndpoint: false, alpha: 0.9, clipAt: -120 }),
-            txt('???', secX(-60), 155, 30, ROLE.predict, 'mono')
-              .glow(8, ROLE.predict)
-              .opacity(blink),
+            txt('???', secX(-60), 155, 30, ROLE.predict, 'mono').glow(8, ROLE.predict).opacity(1),
           );
         }
       }
@@ -174,7 +168,7 @@ export default function coldpath(s, c) {
             'sans',
           )
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
         );
       } else if (st >= 3.5 && st < 4.5) {
         nodes.push(
@@ -194,7 +188,7 @@ export default function coldpath(s, c) {
             'sans',
           )
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
         );
       } else if (st >= 5.5) {
         nodes.push(
@@ -225,7 +219,6 @@ export default function coldpath(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 7.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'startup-chain', step, 1, 0.35);
   tweenOn(s, c, 'ready-boundary', step, 2, 0.3, { after: true });

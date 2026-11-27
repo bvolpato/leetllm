@@ -9,7 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   guardedDynamic,
   txt,
@@ -37,7 +36,7 @@ export default function errorClasses(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const vl = valOn.value;
       const rv = revalOn.value;
       const dn = denyOn.value;
@@ -154,7 +153,6 @@ export default function errorClasses(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-error-classes-1', () => {
     s.play(valOn.to(1, { duration: clampDur(c, c.cue('tu-error-classes-1').start, 0.3) }));

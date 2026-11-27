@@ -5,18 +5,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function goodputDenominator(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = op-0 / counts-a (A segmented bar: 550 pass + 50 late + 400 failed)
   // 1 = counts-b (B segmented bar: 752 pass + 28 late + 20 failed)
@@ -37,7 +34,6 @@ export default function goodputDenominator(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const scale = 1.22; // 1000 req -> 1220 px
     const barLeft = -620;
     const nodes = [
@@ -156,9 +152,7 @@ export default function goodputDenominator(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 330, { radius: 6, color: st === 3 ? ROLE.bad : ROLE.good }),
       txt(
         'Match loads, warmup, steady-state window & explicit rules for single-token requests',
         0,
@@ -172,7 +166,6 @@ export default function goodputDenominator(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['vv-goodput-denominator-op-0', 0],
     ['vv-goodput-denominator-counts-a', 0],

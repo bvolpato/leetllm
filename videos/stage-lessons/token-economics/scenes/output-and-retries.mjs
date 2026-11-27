@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   clampDur,
   conciseMicro,
-  driftValue,
   glowBar,
   guardedDynamic,
   txt,
@@ -162,7 +161,6 @@ export default function outputAndRetries(s, c) {
   );
 
   s.add(sceneAura, header, stageCanvas);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('short-reply', () => {
     const t = c.cue('short-reply').start;

@@ -9,12 +9,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function tailBalancing(s, c) {
-  const phase = s.value(0);
   const showGreedy = s.value(0);
   const showMerge = s.value(0);
   const showBalance = s.value(0);
@@ -32,13 +30,11 @@ export default function tailBalancing(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sg = showGreedy.value;
     const sm = showMerge.value;
     const sb = showBalance.value;
     const si = showImpossible.value;
     const sa = showAsym.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: 3 layouts for 15 words under cap = 7
@@ -68,7 +64,7 @@ export default function tailBalancing(s, c) {
 
       glassCell(-455, 186, 810, 134, sb > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: sb > 0.3 ? '#0e2824' : '#12182b',
-        glow: sb > 0.3 ? 9 * pulse : 2,
+        glow: sb > 0.3 ? 9 : 2,
       }),
       txt(
         `REBALANCED: [ ${BALANCED_5.map((ch) => ch.length).join(' ]  [ ')} ]  (ALL FIT!)`,
@@ -103,7 +99,7 @@ export default function tailBalancing(s, c) {
 
       glassCell(495, -72, 760, 188, si > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: si > 0.3 ? '#29111a' : '#12182b',
-        glow: si > 0.3 ? 9 * pulse : 2,
+        glow: si > 0.3 ? 9 : 2,
       }),
       txt('RAISE MIN TO 6 (STILL 15 WORDS, CAP 7)', 145, -132, 26, COSMOS.rose, 'mono', 'left'),
       txt('2 children x 7 max = 14 < 15  (need >= 3)', 145, -84, 26, COSMOS.ink, 'mono', 'left'),
@@ -112,7 +108,7 @@ export default function tailBalancing(s, c) {
 
       glassCell(495, 160, 760, 198, sa > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10203a',
-        glow: sa > 0.3 ? 9 * pulse : 2,
+        glow: sa > 0.3 ? 9 : 2,
       }),
       txt('STOP AT DOCUMENT END + 20% OVERLAP', 145, 96, 26, COSMOS.cyan, 'mono', 'left'),
       txt(
@@ -151,7 +147,6 @@ export default function tailBalancing(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('tail-balancing-0', () => s.play(showGreedy.to(1, { duration: 0.4 })));
   c.on('tail-merge', () => s.play(showMerge.to(1, { duration: 0.4 })));

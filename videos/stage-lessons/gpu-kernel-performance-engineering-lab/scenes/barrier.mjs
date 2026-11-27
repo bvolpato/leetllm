@@ -9,19 +9,16 @@ import {
   aura,
   dot,
   glassCell,
-  glowDot,
   glowingTrail,
   group,
   guardedDynamic,
   heroTitle,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function barrier(s, c) {
-  const phase = s.value(0);
   const earlyRead = s.value(0);
   const lateWrite = s.value(0);
   const earlyStore = s.value(0);
@@ -42,8 +39,6 @@ export default function barrier(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
     const rep = restarted.value > 0.5;
     const er = earlyRead.value > 0.5;
     const lw = lateWrite.value > 0.5;
@@ -127,7 +122,7 @@ export default function barrier(s, c) {
         txt(b.label, b.x, -8, 28, b.col, 'mono'),
         glassCell(b.x, 118, 460, 176, stroke, {
           fill: isBad ? '#32101e' : is65 ? '#0d2b24' : '#0f1a30',
-          glow: isBad || is65 ? 11 * pulse : 4,
+          glow: isBad || is65 ? 11 : 4,
         }),
         txt(
           b.val,
@@ -171,17 +166,12 @@ export default function barrier(s, c) {
       capCol = ROLE.output;
     }
 
-    const u = (p * 0.42) % 1;
-    nodes.push(
-      glowDot(-675 + u * 1350, -180, { radius: 6.5, color: rep ? ROLE.good : ROLE.bad }),
-      txt(caption, 0, 325, 30, capCol, 'sans').glow(5, capCol),
-    );
+    nodes.push(txt(caption, 0, 325, 30, capCol, 'sans').glow(5, capCol));
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 16);
 
   c.on('early-read', () =>
     s.play(earlyRead.to(1, { duration: remainDuration(c, 'early-read', 0.4) })),

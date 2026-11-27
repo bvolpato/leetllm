@@ -14,7 +14,6 @@ import {
   cinemaHeader,
   clampDur,
   combine,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -56,7 +55,7 @@ export default function arithmeticControllerContract(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const rp = replayOn.value;
       const vd = verdictOn.value;
       const s2 = stage2.value;
@@ -246,7 +245,6 @@ export default function arithmeticControllerContract(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('contract-replay', () => {
     s.play(replayOn.to(1, { duration: clampDur(c, c.cue('contract-replay').start, 0.45) }));

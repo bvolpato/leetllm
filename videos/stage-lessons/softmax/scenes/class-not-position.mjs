@@ -14,13 +14,11 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function classNotPosition(s, c) {
-  const phase = s.value(0);
   const showUnmaskedLoss = s.value(0);
   const maskPad = s.value(0);
   const showMaskedLoss = s.value(0);
@@ -210,7 +208,6 @@ export default function classNotPosition(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   c.on('class-not-position-0', () => {
     s.play(showUnmaskedLoss.to(0.25, { duration: 0.3 }));

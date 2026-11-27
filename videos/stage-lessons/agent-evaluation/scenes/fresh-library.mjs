@@ -18,7 +18,6 @@ import {
   autoNode,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -63,7 +62,7 @@ export default function freshLibrary(s, c) {
   const mode0 = guardedDynamic(
     () => fadeOutHalf(miraMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const lb = lenaBad.value;
       const lf = lenaFixed.value;
       const lp = lenaPass.value;
@@ -208,7 +207,7 @@ export default function freshLibrary(s, c) {
   const mode1 = guardedDynamic(
     () => fadeInHalf(miraMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const rc = mReceipt.value;
       const rd = mRead.value;
       const aq = mAsk.value;
@@ -476,7 +475,6 @@ export default function freshLibrary(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   // Mode 0 (Lena)
   c.on('fresh-premises', () => {

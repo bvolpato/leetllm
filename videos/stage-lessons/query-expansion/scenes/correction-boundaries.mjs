@@ -9,12 +9,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function correctionBoundaries(s, c) {
-  const phase = s.value(0);
   const showEgress = s.value(0);
   const showCache = s.value(0);
 
@@ -29,12 +27,10 @@ export default function correctionBoundaries(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sEg = showEgress.value;
     const sCa = showCache.value;
     const egressActive = sEg > 0.35;
     const cacheActive = sCa > 0.35;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const nodes = [
       // LEFT WING: Egress Firewall & SSRF Controls
@@ -42,7 +38,7 @@ export default function correctionBoundaries(s, c) {
 
       glassCell(-440, -110, 820, 128, COSMOS.rose, {
         fill: egressActive ? '#2c121c' : '#181426',
-        glow: egressActive ? 10 * pulse : 3,
+        glow: egressActive ? 10 : 3,
       }),
       txt('PRIVATE POLICY QUERY', -825, -142, 26, COSMOS.rose, 'mono', 'left'),
       txt('EXPORT DENIED · STAYS INSIDE', -825, -92, 30, COSMOS.ink, 'mono', 'left'),
@@ -93,7 +89,7 @@ export default function correctionBoundaries(s, c) {
       // Tenant A vault
       glassCell(445, -8, 820, 134, cacheActive ? COSMOS.cyan : COSMOS.muted, {
         fill: cacheActive ? '#0f2338' : '#10182d',
-        glow: cacheActive ? 9 * pulse : 2,
+        glow: cacheActive ? 9 : 2,
       }),
       txt('TENANT A  ·  grant: batch.read', 62, -46, 26, COSMOS.cyan, 'mono', 'left'),
       txt('History: "My batch job failed."', 62, -6, 26, COSMOS.muted, 'sans', 'left'),
@@ -110,7 +106,7 @@ export default function correctionBoundaries(s, c) {
       // Tenant B vault
       glassCell(445, 162, 820, 134, cacheActive ? COSMOS.gold : COSMOS.muted, {
         fill: cacheActive ? '#261f10' : '#10182d',
-        glow: cacheActive ? 9 * pulse : 2,
+        glow: cacheActive ? 9 : 2,
       }),
       txt('TENANT B  ·  grant: billing.read', 62, 124, 26, COSMOS.gold, 'mono', 'left'),
       txt('History: "My invoice export failed."', 62, 164, 26, COSMOS.muted, 'sans', 'left'),
@@ -143,7 +139,6 @@ export default function correctionBoundaries(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('egress-gate', () => s.play(showEgress.to(1, { duration: 0.45 })));
   c.on('cache-separate', () =>

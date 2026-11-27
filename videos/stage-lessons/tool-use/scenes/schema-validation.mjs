@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   guardedDynamic,
   hexGate,
@@ -43,7 +42,7 @@ export default function schemaValidation(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const vl = validOn.value;
       const nf = numFailOn.value;
       const ef = extraFailOn.value;
@@ -240,7 +239,6 @@ export default function schemaValidation(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('schema-validation-beat-1-focus-1', () => {
     s.play(

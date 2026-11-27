@@ -18,13 +18,11 @@ import {
   lumBar,
   makePlot,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function alphaSpendingScene(s, c) {
-  const phase = s.value(0);
   const spendFrac = s.value(0.05);
   const showFunc = s.value(0);
   const showPlans = s.value(0);
@@ -214,7 +212,6 @@ export default function alphaSpendingScene(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'half', spendFrac, 0.5, { duration: 0.75 });
   tweenCue(s, c, 'full', spendFrac, 1.0, { duration: 0.75 });

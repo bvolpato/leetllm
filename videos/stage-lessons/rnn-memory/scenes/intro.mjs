@@ -9,13 +9,11 @@ import {
   ROLE,
   aura,
   cinemaAtmosphere,
-  glowDot,
   glowRing,
   glowingTrail,
   guardedDynamic,
   heroTitle,
   playCue,
-  runPhase,
   tokenPill,
   txt,
 } from '../parts.mjs';
@@ -91,7 +89,6 @@ export default function intro(s, c) {
   // Dynamic chase trajectory: dir = 1 (dog -> cat), dir = -1 (cat -> dog)
   const dir = s.value(1);
   const progress = s.value(0.12);
-  const phase = s.value(0);
   const showSecond = s.value(0);
   const showTally = s.value(0);
   const actorFocus = s.value(0); // 0 = none, 1 = dog actor, 2 = cat actor
@@ -128,11 +125,6 @@ export default function intro(s, c) {
         head[0] - tipLen * Math.cos(ang + 0.45),
         head[1] - tipLen * Math.sin(ang + 0.45),
       ];
-      const pulseT = (phase.value * 0.45) % 1;
-      const pu = 1 - pulseT * p;
-      const pt = pulseT * p;
-      const px = pu * pu * xStart + 2 * pu * pt * 0 + pt * pt * xEnd;
-      const py = pu * pu * heroY + 2 * pu * pt * (heroY + lift) + pt * pt * heroY;
       return [
         glowRing(d > 0 ? dogX : catX, heroY, 152, col, {
           width: 3,
@@ -142,7 +134,6 @@ export default function intro(s, c) {
         }),
         glowingTrail(pts, { color: col, width: 6.5, glow: 14 }),
         glowingTrail([wingA, head, wingB], { color: col, width: 5.5, glow: 12 }),
-        glowDot(px, py, { radius: 7, color: COSMOS.ink, glow: 14 }),
       ];
     },
   );
@@ -211,7 +202,6 @@ export default function intro(s, c) {
     tallyLayer,
   );
 
-  runPhase(s, c, phase, 8, 0.05);
   c.at(0.05, () => s.play(progress.to(1, { duration: 1.25, ease: linear })));
 
   playCue(

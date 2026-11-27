@@ -13,7 +13,6 @@ import {
   cinemaHeader,
   clampDur,
   combine,
-  driftValue,
   guardedDynamic,
   numberValue,
   orbNode,
@@ -48,7 +47,7 @@ export default function branchState(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const sa = selA.value;
       const sb = selB.value;
       const ma = moveA.value;
@@ -205,7 +204,6 @@ export default function branchState(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('branch-select-a', () => {
     s.play(selA.to(1, { duration: clampDur(c, c.cue('branch-select-a').start, 0.3) }));

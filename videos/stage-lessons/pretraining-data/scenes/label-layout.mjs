@@ -15,12 +15,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function labelLayout(s, c) {
-  const phase = s.value(0);
   const idsLit = s.value(0);
   const showPart1 = s.value(1);
   const blockedOn = s.value(0);
@@ -247,7 +245,6 @@ export default function labelLayout(s, c) {
   });
 
   s.add(bgAura, title, topStrip, part1Live, part2Live, part3Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-label-layout-ids', () =>
     s.play(idsLit.to(1, { duration: remainDuration(c, 'pt-label-layout-ids', 0.6) })),

@@ -7,9 +7,7 @@ import {
   KEEP_FLAGS,
   SEGMENT_SUMS,
   aura,
-  evalArc2d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -17,7 +15,6 @@ import {
   number,
   rect,
   remainDuration,
-  runPhase,
   signed,
   swapViews,
   txt,
@@ -26,8 +23,6 @@ import {
 const TIE_ROW = Object.freeze([6, -1, 6]);
 
 export default function selectionContracts(s, c) {
-  const phase = s.value(0);
-
   // Beat 0: Stream compaction
   const showCompact = s.value(1);
   const showFlags = s.value(0);
@@ -50,13 +45,11 @@ export default function selectionContracts(s, c) {
 
   // Beat 0: Stream compaction
   const compactView = guardedDynamic(showCompact, (a) => {
-    const p = phase.value;
     const fl = showFlags.value;
     const ad = showAddrs.value;
     const col1 = highlightCollision.value;
     const wr1 = revealSlot1.value;
     const pk = packAll.value;
-    const u = (p * 0.9) % 1;
 
     const sx = (i) => -490 + i * 176;
     const ox = (i) => -314 + i * 176;
@@ -130,8 +123,6 @@ export default function selectionContracts(s, c) {
           core: false,
         }),
       );
-      const [dx, dy] = evalArc2d([sx(2), yAddr + 42], [ox(1), yOut - 42], 0, u);
-      nodes.push(glowDot(dx, dy, { radius: 7, color: COSMOS.gold, opacity: wr1 * a }));
     }
 
     // 6 Output slots
@@ -315,7 +306,6 @@ export default function selectionContracts(s, c) {
   });
 
   s.add(bgAura, compactView, segmentView, argmaxView);
-  runPhase(s, c, phase, 14);
 
   c.on('selection-flags', () => s.play(showFlags.to(1, { duration: 0.4 })));
   c.on('selection-addresses', () => s.play(showAddrs.to(1, { duration: 0.4 })));

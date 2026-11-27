@@ -12,7 +12,6 @@ import {
   fadeIn,
   fadeOut,
   firstSnippetWords,
-  glowDot,
   glowingTrail,
   guardedDynamic,
   heroTitle,

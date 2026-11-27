@@ -4,20 +4,17 @@ import {
   aura,
   buildAttentionTerrain3d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   orbitScene,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function tiles(s, c) {
   const tileCursor = s.value(0);
-  const phase = s.value(0);
   const pairLoaded = s.value(0);
   const waitPulse = s.value(0);
   const reuse = s.value(0);
@@ -43,7 +40,6 @@ export default function tiles(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const ld = pairLoaded.value;
     const wp = waitPulse.value;
     const ru = reuse.value;
@@ -120,17 +116,11 @@ export default function tiles(s, c) {
     }
 
     if (sl > 0.02 || sn > 0.02 || sm > 0.02) {
-      const u = (p * 0.7) % 1;
       nodes.push(
         glowingArc([-555, 134], [-555, 198], 0, {
           color: COSMOS.gold,
           width: 3.2,
           opacity: 0.85 * Math.max(sl, sn, sm),
-        }),
-        glowDot(-555, 134 + u * 64, {
-          radius: 5.5,
-          color: COSMOS.gold,
-          opacity: Math.max(sl, sn, sm),
         }),
       );
     }
@@ -139,7 +129,6 @@ export default function tiles(s, c) {
   });
 
   s.add(bgAura, terrain3d, title, live);
-  runPhase(s, c, phase, 14);
   orbitScene(s, c, terrain3d, { theta: -0.18, phi: 0.9 });
   c.at(0.1, () => s.play(tileCursor.to(7.8, { duration: Math.max(1, c.end - c.start - 0.65) })));
 

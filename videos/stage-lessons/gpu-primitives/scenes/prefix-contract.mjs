@@ -6,20 +6,17 @@ import {
   COSMOS,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   number,
   remainDuration,
-  runPhase,
   signed,
   txt,
 } from '../parts.mjs';
 
 export default function prefixContract(s, c) {
-  const phase = s.value(0);
   const showInputs = s.value(1);
   const showBefore = s.value(0);
   const showAfter = s.value(0);
@@ -40,13 +37,11 @@ export default function prefixContract(s, c) {
   const colX = (i) => -515 + i * 182;
 
   const live = guardedDynamic(showInputs, () => {
-    const p = phase.value;
     const bef = showBefore.value;
     const aft = showAfter.value;
     const pen = highlightPenalty.value;
     const chn = highlightChain.value;
     const idn = showIdentity.value;
-    const u = (p * 0.85) % 1;
 
     const yPlay = -160;
     const yBefore = 0;
@@ -131,9 +126,6 @@ export default function prefixContract(s, c) {
           core: false,
         }),
       );
-      const px = x5 + 54 + u * (x6 - 54 - (x5 + 54));
-      const py = yAfter - 44 + u * (yBefore + 44 - (yAfter - 44));
-      nodes.push(glowDot(px, py, { radius: 7, color: COSMOS.gold, opacity: chn }));
     }
 
     // Bottom banner
@@ -154,7 +146,6 @@ export default function prefixContract(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('prefix-inputs', () => s.play(showInputs.to(1, { duration: 0.3 })));
   c.on('prefix-contract-step-1', () => s.play(showBefore.to(1, { duration: 0.45 })));

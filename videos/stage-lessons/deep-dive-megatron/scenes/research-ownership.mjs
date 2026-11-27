@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function researchOwnership(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 0=4 research pillars, 1=NVIDIA governance, tests, sign-off, licenses
 
   const bgAura = aura(0, 15, 620, '#60a5fa1a', '#a78bfa1a');
@@ -29,7 +26,6 @@ export default function researchOwnership(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     const papers = [
@@ -77,9 +73,7 @@ export default function researchOwnership(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 305, { radius: 6, color: ROLE.tp }),
       txt(
         'Use each paper to predict communication, then trace the pinned code that executes it',
         0,
@@ -93,7 +87,6 @@ export default function researchOwnership(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
   wireStepCues(s, c, step, [
     ['mg-research-ownership-b0', 0],
     ['mg-research-ownership-b1', 1],

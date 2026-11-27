@@ -1,6 +1,6 @@
 // Pure-cinema stage film for ai-lab-system-design-interview (27 scenes).
 import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
-import { clampDur, glowDot, guardedDynamic, verifyInterviewInvariants } from './parts.mjs';
+import { clampDur, verifyInterviewInvariants } from './parts.mjs';
 import aclFreshness from './scenes/acl-freshness.mjs';
 import admission from './scenes/admission.mjs';
 import agentState from './scenes/agent-state.mjs';
@@ -30,28 +30,14 @@ import taskClaims from './scenes/task-claims.mjs';
 import typedRelease from './scenes/typed-release.mjs';
 
 /**
- * Adds a live bottom-right narration-cadence pulse beacon driven by intermediate cues so
- * every declared cue in lesson.yaml produces live visual response on the stage.
+ * Binds intermediate narration cadence cues to a silent timeline value without adding
+ * visible corner dots to the stage.
  */
 function withCadence(sceneFn, cadenceCues) {
   return (s, c) => {
     sceneFn(s, c);
     if (!cadenceCues?.length) return;
     const beacon = s.value(0);
-    const dot = guardedDynamic(
-      () => 1,
-      () => {
-        const b = beacon.value;
-        const r = 4.5 + 3.5 * Math.sin(b * Math.PI);
-        return glowDot(790, 445, {
-          radius: r,
-          color: COSMOS.cyan,
-          glow: 8 + 4 * Math.sin(b * Math.PI),
-          opacity: 0.72,
-        });
-      },
-    );
-    s.add(dot);
     cadenceCues.forEach((id, idx) => {
       c.on(id, () => {
         const t = c.cue(id).start;

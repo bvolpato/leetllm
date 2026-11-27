@@ -16,7 +16,6 @@ import {
   matrixGrid,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -28,7 +27,6 @@ const RECT_W = [
 ];
 
 export default function doraForward(s, c) {
-  const phase = s.value(0);
   const showVec = s.value(1);
   const showStep2 = s.value(0);
   const showInitId = s.value(0);
@@ -266,7 +264,6 @@ export default function doraForward(s, c) {
   });
 
   s.add(bgAura, title, eq, partVec, partRect);
-  runPhase(s, c, phase, 14);
 
   c.on('dora-forward-1', () => s.play(showVec.to(1, { duration: 0.2 })));
   c.on('dora-forward-2', () => s.play(showStep2.to(1, { duration: 0.35 })));

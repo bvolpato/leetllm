@@ -4,14 +4,12 @@ import {
   COSMOS,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -31,7 +29,6 @@ const HW_ROWS = [
 ];
 
 export default function abiDispatch(s, c) {
-  const phase = s.value(0);
   const showShape = s.value(1);
   const showGateHit = s.value(0);
   const showHW = s.value(0);
@@ -50,7 +47,6 @@ export default function abiDispatch(s, c) {
   // Part 1 (Beat 0): 2x32 operand rejected by multiple-of-32 nonfinal dimension gate + ABI match rails
   const part1 = guardedDynamic(showShape, (a) => {
     const hit = showGateHit.value;
-    const p = phase.value;
     const nodes = [
       // Left operand block: 2 x 32
       glassCell(-635, -75, 420, 178, COSMOS.blue, { fill: '#101a2e', glow: 8, opacity: a }),
@@ -124,8 +120,6 @@ export default function abiDispatch(s, c) {
         'sans',
         'left',
       ).opacity(a),
-
-      glowDot(-420 + ((p * 0.6) % 1) * 280, -75, { radius: 6, color: COSMOS.rose, opacity: a }),
     ];
     return group(...nodes);
   });
@@ -159,7 +153,6 @@ export default function abiDispatch(s, c) {
 
   // Part 3 (Beat 2): TF32 separate controls for matmul vs convolution
   const part3 = guardedDynamic(showTF32, (a) => {
-    const p = phase.value;
     const nodes = [
       txt(
         'TF32: 32-BIT STORAGE · 10-BIT FRACTION MMA READ',
@@ -204,13 +197,11 @@ export default function abiDispatch(s, c) {
         'sans',
         'left',
       ).opacity(a),
-      glowDot(-780 + ((p * 0.4) % 1) * 1560, 150, { radius: 5, color: COSMOS.gold, opacity: a }),
     ];
     return group(...nodes);
   });
 
   s.add(bgAura, title, part1, part2, part3);
-  runPhase(s, c, phase, 16);
 
   c.on('lp-abi-dispatch-build-0', () =>
     s.play(showGateHit.to(1, { duration: remainDuration(c, 'lp-abi-dispatch-build-0', 0.5) })),

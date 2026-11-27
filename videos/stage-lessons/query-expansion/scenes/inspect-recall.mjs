@@ -12,13 +12,11 @@ import {
   reciprocalRankFusion,
   remainDuration,
   retrievalRun,
-  runPhase,
   runbookCoverage,
   txt,
 } from '../parts.mjs';
 
 export default function inspectRecall(s, c) {
-  const phase = s.value(0);
   const showGold = s.value(0);
   const showRaw = s.value(0);
   const showOne = s.value(0);
@@ -39,12 +37,10 @@ export default function inspectRecall(s, c) {
   const run = retrievalRun();
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sg = showGold.value;
     const s1 = showOne.value;
     const sGap = showGap.value;
     const sAll = showBoth.value;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const hasAll = sAll > 0.5;
     const hasOne = s1 > 0.5;
@@ -121,7 +117,7 @@ export default function inspectRecall(s, c) {
       nodes.push(
         glassCell(445, y, 820, 118, col, {
           fill: found ? '#0d2723' : '#12182b',
-          glow: found ? 9 * pulse : 3,
+          glow: found ? 9 : 3,
         }),
         txt(req.part, 62, y - 24, 28, COSMOS.ink, 'sans', 'left'),
         txt(
@@ -191,7 +187,6 @@ export default function inspectRecall(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('recall-gold', () => s.play(showGold.to(1, { duration: 0.4 })));
   c.on('recall-raw', () => s.play(showRaw.to(1, { duration: 0.4 })));

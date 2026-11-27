@@ -8,12 +8,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function driftFollowups(s, c) {
-  const phase = s.value(0);
   const showDrift = s.value(0);
   const showLocal = s.value(0);
   const showStale = s.value(0);
@@ -30,12 +28,10 @@ export default function driftFollowups(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sd = showDrift.value;
     const sl = showLocal.value;
     const st = showStale.value;
     const sm = showMid.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: DRIFT pipeline (Travel report -> Follow-up -> Local A & B -> B corrected!)
@@ -73,7 +69,7 @@ export default function driftFollowups(s, c) {
         st > 0.3 ? COSMOS.rose : sl > 0.3 ? COSMOS.emerald : COSMOS.muted,
         {
           fill: st > 0.3 ? '#26111a' : '#0e2624',
-          glow: sl > 0.3 ? 9 * pulse : 2,
+          glow: sl > 0.3 ? 9 : 2,
         },
       ),
       txt(
@@ -145,7 +141,7 @@ export default function driftFollowups(s, c) {
 
       glassCell(495, 114, 750, 198, sm > 0.6 ? COSMOS.violet : COSMOS.muted, {
         fill: '#181430',
-        glow: sm > 0.6 ? 8 * pulse : 2,
+        glow: sm > 0.6 ? 8 : 2,
       }),
       txt('EVALUATE ON YOUR OWN QUESTIONS:', 145, 54, 26, COSMOS.violet, 'mono', 'left'),
       txt(
@@ -192,7 +188,6 @@ export default function driftFollowups(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('drift-followups-b1', () => s.play(showDrift.to(0.5, { duration: 0.35 })));
   c.on('drift-followups-question', () => s.play(showDrift.to(1, { duration: 0.35 })));

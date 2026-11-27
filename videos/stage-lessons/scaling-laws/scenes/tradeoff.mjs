@@ -20,7 +20,6 @@ import {
   playCue,
   plotPlane,
   sampleCurve,
-  scenePulse,
 } from '../parts.mjs';
 
 const PLANS = [
@@ -40,7 +39,6 @@ export default function tradeoff(s, c) {
   const tallGlow = s.value(0); // tradeoff-tall
   const widenT = s.value(0); // tradeoff-widen: N slides 5 -> 10
   const showSquareBar = s.value(0); // tradeoff-square-terms
-  const pulse = s.value(0);
 
   const stageLayer = guardedDynamic(s.value(1), (alpha) => {
     const nodes = [];
@@ -175,7 +173,6 @@ export default function tradeoff(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.tokens), title, stageLayer, eq);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'tradeoff-tall', (d) => s.play(tallGlow.to(1, { duration: d })), { dur: 0.65 });
   playCue(s, c, 'tradeoff-widen', (d) => s.play(widenT.to(1, { duration: d })), { dur: 1.4 });

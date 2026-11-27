@@ -16,7 +16,6 @@ import {
   heroTitle,
   lumBar,
   makePlot,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -25,7 +24,6 @@ const PATH = AB_VISUAL_FIXTURES.peeking.path; // 20 looks
 const ALARMS = AB_VISUAL_FIXTURES.peeking.alarms; // [231, 708, 961, 1244]
 
 export default function peekingScene(s, c) {
-  const phase = s.value(0);
   const progressLook = s.value(1); // 1 -> 4 -> 20
   const showCross = s.value(0);
   const showAsk = s.value(0);
@@ -214,7 +212,6 @@ export default function peekingScene(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'four', progressLook, 4, { duration: 0.75 });
   tweenCue(s, c, 'cross', showCross, 1, { duration: 0.45 });

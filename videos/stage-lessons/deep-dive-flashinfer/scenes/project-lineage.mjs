@@ -12,12 +12,10 @@ import {
   par,
   remainAfter,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function projectLineage(s, c) {
-  const phase = s.value(0);
   const showSuite = s.value(1);
   const licReady = s.value(0);
   const showReleases = s.value(0);
@@ -194,7 +192,6 @@ export default function projectLineage(s, c) {
   });
 
   s.add(bgAura, title, suiteView, relView, boundView);
-  runPhase(s, c, phase, 14);
 
   c.on('fi-project-lineage-0', () =>
     s.play(licReady.to(0.3, { duration: remainDuration(c, 'fi-project-lineage-0', 0.4) })),

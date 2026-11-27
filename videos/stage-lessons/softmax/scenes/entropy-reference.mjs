@@ -16,7 +16,6 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -25,7 +24,6 @@ const P_SPLIT = [0.5, 0.5, 0];
 const H_SPLIT = entropy(P_SPLIT); // ln(2) = 0.6931
 
 export default function entropyReference(s, c) {
-  const phase = s.value(0);
   const vMain = s.value(1);
   const vEdge = s.value(0);
 
@@ -412,7 +410,6 @@ export default function entropyReference(s, c) {
   });
 
   s.add(bgAura, title, viewMain, viewEdge);
-  runAmbientPhase(s, c, phase, 2.2);
 
   // Beat 0 cues
   c.on('entropy-reference-0', () => {

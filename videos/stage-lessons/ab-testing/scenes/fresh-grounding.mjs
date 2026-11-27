@@ -12,7 +12,6 @@ import {
   guardedDynamic,
   heroTitle,
   lumBar,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -21,7 +20,6 @@ import { buildAuditRulerNodes } from '../audit-ruler.mjs';
 const FRESH = groundingPacket(18);
 
 export default function freshGrounding(s, c) {
-  const phase = s.value(0);
   const showRow2 = s.value(0);
   const showCenter = s.value(0);
   const showMargin = s.value(0);
@@ -201,7 +199,6 @@ export default function freshGrounding(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'eighteen', showRow2, 1, { duration: 0.45 });
   tweenCue(s, c, 'center', showCenter, 1, { duration: 0.45 });

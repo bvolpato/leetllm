@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function capturedNative(s, c) {
-  const phase = s.value(0);
   const showLabels = s.value(0);
   const showInputs = s.value(0);
   const loadRegs = s.value(0);
@@ -35,7 +32,6 @@ export default function capturedNative(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sl = showLabels.value;
     const si = showInputs.value;
     const lr = loadRegs.value;
@@ -43,7 +39,6 @@ export default function capturedNative(s, c) {
     const st = storeR9.value;
     const rs = showRes.value;
     const sh = showShapes.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Top-right build identity strip
@@ -106,7 +101,7 @@ export default function capturedNative(s, c) {
         txt(row.off, -775, y, 26, COSMOS.muted, 'mono'),
         glassCell(-445, y, 470, 82, stroke, {
           fill: row.on ? '#0e252e' : '#0c1221',
-          glow: row.on ? 8 * pulse : 0,
+          glow: row.on ? 8 : 0,
         }),
         txt(row.op, -445, y, 26, row.on ? COSMOS.ink : COSMOS.muted, 'mono'),
         glassCell(25, y, 360, 82, stroke, {
@@ -143,9 +138,7 @@ export default function capturedNative(s, c) {
       );
     }
 
-    const u = (p * 0.6) % 1;
     nodes.push(
-      glowDot(-775 + u * 1550, 342, { radius: 6, color: sh > 0.5 ? ROLE.cubin : ROLE.ir }),
       txt(
         sh > 0.5
           ? 'Skipped store leaves NaN behind · all 5 finite & verified'
@@ -162,7 +155,6 @@ export default function capturedNative(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('capture-labels', () =>
     s.play(showLabels.to(1, { duration: remainDuration(c, 'capture-labels', 0.4) })),

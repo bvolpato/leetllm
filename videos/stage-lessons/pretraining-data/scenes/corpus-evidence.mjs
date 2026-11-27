@@ -12,12 +12,10 @@ import {
   photonStream,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function corpusEvidence(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const sourcesOn = s.value(0);
   const evalOn = s.value(0);
@@ -36,7 +34,6 @@ export default function corpusEvidence(s, c) {
   const part1Live = guardedDynamic(showPart1, (a) => {
     const so = sourcesOn.value;
     const ev = evalOn.value;
-    const ph = phase.value;
     const items = [
       { name: 'C4', detail: 'Heuristic clean', x: -720, color: COSMOS.blue },
       { name: 'The Pile', detail: '22 domains', x: -360, color: COSMOS.cyan },
@@ -61,7 +58,7 @@ export default function corpusEvidence(s, c) {
         ],
         { color: COSMOS.blue, width: 3.5, glow: 8, opacity: 0.65 * a },
       ),
-      ...photonStream([-720, 10], [720, 10], 0, ph, {
+      ...photonStream([-720, 10], [720, 10], 0, 0, {
         color: COSMOS.cyan,
         count: 6,
         opacity: a,
@@ -203,7 +200,6 @@ export default function corpusEvidence(s, c) {
   const part3Live = guardedDynamic(showPart3, (a) => {
     const sp = sepOn.value;
     const pr = presOn.value;
-    const ph = phase.value;
     const lanes = [
       { label: 'Organic web text', color: COSMOS.blue, x: -570 },
       { label: 'Translated text', color: COSMOS.cyan, x: 0 },
@@ -234,7 +230,7 @@ export default function corpusEvidence(s, c) {
         txt('Distinct provenance & terms', lane.x, -45, 26, COSMOS.muted, 'sans').opacity(
           (0.3 + 0.7 * sp) * a,
         ),
-        ...photonStream([lane.x, 12], [i < 2 ? -340 : 340, 175], 20, ph + i, {
+        ...photonStream([lane.x, 12], [i < 2 ? -340 : 340, 175], 20, 0, {
           color: lane.color,
           count: 3,
           opacity: (0.4 + 0.6 * pr) * a,
@@ -288,7 +284,6 @@ export default function corpusEvidence(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live, part3Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-corpus-evidence-sources', () =>
     s.play(sourcesOn.to(1, { duration: remainDuration(c, 'pt-corpus-evidence-sources', 0.6) })),

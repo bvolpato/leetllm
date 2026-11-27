@@ -10,20 +10,17 @@ import {
   aura,
   buildSystolicGemm3d,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   orbitScene,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function tile(s, c) {
   const kCursor = s.value(0);
-  const phase = s.value(0);
   const stage = s.value(0); // 1=load k=0 headers, 2=update k=0 sums, 3=slide k=1 & update sums
 
   const bgAura = aura(390, 20, 520, '#5ce1e622', '#60a5fa18');
@@ -39,7 +36,6 @@ export default function tile(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const st = stage.value;
     const k = st >= 2.5 ? 1 : 0;
     const showHeaders = st >= 0.5;
@@ -127,14 +123,6 @@ export default function tile(s, c) {
       }
     }
 
-    if (showHeaders) {
-      const u = (p * 0.65) % 1;
-      nodes.push(
-        glowDot(-676 + u * 450, 298, { radius: 6, color: ROLE.a }),
-        glowDot(-640, -96 + u * 350, { radius: 6, color: ROLE.b }),
-      );
-    }
-
     nodes.push(
       txt(
         st >= 2.5
@@ -155,7 +143,6 @@ export default function tile(s, c) {
   });
 
   s.add(bgAura, gemm3d, title, live);
-  runPhase(s, c, phase, 14);
   orbitScene(s, c, gemm3d, { theta: -0.25, phi: 0.92 });
 
   c.on('load-panel', () =>

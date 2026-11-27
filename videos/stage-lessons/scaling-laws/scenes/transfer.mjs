@@ -5,15 +5,7 @@
 // transfer-decision ("Run B goes on")!
 import { line } from 'vizmatic/stage';
 import { COSMOS, glowDot, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
-import {
-  ROLE,
-  cinemaAtmosphere,
-  fmt,
-  lumBar,
-  playCue,
-  scenePulse,
-  surfaceLoss,
-} from '../parts.mjs';
+import { ROLE, cinemaAtmosphere, fmt, lumBar, playCue, surfaceLoss } from '../parts.mjs';
 
 export default function transfer(s, c) {
   const pred = surfaceLoss(10e9, 100e9); // 2.310
@@ -35,7 +27,6 @@ export default function transfer(s, c) {
   const showA = s.value(0); // AFTER transfer-observations
   const showB = s.value(0); // AFTER transfer-second
   const decideVis = s.value(0); // AFTER transfer-decision
-  const pulse = s.value(0);
 
   const stageLayer = guardedDynamic(s.value(1), (alpha) => {
     const nodes = [];
@@ -43,7 +34,6 @@ export default function transfer(s, c) {
     const sa = showA.value;
     const sb = showB.value;
     const dv = decideVis.value;
-    const p = pulse.value;
 
     // Map loss values [2.275 .. 2.365] onto [-660 .. +700]
     const toX = (val) => -660 + ((val - 2.275) / 0.09) * 1360;
@@ -137,19 +127,12 @@ export default function transfer(s, c) {
       txt(footer, 0, 385, 30, dv > 0.5 ? ROLE.optimal : ROLE.compute, 'sans', 'center')
         .glow(7, dv > 0.5 ? ROLE.optimal : ROLE.compute)
         .opacity(alpha),
-      glowDot(-480 + ((p * 1.9) % 1) * 960, 428, {
-        radius: 4.5,
-        color: ROLE.tokens,
-        glow: 9,
-        opacity: 0.7 * alpha,
-      }),
     );
 
     return nodes;
   });
 
   s.add(cinemaAtmosphere(ROLE.tokens, ROLE.compute), title, stageLayer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'transfer-window', (d) => s.play(bandGlow.to(1, { duration: d })), { dur: 0.7 });
   playCue(s, c, 'transfer-observations', (d) => s.play(showA.to(1, { duration: d })), {

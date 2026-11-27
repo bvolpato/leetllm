@@ -9,7 +9,6 @@ import {
   aura,
   delay,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -17,12 +16,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function edgeSectors(s, c) {
-  const phase = s.value(0);
   const showRuler = s.value(1);
   const showScatter = s.value(0);
 
@@ -51,7 +48,6 @@ export default function edgeSectors(s, c) {
 
   // Beats 0 & 1: 5-sector ruler for words 33..64, then switches to 1-lane edge
   const rulerView = guardedDynamic(showRuler, (a) => {
-    const p = phase.value;
     const isOne = oneLane.value > 0.5;
     const mode = isOne ? EDGE_SECTOR_ONE : EDGE_SECTOR_N33;
     const lp = lanesProg.value;
@@ -60,7 +56,6 @@ export default function edgeSectors(s, c) {
     const fv = fiveShow.value;
     const r80 = ratio80.value;
     const r12 = ratioEdge.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.6);
 
     const sectorIds = isOne ? [0, 1, 2, 3, 4] : [4, 5, 6, 7, 8];
     const activeVisible = isOne ? 1 : Math.floor(mode.words.length * lp);
@@ -97,7 +92,7 @@ export default function edgeSectors(s, c) {
       nodes.push(
         glassCell(cx, -10, 286, 260, border, {
           fill: isTouched ? '#0e1e33' : '#0b101d',
-          glow: isFirst || isLast ? 10 * pulse : isTouched ? 5 : 0,
+          glow: isFirst || isLast ? 10 : isTouched ? 5 : 0,
           opacity: a,
         }),
         txt(
@@ -186,15 +181,11 @@ export default function edgeSectors(s, c) {
       ).opacity(a),
     );
 
-    const u = (p * 0.4) % 1;
-    nodes.push(glowDot(-750 + u * 1500, 155, { radius: 6, color: ROLE.output, opacity: 0.7 * a }));
-
     return group(...nodes);
   });
 
   // Beat 2: 32 scattered sectors at stride 16,384 B (N=4096)
   const scatterView = guardedDynamic(showScatter, (a) => {
-    const p = phase.value;
     const sp = scatterProg.value;
     const fr = fracShow.value;
     const sc = scopeShow.value;
@@ -254,14 +245,10 @@ export default function edgeSectors(s, c) {
       ).opacity(a),
     );
 
-    const u = (p * 0.45) % 1;
-    nodes.push(glowDot(-700 + u * 1400, 212, { radius: 6, color: ROLE.bad, opacity: 0.75 * a }));
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, rulerView, scatterView);
-  runPhase(s, c, phase, 16);
 
   c.on('gpu-edge-sectors-lanes', () =>
     s.play(lanesProg.to(1, { duration: remainDuration(c, 'gpu-edge-sectors-lanes', 0.9) })),

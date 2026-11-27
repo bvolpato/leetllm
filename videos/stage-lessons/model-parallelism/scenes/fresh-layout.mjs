@@ -8,7 +8,6 @@ import {
   aura,
   fmtVec,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -18,13 +17,11 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
 
 export default function freshLayout(s, c) {
-  const phase = s.value(0);
   const showPartials = s.value(1);
   const showMemory = s.value(0);
 
@@ -95,11 +92,6 @@ export default function freshLayout(s, c) {
         opacity: a,
       }),
       txt(foot, 0, 285, 30, rs ? ROLE.good : COSMOS.gold, 'mono').opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 410, {
-        radius: 6,
-        color: ROLE.gpu1,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
@@ -251,18 +243,12 @@ export default function freshLayout(s, c) {
         opacity: a,
       }),
       txt(prompt, 0, 365, 26, six ? ROLE.good : COSMOS.gold, 'sans').opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 424, {
-        radius: 6,
-        color: six ? ROLE.good : COSMOS.gold,
-        opacity: a,
-      }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, partialsView, memoryView);
-  runPhase(s, c, phase, 14);
 
   c.after('mp-fresh-layout-input', () =>
     s.play(pInput.to(1, { duration: remainAfterDuration(c, 'mp-fresh-layout-input', 0.4) })),

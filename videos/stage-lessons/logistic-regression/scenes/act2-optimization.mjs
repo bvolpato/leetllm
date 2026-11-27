@@ -36,7 +36,6 @@ import {
   guardedDynamic,
   heroTitle,
   likelihoodRows,
-  livingDrift,
   makeAxes,
   meanHessian,
   mix,
@@ -71,7 +70,6 @@ export function bernoulliLikelihood(s, c) {
   const meanP = s.value(0);
   const s2P = s.value(0);
   const entP = s.value(0);
-  const drift = s.value(0);
 
   const rows = likelihoodRows(fittedWeights);
   const jointLik = rows.reduce((acc, r) => acc * r.selected, 1);
@@ -95,7 +93,6 @@ export function bernoulliLikelihood(s, c) {
     (vis) => {
       const sl = selP.value;
       const lk = likP.value;
-      const ph = drift.value;
       const nodes = [];
 
       nodes.push(
@@ -110,12 +107,9 @@ export function bernoulliLikelihood(s, c) {
         const col = r.y ? ROLE.positive : ROLE.negative;
         const rev = Math.max(0, Math.min(1, sl * 1.4 - i * 0.06));
         const barW = 720 * r.selected;
-        const pulse = 1 + 0.05 * Math.sin(ph * Math.PI * 8 + i);
         nodes.push(
           txt(r.id, -820, y, 26, col, 'mono', 'left'),
-          dot(9 * pulse, col)
-            .at(-675, y)
-            .glow(7, col),
+          dot(9, col).at(-675, y).glow(7, col),
           txt(r.y ? 'y = 1  →  p' : 'y = 0  →  1−p', -580, y, 26, col, 'mono', 'left'),
           scaleTrack(-300, y, 740, 24, { stroke: '#2c3d63', radius: 6 }),
           glowBar(-300, y, barW * Math.max(0.15, rev), 24, col, { glow: 7, radius: 6 }),
@@ -267,7 +261,6 @@ export function bernoulliLikelihood(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-bernoulli-likelihood-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-label-selection', selP, 1, { dur: 0.9 });
   cueTo(s, c, 'lr-complete-likelihood', likP, 1, { dur: 0.85 });
@@ -292,7 +285,6 @@ export function lossCurvature(s, c) {
   const dupP = s.value(0);
   const s2P = s.value(0);
   const noOptP = s.value(0);
-  const drift = s.value(0);
 
   const curv = curvatureFixture(-8, 1);
   const H = meanHessian([0, 0, 0]);
@@ -522,7 +514,6 @@ export function lossCurvature(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-loss-curvature-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-bce-derivative', bceP, 1, { dur: 0.9 });
   cueTo(s, c, 'lr-mse-derivative', mseP, 1, { dur: 0.9 });
@@ -542,7 +533,6 @@ export function gradientScene(s, c) {
   const cancelP = s.value(0);
   const rowP = s.value(0);
   const locP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.threshold, seed: 8 }));
   s.add(decorAura(0, -10, 560, '#ffd1661c', '#5ce1e614'));
@@ -561,7 +551,6 @@ export function gradientScene(s, c) {
     const cn = cancelP.value;
     const rw = rowP.value;
     const lc = locP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Top equation row: full 3-factor chain rule crossfades cleanly to cancelled (p - y) x_j
@@ -608,7 +597,6 @@ export function gradientScene(s, c) {
       const cx = -540 + i * 540;
       const cy = 175;
       const reveal = Math.max(0, Math.min(1, rw * 1.4 - i * 0.15));
-      const pulse = 1 + 0.05 * Math.sin(ph * Math.PI * 8 + i);
       nodes.push(
         txt(col.name, cx, cy - 82, 28, col.color, 'mono'),
         txt(`(−0.5) × ${col.feat}`, cx, cy - 28, 32, COSMOS.ink, 'mono'),
@@ -619,7 +607,7 @@ export function gradientScene(s, c) {
           Math.max(12, 340 * (Math.abs(col.val) / 3.2) * reveal),
           26,
           col.color,
-          { glow: 9 * pulse, radius: 6 },
+          { glow: 9, radius: 6 },
         ),
         txt(
           reveal > 0.5 ? `g = ${col.grad}` : 'g = ?',
@@ -649,7 +637,6 @@ export function gradientScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'gradient-chain', chainP, 1, { dur: 0.85 });
   cueTo(s, c, 'gradient-cancel', cancelP, 1, { dur: 0.9 });
   cueTo(s, c, 'worked-row-gradient', rowP, 1, { dur: 1.0 });
@@ -665,7 +652,6 @@ export function batchGradient(s, c) {
   const collP = s.value(0);
   const avgP = s.value(0);
   const updP = s.value(0);
-  const drift = s.value(0);
 
   const rowGrads = training.map(([a, sup, y], i) => {
     const res = 0.5 - y;
@@ -780,7 +766,6 @@ export function batchGradient(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'batch-columns', colP, 1, { dur: 0.7 });
   cueTo(s, c, 'collect-batch', collP, 1, { dur: 1.5 });
   cueTo(s, c, 'average-batch', avgP, 1, { dur: 0.8 });
@@ -801,7 +786,6 @@ export function dataContract(s, c) {
   const sgnP = s.value(0);
   const s2P = s.value(0);
   const snpP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.positive, seed: 10 }));
   s.add(decorAura(150, 0, 560, '#ff6b8b1a', '#6ee7b716'));
@@ -963,7 +947,6 @@ export function dataContract(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-data-contract-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-shape-broadcast', brdP, 1, { dur: 1.0 });
   cueTo(s, c, 'lr-shape-reject', rejP, 1, { dur: 0.6 });
@@ -981,7 +964,6 @@ export function learningScene(s, c) {
   const fitP = s.value(0);
   const trajP = s.value(0);
   const excP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.threshold, seed: 11 }));
   s.add(decorAura(430, -20, 520, '#5ce1e61c', '#a78bfa18'));
@@ -1070,7 +1052,6 @@ export function learningScene(s, c) {
   const live = dynamic(() => {
     const fp = smooth(fitP.value);
     const ep = excP.value;
-    const ph = drift.value;
     const stepIdx = Math.min(3000, Math.max(1, Math.round(Math.expm1(fp * Math.log(3001)))));
     const w = fitSteps[stepIdx];
     const curLoss = trainingLoss(w);
@@ -1102,7 +1083,7 @@ export function learningScene(s, c) {
       const col = y ? ROLE.positive : ROLE.negative;
       nodes.push(glowDot(px, py, { radius: 11, color: col, glow: 10 }));
       if (i === 2 && ep > 0.15) {
-        const ringR = 22 + 4 * Math.sin(ph * Math.PI * 10);
+        const ringR = 24;
         nodes.push(
           circle(ringR, { fill: null, stroke: ROLE.threshold, width: 3.4 })
             .at(px, py)
@@ -1144,7 +1125,6 @@ export function learningScene(s, c) {
   });
 
   s.add(headline, view3d, live);
-  livingDrift(s, c, drift, 1);
   orbitScene(
     s,
     c,
@@ -1165,7 +1145,6 @@ export function separationScene(s, c) {
   const grow1P = s.value(0);
   const grow2P = s.value(0);
   const regP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.positive, seed: 12 }));
   s.add(decorAura(0, 20, 560, '#ff6b8b1c', '#ffd16614'));
@@ -1291,7 +1270,6 @@ export function separationScene(s, c) {
   );
 
   s.add(headline, view0, view1);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'separable-growth', grow1P, 1, { dur: 0.9 });
   cueTo(s, c, 'separable-again', grow2P, 1, { dur: 0.9 });
   cueTo(s, c, 'regularized-objective', regP, 1, { dur: 1.0 });

@@ -21,7 +21,6 @@ import {
   playCue,
   plotPlane,
   sampleCurve,
-  scenePulse,
   surfaceLoss,
 } from '../parts.mjs';
 
@@ -44,7 +43,6 @@ export default function dataCap(s, c) {
   const toCapT = s.value(0); // sl-data-cap-1: 7.82B -> 49B
   const capNVis = s.value(0); // sl-data-cap-2: show N <= 30B limit (prediction hold!)
   const revealInfeas = s.value(0); // AFTER sl-data-cap-3
-  const pulse = s.value(0);
 
   const stageLayer = guardedDynamic(s.value(1), (alpha) => {
     const nodes = [];
@@ -175,7 +173,6 @@ export default function dataCap(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.cap, ROLE.tokens), title, stageLayer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'sl-data-cap-0', (d) => s.play(toOptT.to(1, { duration: d })), { dur: 1.5 });
   playCue(

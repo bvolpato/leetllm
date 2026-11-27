@@ -6,12 +6,10 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   references,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
@@ -24,7 +22,6 @@ const SLOTS = [
 ];
 
 export default function lifetime(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = lifetime-readers (slot 12 has R0+R1 = ref 2; 41=R0; 73,90=R1; free queue empty)
   // 1 = lifetime-choice (PREDICTION HOLD: When R0 finishes, which slot can R2 take?)
@@ -47,7 +44,6 @@ export default function lifetime(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const retired = st >= 2;
     const popped = st >= 4;
     const hashCleared = st >= 5;
@@ -189,16 +185,13 @@ export default function lifetime(s, c) {
                   ? 'Predict: Free queue is empty now. When R0 finishes, which physical slot can R2 take?'
                   : 'Slot 12 has 2 live readers (R0 & R1); slot 41 has only R0; slots 73 & 90 serve R1';
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 330, { radius: 6, color: st >= 6 ? ROLE.good : COSMOS.gold }),
       txt(caption, 0, 385, 26, st === 1 ? COSMOS.gold : st >= 6 ? ROLE.good : COSMOS.ink, 'sans'),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['lifetime-readers', 0],
     ['lifetime-choice', 1],

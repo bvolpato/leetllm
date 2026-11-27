@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   clampDur,
   conciseMicro,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -171,7 +170,6 @@ export default function atomicSettlement(s, c) {
   );
 
   s.add(sceneAura, header, mode0, mode1);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('claim-balance', () => {
     const t = c.cue('claim-balance').start;

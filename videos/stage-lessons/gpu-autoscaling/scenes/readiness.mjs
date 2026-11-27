@@ -9,7 +9,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   glowDot,
   guardedDynamic,
   tweenOn,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function readiness(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=weights-missing, 2=not-ready, 3=warmup-pending, 4=engine-readiness, 5=admit-two, 6=overload-third
 
   const header = cinemaHeader(
@@ -38,7 +36,6 @@ export default function readiness(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const worker = new Worker();
       worker.loaded = st >= 2.5;
       worker.warmed = st >= 4.5;
@@ -80,7 +77,7 @@ export default function readiness(s, c) {
                 [gates[i + 1].x - 180, gateY],
               ],
               g.ok ? ROLE.ready : '#394a70',
-              g.ok ? p * 0.9 : null,
+              0,
               { width: 3.0, glow: 6, photonCount: 1 },
             ),
           );
@@ -151,7 +148,7 @@ export default function readiness(s, c) {
               [140, rq.y],
             ],
             col,
-            p * 1.1,
+            0,
             { width: 3.4, glow: 8, photonCount: 1 },
           ),
           glowDot(160, rq.y, { radius: 9, color: col, glow: 12 }),
@@ -173,7 +170,6 @@ export default function readiness(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'weights-missing', step, 1, 0.25);
   tweenOn(s, c, 'not-ready', step, 2, 0.25);

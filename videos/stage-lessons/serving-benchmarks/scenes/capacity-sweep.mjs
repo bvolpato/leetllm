@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   glowDot,
   glowingTrail,
   guardedDynamic,
@@ -21,7 +20,6 @@ import {
 } from '../parts.mjs';
 
 export default function capacitySweep(s, c) {
-  const phase = s.value(0);
   const evidence = s.value(0.2); // sweeps 0.2 -> 1.0 revealing all 5 columns
   const neighborHi = s.value(0); // highlights failing 2.0 RPS column
   const revealChoice = s.value(0); // strictly AFTER sweep-choice!
@@ -45,7 +43,6 @@ export default function capacitySweep(s, c) {
       const nb = neighborHi.value;
       const sel = revealChoice.value;
       const br = showBracket.value;
-      const pulse = 0.72 + 0.28 * Math.sin(phase.value * 4.8);
 
       const xFirst = -410;
       const xStep = 290;
@@ -174,9 +171,7 @@ export default function capacitySweep(s, c) {
             28,
             ROLE.focus,
             'mono',
-          )
-            .glow(7, ROLE.focus)
-            .opacity(pulse),
+          ).glow(7, ROLE.focus),
         );
       }
 
@@ -185,7 +180,6 @@ export default function capacitySweep(s, c) {
   );
 
   s.add(stageAura, header, sweepView);
-  driftValue(s, c, phase, 8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sweep-evidence', () => {
     const t = c.cue('sweep-evidence').start;

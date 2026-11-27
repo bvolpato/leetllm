@@ -17,12 +17,10 @@ import {
   range,
   rect,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function latentStore(s, c) {
-  const phase = s.value(0);
   const contentFill = s.value(0);
   const posFill = s.value(0);
   const showSum = s.value(0);
@@ -56,7 +54,6 @@ export default function latentStore(s, c) {
     Math.max(0.03, (Math.log2(val) - Math.log2(128)) / (Math.log2(maxNums) - Math.log2(128)));
 
   const live = guardedDynamic(1, () => {
-    const ph = phase.value;
     const cf = contentFill.value;
     const pf = posFill.value;
     const sm = showSum.value;
@@ -151,16 +148,6 @@ export default function latentStore(s, c) {
             opacity: 0.65 * qm,
           }),
           glowDot(qx, fanY, { radius: 4.5, color: ROLE.query, glow: 7, opacity: qm }),
-        );
-        const u = (ph * 0.4 + k * 0.11) % 1;
-        const pIdx = Math.min(pts.length - 1, Math.floor(u * (pts.length - 1)));
-        nodes.push(
-          glowDot(pts[pIdx][0], pts[pIdx][1], {
-            radius: 3.5,
-            color: '#c4f8ff',
-            glow: 8,
-            opacity: 0.85 * qm,
-          }),
         );
       }
       nodes.push(
@@ -270,7 +257,6 @@ export default function latentStore(s, c) {
 
   s.add(cinemaAtmosphere(ROLE.pos, ROLE.query), title, live);
   c.show('scale', scaleEq, { after: true, fade: 0.4 });
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'latent', (d) => s.play(contentFill.to(1, { duration: d })), {
     after: true,

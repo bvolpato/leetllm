@@ -15,7 +15,6 @@ import {
   orbitScene,
   playCue,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -25,7 +24,6 @@ export default function signAngle(s, c) {
   const cosVal = cosine(vecA, vecB); // ~0.020
   const angleOverPi = Math.acos(cosVal) / Math.PI; // ~0.494
 
-  const phase = s.value(0);
   const shiftMix = s.value(0);
   const showSame = s.value(0);
   const showCos = s.value(0);
@@ -74,8 +72,6 @@ export default function signAngle(s, c) {
   );
 
   const stageLayer = dynamic(() => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const sm = shiftMix.value;
     const curB = vecA.map((v, i) => v + sm * (vecB[i] - v));
 
@@ -106,7 +102,7 @@ export default function signAngle(s, c) {
             color,
             fillAlpha: 0.36,
             strokeWidth: 2.2,
-            glow: mag > 0.5 ? 9 * pulse : 3,
+            glow: mag > 0.5 ? 9 : 3,
           }),
           txt(`d${i}${signStr}`, cx, baseY + 34, 26, COSMOS.muted, 'mono'),
         );
@@ -127,7 +123,7 @@ export default function signAngle(s, c) {
           color: sameOp > 0.5 ? ROLE.gold : '#3c507c',
           fillAlpha: sameOp > 0.5 ? 0.24 : 0.1,
           strokeWidth: sameOp > 0.5 ? 2.8 : 1.8,
-          glow: sameOp > 0.5 ? 9 * pulse : 3,
+          glow: sameOp > 0.5 ? 9 : 3,
         }),
         txt(
           sameOp > 0.5 ? String(b) : '?',
@@ -198,7 +194,6 @@ export default function signAngle(s, c) {
 
   s.add(cinemaAtmosphere(ROLE.B, ROLE.violet), title, sphere3d, stageLayer);
 
-  runPhase(s, c, phase, 8);
   orbitScene(s, c, sphere3d, { theta: 0.52, phi: 0.96 });
 
   playCue(s, c, 'shift', (d) => s.play(shiftMix.to(1, { duration: d })), { dur: 2.4 });

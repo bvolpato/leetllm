@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function profileContract(s, c) {
-  const phase = s.value(0);
   const showAttempt2 = s.value(0);
   const showHang = s.value(0);
   const showClock = s.value(0);
@@ -33,7 +30,6 @@ export default function profileContract(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const a2 = showAttempt2.value;
     const hg = showHang.value;
     const cl = showClock.value;
@@ -133,14 +129,12 @@ export default function profileContract(s, c) {
         n12 > 0.5 ? ROLE.bad : COSMOS.muted,
         'mono',
       ),
-      glowDot(-740 + ((p * 0.65) % 1) * 1480, 315, { radius: 6, color: ROLE.comm }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('second-attempt', () => s.play(showAttempt2.to(1, { duration: 0.4 })));
   c.on('mismatched-blocks', () => s.play(showHang.to(1, { duration: 0.45 })));

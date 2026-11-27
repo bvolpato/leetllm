@@ -6,19 +6,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function hybrid(s, c) {
-  const phase = s.value(0);
   const isHybrid = s.value(0); // 1 = local groups of 8 (hold prediction!)
   const revMem = s.value(0); // 1 = reveal 140 GB > 80 GB
 
@@ -33,7 +30,6 @@ export default function hybrid(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const hy = isHybrid.value > 0.5;
     const rm = revMem.value > 0.5;
     const nodes = [];
@@ -148,9 +144,7 @@ export default function hybrid(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-740 + u * 1480, 310, { radius: 6, color: rm ? ROLE.bad : COSMOS.gold }),
       txt(
         'Divide bytes by the shard-group size (8), not total world size (32)',
         0,
@@ -165,7 +159,6 @@ export default function hybrid(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('local-groups', () =>
     s.play(isHybrid.to(1, { duration: remainDuration(c, 'local-groups', 0.45) })),

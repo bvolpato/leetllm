@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   meshCoords,
   meshGroup,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function rankAlgorithm(s, c) {
-  const phase = s.value(0);
   const step = s.value(0);
 
   const bgAura = aura(0, 20, 620, '#60a5fa1c', '#ffd16618');
@@ -31,7 +28,6 @@ export default function rankAlgorithm(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const cd = meshCoords(27);
     const tpG = meshGroup(27, 'tp');
     const dpG = meshGroup(27, 'dp');
@@ -80,9 +76,7 @@ export default function rankAlgorithm(s, c) {
       txt(`[ ${ppG.join(', ')} ]`, 550, 158, 30, st >= 5 ? COSMOS.ink : COSMOS.dim, 'mono'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 285, { radius: 6, color: COSMOS.gold }),
       txt(
         'Batch count uses PURE DP replicas; dense gradient ownership can span DP × CP peers',
         0,
@@ -96,7 +90,6 @@ export default function rankAlgorithm(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['mg-rank-algorithm-b0', 0],
     ['mg-rank-rebuild', 1],

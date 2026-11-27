@@ -14,7 +14,6 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -152,7 +151,6 @@ export default function generalizedMerge(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('broken-ratio', () => s.play(phase.to(2, { duration: 0.4 })));
   c.after('outside-blend', () => s.play(showBroken.to(1, { duration: 0.45 })));

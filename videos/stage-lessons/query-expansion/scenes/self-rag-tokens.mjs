@@ -9,12 +9,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function selfRagTokens(s, c) {
-  const phase = s.value(0);
   const showRetrieve = s.value(0);
   const showRel = s.value(0);
   const showWrite = s.value(0);
@@ -33,14 +31,12 @@ export default function selfRagTokens(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sRet = showRetrieve.value;
     const sRel = showRel.value;
     const sWrt = showWrite.value;
     const sSup = showSup.value;
     const sUse = showUse.value;
     const sTrn = showTrained.value;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const fetched = sRet > 0.5;
     const relevant = sRel > 0.4;
@@ -81,7 +77,7 @@ export default function selfRagTokens(s, c) {
       // Step 2: Retrieved Passage E1 + ISREL
       glassCell(-295, 34, 1120, 146, relevant ? COSMOS.cyan : fetched ? COSMOS.blue : COSMOS.dim, {
         fill: relevant ? '#0f2338' : '#11182c',
-        glow: relevant ? 9 * pulse : 2,
+        glow: relevant ? 9 : 2,
       }),
       txt('SOURCE E1 (RETRIEVED PASSAGE)', -830, -12, 26, COSMOS.cyan, 'mono', 'left'),
       txt(
@@ -114,7 +110,7 @@ export default function selfRagTokens(s, c) {
         supported ? COSMOS.emerald : written ? COSMOS.violet : COSMOS.dim,
         {
           fill: supported ? '#0d2723' : '#11182c',
-          glow: supported ? 9 * pulse : 2,
+          glow: supported ? 9 : 2,
         },
       ),
       txt('GENERATED SEGMENT', -830, 156, 26, COSMOS.violet, 'mono', 'left'),
@@ -194,7 +190,6 @@ export default function selfRagTokens(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.after('reflection-retrieve', () => s.play(showRetrieve.to(1, { duration: 0.45 })));
   c.on('reflection-relevance', () => s.play(showRel.to(1, { duration: 0.4 })));

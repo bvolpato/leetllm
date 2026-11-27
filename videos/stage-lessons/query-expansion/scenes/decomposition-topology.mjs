@@ -10,12 +10,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function decompositionTopology(s, c) {
-  const phase = s.value(0);
   const showParallel = s.value(0);
   const showGap = s.value(0);
   const showEndpoint = s.value(0);
@@ -32,12 +30,10 @@ export default function decompositionTopology(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sp = showParallel.value;
     const sg = showGap.value;
     const se = showEndpoint.value;
     const sr = showRetry.value;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const arrivedCount = Math.round(sp * 5);
     const gapOpen = sg > 0.4;
@@ -86,7 +82,7 @@ export default function decompositionTopology(s, c) {
       nodes.push(
         glassCell(-135, y, 270, 106, batchCol, {
           fill: isMissing && gapOpen ? '#29121a' : '#101d35',
-          glow: isMissing && gapOpen ? 9 * pulse : batchArrived ? 6 : 2,
+          glow: isMissing && gapOpen ? 9 : batchArrived ? 6 : 2,
         }),
         txt(
           batchArrived ? row.batch : isMissing && gapOpen ? 'No source' : '...',
@@ -153,7 +149,7 @@ export default function decompositionTopology(s, c) {
           hop2Done ? COSMOS.emerald : hop1Done ? COSMOS.blue : COSMOS.dim,
           {
             fill: hop2Done ? '#0d2723' : '#11182c',
-            glow: hop2Done ? 10 * pulse : 3,
+            glow: hop2Done ? 10 : 3,
           },
         ),
         txt(
@@ -206,7 +202,6 @@ export default function decompositionTopology(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('fact-search', () => s.play(showParallel.to(1, { duration: 0.8 })));
   c.on('fact-gap', () => s.play(showGap.to(1, { duration: 0.45 })));

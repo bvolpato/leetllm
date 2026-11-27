@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function precisionRecipes(s, c) {
-  const phase = s.value(0);
   // step: 0=amax 4 -> 32 outlier, 1=current scaling sees 32, 2=MXFP8 32-value blocks & NVFP4, 3=block scale highlight, 4=BF16 parity & validation
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function precisionRecipes(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 1) {
@@ -144,9 +140,7 @@ export default function precisionRecipes(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 305, { radius: 6, color: ROLE.ep }),
       txt(
         'A precision recipe specifies scaling policy, supported ops, hardware, and accumulation dtype',
         0,
@@ -160,7 +154,6 @@ export default function precisionRecipes(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['mg-precision-recipes-b0', 0],
     ['mg-current-amax', 1],

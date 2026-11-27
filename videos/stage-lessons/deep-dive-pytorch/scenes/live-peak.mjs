@@ -5,18 +5,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function livePeak(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=4 shard, 2=+16 full, 3=+12 acts (32 -> hold!), 4=+8 prefetch (40), 5=verdict OOM(+4), 6=delay prefetch (32), 7=fits!
 
   const bgAura = aura(0, 20, 620, '#fb71851c', '#6ee7b718');
@@ -31,7 +28,6 @@ export default function livePeak(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
 
     // Ruler: 0..42 elements -> x in [-760, 710] (35 px per element)
     const x0 = -760;
@@ -125,9 +121,7 @@ export default function livePeak(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: showOver ? ROLE.bad : ROLE.good }),
       txt(
         showRoom
           ? 'Delaying prefetch cuts peak to 32, but can leave compute waiting · profile memory + comm together'
@@ -144,7 +138,6 @@ export default function livePeak(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('peak-shard', () => s.play(step.to(1, { duration: remainDuration(c, 'peak-shard', 0.35) })));
   c.on('peak-full', () => s.play(step.to(2, { duration: remainDuration(c, 'peak-full', 0.35) })));

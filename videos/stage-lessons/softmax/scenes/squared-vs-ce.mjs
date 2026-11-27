@@ -16,7 +16,6 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
   unitRibbon,
@@ -27,7 +26,6 @@ const CE_GRAD = P_WRONG[1] - 1; // -0.99966
 const SQ_GRAD = MODEL.squared[1]; // -0.00067
 
 export default function squaredVsCe(s, c) {
-  const phase = s.value(0);
   const showLogits = s.value(0);
   const showFav = s.value(0);
   const showTarget = s.value(0);
@@ -73,7 +71,6 @@ export default function squaredVsCe(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const pulse = 0.72 + 0.28 * Math.sin(phase.value * 3.0);
     const nodes = [];
 
     // Top probability strip for logits [8, 0, 0]
@@ -283,7 +280,7 @@ export default function squaredVsCe(s, c) {
 
       if (inspectCyan.value > 0.02) {
         nodes.push(
-          glowRing(sqPos + 4, axY + 6, 22 + 4 * pulse, COSMOS.cyan, {
+          glowRing(sqPos + 4, axY + 6, 26, COSMOS.cyan, {
             width: 3.5,
             glow: 12,
             opacity: inspectCyan.value * op,
@@ -299,7 +296,6 @@ export default function squaredVsCe(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'brier-logits', showLogits, 1, { duration: 0.4 });
   tweenCue(s, c, 'brier-favorite', showFav, 1, { duration: 0.4 });

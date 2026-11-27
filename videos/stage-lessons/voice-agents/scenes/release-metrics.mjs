@@ -2,20 +2,9 @@
 // 10x10 cohort grid of 100 attempted calls (86 fast emerald, 4 late amber, 10 silent rose):
 // STRICT prediction withholding before revealing 86/90 (95.6% false pass) vs 86/100 (86% HOLD)!
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function releaseMetrics(s, c) {
-  const phase = s.value(0);
   const silentOn = s.value(0);
   const audioOnlyOn = s.value(0); // STRICT after load-success!
   const all100On = s.value(0); // STRICT after load-all!
@@ -39,7 +28,6 @@ export default function releaseMetrics(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const sil = silentOn.value;
       const ao = audioOnlyOn.value;
       const all = all100On.value;
@@ -138,12 +126,6 @@ export default function releaseMetrics(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 445, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -151,8 +133,6 @@ export default function releaseMetrics(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('load-silent', () => {
     s.play(silentOn.to(1, { duration: clampDur(c, c.cue('load-silent').start, 0.35) }));
   });

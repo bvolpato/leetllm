@@ -10,15 +10,12 @@ import {
   meanVisible,
   playCue,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function causalRepair(s, c) {
   const vals = [1, 2, 9];
   const exactMean = meanVisible(vals); // 4
-
-  const phase = s.value(0);
   const leftStage = s.value(0); // 0=init, 1=sdpa, 2=bad, 3=wrong, 4=repair(ask), 5=correct, 6=mean, 7=flash
   const chunkStage = s.value(0); // 0=empty, 1=chunk(valid), 2=leak(q3 sees k4!), 3=boundary(sealed), 4=compare
 
@@ -275,7 +272,6 @@ export default function causalRepair(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.alert, ROLE.value), title, live);
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'sdpa', (d) => s.play(leftStage.to(1, { duration: Math.min(0.25, d) })), {
     dur: 0.3,

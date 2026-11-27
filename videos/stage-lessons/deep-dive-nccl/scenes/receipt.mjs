@@ -8,19 +8,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function receipt(s, c) {
-  const phase = s.value(0);
   // step: 0=algbw 44.74, 1=factor 1.5, 2=busbw 67.11, 3=serial 14ms, 4=shift 4ms earlier, 5=2ms exposed, 6=step 10ms, 7=same row
   const step = s.value(0);
 
@@ -36,7 +33,6 @@ export default function receipt(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     // ms [0..15] -> x in [-560, 640] (80 px/ms)
     const mx = (ms) => -560 + ms * 80;
 
@@ -121,9 +117,7 @@ export default function receipt(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: st >= 6 ? ROLE.good : COSMOS.gold }),
       txt(
         st >= 6
           ? 'Identical 67.11 GB/s benchmark row -> 14 ms serial vs 10 ms overlapped (measure exposed wait!)'
@@ -139,7 +133,6 @@ export default function receipt(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['receipt-algorithm', 0, true],
     ['receipt-factor', 1],

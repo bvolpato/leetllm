@@ -9,12 +9,10 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
   gateNode,
-  glowDot,
   guardedDynamic,
   quadArcPts,
   txt,
@@ -41,7 +39,7 @@ export default function toolChoice(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(Math.min(1, act.value)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const rq = reqTurnOn.value;
       const lp = loopTrapOn.value;
       const nodes = [];
@@ -115,7 +113,6 @@ export default function toolChoice(s, c) {
       const orbX = 185;
       const orbY = 235;
       const orbR = 72;
-      const ang = p * Math.PI * 2.4;
       nodes.push(
         line([0, 45], [760, 45], { stroke: '#25355a', width: 2 }).opacity(a),
         txt('TRAP: LEAVING REQUIRED ACTIVE', 380, 95, 26, ROLE.fail, 'mono', 'center').opacity(
@@ -125,12 +122,6 @@ export default function toolChoice(s, c) {
           .at(orbX, orbY)
           .glow(8, ROLE.fail)
           .opacity(a * trapOp),
-        glowDot(orbX + Math.cos(ang) * orbR, orbY + Math.sin(ang) * orbR, {
-          radius: 7.5,
-          color: ROLE.fail,
-          glow: 14,
-          opacity: a * trapOp,
-        }),
         txt('STUCK CALL LOOP', 310, orbY - 22, 28, ROLE.fail, 'mono', 'left')
           .glow(6, ROLE.fail)
           .opacity(a * trapOp),
@@ -153,7 +144,7 @@ export default function toolChoice(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(Math.min(1, act.value)) * fadeOutHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const nodes = [];
 
       const rows = [
@@ -233,7 +224,7 @@ export default function toolChoice(s, c) {
   const act2 = guardedDynamic(
     () => fadeInHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const oc = oneCallOn.value;
       const ft = ftLimitOn.value;
       const nodes = [];
@@ -328,7 +319,6 @@ export default function toolChoice(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-tool-choice-1', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('tu-tool-choice-1').start, 0.25) }));

@@ -15,12 +15,10 @@ import {
   rect,
   remainDuration,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function storageScope(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1); // Beat 0: global -> shared tile -> registers
   const tileLoad = s.value(0);
 
@@ -354,7 +352,6 @@ export default function storageScope(s, c) {
   });
 
   s.add(bgAura, title, part1, part2, part3, part4);
-  runPhase(s, c, phase, 14);
 
   c.on('storage-working-set', () => s.play(tileLoad.to(1, { duration: 0.9 })));
 

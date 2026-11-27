@@ -6,10 +6,8 @@ import { line } from 'vizmatic/stage';
 import {
   COSMOS,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   glowCross,
-  glowDot,
   glowPill,
   glowTex,
   guardedDynamic,
@@ -25,7 +23,6 @@ export default function ttlReads(s, c) {
     accent: ROLE.workerB,
   });
 
-  const amb = ambientClock(s, c);
   const phase = s.value(0); // 0=zero TTL, 1=scan & overwrite, 2=monotonic clock scope
   const zeroExpired = s.value(0);
   const scanFrozen = s.value(0);
@@ -44,7 +41,6 @@ export default function ttlReads(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const ph = Math.round(phase.value);
       const nodes = [];
 
@@ -202,12 +198,6 @@ export default function ttlReads(s, c) {
           ).opacity(alpha),
           // Left: Monotonic timeline vs Right: Reboot / Machine boundary
           line([-760, -75], [-60, -75], { stroke: ROLE.workerB, width: 4 }).opacity(alpha),
-          glowDot(-720 + ((amb.value * 500) % 620), -75, {
-            radius: 10,
-            color: ROLE.workerB,
-            glow: 12,
-            opacity: alpha,
-          }),
           txt(
             'elapsed time only (nondecreasing)',
             -410,
@@ -250,12 +240,6 @@ export default function ttlReads(s, c) {
       }
 
       nodes.push(
-        glowDot(-855 + ((amb.value * 360) % 200), 422, {
-          radius: 4.5 + 1.5 * pulse,
-          color: ROLE.workerB,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'CONSISTENT LOGICAL INSTANT  ·  MONOTONIC TTL',
           ph === 2

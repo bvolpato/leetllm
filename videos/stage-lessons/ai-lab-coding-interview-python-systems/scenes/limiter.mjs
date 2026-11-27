@@ -7,11 +7,9 @@ import {
   BUCKET,
   COSMOS,
   ROLE,
-  ambientClock,
   buildTokenBucket3d,
   cinemaAtmosphere,
   glowBar,
-  glowDot,
   glowPill,
   glowTex,
   guardedDynamic,
@@ -27,7 +25,6 @@ export default function limiter(s, c) {
     accent: ROLE.workerB,
   });
 
-  const amb = ambientClock(s, c);
   const elapsed = s.value(0); // 0 -> 0.5 -> 1.0
   const spent = s.value(0); // 0 -> 3 -> 4
   const decisionCode = s.value(0); // 0=idle/ready, 1=burst spent, 2=denied wait 1s, 3=refilling, 4=wait 0.5s, 5=admitted!
@@ -55,7 +52,6 @@ export default function limiter(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const tok = amount.value;
       const tNow = elapsed.value;
       const dec = Math.round(decisionCode.value);
@@ -148,12 +144,6 @@ export default function limiter(s, c) {
           'center',
         ).opacity(alpha),
 
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5 + 1.5 * pulse,
-          color: ROLE.workerB,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'TOKEN BUCKET: CAPACITY 3  ·  REFILL 1 TOK/S',
           dec >= 5

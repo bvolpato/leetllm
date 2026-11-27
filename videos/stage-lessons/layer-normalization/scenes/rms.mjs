@@ -26,7 +26,6 @@ import {
   playBeat,
   playCue,
   rms,
-  scenePulse,
   swapVis,
   variance,
   x,
@@ -63,14 +62,12 @@ export default function rmsScene(s, c) {
 
   // Act 2 values
   const normMs = s.value(2.0); // 2.0 -> 1.0 on faster-norm
-  const pulse = s.value(0);
 
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
     const nodes = [];
     const off = offsetAmt.value;
     const rc = rmsCrossT.value;
     const lh = lnHoldT.value;
-    const p = pulse.value;
     const vals = x.map((v) => v + off);
 
     // Upper-right: 4 live feature pills [3, 1, -1, 5] -> [8, 6, 4, 10]
@@ -143,7 +140,7 @@ export default function rmsScene(s, c) {
         .opacity(alpha),
       txt(lnExpr, -835, yLN + 32, 28, COSMOS.ink, 'mono', 'left').opacity(alpha),
       line([axisLeft, yLN], [axisRight, yLN], { stroke: '#2c3d66', width: 2.6 }).opacity(alpha),
-      glowRing(toX(lnOld), yLN, 18 + Math.sin(p * Math.PI * 8) * 2 * lh, ROLE.norm, {
+      glowRing(toX(lnOld), yLN, 18, ROLE.norm, {
         width: 2.6,
         glow: 8,
         fillOpacity: 0.14,
@@ -249,7 +246,6 @@ export default function rmsScene(s, c) {
   const act2Layer = guardedDynamic(act2Vis, (alpha) => {
     const nodes = [];
     const fast = normMs.value; // 2.0 -> 1.0
-    const p = pulse.value;
 
     const leftX = -510;
     const msScale = 310; // 4 ms (96..100) = 1240 px (-510 .. +730)
@@ -322,12 +318,10 @@ export default function rmsScene(s, c) {
       );
     });
 
-    // Bottom ms ruler with flowing pulse
+    // Bottom ms ruler
     const rulerY = 265;
-    const pulseX = leftX + ((p * 2.5) % 1) * (4 * msScale);
     nodes.push(
       line([leftX, rulerY], [toX(100), rulerY], { stroke: '#4c6091', width: 2.4 }).opacity(alpha),
-      glowDot(pulseX, rulerY, { radius: 5, color: ROLE.norm, glow: 10, opacity: 0.8 * alpha }),
     );
     [96, 97, 98, 99, 100].forEach((ms) => {
       const tx = toX(ms);
@@ -353,7 +347,6 @@ export default function rmsScene(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.rms, ROLE.norm), title, act1Layer, act2Layer);
-  scenePulse(s, c, pulse);
 
   // Beat 0: Show RMS divisor equation
   c.show('rms-rms-divisor-rule-b1-1', rmsEq);

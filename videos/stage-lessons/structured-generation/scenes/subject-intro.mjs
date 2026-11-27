@@ -13,7 +13,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fsmNode,
   glowDot,
   guardedDynamic,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function subjectIntro(s, c) {
-  const pulse = s.value(0);
   const askHi = s.value(0);
   const byteStop = s.value(0);
   const parseSweep = s.value(0);
@@ -40,7 +38,6 @@ export default function subjectIntro(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const ah = askHi.value;
       const bs = byteStop.value;
       const ps = parseSweep.value;
@@ -67,11 +64,11 @@ export default function subjectIntro(s, c) {
 
       // Character-zero cursor markers (strictly withholding verdicts until cues fire!)
       const cursorAcol = bs > 0.5 ? ROLE.prune : ROLE.prefix;
-      const breath = 0.72 + 0.28 * Math.sin(p * Math.PI * 3);
       nodes.push(
-        line([startX, yA + 44], [startX + charW, yA + 44], { stroke: cursorAcol, width: 6 })
-          .glow(10, cursorAcol)
-          .opacity(bs > 0.5 ? 1 : breath),
+        line([startX, yA + 44], [startX + charW, yA + 44], { stroke: cursorAcol, width: 6 }).glow(
+          10,
+          cursorAcol,
+        ),
       );
       if (bs > 0.45) {
         nodes.push(
@@ -96,9 +93,10 @@ export default function subjectIntro(s, c) {
       const bX = startX + ps * (bSpan - charW);
       const cursorBcol = ps > 0.85 ? ROLE.legal : ROLE.prefix;
       nodes.push(
-        line([startX, yB + 44], [bX + charW, yB + 44], { stroke: cursorBcol, width: 5.5 })
-          .glow(10, cursorBcol)
-          .opacity(ps > 0.05 ? 1 : breath),
+        line([startX, yB + 44], [bX + charW, yB + 44], { stroke: cursorBcol, width: 5.5 }).glow(
+          10,
+          cursorBcol,
+        ),
       );
       if (ps > 0.85) {
         nodes.push(
@@ -121,7 +119,6 @@ export default function subjectIntro(s, c) {
       // Right-hand live parser gate emblem (keeps right side balanced at all times)
       const gateCx = 660;
       const gateCy = -320;
-      const orbA = p * Math.PI * 2;
       nodes.push(
         fsmNode(gateCx, gateCy, 66, bs > 0.5 && ps > 0.85 ? '{ }' : 'JSON', {
           color: cp > 0.5 ? ROLE.review : ps > 0.85 ? ROLE.legal : ROLE.fsm,
@@ -129,11 +126,6 @@ export default function subjectIntro(s, c) {
           size: 28,
         }),
         circle(88, { fill: null, stroke: '#1f2e52', width: 1.8 }).at(gateCx, gateCy),
-        glowDot(gateCx + Math.cos(orbA) * 88, gateCy + Math.sin(orbA) * 88, {
-          radius: 5,
-          color: ROLE.fsm,
-          glow: 10,
-        }),
       );
 
       // Bottom band: prediction question while waiting -> Runner Log -> Comparison verdict
@@ -179,7 +171,7 @@ export default function subjectIntro(s, c) {
             y,
           ]);
           nodes.push(
-            beamWithPhotons(arc, ROLE.prune, p * 1.2, { alpha: cp, width: 3.4 }),
+            beamWithPhotons(arc, ROLE.prune, 0, { alpha: cp, width: 3.4 }),
             txt(`B SAYS: ${bStatus}`, -805, 345, 34, ROLE.fsm, 'mono', 'left').opacity(cp),
             txt(`CI LOG: ${CI_RUN.status}`, -360, 345, 34, ROLE.prefix, 'mono', 'left').opacity(cp),
             txt('SEND B TO REVIEW', 180, 345, 36, ROLE.prune, 'mono', 'left')
@@ -194,7 +186,6 @@ export default function subjectIntro(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 4.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('intro-ask', () => {
     s.play(askHi.to(1, { duration: clampDur(c, c.cue('intro-ask').start, 0.35) }));

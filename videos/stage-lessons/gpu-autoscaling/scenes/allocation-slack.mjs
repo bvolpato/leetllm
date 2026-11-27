@@ -8,7 +8,6 @@ import {
   ROLE,
   aura,
   cinemaHeader,
-  driftValue,
   glowBar,
   glowTex,
   guardedDynamic,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function allocationSlack(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=four sequences, 2=23 slack, 3=fixed 512 blocks, 4=saving 6624
 
   const header = cinemaHeader(
@@ -149,7 +147,6 @@ export default function allocationSlack(s, c) {
   );
 
   s.add(bgAura, header, formula, dyn);
-  driftValue(s, c, phase, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-allocation-slack-b0', step, 1, 0.3);
   tweenOn(s, c, 'ga-slack-total', step, 2, 0.3);

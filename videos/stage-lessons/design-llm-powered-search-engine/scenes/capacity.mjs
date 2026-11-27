@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowMeter,
   glowTex,
   guardedDynamic,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function capacity(s, c) {
-  const pulse = s.value(0);
   const traceProg = s.value(0);
   const countsOn = s.value(0);
   const factorsOn = s.value(0);
@@ -237,8 +235,6 @@ export default function capacity(s, c) {
   );
 
   s.add(stageAura, header, view, kvEq);
-  driftValue(s, c, pulse, 4.5, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('capacity-beat-1-focus-1', () => {
     s.play(traceProg.to(1, { duration: clampDur(c, c.cue('capacity-beat-1-focus-1').start, 1.0) }));
   });

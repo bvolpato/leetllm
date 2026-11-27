@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   // step: 0=R43 bug lands, 1=R42 dark mode pending, 2=PREDICT HOLD (which can start?),
   // 3=copy bug into R43 prompt, 4=R43 explanation submitted, 5=R42 waits for label, 6=open R42 prompt
   const step = s.value(0);
@@ -32,7 +29,6 @@ export default function intro(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     // Column headers
@@ -103,13 +99,7 @@ export default function intro(s, c) {
       txt('waits for its label', 575, r42Y + 30, 26, COSMOS.muted, 'mono'),
     );
 
-    const u = (p * 0.6) % 1;
-    nodes.push(
-      glowDot(-720 + u * 1440, 285, {
-        radius: 6,
-        color: st >= 4 && st < 6 ? ROLE.decode : COSMOS.gold,
-      }),
-    );
+    nodes.push();
 
     const caption =
       st <= 1
@@ -129,7 +119,6 @@ export default function intro(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['ticket-bug', 0],
     ['ticket-dark', 1],

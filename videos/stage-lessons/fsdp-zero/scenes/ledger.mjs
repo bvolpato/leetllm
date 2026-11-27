@@ -5,18 +5,15 @@ import {
   ZERO_0,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function ledger(s, c) {
-  const phase = s.value(0);
   const showW = s.value(0);
   const showG = s.value(0);
   const showO = s.value(0);
@@ -34,7 +31,6 @@ export default function ledger(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sw = showW.value;
     const sg = showG.value;
     const so = showO.value;
@@ -107,9 +103,7 @@ export default function ledger(s, c) {
       txt(st > 0.5 ? '32 units' : '4 × 8', 600, 62, 36, ROLE.bad, 'mono'),
     );
 
-    const u = (p * 0.6) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 280, { radius: 6, color: ROLE.opt }),
       txt(
         sn > 0.5
           ? 'Activations, comm workspaces & allocator overhead sit on top of this state ledger'
@@ -126,7 +120,6 @@ export default function ledger(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('ledger-weights', () =>
     s.play(showW.to(1, { duration: remainDuration(c, 'ledger-weights', 0.4) })),

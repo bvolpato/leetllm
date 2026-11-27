@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function cacheCooperation(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const replaced = s.value(0);
   const locked = s.value(0);
@@ -36,7 +33,6 @@ export default function cacheCooperation(s, c) {
   });
 
   const part1 = guardedDynamic(showPart1, (a) => {
-    const p = phase.value;
     const rp = replaced.value;
     const lk = locked.value;
     const nodes = [
@@ -84,13 +80,10 @@ export default function cacheCooperation(s, c) {
       ).opacity(a),
     ];
 
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-780 + u * 1560, 240, { radius: 6, color: ROLE.cubin, opacity: a }));
     return group(...nodes);
   });
 
   const part2 = guardedDynamic(showPart2, (a) => {
-    const p = phase.value;
     const ps = Math.round(pairState.value);
     const rs = Math.round(rankStep.value);
     const crashed = ps >= 2;
@@ -160,13 +153,10 @@ export default function cacheCooperation(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-780 + u * 1560, 326, { radius: 6, color: ROLE.cubin, opacity: a }));
     return group(...nodes);
   });
 
   s.add(bgAura, title, part1, part2);
-  runPhase(s, c, phase, 14);
 
   c.on('private-temp', () =>
     s.play(replaced.to(0.2, { duration: remainDuration(c, 'private-temp', 0.35) })),

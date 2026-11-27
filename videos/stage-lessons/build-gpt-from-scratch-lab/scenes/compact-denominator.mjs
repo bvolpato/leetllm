@@ -16,7 +16,6 @@ import {
   orbitScene,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -284,7 +283,6 @@ export default function compactDenominator(s, c) {
   });
 
   s.add(bgAura, slab3d, part1, part2);
-  runPhase(s, c, phase, 16);
   const part1End = Math.max(0.6, c.end - c.cue('compact-denominator-2').start + 0.35);
   orbitScene(s, c, slab3d, { theta: -0.2, phi: 0.92 }, { startOffset: 0.1, endMargin: part1End });
 

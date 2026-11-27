@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fsmNode,
   guardedDynamic,
   opticalRail,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function wireContract(s, c) {
-  const pulse = s.value(0);
   const wireCopied = s.value(0);
   const wireAdmits = s.value(0);
   const hostChecks = s.value(0);
@@ -36,7 +34,6 @@ export default function wireContract(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const wc = wireCopied.value;
       const wa = wireAdmits.value;
       const hc = hostChecks.value;
@@ -59,11 +56,11 @@ export default function wireContract(s, c) {
       const leftArc = quadArcPts([-420, -110], [-420, -20], 0);
       const rightArc = quadArcPts([-220, -110], [420, -20], -28);
       nodes.push(
-        beamWithPhotons(leftArc, hostHasMin ? ROLE.prefix : ROLE.prune, p * 1.1, {
+        beamWithPhotons(leftArc, hostHasMin ? ROLE.prefix : ROLE.prune, 0, {
           width: 3.2,
           photonCount: 1,
         }),
-        beamWithPhotons(rightArc, ROLE.fsm, p * 1.1 + 0.5, { width: 3.2, photonCount: 2 }),
+        beamWithPhotons(rightArc, ROLE.fsm, 0, { width: 3.2, photonCount: 2 }),
       );
 
       // Two side-by-side optical validator gates
@@ -139,7 +136,6 @@ export default function wireContract(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('wire-copy', () => {
     s.play(wireCopied.to(1, { duration: clampDur(c, c.cue('wire-copy').start, 0.45) }));

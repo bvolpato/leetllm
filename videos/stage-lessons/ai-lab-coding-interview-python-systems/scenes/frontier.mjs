@@ -6,10 +6,8 @@ import {
   COSMOS,
   CRAWL,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   glowArrow,
-  glowDot,
   glowPill,
   guardedDynamic,
   lowerFooter,
@@ -25,7 +23,6 @@ export default function frontier(s, c) {
     accent: ROLE.workerB,
   });
 
-  const amb = ambientClock(s, c);
   // Discrete stage index 0..7 tracking exact BFS transitions from CRAWL.snapshots
   // 0: initial (/start in queue)
   // 1: start popped, returning 3 raw links
@@ -47,7 +44,6 @@ export default function frontier(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(step.value);
 
       let callbackStr = 'start URL:  https://repo.example/start';
@@ -147,7 +143,7 @@ export default function frontier(s, c) {
             glowPill('/faq -> ?', 180, -108, ROLE.focus, {
               size: 28,
               fixedW: 245,
-              alpha: alpha * (0.78 + 0.22 * pulse),
+              alpha,
               glow: 12,
             }),
           );
@@ -212,7 +208,7 @@ export default function frontier(s, c) {
             'center',
           )
             .glow(7, ROLE.focus)
-            .opacity(alpha * (0.82 + 0.18 * pulse)),
+            .opacity(alpha),
         );
       } else if (st === 4) {
         nodes.push(
@@ -253,12 +249,6 @@ export default function frontier(s, c) {
       }
 
       nodes.push(
-        glowDot(-855 + ((amb.value * 500) % 240), 422, {
-          radius: 4.5,
-          color: ROLE.workerB,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'FIFO QUEUE + PERSISTENT CLAIMED SET',
           st >= 8 ? 'ORDER: /start -> /guide -> /api -> /faq' : `CLAIMED: ${seenList.length} URLS`,

@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowTex,
   guardedDynamic,
   orbNode,
@@ -46,7 +45,7 @@ export default function linearState(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const s1 = step1.value;
       const s2 = step2.value;
       const s3 = step3.value;
@@ -141,7 +140,6 @@ export default function linearState(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('linear-state-beat-1-focus-1', () => {
     s.play(

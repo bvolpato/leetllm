@@ -9,15 +9,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   glowMeter,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function quotaReservation(s, c) {
-  const phase = s.value(0);
   const resOn = s.value(0); // 10,000 -> 8,200
   const refOn = s.value(0); // +280 -> 8,480
   const raceMode = s.value(0); // 100 bucket naive race 70+60=130
@@ -36,7 +33,6 @@ export default function quotaReservation(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const rs = resOn.value;
       const rf = refOn.value;
       const rc = raceMode.value;
@@ -159,12 +155,6 @@ export default function quotaReservation(s, c) {
         txt('SEPARATE WINDOWS', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Tokens · Requests · Hard $ Budget', 480, -378, 26, COSMOS.ink, 'mono', 'center'),
         txt('Cache writes can cost > ordinary input', 480, -334, 26, ROLE.warn, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -172,8 +162,6 @@ export default function quotaReservation(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.after('sd-quota-reserved', () => {
     s.play(resOn.to(1, { duration: clampDur(c, c.cue('sd-quota-reserved').end, 0.35) }));
   });

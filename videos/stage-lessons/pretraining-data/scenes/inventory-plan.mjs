@@ -16,12 +16,10 @@ import {
   photonStream,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function inventoryPlan(s, c) {
-  const phase = s.value(0);
   const beaconP = s.value(0);
   const showPart1 = s.value(1);
   const showAppetite = s.value(0);
@@ -111,7 +109,6 @@ export default function inventoryPlan(s, c) {
     const fp = filterP.value;
     const dp = dedupP.value;
     const gr = gapReveal.value;
-    const ph = phase.value;
 
     const barLeft = -760;
     const barW = 1480;
@@ -141,13 +138,13 @@ export default function inventoryPlan(s, c) {
       ...glowBar(barLeft, -100, barW, 1, { height: 42, color: COSMOS.blue, opacity: a }),
 
       // Flowing photons into surviving bar
-      ...photonStream([barLeft + 180, -72], [barLeft + 180, 14], 0, ph, {
+      ...photonStream([barLeft + 180, -72], [barLeft + 180, 14], 0, 0, {
         color: COSMOS.cyan,
         count: 3,
         opacity: a * 0.75,
         trail: false,
       }),
-      ...photonStream([barLeft + 740, -72], [barLeft + 740, 14], 0, ph + 0.8, {
+      ...photonStream([barLeft + 740, -72], [barLeft + 740, 14], 0, 0, {
         color: COSMOS.cyan,
         count: 3,
         opacity: a * 0.75,
@@ -235,7 +232,6 @@ export default function inventoryPlan(s, c) {
   });
 
   s.add(bgAura, chinchilla3d, title1, part1Live, funnelLive);
-  runPhase(s, c, phase, 16);
 
   const part1End = c.cue('pt-inventory-plan-filter').start;
   orbitScene(

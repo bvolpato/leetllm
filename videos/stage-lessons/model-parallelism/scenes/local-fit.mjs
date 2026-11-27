@@ -6,7 +6,6 @@ import {
   aura,
   deviceGB,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   halfGB,
@@ -17,12 +16,10 @@ import {
   remainAfterDuration,
   remainDuration,
   reserveGB,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function localFit(s, c) {
-  const phase = s.value(0);
   const pPool = s.value(0);
   const pCeil = s.value(0);
   const pLeft = s.value(0);
@@ -147,17 +144,12 @@ export default function localFit(s, c) {
         glow: 8,
       }),
       txt(foot, 0, 325, 26, verd ? ROLE.bad : placing ? COSMOS.gold : COSMOS.ink, 'mono'),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: verd ? ROLE.bad : COSMOS.gold,
-      }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('request-pool', () =>
     s.play(pPool.to(1, { duration: remainDuration(c, 'request-pool', 0.4) })),

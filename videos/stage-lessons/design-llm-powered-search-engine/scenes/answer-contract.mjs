@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   quadArcPts,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function answerContract(s, c) {
-  const pulse = s.value(0);
   const draftOn = s.value(0);
   const dropCond = s.value(0);
   const ragOn = s.value(0);
@@ -36,7 +34,6 @@ export default function answerContract(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const drop = dropCond.value;
       const rag = ragOn.value;
       const rl = ruleOn.value;
@@ -71,15 +68,13 @@ export default function answerContract(s, c) {
       if (rag < 0.5 && rl < 0.5) {
         // Beat 0: Draft reply losing the final 4 words
         nodes.push(
-          beamWithPhotons(quadArcPts([-140, -100], [-180, 10], -10), ROLE.policy, p, {
+          beamWithPhotons(quadArcPts([-140, -100], [-180, 10], -10), ROLE.policy, 0, {
             width: 3,
             glow: 7,
-            photonCount: 1,
           }),
-          beamWithPhotons(quadArcPts([520, -100], [340, 10], -10), ROLE.exception, p + 0.5, {
+          beamWithPhotons(quadArcPts([520, -100], [340, 10], -10), ROLE.exception, 0, {
             width: 3,
             glow: 7,
-            photonCount: 1,
             alpha: 1 - 0.55 * drop,
           }),
           rect(1680, 196, {
@@ -175,10 +170,9 @@ export default function answerContract(s, c) {
             78,
           );
           nodes.push(
-            beamWithPhotons([a, b], stations[i + 1].col, p + i * 0.25, {
+            beamWithPhotons([a, b], stations[i + 1].col, 0, {
               width: 3.4,
               glow: 8,
-              photonCount: 1,
             }),
           );
         }
@@ -258,8 +252,6 @@ export default function answerContract(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-answer-contract-0', () => {
     s.play(draftOn.to(1, { duration: clampDur(c, c.cue('se-answer-contract-0').start, 0.35) }));
   });

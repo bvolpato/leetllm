@@ -14,7 +14,6 @@ import {
   cinemaHeader,
   ciOutcome,
   clampDur,
-  driftValue,
   fsmNode,
   guardedDynamic,
   nullableRecord,
@@ -24,7 +23,6 @@ import {
 } from '../parts.mjs';
 
 export default function freshIncident(s, c) {
-  const pulse = s.value(0);
   const propShow = s.value(0);
   const grantsShow = s.value(0);
   const dashShow = s.value(0);
@@ -44,7 +42,6 @@ export default function freshIncident(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const pr = propShow.value;
       const gr = grantsShow.value;
       const ds = dashShow.value;
@@ -228,7 +225,7 @@ export default function freshIncident(s, c) {
           beamWithPhotons(
             quadArcPts([620, 128], [-620, 128], 0),
             resolvedDelta ? ROLE.prune : ROLE.legal,
-            p * 1.1,
+            0,
             { alpha: 0.85, width: 3.6 },
           ),
         );
@@ -239,7 +236,6 @@ export default function freshIncident(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('fresh-proposal', () => {
     s.play(propShow.to(1, { duration: clampDur(c, c.cue('fresh-proposal').start, 0.35) }));

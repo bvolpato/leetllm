@@ -12,12 +12,10 @@ import {
   rect,
   remainDuration,
   roundedFormat,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function precisionControls(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1); // Beat 0: AMP GradScaler (scale -> FP16 -> unscale in FP32)
   const ampProg = s.value(0);
 
@@ -258,7 +256,6 @@ export default function precisionControls(s, c) {
   });
 
   s.add(bgAura, title, part1, part2, part3);
-  runPhase(s, c, phase, 14);
 
   c.on('amp-unscale', () => s.play(ampProg.to(1, { duration: 1.3 })));
   c.on('amp-diagnosis', () => {

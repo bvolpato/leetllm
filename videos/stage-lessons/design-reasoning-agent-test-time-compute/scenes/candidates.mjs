@@ -7,7 +7,6 @@ import {
   candidates,
   cinemaHeader,
   clampDur,
-  driftValue,
   eligible,
   guardedDynamic,
   metricReadout,
@@ -28,11 +27,9 @@ export function buildCandidates(s, c) {
     }),
   );
 
-  const pulse = s.value(0);
   const scoreOn = s.value(0);
   const blockOn = s.value(0);
   const selectRev = s.value(0);
-  driftValue(s, c, pulse, 3.0);
 
   c.on('paths-scores', () =>
     s.play(scoreOn.to(1, { duration: clampDur(c, c.cue('paths-scores').start, 0.45) })),
@@ -52,7 +49,6 @@ export function buildCandidates(s, c) {
     guardedDynamic(
       () => 1,
       () => {
-        const p = pulse.value;
         const sc = scoreOn.value;
         const bl = blockOn.value;
         const sl = selectRev.value;
@@ -74,8 +70,8 @@ export function buildCandidates(s, c) {
               [legPt[0] - 180, legPt[1] + 10],
             ],
             aCol,
-            p,
-            { photonCount: bl > 0.5 ? 0 : 2, alpha: sl > 0.5 ? 0.35 : 0.9 },
+            0,
+            { alpha: sl > 0.5 ? 0.35 : 0.9 },
           ),
           beamWithPhotons(
             [
@@ -83,8 +79,8 @@ export function buildCandidates(s, c) {
               [dbPt[0] - 140, dbPt[1] - 20],
             ],
             ROLE.model,
-            p + 0.3,
-            { photonCount: bl > 0.5 ? 0 : 2, alpha: bl > 0.5 ? 0.32 : 0.85 },
+            0,
+            { alpha: bl > 0.5 ? 0.32 : 0.85 },
           ),
         );
 
@@ -96,8 +92,8 @@ export function buildCandidates(s, c) {
               [flagPt[0] - 180, flagPt[1] - 10],
             ],
             bCol,
-            p + 0.15,
-            { photonCount: 2, alpha: 0.95 },
+            0,
+            { alpha: 0.95 },
           ),
           beamWithPhotons(
             [
@@ -105,8 +101,8 @@ export function buildCandidates(s, c) {
               [dbPt[0] - 140, dbPt[1] + 20],
             ],
             bCol,
-            p + 0.45,
-            { photonCount: 2, alpha: 0.95 },
+            0,
+            { alpha: 0.95 },
           ),
         );
 

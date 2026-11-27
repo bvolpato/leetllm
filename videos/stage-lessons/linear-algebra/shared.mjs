@@ -405,35 +405,10 @@ export function glassPlate(
   return box;
 }
 
-/** Glowing connector wire with an animated photon packet riding along it. */
-export function photonWire(pts, progress, { color = COSMOS.cyan, width = 3.2, glow = 8 } = {}) {
+/** Glowing connector wire. */
+export function photonWire(pts, _progress, { color = COSMOS.cyan, width = 3.2, glow = 8 } = {}) {
   const path = polyPath(pts);
-  const segs = [];
-  let totalLen = 0;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const len = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
-    segs.push({ a: pts[i], b: pts[i + 1], len });
-    totalLen += len;
-  }
-  const u = ((progress % 1) + 1) % 1;
-  let dist = u * totalLen;
-  let px = pts[0][0];
-  let py = pts[0][1];
-  for (const seg of segs) {
-    if (dist <= seg.len || seg === segs.at(-1)) {
-      const f = seg.len > 0 ? Math.min(1, Math.max(0, dist / seg.len)) : 0;
-      px = seg.a[0] + (seg.b[0] - seg.a[0]) * f;
-      py = seg.a[1] + (seg.b[1] - seg.a[1]) * f;
-      break;
-    }
-    dist -= seg.len;
-  }
-  return markDecor(
-    group(
-      new Node(path).stroke(color, width, 0.72).glow(glow, color),
-      dot(6.5, '#ffffff').at(px, py).glow(14, color),
-    ),
-  );
+  return markDecor(new Node(path).stroke(color, width, 0.72).glow(glow, color));
 }
 
 /** Safe glowing arrow helper that avoids degenerate zero-length arrows. */

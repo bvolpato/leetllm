@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function spillWorkload(s, c) {
-  const phase = s.value(0);
   const showAccess = s.value(0);
   const showIters = s.value(0);
   const showTotal = s.value(0);
@@ -35,7 +32,6 @@ export default function spillWorkload(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sa = showAccess.value;
     const si = showIters.value;
     const st = showTotal.value;
@@ -43,7 +39,6 @@ export default function spillWorkload(s, c) {
     const lm = showLaunchMax.value;
     const sh = showShared.value;
     const sr = showSharedRes.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: Thread <-> Local Memory spill loop
@@ -51,7 +46,7 @@ export default function spillWorkload(s, c) {
       txt('THREAD REGISTERS', -640, -138, 26, ROLE.ir, 'mono'),
       txt('pressure overflow', -640, -86, 26, COSMOS.muted, 'sans'),
 
-      glassCell(-640, 145, 320, 118, ROLE.warn, { fill: '#2a1810', glow: 9 * pulse }),
+      glassCell(-640, 145, 320, 118, ROLE.warn, { fill: '#2a1810', glow: 9 }),
       txt('LOCAL MEMORY', -640, 116, 26, ROLE.warn, 'mono'),
       txt('device-backed (cached)', -640, 168, 26, COSMOS.muted, 'sans'),
 
@@ -143,9 +138,7 @@ export default function spillWorkload(s, c) {
       ),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-820 + u * 1640, 336, { radius: 6, color: sr > 0.5 ? ROLE.triton : ROLE.warn }),
       txt(
         sr > 0.5
           ? 'Compare regs, stack, spills, SMEM reports & warmed timings on target'
@@ -162,7 +155,6 @@ export default function spillWorkload(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('spill-accesses', () =>
     s.play(showAccess.to(1, { duration: remainDuration(c, 'spill-accesses', 0.4) })),

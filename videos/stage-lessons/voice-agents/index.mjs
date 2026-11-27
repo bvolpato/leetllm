@@ -1,6 +1,6 @@
 // Pure-cinema stage film for voice-agents (29 scenes).
 import { COSMOS, cinematicLesson } from '../cinematic-kit.mjs';
-import { clampDur, glowDot, guardedDynamic, verifyVoiceAgentsInvariants } from './parts.mjs';
+import { clampDur, verifyVoiceAgentsInvariants } from './parts.mjs';
 import alignmentLedger from './scenes/alignment-ledger.mjs';
 import audioRepresentation from './scenes/audio-representation.mjs';
 import bargeIn from './scenes/barge-in.mjs';
@@ -31,29 +31,17 @@ import transfer from './scenes/transfer.mjs';
 import transportAndBuffer from './scenes/transport-and-buffer.mjs';
 import vadWorksheet from './scenes/vad-worksheet.mjs';
 
+export { holdSounds } from '../../films/voice-agents/echo-probe.mjs';
+
 /**
- * Adds a live bottom-right voice-cadence acoustic beacon that pulses smoothly on every
- * intermediate narration cue so every declared beat cue drives live visual response.
+ * Binds intermediate narration cadence cues to a silent timeline value without adding
+ * visible corner dots to the stage.
  */
 function withCadence(sceneFn, cadenceCues) {
   return (s, c) => {
     sceneFn(s, c);
     if (!cadenceCues?.length) return;
     const beacon = s.value(0);
-    const dot = guardedDynamic(
-      () => 1,
-      () => {
-        const b = beacon.value;
-        const r = 4.5 + 3.5 * Math.sin(b * Math.PI);
-        return glowDot(790, 445, {
-          radius: r,
-          color: COSMOS.cyan,
-          glow: 8 + 4 * Math.sin(b * Math.PI),
-          opacity: 0.72,
-        });
-      },
-    );
-    s.add(dot);
     cadenceCues.forEach((id, idx) => {
       c.on(id, () => {
         const t = c.cue(id).start;

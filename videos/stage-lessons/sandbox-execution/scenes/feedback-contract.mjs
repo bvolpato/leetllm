@@ -16,7 +16,6 @@ import {
   renderGauge,
   repairTrace,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -30,7 +29,6 @@ const KEEP_FRAC = LIMIT_FRAC / 2;
 export default function feedbackContract(s, c) {
   const errText = repairTrace().first.error;
 
-  const phase = s.value(0);
   const mode0 = s.value(1); // Byte-capped evidence packet
   const mode1 = s.value(0); // Untrusted traceback + env + cwd
   const mode2 = s.value(0); // XML parser limits + scope
@@ -554,7 +552,6 @@ export default function feedbackContract(s, c) {
   });
 
   s.add(bgAtmo, title, live);
-  runAmbientPhase(s, c, phase, 2.4);
 
   // Beat 0 cues
   tweenCue(s, c, 'fb-fixed', fixedHot, 1, { duration: 0.45 });

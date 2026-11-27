@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -143,7 +142,7 @@ export default function controlledProbes(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(Math.min(1, act.value)) * fadeOutHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const bs = brandSwap.value;
       const sr = selfRing.value;
       const sc = styleScope.value;
@@ -252,7 +251,7 @@ export default function controlledProbes(s, c) {
   const act2 = guardedDynamic(
     () => fadeInHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const po = policyOpen.value;
       const pw = proxyWarn.value;
       const ha = humanAnchor.value;
@@ -360,7 +359,6 @@ export default function controlledProbes(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('padding-only', () => {
     s.play(padOn.to(1, { duration: clampDur(c, c.cue('padding-only').start, 0.4) }));

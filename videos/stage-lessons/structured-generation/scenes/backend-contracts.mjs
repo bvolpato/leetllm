@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fsmNode,
@@ -22,7 +21,6 @@ import {
 } from '../parts.mjs';
 
 export default function backendContracts(s, c) {
-  const pulse = s.value(0);
   const act = s.value(0); // 0 = Outlines, 1 = llama.cpp GBNF, 2 = vLLM / hosted
   const b0Hi = s.value(0);
   const rawOut = s.value(0);
@@ -44,7 +42,6 @@ export default function backendContracts(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(Math.min(1, act.value)),
     (a) => {
-      const p = pulse.value;
       const ro = rawOut.value;
       const rg = rawGlow.value;
       const lp = localParse.value;
@@ -110,7 +107,7 @@ export default function backendContracts(s, c) {
 
       const bridge = quadArcPts([-40, yMid], [220, yMid], -34);
       nodes.push(
-        beamWithPhotons(bridge, lp > 0.3 ? ROLE.legal : ROLE.fsm, p * 1.1, {
+        beamWithPhotons(bridge, lp > 0.3 ? ROLE.legal : ROLE.fsm, 0, {
           alpha: a * (0.35 + 0.65 * Math.max(ro, lp)),
           width: 3.4,
           photonCount: lp > 0.2 ? 2 : 1,
@@ -154,7 +151,6 @@ export default function backendContracts(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(Math.min(1, act.value)) * fadeOutHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
       const sk = gbnfSkip.value;
       const nodes = [];
 
@@ -178,7 +174,7 @@ export default function backendContracts(s, c) {
         txt('retry_count: integer', -805, yTop + 4, 32, COSMOS.ink, 'mono', 'left').opacity(a),
         txt('minimum: 0', -805, yTop + 50, 32, ROLE.legal, 'mono', 'left').opacity(a),
 
-        beamWithPhotons(quadArcPts([-180, yTop], [110, yTop], -28), ROLE.review, p * 1.1, {
+        beamWithPhotons(quadArcPts([-180, yTop], [110, yTop], -28), ROLE.review, 0, {
           alpha: a,
           width: 3.4,
         }),
@@ -225,7 +221,7 @@ export default function backendContracts(s, c) {
         beamWithPhotons(
           quadArcPts([-140, yBot], [110, yBot], 28),
           sk > 0.4 ? ROLE.prune : ROLE.fsm,
-          p * 1.2 + 0.4,
+          0,
           {
             alpha: a,
             width: 3.4,
@@ -264,7 +260,6 @@ export default function backendContracts(s, c) {
   const act2 = guardedDynamic(
     () => fadeInHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
       const vr = vllmRemoved.value;
       const nodes = [];
 
@@ -292,7 +287,7 @@ export default function backendContracts(s, c) {
 
       // Center beam to hosted endpoint verifier
       nodes.push(
-        beamWithPhotons(quadArcPts([-120, 5], [140, 5], -35), ROLE.fsm, p * 1.1, {
+        beamWithPhotons(quadArcPts([-120, 5], [140, 5], -35), ROLE.fsm, 0, {
           alpha: a,
           width: 3.4,
         }),
@@ -321,7 +316,6 @@ export default function backendContracts(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-backend-contracts-0', () => {
     s.play(b0Hi.to(1, { duration: clampDur(c, c.cue('sg-backend-contracts-0').start, 0.35) }));

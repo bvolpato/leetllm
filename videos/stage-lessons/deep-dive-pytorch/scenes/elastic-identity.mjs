@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function elasticIdentity(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=torchrun restarts ranks, 1=full state bundle, 2=durable checkpoint & real crash drill
 
   const bgAura = aura(0, 20, 620, '#f59e0b1c', '#6ee7b718');
@@ -30,7 +27,6 @@ export default function elasticIdentity(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = stage.value;
-    const p = phase.value;
 
     const steps = [
       { k: '1. FAIL', d: 'Worker dies\nafter step N', col: ROLE.bad, x: -640 },
@@ -106,9 +102,7 @@ export default function elasticIdentity(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 300, { radius: 6, color: ROLE.compile }),
       txt(
         'Never key checkpoint ownership by old rank filename; torchrun retries cannot recover unsaved work',
         0,
@@ -123,7 +117,6 @@ export default function elasticIdentity(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-elastic-identity-0', () => s.play(stage.to(0, { duration: 0.25 })));
   c.on('pt-elastic-identity-1', () =>

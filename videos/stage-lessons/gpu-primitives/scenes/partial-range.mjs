@@ -13,14 +13,11 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
 
 export default function partialRange(s, c) {
-  const phase = s.value(0);
-
   const showBeat0 = s.value(1);
   const showFinalValid = s.value(0);
   const showOverflow = s.value(0);
@@ -39,8 +36,6 @@ export default function partialRange(s, c) {
   const beat0 = guardedDynamic(showBeat0, (a) => {
     const fin = showFinalValid.value;
     const ovf = showOverflow.value;
-    const p = phase.value;
-    const pulse = 0.65 + 0.35 * Math.sin(p * 4.2);
 
     const inputs = ['MAX', '+1', '−1', '0'];
     const xs = [-570, -190, 190, 570];
@@ -97,7 +92,7 @@ export default function partialRange(s, c) {
         }),
         glassCell(-415, 120, 740, 134, COSMOS.rose, {
           fill: '#2c101d',
-          glow: 12 * pulse,
+          glow: 12,
           opacity: ovf * a,
         }),
         txt('MAX + 1 = 2⁶³', -415, 90, 42, COSMOS.rose, 'mono')
@@ -137,8 +132,6 @@ export default function partialRange(s, c) {
   const beat1 = guardedDynamic(showBeat1, (a) => {
     const zr = showLostZero.value;
     const on = showExactOne.value;
-    const p = phase.value;
-    const u = (p * 0.8) % 1;
 
     const rLeft = -620;
     const rRight = 620;
@@ -174,7 +167,7 @@ export default function partialRange(s, c) {
       txt('10⁸ + 8', rRight, rY - 52, 30, COSMOS.blue, 'mono').opacity(a),
 
       // +1 dot snapping back to 10^8
-      glowDot(oneX - (oneX - rLeft) * (zr > 0.5 ? u : 0), rY, {
+      glowDot(zr > 0.5 ? rLeft : oneX, rY, {
         radius: 9,
         color: COSMOS.rose,
         opacity: a,
@@ -277,7 +270,6 @@ export default function partialRange(s, c) {
   });
 
   s.add(bgAura, beat0, beat1, beat2);
-  runPhase(s, c, phase, 14);
 
   c.on('range-final', () => s.play(showFinalValid.to(1, { duration: 0.4 })));
   c.on('partial-range-step-1', () => s.play(showOverflow.to(1, { duration: 0.45 })));

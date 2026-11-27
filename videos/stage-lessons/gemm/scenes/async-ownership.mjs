@@ -13,12 +13,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function asyncOwnership(s, c) {
-  const phase = s.value(0);
   const clockVal = s.value(0.2); // drives doubleBuffer(clockVal)
   // hazard: 0=normal, 1=early overwrite collision at step 2, 2=repaired at step 3
   const hazard = s.value(0);
@@ -38,12 +36,10 @@ export default function asyncOwnership(s, c) {
   const tx = (t) => -560 + t * 320;
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const clk = clockVal.value;
     const hz = Math.round(hazard.value);
     const sa = showArch.value;
     const db = doubleBuffer(clk);
-    const pulse = 0.72 + 0.28 * Math.sin(p * 4.0);
 
     const nodes = [];
 
@@ -119,7 +115,7 @@ export default function asyncOwnership(s, c) {
       nodes.push(
         rect(ovW, 84, { fill: '#451020', stroke: ROLE.bad, width: 3.8, radius: 10 })
           .at((tx(2) + tx(3)) * 0.5, laneY0)
-          .glow(14 * pulse, ROLE.bad),
+          .glow(14, ROLE.bad),
         txt('OVERWRITE T2!', (tx(2) + tx(3)) * 0.5, laneY0, 26, ROLE.bad, 'mono').glow(6, ROLE.bad),
         txt(
           'HAZARD: T2 overwrites Slot 0 while MMA reader is still active!',
@@ -191,7 +187,6 @@ export default function asyncOwnership(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('slot-copy', () =>
     s.play(clockVal.to(1.0, { duration: remainDuration(c, 'slot-copy', 0.6) })),

@@ -5,7 +5,6 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -13,13 +12,11 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
 
 export default function expertDispatch(s, c) {
-  const phase = s.value(0);
   const showDispatch = s.value(1);
   const showToken = s.value(0);
 
@@ -148,11 +145,6 @@ export default function expertDispatch(s, c) {
         opacity: a,
       }),
       txt(foot, 0, 320, 28, sk ? ROLE.warn : COSMOS.ink, 'mono').opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 410, {
-        radius: 6,
-        color: ROLE.expert,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
@@ -232,18 +224,12 @@ export default function expertDispatch(s, c) {
         cb ? ROLE.good : COSMOS.muted,
         'mono',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 405, {
-        radius: 6,
-        color: cb ? ROLE.good : ROLE.expert,
-        opacity: a,
-      }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, dispatchView, tokenView);
-  runPhase(s, c, phase, 14);
 
   c.on('mp-expert-dispatch-0', () =>
     s.play(p0.to(1, { duration: remainDuration(c, 'mp-expert-dispatch-0', 0.35) })),

@@ -11,7 +11,6 @@ import {
   autoNode,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowTex,
@@ -50,7 +49,7 @@ export default function traceContract(s, c) {
   const mode0 = guardedDynamic(
     () => fadeOutHalf(redactMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const wo = worldOn.value;
       const ob = obsOn.value;
       const rz = readZero.value;
@@ -150,7 +149,7 @@ export default function traceContract(s, c) {
   const mode1 = guardedDynamic(
     () => fadeInHalf(redactMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const sk = scanKeys.value;
       const de = dropEmail.value;
       const mv = maskVal.value;
@@ -264,7 +263,6 @@ export default function traceContract(s, c) {
   );
 
   s.add(stageAura, header, trajEq, mode0, mode1);
-  driftValue(s, c, pulse, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('trace-world', () => {
     s.play(worldOn.to(1, { duration: clampDur(c, c.cue('trace-world').start, 0.35) }));

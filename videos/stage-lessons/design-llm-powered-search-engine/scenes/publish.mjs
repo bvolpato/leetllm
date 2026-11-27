@@ -10,14 +10,12 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   quadArcPts,
   txt,
 } from '../parts.mjs';
 
 export default function publish(s, c) {
-  const pulse = s.value(0);
   const bindOn = s.value(0);
   const acceptOn = s.value(0);
   const replayOn = s.value(0);
@@ -33,7 +31,6 @@ export default function publish(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const acc = acceptOn.value > 0.5;
       const rep = replayOn.value > 0.5;
       const mem = memoryOn.value > 0.5;
@@ -110,10 +107,9 @@ export default function publish(s, c) {
         );
         if (card.show && i === 1) {
           nodes.push(
-            beamWithPhotons(quadArcPts([0, 68], [-220, 165], 0, 16), ROLE.ok, p, {
+            beamWithPhotons(quadArcPts([0, 68], [-220, 165], 0, 16), ROLE.ok, 0, {
               width: 3.6,
               glow: 9,
-              photonCount: 1,
             }),
           );
         }
@@ -174,8 +170,6 @@ export default function publish(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('publish-beat-1-focus-1', () => {
     s.play(bindOn.to(1, { duration: clampDur(c, c.cue('publish-beat-1-focus-1').start, 0.35) }));
   });

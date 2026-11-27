@@ -3,13 +3,11 @@ import {
   COSMOS,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -20,7 +18,6 @@ const SUB8 = [
 ];
 
 export default function subeightFormats(s, c) {
-  const phase = s.value(0);
   const showMX = s.value(0.4);
   const showNV = s.value(0);
   const showPack = s.value(0);
@@ -38,7 +35,6 @@ export default function subeightFormats(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const mx = showMX.value;
     const nv = showNV.value;
     const pk = showPack.value;
@@ -172,18 +168,12 @@ export default function subeightFormats(s, c) {
         COSMOS.muted,
         'sans',
       ).opacity(opNV),
-      glowDot(-790 + ((p * 0.45) % 1) * 1580, -56, {
-        radius: 5,
-        color: COSMOS.violet,
-        opacity: 0.7,
-      }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('lp-subeight-formats-build-0', () =>
     s.play(showMX.to(1, { duration: remainDuration(c, 'lp-subeight-formats-build-0', 0.45) })),

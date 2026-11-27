@@ -11,12 +11,10 @@ import {
   orbitScene,
   radialDial,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function freshPolicyEvaluation(s, c) {
-  const phase = s.value(0);
   const freshShow = s.value(0.35);
   const optProgress = s.value(0.18);
 
@@ -111,7 +109,6 @@ export default function freshPolicyEvaluation(s, c) {
   });
 
   s.add(bgAura, landscape3d, title, live);
-  runPhase(s, c, phase, 14);
   orbitScene(s, c, landscape3d, { theta: -0.18, phi: 0.92 });
 
   c.on('fresh-samples', () => s.play(freshShow.to(1, { duration: 0.55 })));

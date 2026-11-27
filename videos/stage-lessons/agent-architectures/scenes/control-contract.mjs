@@ -9,7 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   quadArcPts,
@@ -34,7 +33,7 @@ export default function controlContract(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const vl = valOn.value;
       const ds = dispOn.value;
       const cd = codeOn.value;
@@ -135,7 +134,6 @@ export default function controlContract(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('control-propose', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('control-propose').start, 0.25) }));

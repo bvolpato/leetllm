@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function cacheReclamation(s, c) {
-  const phase = s.value(0);
   // step: 0=insert suffix & lock ancestors, 1=R0 done & R1 GPU reader pending (blocked),
   // 2=R1 GPU reader completes, 3=R1 releases reference (eligible), 4=policy reclaims segment
   const step = s.value(0);
@@ -32,7 +29,6 @@ export default function cacheReclamation(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const readerDone = st >= 2;
     const released = st >= 3;
     const reclaimed = st >= 4;
@@ -120,9 +116,7 @@ export default function cacheReclamation(s, c) {
       txt(gateTxt, 0, 238, 28, gateCol, 'mono'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-660 + u * 1320, 136, { radius: 6, color: readerDone ? ROLE.decode : COSMOS.gold }),
       txt(
         reclaimed
           ? 'Release early -> corrupts live KV. Forget to release -> starves KV while GPU sits idle.'
@@ -140,7 +134,6 @@ export default function cacheReclamation(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-cache-reclamation-beat-0', 0],
     ['sg-cache-reclamation-beat-1', 1],

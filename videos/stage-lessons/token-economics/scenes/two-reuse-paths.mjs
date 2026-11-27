@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   guardedDynamic,
   prefixMicro,
   quadArcPts,
@@ -43,7 +42,7 @@ export default function twoReusePaths(s, c) {
       const rv = rightVis.value;
       const mp = matchProg.value;
       const op = outProg.value;
-      const p = pulseT.value;
+      const p = 0;
       const nodes = [];
 
       // LEFT LANE: Stored Semantic Answer Copy
@@ -243,7 +242,6 @@ export default function twoReusePaths(s, c) {
   );
 
   s.add(leftAura, rightAura, header, stageCanvas);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('stored-answer-copy', () => {
     const t = c.cue('stored-answer-copy').start;

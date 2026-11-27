@@ -13,14 +13,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function packing(s, c) {
-  const pulse = s.value(0);
   const budgetOn = s.value(0);
   const excProg = s.value(0);
   const polProg = s.value(0);
@@ -217,8 +215,6 @@ export default function packing(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('packing-budget', () => {
     s.play(budgetOn.to(1, { duration: clampDur(c, c.cue('packing-budget').start, 0.3) }));
   });

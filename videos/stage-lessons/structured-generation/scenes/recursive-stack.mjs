@@ -12,7 +12,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fsmNode,
@@ -25,7 +24,6 @@ import {
 } from '../parts.mjs';
 
 export default function recursiveStack(s, c) {
-  const pulse = s.value(0);
   const beat0Prog = s.value(0);
   const act = s.value(0); // 0 = DFA loop vs stack, 1 = 3-frame trial A & B
   const aProg = s.value(0);
@@ -43,7 +41,6 @@ export default function recursiveStack(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(act.value),
     (a) => {
-      const p = pulse.value;
       const b0 = beat0Prog.value;
       const nodes = [];
 
@@ -64,8 +61,8 @@ export default function recursiveStack(s, c) {
       const topArc = quadArcPts([n1[0] + 74, n1[1] - 28], [n2[0] - 74, n2[1] - 28], -68);
       const botArc = quadArcPts([n2[0] - 74, n2[1] + 28], [n1[0] + 74, n1[1] + 28], 68);
       nodes.push(
-        beamWithPhotons(topArc, ROLE.fsm, p * 1.1, { alpha: a, width: 3.4 }),
-        beamWithPhotons(botArc, ROLE.schema, p * 1.1 + 0.5, { alpha: a, width: 3.4 }),
+        beamWithPhotons(topArc, ROLE.fsm, 0, { alpha: a, width: 3.4 }),
+        beamWithPhotons(botArc, ROLE.schema, 0, { alpha: a, width: 3.4 }),
         fsmNode(n1[0], n1[1], 68, 'item {}', { color: ROLE.fsm, size: 26, opacity: a }),
         fsmNode(n2[0], n2[1], 68, ', / ]', {
           color: ROLE.schema,
@@ -144,7 +141,6 @@ export default function recursiveStack(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(act.value),
     (a) => {
-      const p = pulse.value;
       const ap = aProg.value;
       const ba = bAct.value;
       const bp = bProg.value;
@@ -253,7 +249,7 @@ export default function recursiveStack(s, c) {
             ? 'FAIL AT ] -> REJECT'
             : `${rem} frames left`;
         nodes.push(
-          beamWithPhotons(quadArcPts([215, y], [355, y], 0), rowCol, p * 1.1, {
+          beamWithPhotons(quadArcPts([215, y], [355, y], 0), rowCol, 0, {
             alpha: rowAlpha * (prog > 0.05 ? 0.9 : 0.35),
             width: 3,
             photonCount: prog > 0.1 ? 1 : 0,
@@ -283,7 +279,6 @@ export default function recursiveStack(s, c) {
   );
 
   s.add(stageAura, header, act0, act1);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-recursive-stack-0', () => {
     s.play(beat0Prog.to(1, { duration: clampDur(c, c.cue('sg-recursive-stack-0').start, 3.2) }));

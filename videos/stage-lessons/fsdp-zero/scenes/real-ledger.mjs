@@ -13,12 +13,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function realLedger(s, c) {
-  const phase = s.value(0);
   const showLedger = s.value(1);
   const step = s.value(0); // 1=grad, 2=master, 3=moments, 4=sum 1120, 5=70 GB/card
   const showRuler = s.value(0);
@@ -36,7 +34,6 @@ export default function realLedger(s, c) {
 
   const ledgerView = guardedDynamic(showLedger, (a) => {
     const st = step.value;
-    const p = phase.value;
 
     const pieces = [
       { label: 'BF16 weight', b: 2, gb: 140, col: ROLE.weights, on: true },
@@ -103,9 +100,7 @@ export default function realLedger(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 274, { radius: 6, color: COSMOS.gold, opacity: a }),
       txt(
         st >= 4.5
           ? 'Measure through the 1st optimizer update (Adam allocates m & v then)'
@@ -176,7 +171,6 @@ export default function realLedger(s, c) {
   });
 
   s.add(bgAura, title, ledgerView, rulerView);
-  runPhase(s, c, phase, 14);
 
   c.on('add-gradient', () =>
     s.play(step.to(1, { duration: remainDuration(c, 'add-gradient', 0.4) })),

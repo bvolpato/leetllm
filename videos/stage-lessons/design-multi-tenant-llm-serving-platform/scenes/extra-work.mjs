@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   buildKvPageTile,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function extraWork(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const verOn = s.value(0);
   const cntOn = s.value(0);
@@ -39,7 +37,6 @@ export default function extraWork(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const ver = verOn.value > 0.5;
       const cnt = cntOn.value > 0.5;
       const b1 = b1On.value > 0.5;
@@ -70,8 +67,8 @@ export default function extraWork(s, c) {
                 [pr.cx, -18],
               ],
               ROLE.shared,
-              p + idx * 0.25,
-              { width: 3.6, glow: 7, photonCount: 1, alpha: ver ? 1 : 0.35 },
+              0,
+              { width: 3.6, glow: 7, alpha: ver ? 1 : 0.35 },
             ),
 
             rect(430, 114, {
@@ -196,8 +193,8 @@ export default function extraWork(s, c) {
                 [52, 95],
               ],
               ROLE.ok,
-              p,
-              { width: 4.2, glow: 9, photonCount: 2 },
+              0,
+              { width: 4.2, glow: 9 },
             ),
           );
         }
@@ -234,8 +231,8 @@ export default function extraWork(s, c) {
                 [175, y],
               ],
               ROLE.warn,
-              p + i * 0.25,
-              { width: 4, glow: 8, photonCount: 2 },
+              0,
+              { width: 4, glow: 8 },
             ),
 
             rect(610, 108, { fill: '#22150b', stroke: ROLE.warn, width: 2.8, radius: 14 })
@@ -262,8 +259,6 @@ export default function extraWork(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-extra-work-b0', b0On, 1);
   stepAfter(s, c, 'mt-extra-work-s0-0', verOn, 1);
   stepAfter(s, c, 'mt-extra-work-s0-1', cntOn, 1);

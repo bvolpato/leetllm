@@ -8,12 +8,10 @@ import {
   COSMOS,
   ROLE,
   actorOrb,
-  ambientClock,
   cinemaAtmosphere,
   glowArcArrow,
   glowArrow,
   glowCross,
-  glowDot,
   glowPill,
   guardedDynamic,
   lowerFooter,
@@ -28,7 +26,6 @@ export default function graphValidation(s, c) {
     accent: ROLE.fail,
   });
 
-  const amb = ambientClock(s, c);
   const stage = s.value(0); // 0=cycle DFS, 1=heap tie-break & zero release, 2=return-type router
   const dfsStep = s.value(0); // 0=init, 1=a active -> b, 2=back edge b->a CYCLE!
   const heapStep = s.value(0); // 0=raw, 1=sorted by priority, 2=tie on pri=2 (docs before test), 3=deploy rem=0 ready
@@ -37,7 +34,6 @@ export default function graphValidation(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(stage.value);
       const nodes = [];
 
@@ -62,13 +58,11 @@ export default function graphValidation(s, c) {
             color: ds >= 1 ? ROLE.focus : COSMOS.dim,
             width: 3.8,
             alpha,
-            photonT: ds === 1 ? (amb.value * 4) % 1 : null,
           }),
           glowArcArrow([-215, 45], [-585, 45], 85, {
             color: isCycle ? ROLE.fail : COSMOS.dim,
             width: isCycle ? 4.8 : 3,
             alpha,
-            photonT: isCycle ? (amb.value * 4) % 1 : null,
           }),
           actorOrb(-665, -5, 72, aCol, 'a', ds >= 1 ? 'active' : 'unseen', {
             alpha,
@@ -315,12 +309,6 @@ export default function graphValidation(s, c) {
       }
 
       nodes.push(
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5 + 1.5 * pulse,
-          color: st === 0 ? ROLE.fail : ROLE.workerB,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'UPFRONT GRAPH VALIDATION + STRICT RETURN CONTRACT',
           st === 0

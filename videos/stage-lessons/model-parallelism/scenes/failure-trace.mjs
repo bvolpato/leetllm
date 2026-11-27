@@ -6,7 +6,6 @@ import {
   aura,
   fmtFixed,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -14,13 +13,11 @@ import {
   mpReference,
   rect,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
 
 export default function failureTrace(s, c) {
-  const phase = s.value(0);
   const showB0 = s.value(1);
   const showB1 = s.value(0);
   const showB2 = s.value(0);
@@ -127,11 +124,6 @@ export default function failureTrace(s, c) {
         COSMOS.ink,
         'sans',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 410, {
-        radius: 6,
-        color: ROLE.warn,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
@@ -204,11 +196,6 @@ export default function failureTrace(s, c) {
         COSMOS.ink,
         'sans',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 410, {
-        radius: 6,
-        color: ROLE.gpu1,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
@@ -277,17 +264,11 @@ export default function failureTrace(s, c) {
         ROLE.good,
         'sans',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: ROLE.good,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, b0View, b1View, b2View);
-  runPhase(s, c, phase, 14);
 
   c.on('mp-failure-trace-0', () =>
     s.play(p0.to(1, { duration: remainDuration(c, 'mp-failure-trace-0', 0.35) })),

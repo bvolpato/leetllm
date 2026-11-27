@@ -3,16 +3,7 @@
 // timeout retains consumed attempt) beside an atomic token reservation meter where
 // 120 input + 80 output = 200 exceeds the 150-token yellow threshold and halts pre-dispatch!
 import { circle, group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function budgetReservation(s, c) {
   const pulse = s.value(0);
@@ -174,7 +165,6 @@ export default function budgetReservation(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-budget-reservation-0', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('aa-budget-reservation-0').start, 0.25) }));

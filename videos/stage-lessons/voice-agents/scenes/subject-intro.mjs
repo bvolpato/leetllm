@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   clampDur,
   driftValue,
-  glowDot,
   guardedDynamic,
   interrupt,
   txt,
@@ -149,7 +148,7 @@ export default function subjectIntro(s, c) {
           [0, botY - 46],
         ];
         nodes.push(
-          beamWithPhotons(arc, ROLE.ok, p, { width: 3.6, photonCount: 2 }),
+          beamWithPhotons(arc, ROLE.ok, 0, { width: 3.6 }),
           txt(
             'PLAYER RECEIPT CONFIRMS WHICH COMPLETE PIECES PLAYED',
             0,
@@ -184,15 +183,6 @@ export default function subjectIntro(s, c) {
           ).glow(ask > 0.35 ? 6 : 0, ROLE.focus),
         );
       }
-
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: phoneCol,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
 
       return group(...nodes);
     },

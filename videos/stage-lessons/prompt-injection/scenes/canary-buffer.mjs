@@ -16,9 +16,7 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
-  glowDot,
   guardedDynamic,
   quadArcPts,
   txt,
@@ -62,7 +60,7 @@ export default function canaryBuffer(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const eh = entropyHi.value;
       const ht = hitOn.value;
       const jc = joinChunks.value;
@@ -87,10 +85,9 @@ export default function canaryBuffer(s, c) {
       );
       for (let i = 0; i < CANARY_BYTES; i++) {
         const cx = bx0 + i * (bw + bgap) + bw * 0.5;
-        const lit = (p * 4 + i * 0.17) % 1 < 0.35;
         nodes.push(
           rect(bw, 54, {
-            fill: lit ? '#1c1830' : '#0e1529',
+            fill: eh > 0.3 ? '#1c1830' : '#0e1529',
             stroke: eh > 0.3 ? ROLE.canary : '#2f426e',
             width: 2,
             radius: 6,
@@ -233,7 +230,6 @@ export default function canaryBuffer(s, c) {
           'mono',
           'left',
         ),
-        glowDot(-840 + ((p * 0.25) % 1) * 1680, 228, { radius: 4.5, color: ROLE.canary, glow: 8 }),
       );
 
       return group(...nodes);
@@ -241,7 +237,6 @@ export default function canaryBuffer(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('pi-canary-buffer-0', () => {
     s.play(entropyHi.to(0.6, { duration: clampDur(c, c.cue('pi-canary-buffer-0').start, 0.35) }));

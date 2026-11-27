@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function mediaLimits(s, c) {
-  const phase = s.value(0);
   // step: 0=op-0 two compressed runs, 1=expand (12 decoded pixels!), 2=op-1 remote/audio caps, 3=trust-override (v0.31 server trust flag), 4=op-2 time download/decode at API server
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function mediaLimits(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 1) {
@@ -136,9 +132,7 @@ export default function mediaLimits(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 325, { radius: 6, color: ROLE.kv }),
       txt(
         st <= 1
           ? 'Download cap bounds network bytes; pixel cap bounds decoded memory & CPU'
@@ -156,7 +150,6 @@ export default function mediaLimits(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['vv-media-limits-op-0', 0],
     ['vv-media-limits-expand', 1, true],

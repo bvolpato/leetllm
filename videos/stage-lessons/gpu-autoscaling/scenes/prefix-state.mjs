@@ -8,14 +8,12 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   tweenOn,
   txt,
 } from '../parts.mjs';
 
 export default function prefixState(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=same warm hit, 2=cold/edit/tenant misses
 
   const header = cinemaHeader(
@@ -72,7 +70,6 @@ export default function prefixState(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const nodes = [
         txt('CACHED BLOCK ON REPLICA A', 40, -370, 26, ROLE.active, 'mono', 'left'),
         txt(
@@ -131,7 +128,7 @@ export default function prefixState(s, c) {
               [525, y],
             ],
             rowCol,
-            p * 0.9,
+            0,
             { width: 3.4, glow: 8, photonCount: 1 },
           ),
           txt(hit ? 'REUSE 4' : 'REUSE 0', 560, y, 30, rowCol, 'mono', 'left').glow(7, rowCol),
@@ -149,7 +146,6 @@ export default function prefixState(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 5.5, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-prefix-state-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-prefix-state-b1', step, 2, 0.35);

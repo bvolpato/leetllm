@@ -17,7 +17,6 @@ import {
   lumBar,
   playCue,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -27,7 +26,6 @@ export default function calibration(s, c) {
   const resFine = calibrationResult(1);
   const ranking = calibrationRanking();
 
-  const phase = s.value(0);
   const fineBound = s.value(25);
   const litWide = s.value(0);
   const showErrors = s.value(0);
@@ -244,8 +242,6 @@ export default function calibration(s, c) {
     rightDirLayer,
     lowerLayer,
   );
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'wide', (d) => s.play(litWide.to(1, { duration: d })), { dur: 0.5 });
   playCue(s, c, 'fine', (d) => s.play(fineBound.to(1, { duration: d })), { dur: 2.6 });

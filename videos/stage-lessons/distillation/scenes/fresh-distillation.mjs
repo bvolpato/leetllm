@@ -15,7 +15,6 @@ import {
   aura,
   circle,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,

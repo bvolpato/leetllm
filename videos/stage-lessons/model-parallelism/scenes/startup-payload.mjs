@@ -8,7 +8,6 @@ import {
   aura,
   buildCluster3d,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
@@ -215,7 +214,6 @@ export default function startupPayload(s, c) {
     group(
       txt('3D 4-GPU NVLINK RING', 495, -395, 26, ROLE.gpu1, 'mono').glow(5, ROLE.gpu1),
       txt('Small decode batches are latency-bound', 495, 420, 26, COSMOS.gold, 'mono'),
-      glowDot(-820 + ((phase.value * 0.55) % 1) * 960, 420, { radius: 6, color: ROLE.bad }),
     ),
   );
 

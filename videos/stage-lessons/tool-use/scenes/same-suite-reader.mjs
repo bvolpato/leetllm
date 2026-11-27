@@ -14,7 +14,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -47,7 +46,7 @@ export default function sameSuiteReader(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(Math.min(1, act.value)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const r17 = v17On.value;
       const r16 = v16On.value;
       const dl = deltaReveal.value;
@@ -165,7 +164,7 @@ export default function sameSuiteReader(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(Math.min(1, act.value)) * fadeOutHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const sw = rejectSweep.value;
       const nodes = [];
 
@@ -279,7 +278,6 @@ export default function sameSuiteReader(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-same-suite-reader-1', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('tu-same-suite-reader-1').start, 0.25) }));

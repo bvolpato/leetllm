@@ -6,19 +6,16 @@ import {
   SOFTMAX_PROBS,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
 
 export default function normalizerOutput(s, c) {
-  const phase = s.value(0);
   const showProb = s.value(1);
   const askRead = s.value(0);
   const readFirst = s.value(0);
@@ -33,13 +30,11 @@ export default function normalizerOutput(s, c) {
 
   // Beat 0-1: Retained (m, d) + 4 logits -> 4 probability slots
   const probView = guardedDynamic(showProb, (a) => {
-    const p = phase.value;
     const ask = askRead.value;
     const rf = readFirst.value;
     const p0 = revealFirstProb.value;
     const rr = readRest.value;
     const e8 = showEightRow.value;
-    const u = (p * 0.9) % 1;
 
     const extraReads = (rf > 0.5 ? 1 : 0) + Math.round(3 * rr);
     const filledCount = (p0 > 0.5 ? 1 : 0) + Math.round(3 * rr);
@@ -110,7 +105,6 @@ export default function normalizerOutput(s, c) {
             opacity: a,
             core: false,
           }),
-          glowDot(xPos, -68 + u * 156, { radius: 6.5, color: COSMOS.cyan, opacity: a }),
         );
       }
     });
@@ -209,7 +203,6 @@ export default function normalizerOutput(s, c) {
   });
 
   s.add(bgAura, probView, maskView);
-  runPhase(s, c, phase, 14);
 
   c.on('prob-state', () => s.play(showProb.to(1, { duration: 0.3 })));
   c.on('prob-question', () => s.play(askRead.to(1, { duration: 0.35 })));

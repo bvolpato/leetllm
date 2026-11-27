@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function ownersDebug(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=training step owners, 1=inference & serving engines, 2=single-device -> distributed debug loop
 
   const bgAura = aura(0, 20, 620, '#60a5fa1c', '#5ce1e618');
@@ -30,7 +27,6 @@ export default function ownersDebug(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = stage.value;
-    const p = phase.value;
 
     const nodes = [];
     if (st < 0.5) {
@@ -104,9 +100,7 @@ export default function ownersDebug(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: st >= 1.5 ? ROLE.good : ROLE.orig }),
       txt(
         'Choose the FIRST changed receipt across boundaries rather than treating a logged metric as diagnosis',
         0,
@@ -121,7 +115,6 @@ export default function ownersDebug(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-owners-debug-0', () => s.play(stage.to(0, { duration: 0.25 })));
   c.on('pt-owners-debug-1', () =>

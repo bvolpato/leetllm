@@ -12,7 +12,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -44,7 +43,7 @@ export default function reserveAndReconcile(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const ih = inboxHi.value;
       const qh = questionHi.value;
       const rA = revealA.value;
@@ -243,7 +242,6 @@ export default function reserveAndReconcile(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('recovery-local', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('recovery-local').start, 0.25) }));

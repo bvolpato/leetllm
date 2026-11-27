@@ -21,12 +21,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   const travel = s.value(0);
   const zoom = s.value(0);
   const halfLand = s.value(0);
@@ -61,8 +59,6 @@ export default function intro(s, c) {
     const hl = halfLand.value;
     const sl = singleLand.value;
     const rs = showRoleSplit.value;
-    const ph = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(ph * 3.4);
 
     const reqWeight = ONE - DECREMENT * tr;
     const reqX = xAt(reqWeight);
@@ -234,10 +230,10 @@ export default function intro(s, c) {
 
         // Lower and upper FP32 ticks
         line([xLow, zoomY - 22], [xLow, zoomY + 22], { stroke: COSMOS.cyan, width: 6 })
-          .glow(8 * pulse, COSMOS.cyan)
+          .glow(8, COSMOS.cyan)
           .opacity(zm),
         line([xHigh, zoomY - 22], [xHigh, zoomY + 22], { stroke: COSMOS.cyan, width: 6 })
-          .glow(8 * pulse, COSMOS.cyan)
+          .glow(8, COSMOS.cyan)
           .opacity(zm),
 
         // Yellow target dot floating between the two FP32 ticks
@@ -305,7 +301,6 @@ export default function intro(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('request-step', () => s.play(travel.to(1, { duration: 1.4 })));
   c.on('inspect-ticks', () => s.play(zoom.to(1, { duration: 0.7 })));

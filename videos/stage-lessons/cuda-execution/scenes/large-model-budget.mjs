@@ -10,13 +10,10 @@ import {
   heroTitle,
   rect,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function largeModelBudget(s, c) {
-  const phase = s.value(0);
-
   // Part 1: 7B parameter bar vs 24 GB limit (Beats 0..3)
   const showPart1 = s.value(1);
   const wAmt = s.value(0);
@@ -363,7 +360,6 @@ export default function largeModelBudget(s, c) {
   });
 
   s.add(bgAura, title, part1, part2, part3);
-  runPhase(s, c, phase, 16);
 
   // Part 1 cues
   c.on('large-weights', () => s.play(wAmt.to(1, { duration: 0.6 })));

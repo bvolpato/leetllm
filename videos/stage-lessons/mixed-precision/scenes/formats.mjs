@@ -18,12 +18,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function formats(s, c) {
-  const phase = s.value(0);
   const showAct1 = s.value(1);
   const bitsReveal = s.value(0.25);
   const gridFocus = s.value(0);
@@ -77,8 +75,7 @@ export default function formats(s, c) {
     const gf = gridFocus.value;
     const rf = rangeFocus.value;
     const cf = contractFocus.value;
-    const ph = phase.value;
-    const probeVal = 1.0 + 0.02 * Math.sin(ph * 1.1);
+    const probeVal = 1.012;
 
     const fp16Rib = bitFieldRibbon({
       x: -830,
@@ -237,8 +234,6 @@ export default function formats(s, c) {
     const ls = routeLoss.value;
     const bw = routeBackward.value;
     const bf = routeBuffer.value;
-    const ph = phase.value;
-    const travelT = (ph * 0.55) % 1;
 
     const nodes = [
       // Autocast region subtle glowing boundary arc (a live execution region, not a boxed bullet card)
@@ -374,33 +369,10 @@ export default function formats(s, c) {
         .opacity(bf * a),
     ];
 
-    // Live flowing photon along active pipeline segment
-    if (mm > 0.2) {
-      nodes.push(
-        glowDot(-580 + 460 * travelT, -90, { radius: 8, color: COSMOS.gold, glow: 12, opacity: a }),
-      );
-    }
-    if (bw > 0.2) {
-      nodes.push(
-        glowDot(-40 + 500 * travelT, -90, { radius: 8, color: COSMOS.rose, glow: 12, opacity: a }),
-      );
-    }
-    if (bf > 0.2) {
-      nodes.push(
-        glowDot(160 - 700 * travelT, 195, {
-          radius: 8,
-          color: COSMOS.emerald,
-          glow: 12,
-          opacity: a,
-        }),
-      );
-    }
-
     return group(...nodes);
   });
 
   s.add(bgAura, title1, title2, fp16DeltaTex, bf16DeltaTex, act1Live, act2Live);
-  runPhase(s, c, phase, 16);
 
   c.on('formats-b1-1', () => s.play(bitsReveal.to(1, { duration: 0.9 })));
   c.on('formats-b2-1', () => s.play(gridFocus.to(1, { duration: 0.7 })));

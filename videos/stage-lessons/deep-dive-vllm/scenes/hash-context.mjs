@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function hashContext(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = hash-parent (chained parent hash + exact tokens + execution context)
   // 1 = hash-revision (manifest path changes revision-one -> revision-two)
@@ -35,7 +32,6 @@ export default function hashContext(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const pathChanged = st >= 1;
     const nodes = [
       txt(
@@ -158,16 +154,11 @@ export default function hashContext(s, c) {
             ? 'Predict: Display name stayed Finch, path changed. Which version records the path change?'
             : 'A different earlier history changes the parent hash even when all 4 words match';
 
-    const u = (p * 0.65) % 1;
-    nodes.push(
-      glowDot(-780 + u * 1560, 322, { radius: 6, color: st >= 4 ? ROLE.good : COSMOS.gold }),
-      txt(caption, 0, 382, 26, st >= 4 ? ROLE.good : COSMOS.gold, 'sans'),
-    );
+    nodes.push(txt(caption, 0, 382, 26, st >= 4 ? ROLE.good : COSMOS.gold, 'sans'));
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['hash-parent', 0],
     ['hash-revision', 1],

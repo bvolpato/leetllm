@@ -16,14 +16,12 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   stableSoftmax,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function smoothingEquilibrium(s, c) {
-  const phase = s.value(0);
   const smoothMix = s.value(0); // 0 = one-hot [0,1,0], 1 = [1/30, 28/30, 1/30]
   const gapVal = s.value(1.5); // z_slept - z_comp (log(28)=3.332 equilibrium, 5.2 overshoot)
   const shiftTen = s.value(0);
@@ -254,7 +252,6 @@ export default function smoothingEquilibrium(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   // Beat 0
   tweenCue(s, c, 'smoothing-equilibrium-0', gapVal, 4.2, { duration: 0.9 });

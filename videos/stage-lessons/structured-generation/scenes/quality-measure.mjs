@@ -12,7 +12,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fsmNode,
@@ -24,7 +23,6 @@ import {
 } from '../parts.mjs';
 
 export default function qualityMeasure(s, c) {
-  const pulse = s.value(0);
   const act = s.value(0); // 0 = latency categories, 1 = 40 us / 10,000 us = 0.4%, 2 = 4 eval pillars
   const b0Hi = s.value(0);
   const compileOn = s.value(0);
@@ -281,7 +279,6 @@ export default function qualityMeasure(s, c) {
 
   s.add(stageAura, header, act0, act1, act2);
   c.show('sg-mask-cost', ratioEq, { after: false });
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-quality-measure-0', () => {
     s.play(b0Hi.to(1, { duration: clampDur(c, c.cue('sg-quality-measure-0').start, 0.35) }));

@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function replicaLocality(s, c) {
-  const phase = s.value(0);
   // step: 0=Replica A warm (KV 12..15) vs Replica B cold, 1=R42 routed to cold B -> miss,
   // 2=longest-prefix-first delays unrelated cold request, 3=HiCache tiered storage (GPU -> Host -> Storage)
   const step = s.value(0);
@@ -32,7 +29,6 @@ export default function replicaLocality(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 1) {
@@ -151,9 +147,7 @@ export default function replicaLocality(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 295, { radius: 6, color: st === 1 ? ROLE.fail : ROLE.radix }),
       txt(
         st >= 3
           ? 'HiCache saves prefill compute on tiered hits while paying byte-transfer time.'
@@ -171,7 +165,6 @@ export default function replicaLocality(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-replica-locality-beat-0', 0],
     ['sg-route-cold', 1, true],

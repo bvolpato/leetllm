@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function reservationPolicy(s, c) {
-  const phase = s.value(0);
   // step: 0=pending prefills reserve destination slots, 1=10 x 512 MiB = 5 GiB reserved (0 received, 0 decoding),
   // 2=early policy overlaps chunked prefill + transfer, 3=prefill_complete defers reservation (holds source KV, loses overlap),
   // 4=workers must agree on policy, revision, and layout
@@ -32,7 +29,6 @@ export default function reservationPolicy(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 1) {
@@ -149,9 +145,7 @@ export default function reservationPolicy(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 288, { radius: 6, color: st >= 3 ? ROLE.fail : ROLE.radix }),
       txt(
         st >= 4
           ? 'Workers must agree on reservation policy, revision, and layout; compare both queues.'
@@ -169,7 +163,6 @@ export default function reservationPolicy(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-reservation-policy-beat-0', 0],
     ['sg-reservation-five', 1, true],

@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function dataOwnership(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 0=DP repeat, 1=FSDP O/G/P sharding, 2=hierarchical domains, 3=outer replication
 
   const bgAura = aura(0, 15, 620, '#34d3991c', '#5ce1e618');
@@ -29,7 +26,6 @@ export default function dataOwnership(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     const tiers = [
@@ -86,9 +82,7 @@ export default function dataOwnership(s, c) {
       txt('Dense vs Expert', 605, 118, 26, st >= 2 ? COSMOS.gold : COSMOS.muted, 'mono'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 248, { radius: 6, color: ROLE.dp }),
       txt(
         st >= 2
           ? 'Dense (DP x CP) and Expert parameters can have different optimizer denominators'
@@ -112,7 +106,6 @@ export default function dataOwnership(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
   wireStepCues(s, c, step, [
     ['mg-data-ownership-b0', 0],
     ['mg-fsdp-owned', 1],

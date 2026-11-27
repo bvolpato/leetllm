@@ -11,7 +11,6 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -226,7 +225,6 @@ export default function scaleBytes(s, c) {
   });
 
   s.add(bgAura, title, e8Eq, partA, partB, partC);
-  runPhase(s, c, phase, 16);
 
   c.on('lp-scale-bytes-build-0', () => s.play(phase.to(2.0, { duration: 0.45 })));
   c.on('lp-scale-bytes-decode', () =>

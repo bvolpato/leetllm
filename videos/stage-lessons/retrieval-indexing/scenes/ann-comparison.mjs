@@ -9,12 +9,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function annComparison(s, c) {
-  const phase = s.value(0);
   const showPair = s.value(0);
   const showAsk = s.value(0);
   const showResult = s.value(0);
@@ -33,14 +31,12 @@ export default function annComparison(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sp = showPair.value;
     const sa = showAsk.value;
     const sr = showResult.value;
     const sf = showFast.value;
     const st = showTuned.value;
     const sz = showFreeze.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const revealed = sr > 0.4;
 
@@ -50,7 +46,7 @@ export default function annComparison(s, c) {
 
       glassCell(-455, -96, 790, 134, revealed ? COSMOS.rose : COSMOS.muted, {
         fill: revealed ? '#28111a' : '#12182b',
-        glow: revealed ? 9 * pulse : 3,
+        glow: revealed ? 9 : 3,
       }),
       txt('vs EXACT NEIGHBOR TOP-1:  { d2 }', -825, -130, 26, COSMOS.cyan, 'mono', 'left'),
       txt(
@@ -66,7 +62,7 @@ export default function annComparison(s, c) {
 
       glassCell(-455, 84, 790, 146, revealed ? COSMOS.emerald : COSMOS.muted, {
         fill: revealed ? '#0e2824' : '#12182b',
-        glow: revealed ? 9 * pulse : 3,
+        glow: revealed ? 9 : 3,
       }),
       txt('vs HUMAN RELEVANT SET:  { d1, d2 }', -825, 42, 26, COSMOS.emerald, 'mono', 'left'),
       txt(
@@ -108,7 +104,7 @@ export default function annComparison(s, c) {
 
       glassCell(495, -90, 750, 146, sf > 0.3 ? COSMOS.amber : COSMOS.muted, {
         fill: sf > 0.3 ? '#231b10' : '#12182b',
-        glow: sf > 0.3 ? 8 * pulse : 2,
+        glow: sf > 0.3 ? 8 : 2,
       }),
       txt('SUPPLIED LIST 1 (AGREES ON ROWS 2 & 3)', 150, -130, 26, COSMOS.amber, 'mono', 'left'),
       txt('Mean ANN Recall@1 = 2 / 4 = 0.50', 150, -86, 30, COSMOS.ink, 'mono', 'left'),
@@ -116,7 +112,7 @@ export default function annComparison(s, c) {
 
       glassCell(495, 92, 750, 146, st > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: st > 0.3 ? '#0e2824' : '#12182b',
-        glow: st > 0.3 ? 9 * pulse : 2,
+        glow: st > 0.3 ? 9 : 2,
       }),
       txt('SUPPLIED LIST 2 (ALL 4 IDs MATCH)', 150, 52, 26, COSMOS.emerald, 'mono', 'left'),
       txt('Mean ANN Recall@1 = 4 / 4 = 1.00', 150, 96, 30, COSMOS.emerald, 'mono', 'left'),
@@ -147,7 +143,6 @@ export default function annComparison(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('ann-pair', () => s.play(showPair.to(1, { duration: 0.4 })));
   c.on('ann-ask', () => s.play(showAsk.to(1, { duration: 0.4 })));

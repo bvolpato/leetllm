@@ -2,20 +2,9 @@
 // Tokens [10, 20, 30]: Acme hits -> switch tenant to Contoso -> STRICT prediction pause ->
 // Contoso MISSES! Plus vLLM parent-chained block hash + salt & prefix hit vs response hit!
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function cacheKey(s, c) {
-  const phase = s.value(0);
   const contosoOn = s.value(0);
   const missReveal = s.value(0); // STRICT after cc-key-miss!
   const chainOn = s.value(0);
@@ -33,7 +22,6 @@ export default function cacheKey(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const cn = contosoOn.value;
       const ms = missReveal.value;
       const ch = chainOn.value;
@@ -142,12 +130,6 @@ export default function cacheKey(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.model,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -155,8 +137,6 @@ export default function cacheKey(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('cc-key-tenant', () => {
     s.play(contosoOn.to(1, { duration: clampDur(c, c.cue('cc-key-tenant').start, 0.35) }));
   });

@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   clampDur,
   driftValue,
-  glowDot,
   guardedDynamic,
   trimSeg,
   txt,
@@ -87,19 +86,16 @@ export default function audioRepresentation(s, c) {
       const [e3a, e3b] = trimSeg(pts[2], pts[3], n3.r + 14, n4.r + 14);
 
       nodes.push(
-        beamWithPhotons([e1a, e1b], ROLE.focus, p, {
+        beamWithPhotons([e1a, e1b], ROLE.focus, 0, {
           width: 3.6,
-          photonCount: 1,
           alpha: 0.4 + sm * 0.6,
         }),
-        beamWithPhotons([e2a, e2b], ROLE.native, p + 0.33, {
+        beamWithPhotons([e2a, e2b], ROLE.native, 0, {
           width: 3.6,
-          photonCount: 1,
           alpha: 0.35 + cd * 0.65,
         }),
-        beamWithPhotons([e3a, e3b], ROLE.ok, p + 0.66, {
+        beamWithPhotons([e3a, e3b], ROLE.ok, 0, {
           width: 3.6,
-          photonCount: 1,
           alpha: 0.35 + cd * 0.65,
         }),
         n1.node,
@@ -138,12 +134,6 @@ export default function audioRepresentation(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.native,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);

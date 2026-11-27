@@ -13,11 +13,9 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
-  glowDot,
   guardedDynamic,
   hexGate,
   quadArcPts,
@@ -46,7 +44,7 @@ export default function subjectIntro(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const sh = sourceHi.value;
       const rh = resultHi.value;
       const ah = attackHi.value;
@@ -226,7 +224,6 @@ export default function subjectIntro(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('intro-proposal-moves', () => {
     s.play(slipMove.to(1, { duration: clampDur(c, c.cue('intro-proposal-moves').start, 0.7) }));

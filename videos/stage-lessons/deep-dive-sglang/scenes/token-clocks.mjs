@@ -9,13 +9,11 @@ import {
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function tokenClocks(s, c) {
-  const phase = s.value(0);
   // step: 0=arrival 0ms, 1=first token 240ms (TTFT), 2=gaps 40ms & 70ms (ITL), 3=TTFT stages breakdown
   const step = s.value(0);
 
@@ -31,7 +29,6 @@ export default function tokenClocks(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     const xOf = (ms) => -730 + (ms / 350) * 1460;
@@ -105,9 +102,7 @@ export default function tokenClocks(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(xOf(0) + u * (xOf(350) - xOf(0)), axisY, { radius: 6, color: COSMOS.gold }),
       txt(
         st >= 3
           ? 'If the GPU was idle, check when the request entered its first batch.'
@@ -125,7 +120,6 @@ export default function tokenClocks(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-token-clocks-beat-0', 0],
     ['sg-clock-first', 1, true],

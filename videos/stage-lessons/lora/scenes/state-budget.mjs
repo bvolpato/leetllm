@@ -10,12 +10,10 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function stateBudget(s, c) {
-  const phase = s.value(0);
   const show70B = s.value(1);
   const show12B = s.value(0);
   const showMaster = s.value(0);
@@ -241,7 +239,6 @@ export default function stateBudget(s, c) {
   });
 
   s.add(bgAura, title, partFull, part4Bit);
-  runPhase(s, c, phase, 14);
 
   c.on('state-budget-1', () => s.play(show70B.to(1, { duration: 0.2 })));
   c.on('state-twelve', () => s.play(show12B.to(1, { duration: 0.5 })));

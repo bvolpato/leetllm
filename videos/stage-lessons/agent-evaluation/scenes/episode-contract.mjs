@@ -10,7 +10,6 @@ import {
   autoNode,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   railBar,
   river,
@@ -37,7 +36,7 @@ export default function episodeContract(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const rh = reqHi.value;
       const dh = dirtyHi.value;
       const dc = dbClean.value;
@@ -232,7 +231,6 @@ export default function episodeContract(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('identify-resource', () => {
     s.play(reqHi.to(1, { duration: clampDur(c, c.cue('identify-resource').start, 0.35) }));

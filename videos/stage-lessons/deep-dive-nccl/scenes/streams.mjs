@@ -10,13 +10,11 @@ import {
   heroTitle,
   line,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function streams(s, c) {
-  const phase = s.value(0);
   // step: 0=producer 0..1ms, 1=host 1.2ms, 2=ask safe? (hold!), 3=NOT safe (still writing!), 4=overlap bwd 2..6ms, 5=writes finish 7ms, 6=reader unlocked!
   const step = s.value(0);
 
@@ -32,7 +30,6 @@ export default function streams(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const mx = (ms) => -580 + ms * 135; // [0..9 ms] -> [-580..635]
 
     const nodes = [
@@ -98,9 +95,7 @@ export default function streams(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 265, { radius: 6, color: readerCol }),
       txt(
         st >= 6
           ? 'Record CUDA event after writes at 7 ms -> reader waits on event -> safe to consume shard'
@@ -120,7 +115,6 @@ export default function streams(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['streams-input', 0],
     ['streams-host', 1],

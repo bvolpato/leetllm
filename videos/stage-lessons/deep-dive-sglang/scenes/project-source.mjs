@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function projectSource(s, c) {
-  const phase = s.value(0);
   // step: 0=paper / LMSYS / Apache-2.0 provenance, 1=pinned commit f8e62a9 module reading map
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function projectSource(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st === 0) {
@@ -102,9 +98,7 @@ export default function projectSource(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 298, { radius: 6, color: ROLE.radix }),
       txt(
         st >= 1
           ? 'To trace a deployed worker, open these modules at the exact revision installed on that host.'
@@ -120,7 +114,6 @@ export default function projectSource(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-project-source-beat-0', 0],
     ['sg-project-source-beat-1', 1],

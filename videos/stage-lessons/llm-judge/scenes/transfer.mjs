@@ -15,7 +15,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowMeter,
@@ -52,7 +51,7 @@ export default function transfer(s, c) {
     () => fadeOutHalf(Math.min(1, act.value)),
     (a) => {
       const r2 = rep2On.value;
-      const p = pulse.value;
+      const p = 0;
       const nodes = [];
 
       // Old judge pillar on left
@@ -99,10 +98,6 @@ export default function transfer(s, c) {
           'center',
         )
           .glow(6, ROLE.verdict)
-          .opacity(a),
-        circle(6, { fill: ROLE.verdict, stroke: null })
-          .at(Math.sin(p * Math.PI * 2) * 260, 320)
-          .glow(10, ROLE.verdict)
           .opacity(a),
       );
 
@@ -266,7 +261,7 @@ export default function transfer(s, c) {
     () => fadeInHalf(Math.max(0, act.value - 1)),
     (a) => {
       const vt = votesOn.value;
-      const p = pulse.value;
+      const p = 0;
       const nodes = [];
 
       const c1X = -560;
@@ -378,7 +373,6 @@ export default function transfer(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('first-report', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('first-report').start, 0.25) }));

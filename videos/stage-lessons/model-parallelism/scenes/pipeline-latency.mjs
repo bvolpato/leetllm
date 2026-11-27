@@ -7,7 +7,6 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -15,12 +14,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function pipelineLatency(s, c) {
-  const phase = s.value(0);
   const pSingle = s.value(0);
   const pHandoff = s.value(0);
   const pArrival = s.value(0);
@@ -118,13 +115,11 @@ export default function pipelineLatency(s, c) {
         glow: 8,
       }),
       txt(foot, 0, 320, 28, arr ? ROLE.good : ho > 0.5 ? COSMOS.gold : COSMOS.ink, 'mono'),
-      glowDot(x0 + ((phase.value * 0.55) % 1) * (7 * msPx), 410, { radius: 6, color: ROLE.gpu1 }),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('single-token', () =>
     s.play(pSingle.to(1, { duration: remainDuration(c, 'single-token', 0.85) })),

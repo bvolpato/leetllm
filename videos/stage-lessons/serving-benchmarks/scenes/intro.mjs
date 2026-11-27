@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   const replyProg = s.value(0);
   const followProg = s.value(0);
   const chartMode = s.value(0); // 0 = live client/desk exchange, 1 = oscilloscope comparison
@@ -49,7 +47,6 @@ export default function intro(s, c) {
     (a) => {
       const rp = replyProg.value;
       const fp = followProg.value;
-      const ph = phase.value;
       const nodes = [];
 
       // Left node: Help Desk server tower beacon
@@ -89,7 +86,7 @@ export default function intro(s, c) {
         [deskX + 132, deskY - 96],
       ];
       nodes.push(
-        beamWithPhotons(q1Pts, ROLE.send, ph * 0.7, {
+        beamWithPhotons(q1Pts, ROLE.send, 0, {
           width: 4.0,
           glow: 9,
           photonCount: 2,
@@ -117,11 +114,10 @@ export default function intro(s, c) {
             .opacity(a * rp),
         );
       } else {
-        // Pulsing wait indicator at Desk
+        // Static wait indicator at Desk
         for (let i = 0; i < 3; i++) {
-          const lift = Math.max(0, Math.sin(ph * 5.2 - i * 0.85));
           nodes.push(
-            glowDot(-36 + i * 36, deskY - 12 * lift, {
+            glowDot(-36 + i * 36, deskY, {
               radius: 7,
               color: ROLE.reply,
               glow: 8,
@@ -248,7 +244,6 @@ export default function intro(s, c) {
       // Prediction prompt before desk-cutoff
       if (cutRev < 0.2) {
         const r3 = traffic.closed[2];
-        const pulse = 0.72 + 0.28 * Math.sin(phase.value * 5.0);
         nodes.push(
           txt(
             `R3 leaves at 1.0 s  ·  reply takes ${r3.end - r3.start} ms`,
@@ -269,7 +264,7 @@ export default function intro(s, c) {
             'left',
           )
             .glow(7, ROLE.focus)
-            .opacity(a * pulse),
+            .opacity(a),
         );
       }
 
@@ -420,7 +415,6 @@ export default function intro(s, c) {
   );
 
   s.add(bgAura, header, exchangeView, oscView);
-  driftValue(s, c, phase, 10, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0 cues
   c.on('desk-client', () => {

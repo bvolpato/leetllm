@@ -8,12 +8,10 @@ import {
   BUCKET,
   COSMOS,
   ROLE,
-  ambientClock,
   buildTokenBucket3d,
   cinemaAtmosphere,
   glowBar,
   glowCross,
-  glowDot,
   glowPill,
   glowTex,
   guardedDynamic,
@@ -29,7 +27,6 @@ export default function bucketContract(s, c) {
     accent: ROLE.workerB,
   });
 
-  const amb = ambientClock(s, c);
   const amount = s.value(0);
   // Phase index 0..6:
   // 0=formula, 1=refill 0.5 + wait 0.5, 2=cost>cap invalid, 3=empty idle, 4=premature delete -> 3 fresh BUG!,
@@ -55,7 +52,6 @@ export default function bucketContract(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const ph = Math.round(phase.value);
       const tok = amount.value;
       const isLeak = ph === 4;
@@ -162,12 +158,6 @@ export default function bucketContract(s, c) {
           'sans',
           'center',
         ).opacity(alpha),
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5 + 1.5 * pulse,
-          color: statusCol,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'CONSERVED TOKEN CONTRACT + SAFE EVICTION',
           isSafe

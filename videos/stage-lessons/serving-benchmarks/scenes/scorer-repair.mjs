@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   radialGauge,
   receiptClockNodes,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function scorerRepair(s, c) {
-  const phase = s.value(0);
   const auditGlow = s.value(0);
   // State index: 0=baseline, 1=r06 deleted(exit1), 2=restored(exit0), 3=r05 quality=true(4/6),
   //              4=restored baseline, 5=r04 delayed to 800(exit2), 6=retries & raw log hashes
@@ -137,7 +135,6 @@ export default function scorerRepair(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, phase, 8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('scorer-repair-beat-0', () => {
     const t = c.cue('scorer-repair-beat-0').start;

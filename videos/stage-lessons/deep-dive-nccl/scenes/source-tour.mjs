@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function sourceTour(s, c) {
-  const phase = s.value(0);
   // step: 0..3=init/graph/tuning, 4..7=collectives/device/transport/proxy.cc, 8..10=debug/ras/nccl_device/gin
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function sourceTour(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
 
     const boxes = [
       {
@@ -96,9 +92,7 @@ export default function sourceTour(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 285, { radius: 6, color: st >= 6 && st < 8 ? ROLE.bad : ROLE.comm }),
       txt(
         st >= 8
           ? 'Trace one concrete op & its selected plan; nccl_device/gin have distinct device-side entry points'
@@ -116,7 +110,6 @@ export default function sourceTour(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-source-tour-b0-s0', 0],
     ['nc-source-tour-b0-s1', 1],

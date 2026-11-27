@@ -11,12 +11,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function localScales(s, c) {
-  const phase = s.value(0);
   const showSharedTiny = s.value(0);
   const showSharedSpike = s.value(0);
   const splitRows = s.value(0);
@@ -234,7 +232,6 @@ export default function localScales(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('local-shared', () =>
     s.play(showSharedTiny.to(1, { duration: remainDuration(c, 'local-shared', 0.45) })),

@@ -10,14 +10,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function admission(s, c) {
-  const phase = s.value(0);
   const waitStop = s.value(0); // 160ms wait frozen
   const ownDone = s.value(0); // 200ms finished + blocks free
   const compare50 = s.value(0); // 50k backlog -> 400ms
@@ -36,7 +33,6 @@ export default function admission(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ws = waitStop.value;
       const od = ownDone.value;
       const c50 = compare50.value;
@@ -211,22 +207,11 @@ export default function admission(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.after('admission-wait-stops', () => {
     s.play(waitStop.to(1, { duration: clampDur(c, c.cue('admission-wait-stops').end, 0.35) }));
   });

@@ -9,14 +9,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function memoryRealization(s, c) {
-  const phase = s.value(0);
   const condOn = s.value(0);
   const quantOn = s.value(0);
 
@@ -37,7 +34,6 @@ export default function memoryRealization(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const cn = condOn.value;
       const qn = quantOn.value;
       const nodes = [];
@@ -143,12 +139,6 @@ export default function memoryRealization(s, c) {
       nodes.push(
         txt('FIT != THROUGHPUT', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Measure peak GB & tok/s under load', 480, -378, 26, COSMOS.muted, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.worker,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -156,8 +146,6 @@ export default function memoryRealization(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('sd-memory-realization-1-operation', () => {
     s.play(
       condOn.to(1, {

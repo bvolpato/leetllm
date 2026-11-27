@@ -15,13 +15,11 @@ import {
   line,
   radialDial,
   remainDuration,
-  runPhase,
   tokenCell,
   txt,
 } from '../parts.mjs';
 
 export default function freshScorerScreen(s, c) {
-  const phase = s.value(0);
   const showPairs = s.value(0.45);
   const showEns = s.value(0.45);
   const showSource = s.value(0.45);
@@ -175,7 +173,6 @@ export default function freshScorerScreen(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('screen-pairs', () => s.play(showPairs.to(1, { duration: 0.4 })));
   c.on('screen-members', () => s.play(showEns.to(1, { duration: 0.4 })));

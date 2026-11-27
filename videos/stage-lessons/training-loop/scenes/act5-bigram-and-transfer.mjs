@@ -22,7 +22,6 @@ import {
   glowTex,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   mix,
   neonCurve,
   routeRulerNodes,
@@ -44,7 +43,6 @@ export function bigramState(s, c) {
   const b2P = s.value(0);
   const adamMomP = s.value(0);
   const adamDenP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.forward, seed: 21 }));
   s.add(decorAura(-440, 0, 480, '#5ce1e61a', '#07091000'));
@@ -65,7 +63,6 @@ export function bigramState(s, c) {
     (vis) => {
       const b0 = b0P.value;
       const b1 = b1P.value;
-      const ph = drift.value;
       const nodes = [];
 
       // Left: "the" token tiles -> adjacent pairs
@@ -101,7 +98,7 @@ export function bigramState(s, c) {
           const isTarget = isSelected && k === 1;
           const cellVal = b1 > 0.3 && isSelected ? (isTarget ? '+up' : '-dn') : '0.0';
           const col = isTarget && b1 > 0.3 ? ROLE.escalate : isSelected ? ROLE.grad : COSMOS.dim;
-          const pulse = isSelected ? 7 + 3 * Math.sin(ph * Math.PI * 8 + k) : 1;
+          const pulse = isSelected ? 8 : 1;
           nodes.push(
             tensorCell(tx0 + 45 + k * 160, cy, 140, 72, cellVal, col, {
               size: 28,
@@ -196,7 +193,6 @@ export function bigramState(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'bigram-state-beat-0', b0P, 1, { dur: 0.7 });
   cueTo(s, c, 'bigram-state-beat-1', b1P, 1, { dur: 0.7 });
   cueTo(s, c, 'bigram-state-beat-2', b2P, 1, { dur: 0.85 });
@@ -215,7 +211,6 @@ export function bigramFloor(s, c) {
   const floorP = s.value(0);
   const pairsP = s.value(0);
   const runsP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.grad, seed: 22 }));
   s.add(decorAura(-420, 0, 480, '#5ce1e61a', '#07091000'));
@@ -375,7 +370,6 @@ export function bigramFloor(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'bigram-floor-beat-0', obsP, 1, { dur: 0.7 });
   cueTo(s, c, 'bigram-floor-beat-1', sharesP, 1, { after: true, dur: 0.8 });
   cueTo(s, c, 'loop-entropy-floor', floorP, 1, { after: true, dur: 0.7 });
@@ -394,7 +388,6 @@ export function bigramSelection(s, c) {
   const pickP = s.value(0);
   const unseenP = s.value(0);
   const sampleP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.stale, seed: 23 }));
   s.add(decorAura(-300, 0, 520, '#5ce1e61a', '#07091000'));
@@ -419,7 +412,6 @@ export function bigramSelection(s, c) {
     const pk = pickP.value;
     const un = unseenP.value;
     const sp = sampleP.value;
-    const ph = drift.value;
     const nodes = [];
 
     const curStep = Math.round(bestRow.step * ea + (lastRow.step - bestRow.step) * lt);
@@ -486,7 +478,7 @@ export function bigramSelection(s, c) {
       const bx = xOf(bestRow.step);
       const by = yOf(bestRow.validation);
       const col = pk > 0.2 ? ROLE.grad : ROLE.stale;
-      const rad = pk > 0.2 ? 14 + 2 * Math.sin(ph * Math.PI * 10) : 11;
+      const rad = pk > 0.2 ? 14 : 11;
       nodes.push(
         glowDot(bx, by, { radius: rad, color: col, glow: 14 }),
         txt('111', bx + 28, by - 42, 28, col, 'mono', 'left'),
@@ -564,7 +556,6 @@ export function bigramSelection(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'bigram-early', earlyP, 1, { dur: 1.0 });
   cueTo(s, c, 'bigram-late', lateP, 1, { dur: 1.1 });
   cueTo(s, c, 'bigram-compare', compareP, 1, { dur: 0.65 });
@@ -582,7 +573,6 @@ export function runReceipt(s, c) {
   const b1P = s.value(0);
   const b2P = s.value(0);
   const nextP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.forward, seed: 24 }));
   s.add(decorAura(-420, 0, 480, '#5ce1e61a', '#07091000'));
@@ -715,7 +705,6 @@ export function runReceipt(s, c) {
   );
 
   s.add(headline, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'run-receipt-beat-0', b0P, 1, { dur: 0.7 });
   cueTo(s, c, 'run-receipt-beat-1', b1P, 1, { dur: 0.85 });
   cueTo(s, c, 'run-receipt-beat-2', b2P, 1, { dur: 0.85 });
@@ -730,7 +719,6 @@ export function transfer(s, c) {
   const readP = s.value(0);
   const subP = s.value(0);
   const inspectP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.grad, seed: 25 }));
   s.add(decorAura(-420, 0, 480, '#5ce1e61a', '#07091000'));
@@ -823,7 +811,6 @@ export function transfer(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'transfer-read', readP, 1, { dur: 0.7 });
   cueTo(s, c, 'transfer-subtract', subP, 1, { dur: 0.75 });
   cueTo(s, c, 'transfer-inspect', inspectP, 1, { dur: 0.85 });
@@ -857,7 +844,6 @@ export function freshStaleGradient(s, c) {
   const goodProbP = s.value(0);
   const logisticP = s.value(0);
   const accuracyP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.escalate, seed: 26 }));
   s.add(decorAura(-460, 40, 480, '#60a5fa1e', '#07091000'));
@@ -1057,7 +1043,6 @@ export function freshStaleGradient(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'fresh-input', inputP, 1, { dur: 0.6 });
   cueTo(s, c, 'fresh-old', oldP, 1, { dur: 0.65 });
   cueTo(s, c, 'fresh-ask', askP, 1, { dur: 0.55 });

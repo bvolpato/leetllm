@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   gateNode,
   guardedDynamic,
   hexGate,
@@ -38,7 +37,7 @@ export default function selectorFeedback(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const dh = dagHi.value;
       const lh = loopHi.value;
       const nodes = [];
@@ -150,7 +149,6 @@ export default function selectorFeedback(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('pi-selector-feedback-0', () => {
     s.play(dagHi.to(1, { duration: clampDur(c, c.cue('pi-selector-feedback-0').start, 0.45) }));

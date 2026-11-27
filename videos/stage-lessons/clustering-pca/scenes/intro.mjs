@@ -16,7 +16,6 @@ import {
   messages,
   query,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
   xy,
@@ -26,7 +25,6 @@ const DIST_B = distance(query, xy[1]); // 1.841
 const DIST_C = distance(query, xy[2]); // 1.913
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   const ringR = s.value(0.88);
   const showRuler = s.value(0);
   const showPredict = s.value(0);
@@ -48,7 +46,6 @@ export default function intro(s, c) {
     const rul = showRuler.value;
     const ans = showAnswer.value;
     const all = showAll.value;
-    const pulse = 0.72 + 0.28 * Math.sin(phase.value * 3.0);
 
     const plot = makePlot(60, -280, 790, 580, { x: [0, 10], y: [0, 5.2] });
     const qPt = plot.pt(query);
@@ -94,7 +91,7 @@ export default function intro(s, c) {
         ).opacity(vis),
       );
       if (isWinner) {
-        nodes.push(glowRing(mx, my, 24 + 5 * pulse, col, { width: 3.2, glow: 12, opacity: ans }));
+        nodes.push(glowRing(mx, my, 28, col, { width: 3.2, glow: 12, opacity: ans }));
       }
     });
 
@@ -208,7 +205,6 @@ export default function intro(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   c.at(0.2, () => {
     s.play(ringR.to(1.74, { duration: Math.max(1.2, c.cue('ruler').start - c.start - 0.3) }));

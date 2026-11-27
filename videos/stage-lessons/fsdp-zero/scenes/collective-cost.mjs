@@ -9,18 +9,15 @@ import {
   SHARDS,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function collectiveCost(s, c) {
-  const phase = s.value(0);
   const showGrid = s.value(1);
   const changed = s.value(0); // R3 col C: 6 -> 9
   const folded = s.value(0);
@@ -197,13 +194,10 @@ export default function collectiveCost(s, c) {
       ).opacity(a),
     ];
 
-    const u = (phase.value * 0.65) % 1;
-    nodes.push(glowDot(-760 + u * 1520, 115, { radius: 6.5, color: COSMOS.gold, opacity: a }));
     return group(...nodes);
   });
 
   s.add(bgAura, title, gridView, ringCostView);
-  runPhase(s, c, phase, 14);
 
   c.on('change-c', () => s.play(changed.to(1, { duration: remainDuration(c, 'change-c', 0.45) })));
   c.after('fold-column', () =>

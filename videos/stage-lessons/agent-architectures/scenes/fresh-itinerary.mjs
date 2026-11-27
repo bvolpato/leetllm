@@ -14,7 +14,6 @@ import {
   cinemaHeader,
   clampDur,
   clock,
-  driftValue,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
@@ -220,7 +219,6 @@ export default function freshItinerary(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('fresh-bus', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('fresh-bus').start, 0.25) }));

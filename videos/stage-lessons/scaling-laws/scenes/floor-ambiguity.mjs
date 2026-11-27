@@ -19,7 +19,6 @@ import {
   playCue,
   plotPlane,
   sampleCurve,
-  scenePulse,
 } from '../parts.mjs';
 
 export default function floorAmbiguity(s, c) {
@@ -37,7 +36,6 @@ export default function floorAmbiguity(s, c) {
   const anchorSpan = s.value(0); // sl-floor-ambiguity-0: 0 -> 2 (C=1..100)
   const extrapSpan = s.value(0); // sl-floor-ambiguity-1: 2 -> 6 (C=100..1e6)
   const probeVis = s.value(0); // sl-floor-ambiguity-2: highlight separation region at C=10^4
-  const pulse = s.value(0);
 
   const stageLayer = guardedDynamic(s.value(1), (alpha) => {
     const nodes = [];
@@ -170,7 +168,6 @@ export default function floorAmbiguity(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.amber, ROLE.tokens), title, stageLayer, eq);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'sl-floor-ambiguity-0', (d) => s.play(anchorSpan.to(1, { duration: d })), {
     dur: 1.2,

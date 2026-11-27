@@ -202,26 +202,8 @@ export function glowMeter(
   return group(track, bar);
 }
 
-export function beamWithPhotons(
-  pts,
-  color,
-  phaseVal,
-  { width = 3.6, glow = 9, photonCount = 2, alpha = 1 } = {},
-) {
-  const nodes = [glowingTrail(pts, { color, width, glow, opacity: 0.9 * alpha })];
-  if (photonCount > 0) {
-    const last = pts.length - 1;
-    for (let i = 0; i < photonCount; i++) {
-      const u = ((((phaseVal ?? 0) + i / photonCount) % 1) + 1) % 1;
-      const idx = u * last;
-      const k = Math.min(last - 1, Math.floor(idx));
-      const f = idx - k;
-      const px = pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f;
-      const py = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f;
-      nodes.push(glowDot(px, py, { radius: 5.0, color: '#ffffff', glow: 10, opacity: alpha }));
-    }
-  }
-  return group(...nodes);
+export function beamWithPhotons(pts, color, _phaseVal, { width = 3.6, glow = 9, alpha = 1 } = {}) {
+  return glowingTrail(pts, { color, width, glow, opacity: 0.9 * alpha });
 }
 
 export function trimSeg(a, b, padA = 56, padB = 56) {

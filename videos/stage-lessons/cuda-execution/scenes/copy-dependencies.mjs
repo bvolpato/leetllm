@@ -15,12 +15,10 @@ import {
   rect,
   remainDuration,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function copyDependencies(s, c) {
-  const phase = s.value(0);
   const showStreams = s.value(1); // Beats 0..3: serial -> overlap @ 6 ms -> finish @ 17 ms -> ownership
   const overlapMode = s.value(0); // 0=serial, 1=overlap, 2=ownership replay
   const simMs = s.value(0);
@@ -240,7 +238,6 @@ export default function copyDependencies(s, c) {
   });
 
   s.add(bgAura, title, partStreams, partD2H);
-  runPhase(s, c, phase, 14);
 
   c.on('copy-serial', () => s.play(simMs.to(20, { duration: 1.2 })));
   c.on('copy-buffers', () => {

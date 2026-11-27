@@ -13,7 +13,6 @@ import {
   cinemaHeader,
   ciOutcome,
   clampDur,
-  driftValue,
   fsmNode,
   guardedDynamic,
   opticalRail,
@@ -29,7 +28,6 @@ const ROWS = [
 ];
 
 export default function ciSnapshot(s, c) {
-  const pulse = s.value(0);
   const r0Deny = s.value(0);
   const r1Show = s.value(0);
   const r1Read = s.value(0);
@@ -47,7 +45,6 @@ export default function ciSnapshot(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const d0 = r0Deny.value;
       const s1 = r1Show.value;
       const rd1 = r1Read.value;
@@ -136,7 +133,7 @@ export default function ciSnapshot(s, c) {
 
         if (st.decided > 0.4 && isShow) {
           nodes.push(
-            beamWithPhotons(quadArcPts([240, y], [375, y], -16), ROLE.legal, p * 1.2, {
+            beamWithPhotons(quadArcPts([240, y], [375, y], -16), ROLE.legal, 0, {
               alpha: st.decided,
               width: 3.2,
               photonCount: 1,
@@ -170,7 +167,6 @@ export default function ciSnapshot(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('ci-deny', () => {
     s.play(r0Deny.to(1, { duration: clampDur(c, c.cue('ci-deny').start, 0.4) }));

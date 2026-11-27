@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   clampDur,
   driftValue,
-  glowDot,
   guardedDynamic,
   quadArcPts,
   txt,
@@ -193,15 +192,9 @@ export default function subjectIntro(s, c) {
         ),
       );
 
-      // Orbiting calibration ring around dial
-      const orbA = p * Math.PI * 2;
+      // Calibration ring around dial
       nodes.push(
         circle(dialR + 36, { fill: null, stroke: '#1e2c4f', width: 1.8 }).at(dialCx, dialCy),
-        glowDot(dialCx + Math.cos(orbA) * (dialR + 36), dialCy + Math.sin(orbA) * (dialR + 36), {
-          radius: 5.5,
-          color: ROLE.stepwise,
-          glow: 10,
-        }),
       );
 
       // Swap & human-verify orbital arcs when `test-pick` fires

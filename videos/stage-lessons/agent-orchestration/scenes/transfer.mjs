@@ -13,7 +13,6 @@ import {
   crossSwap,
   freshPacket,
   glowArrow,
-  glowDot,
   glowRing,
   guardedDynamic,
   heroTitle,

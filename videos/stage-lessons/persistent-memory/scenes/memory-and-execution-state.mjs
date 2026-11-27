@@ -9,8 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   memNode,
   trimSeg,
@@ -38,7 +36,7 @@ export default function memoryAndExecutionState(s, c) {
   const visual = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
+      const p = 0;
       const fnd = foundRec.value;
       const rec = recSaved.value;
       const unc = uncommit.value;
@@ -174,15 +172,11 @@ export default function memoryAndExecutionState(s, c) {
         txt(actionDetail, 0, botY + 40, 26, COSMOS.muted, 'mono', 'center'),
       );
 
-      const dotX = -760 + ((p * 120) % 240);
-      nodes.push(glowDot(dotX, 425, { radius: 4.5, color: actionCol, glow: 8, opacity: 0.7 }));
-
       return group(...nodes);
     },
   );
 
   s.add(bgAuras, header, visual);
-  driftValue(s, c, phase, 4.2);
 
   c.on('pending-key', () => {
     s.play(pendingOn.to(1, { duration: clampDur(c, c.cue('pending-key').start, 0.35) }));

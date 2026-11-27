@@ -9,12 +9,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function denseScan(s, c) {
-  const phase = s.value(0);
   const showProducts = s.value(0);
   const showPayload = s.value(0);
   const showTraffic = s.value(0);
@@ -31,12 +29,10 @@ export default function denseScan(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sp = showProducts.value;
     const sy = showPayload.value;
     const st = showTraffic.value;
     const sr = showReuse.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: Exact scan single-query arithmetic
@@ -44,7 +40,7 @@ export default function denseScan(s, c) {
 
       glassCell(-455, -92, 790, 148, sp > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10203a',
-        glow: sp > 0.3 ? 8 * pulse : 3,
+        glow: sp > 0.3 ? 8 : 3,
       }),
       txt('COORDINATE MULTIPLICATIONS', -825, -134, 26, COSMOS.cyan, 'mono', 'left'),
       txt('1,000,000 x 1,536 = 1.536B mults / query', -825, -90, 28, COSMOS.ink, 'mono', 'left'),
@@ -52,7 +48,7 @@ export default function denseScan(s, c) {
 
       glassCell(-455, 92, 790, 148, sy > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#231e10',
-        glow: sy > 0.3 ? 9 * pulse : 3,
+        glow: sy > 0.3 ? 9 : 3,
       }),
       txt('RAW FP32 MATRIX PAYLOAD (4 BYTES / FLOAT)', -825, 50, 26, COSMOS.gold, 'mono', 'left'),
       txt('1.536B x 4 B = 6.144 decimal GB / scan', -825, 94, 28, COSMOS.gold, 'mono', 'left'),
@@ -63,7 +59,7 @@ export default function denseScan(s, c) {
 
       glassCell(495, -92, 750, 148, st > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: st > 0.3 ? '#291019' : '#12182b',
-        glow: st > 0.3 ? 10 * pulse : 2,
+        glow: st > 0.3 ? 10 : 2,
       }),
       txt('UNBATCHED (1 READ PER QUERY)', 150, -134, 26, COSMOS.rose, 'mono', 'left'),
       txt('200 x 6.144 GB = 1.2288 TB / s!', 150, -86, 32, COSMOS.rose, 'mono', 'left'),
@@ -71,7 +67,7 @@ export default function denseScan(s, c) {
 
       glassCell(495, 104, 750, 168, sr > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: sr > 0.3 ? '#0e2824' : '#12182b',
-        glow: sr > 0.3 ? 9 * pulse : 2,
+        glow: sr > 0.3 ? 9 : 2,
       }),
       txt('BATCH 2 QUERIES + CACHING / ANN / PQ', 150, 56, 26, COSMOS.emerald, 'mono', 'left'),
       txt(
@@ -101,7 +97,6 @@ export default function denseScan(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('scan-products', () => s.play(showProducts.to(1, { duration: 0.45 })));
   c.on('scan-payload', () => s.play(showPayload.to(1, { duration: 0.45 })));

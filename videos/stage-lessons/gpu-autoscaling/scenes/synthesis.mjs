@@ -13,7 +13,6 @@ import {
   cinematic3d,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInNodes,
   glowTex,
   guardedDynamic,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function synthesis(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=4 warm Q1(PREDICT!), 2=80 start/20 short(AFTER!), 3=5th GPU ready, 4=fill Q2(PREDICT!), 5=R100->GPU5@30s(AFTER!)
 
   const header = cinemaHeader('WARM POOL SIZING FORMULA', 'How many workers', 'warm at nine?', {
@@ -84,8 +82,6 @@ export default function synthesis(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
-      const blink = 0.68 + 0.32 * Math.sin(p * 5.0);
       const fiveWarm = st >= 2.5;
       const nodes = [
         txt(
@@ -121,7 +117,7 @@ export default function synthesis(s, c) {
             'left',
           )
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
           txt(
             'Waves 0, 10, 20s shown  ·  1 refill left at 30s',
             -860,
@@ -164,7 +160,7 @@ export default function synthesis(s, c) {
           txt('REWIND WITH 5th WARM GPU READY AT 9:00', -860, -35, 28, ROLE.warm, 'mono', 'left'),
           txt('PREDICT: Where & when does R100 start?', -860, 32, 32, ROLE.predict, 'sans', 'left')
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
         );
       }
 
@@ -245,7 +241,6 @@ export default function synthesis(s, c) {
 
   s.add(bgAura, synthView, header, dyn);
   orbitScene(s, c, synthView, { theta: -0.22, phi: 0.88 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, phase, 7.0, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0: Q1
   c.on('three-starts', () => {

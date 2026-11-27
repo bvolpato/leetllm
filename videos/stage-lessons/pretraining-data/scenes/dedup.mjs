@@ -13,12 +13,10 @@ import {
   heroTitle,
   photonStream,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function dedup(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const exactMerged = s.value(0);
 
@@ -45,7 +43,6 @@ export default function dedup(s, c) {
   // Part 1: Exact mirror collapse (A and B share normalized digest -> keep A, link B lineage)
   const part1Live = guardedDynamic(showPart1, (a) => {
     const mg = exactMerged.value;
-    const ph = phase.value;
     const nodes = [
       heroTitle(['Exact Mirrors', '& Near Duplicates'], {
         x: -855,
@@ -99,7 +96,7 @@ export default function dedup(s, c) {
       ).opacity((1 - 0.5 * mg) * a),
 
       // Lineage link arc from B back to A
-      ...photonStream([135, -85], [-135, -85], -65, ph, {
+      ...photonStream([135, -85], [-135, -85], -65, 0, {
         color: mg > 0.5 ? COSMOS.emerald : COSMOS.gold,
         count: 4,
         opacity: (0.4 + 0.6 * mg) * a,
@@ -229,7 +226,6 @@ export default function dedup(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live);
-  runPhase(s, c, phase, 14);
 
   c.on('dedup-b1-1', () =>
     s.play(exactMerged.to(1, { duration: remainDuration(c, 'dedup-b1-1', 0.8) })),

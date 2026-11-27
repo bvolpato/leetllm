@@ -12,12 +12,10 @@ import {
   par,
   remainAfter,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function backendSupport(s, c) {
-  const phase = s.value(0);
   const showComp = s.value(1);
   const compRec = s.value(0);
   const showJit = s.value(0);
@@ -164,7 +162,6 @@ export default function backendSupport(s, c) {
   });
 
   s.add(bgAura, title, compView, jitView, wheelView);
-  runPhase(s, c, phase, 14);
 
   c.on('fi-backend-support-0', () =>
     s.play(compRec.to(0.01, { duration: remainDuration(c, 'fi-backend-support-0', 0.2) })),

@@ -6,17 +6,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function mixedBudget(s, c) {
-  const phase = s.value(0);
   // step: 0=6-token budget + 4 cached, 1=step 0 (1 decode + 5 prefill = 6), 2=4 left,
   // 3=step 1 (1 decode + 4 prefill = 5), 4=out0 selected (KV pending), 5=later decode creates out0 KV, 6=general rule
   const step = s.value(0);
@@ -33,7 +30,6 @@ export default function mixedBudget(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     // Row 1: R1 cached prefix (4 reused KV positions)
@@ -126,9 +122,7 @@ export default function mixedBudget(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 325, { radius: 6, color: ROLE.decode }),
       txt(
         st >= 6
           ? 'Larger chunks speed new TTFT; smaller chunks protect active decode ITL.'
@@ -146,7 +140,6 @@ export default function mixedBudget(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-mixed-budget-beat-0', 0],
     ['sg-budget-five', 1, true],

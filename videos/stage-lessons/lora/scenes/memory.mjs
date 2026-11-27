@@ -12,12 +12,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function memory(s, c) {
-  const phase = s.value(0);
   const showWeights = s.value(0);
   const showStack = s.value(0);
   const showShortTotal = s.value(0);
@@ -230,7 +228,6 @@ export default function memory(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('memory-weights', () => s.play(showWeights.to(1, { duration: 0.4 })));
   c.on('memory-stack', () => s.play(showStack.to(1, { duration: 0.55 })));

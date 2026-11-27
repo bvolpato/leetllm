@@ -15,7 +15,6 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -29,7 +28,6 @@ const FORMAT_ROWS = [
 ];
 
 export default function formatBudget(s, c) {
-  const phase = s.value(0);
   const showPartA = s.value(1);
   const show16 = s.value(0.4);
   const show8 = s.value(0);
@@ -54,7 +52,6 @@ export default function formatBudget(s, c) {
 
   // Part A: Aligned proportional bit-field strips (Beats 0-1)
   const partA = guardedDynamic(showPartA, (a) => {
-    const p = phase.value;
     const s16 = show16.value;
     const s8 = show8.value;
     const lim = showLimits.value;
@@ -122,12 +119,6 @@ export default function formatBudget(s, c) {
       );
     });
 
-    const scanX = barX0 + ((p * 0.28) % 1) * (32 * unitW);
-    nodes.push(
-      line([scanX, -225], [scanX, 355], { stroke: COSMOS.cyan, width: 1.6 })
-        .opacity(0.28 * a)
-        .set('blend', 'screen'),
-    );
     return group(...nodes);
   });
 
@@ -142,7 +133,6 @@ export default function formatBudget(s, c) {
   const partB = guardedDynamic(showPartB, (a) => {
     const sp = showSpacing.value;
     const nm = showNorm.value;
-    const p = phase.value;
     const rx0 = -760;
     const rx1 = 280;
     const mapX = (v) => rx0 + (v - 1) * (rx1 - rx0);
@@ -226,9 +216,6 @@ export default function formatBudget(s, c) {
       );
     }
 
-    const probeU = 0.5 + 0.45 * Math.sin(p * 1.4);
-    nodes.push(glowDot(mapX(1 + probeU), -95, { radius: 7, color: '#ffffff', opacity: a }));
-
     return group(...nodes);
   });
 
@@ -295,7 +282,6 @@ export default function formatBudget(s, c) {
   });
 
   s.add(bgAura, title, partA, partB, partC);
-  runPhase(s, c, phase, 16);
 
   c.on('lp-format-budget-build-0', () =>
     s.play(show16.to(1, { duration: remainDuration(c, 'lp-format-budget-build-0', 0.6) })),

@@ -20,7 +20,6 @@ import {
   guardedDynamic,
   heroTitle,
   lagRoute,
-  livingDrift,
   mix,
   numCell,
   parityLogit,
@@ -37,7 +36,6 @@ export function parity(s, c) {
   const matP = s.value(0);
   const stlP = s.value(0);
   const misP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.eligible, seed: 16 }));
   s.add(decorAura(0, 20, 560, '#5ce1e61a', '#ff6b8b14'));
@@ -126,7 +124,6 @@ export function parity(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'parity-match', matP, 1, { dur: 0.7 });
   cueTo(s, c, 'parity-stale', stlP, 1, { dur: 0.75 });
   cueTo(s, c, 'parity-missing', misP, 1, { dur: 0.75 });
@@ -146,7 +143,6 @@ export function parityCalculation(s, c) {
   const typP = s.value(0);
   const beat3P = s.value(0);
   const fbP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.leak, seed: 17 }));
   s.add(decorAura(0, 20, 560, '#ff6b8b1a', '#5ce1e614'));
@@ -289,7 +285,6 @@ export function parityCalculation(s, c) {
   );
 
   s.add(headline, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'parity-base', baseP, 1, { dur: 0.7 });
   cueTo(s, c, 'parity-delta', delP, 1, { dur: 0.7 });
   cueTo(s, c, 'feature-parity-scores', scP, 1, { dur: 0.7 });
@@ -315,7 +310,6 @@ export function storeAndFreshness(s, c) {
   const r45P = s.value(0);
   const r451P = s.value(0);
   const invP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.clock, seed: 18 }));
   s.add(decorAura(0, 20, 560, '#ffd1661a', '#5ce1e614'));
@@ -472,7 +466,6 @@ export function storeAndFreshness(s, c) {
   );
 
   s.add(headline, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'store-and-freshness-0', ovP, 0.08, { dur: 0.45 });
   cueTo(s, c, 'feature-store-overwrite', ovP, 1, { dur: 0.75 });
   cueTo(s, c, 'feature-store-generation', genP, 1, { dur: 0.7 });
@@ -493,7 +486,6 @@ export function storeAndFreshness(s, c) {
 export function wrap(s, c) {
   const cmpP = s.value(0);
   const bklP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.eligible, seed: 19 }));
   s.add(decorAura(0, 20, 560, '#5ce1e61a', '#ff6b8b14'));
@@ -560,7 +552,6 @@ export function wrap(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'wrap-compare', cmpP, 1, { dur: 0.7 });
   cueTo(s, c, 'wrap-backlog', bklP, 1, { dur: 0.75, after: true });
 }
@@ -584,7 +575,6 @@ export function earnedFeatureTransfer(s, c) {
   const ruleP = s.value(0);
   const thrP = s.value(0);
   const repP = s.value(0);
-  const drift = s.value(0);
 
   const staleRes = featureTransfer(0, 600); // score 13/60 = 0.2167
   const cleanRes = featureTransfer(7, 600); // score 43/150 = 0.2867
@@ -759,7 +749,6 @@ export function earnedFeatureTransfer(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'fresh-receipts', recP, 1, { dur: 0.7 });
   cueTo(s, c, 'fresh-pick', pickP, 0.65, { dur: 0.5, after: true });
   cueTo(s, c, 'feature-fresh-heartbeat', pickP, 1, { dur: 0.5, after: true });

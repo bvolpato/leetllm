@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function dtypeLifecycle(s, c) {
-  const phase = s.value(0);
   const bf16Copy = s.value(0); // 2 GB temp compute copy
   const gradGb = s.value(0); // 0 -> 4 GB local -> 1 GB reduced -> 0 cleared
   const updated = s.value(0);
@@ -31,7 +28,6 @@ export default function dtypeLifecycle(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const bf = bf16Copy.value;
     const gr = gradGb.value;
     const up = updated.value;
@@ -95,9 +91,7 @@ export default function dtypeLifecycle(s, c) {
     });
 
     const total = 1 + 2 + 2 * bf + gr;
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 315, { radius: 6, color: up > 0.5 ? ROLE.good : ROLE.comm }),
       txt(
         `Live unit tensors on Rank 0: ${total.toFixed(1)} GB  ·  zero_grad(set_to_none=True) frees gradient shard`,
         0,
@@ -112,7 +106,6 @@ export default function dtypeLifecycle(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('full-weights', () =>
     s.play(bf16Copy.to(1, { duration: remainDuration(c, 'full-weights', 0.45) })),

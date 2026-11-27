@@ -12,7 +12,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowTex,
@@ -51,7 +50,7 @@ export default function verifierBoundaries(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const tt = testsT.value;
       const f4 = fourOn.value;
       const z0 = zeroOn.value;
@@ -175,7 +174,6 @@ export default function verifierBoundaries(s, c) {
   );
 
   s.add(stageAura, header, candEq, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('verifier-tests', () => {
     s.play(testsT.to(1, { duration: clampDur(c, c.cue('verifier-tests').start, 0.7) }));

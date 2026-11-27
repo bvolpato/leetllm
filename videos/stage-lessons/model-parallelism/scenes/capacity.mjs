@@ -5,7 +5,6 @@ import {
   aura,
   buildCluster3d,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -123,7 +122,6 @@ export default function capacity(s, c) {
         glow: 7,
       }),
       txt(foot, -340, 345, 26, tr ? ROLE.warn : COSMOS.ink, 'sans'),
-      glowDot(-820 + ((phase.value * 0.55) % 1) * 960, 415, { radius: 6, color: ROLE.gpu0 }),
     );
     return group(...nodes);
   });

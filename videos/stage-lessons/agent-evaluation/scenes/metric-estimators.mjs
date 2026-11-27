@@ -24,7 +24,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -501,7 +500,6 @@ export default function metricEstimators(s, c) {
   );
 
   s.add(stageAura, header, passHatEq, mode0, mode1, mode2);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('all-k-rule', () => {
     s.play(allKRule.to(1, { duration: clampDur(c, c.cue('all-k-rule').start, 0.35) }));

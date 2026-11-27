@@ -1,14 +1,13 @@
 // Scene 17: mining-loop - "Audit the competitor before teaching it as wrong"
 // Pure Cinema: 3-gate candidate filtering funnel (relevance -> lexical overlap -> teacher score)
 // feeding hard-negative InfoNCE mass impact, transitioning to an orbiting 6-node iterative flywheel.
-import { arrow, linear } from 'vizmatic/stage';
+import { arrow } from 'vizmatic/stage';
 import {
   COSMOS,
   MINING_FIXTURE,
   ROLE,
   cinemaAtmosphere,
   comparisonRow,
-  glowDot,
   guardedDynamic,
   heroTitle,
   lumBar,
@@ -46,7 +45,6 @@ export default function miningLoop(s, c) {
   const colTeacher = s.value(0);
   const showInputs = s.value(0);
   const showLoss = s.value(0);
-  const loopPhase = s.value(0);
   const showHoldout = s.value(0);
 
   const title = heroTitle(['Audit competitors before', 'teaching them as wrong'], {
@@ -246,7 +244,6 @@ export default function miningLoop(s, c) {
   ];
 
   const loopLayer = guardedDynamic(vLoop, (alpha) => {
-    const ph = loopPhase.value;
     const ho = showHoldout.value;
     const nodes = [
       txt(
@@ -305,14 +302,6 @@ export default function miningLoop(s, c) {
       nodes.push(arrow(p0, p1, { stroke: '#6c84b8', width: 3.2, tip: 12 }).opacity(alpha));
     });
 
-    // Live glowing photon tracing the current edge around the flywheel
-    const edgeIdx = Math.min(5, Math.floor(ph * 6));
-    const localT = (ph * 6) % 1;
-    const [e0, e1] = edges[edgeIdx];
-    const px = e0[0] + (e1[0] - e0[0]) * localT;
-    const py = e0[1] + (e1[1] - e0[1]) * localT;
-    nodes.push(glowDot(px, py, { radius: 9, color: ROLE.focus, glow: 14, opacity: alpha }));
-
     // Held-out firewall below
     if (ho > 0.05) {
       nodes.push(
@@ -345,15 +334,6 @@ export default function miningLoop(s, c) {
   playAfter(s, c, 'repair-mining-sorted', (d) => swapVis(vTable, vSorted, d), 0.65);
   playOn(s, c, 'repair-mining-inputs', (d) => showInputs.to(1, { duration: d }), 0.45);
   playAfter(s, c, 'cl-mining-loop-mass', (d) => showLoss.to(1, { duration: d }), 0.45);
-  playOn(
-    s,
-    c,
-    'cl-mining-loop-round',
-    (d) => [
-      swapVis(vSorted, vLoop, Math.min(0.65, d)),
-      loopPhase.to(0.99, { duration: d, ease: linear }),
-    ],
-    3.6,
-  );
+  playOn(s, c, 'cl-mining-loop-round', (d) => swapVis(vSorted, vLoop, Math.min(0.65, d)), 0.75);
   playOn(s, c, 'cl-mining-loop-holdout', (d) => showHoldout.to(1, { duration: d }), 0.55);
 }

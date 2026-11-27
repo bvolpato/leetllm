@@ -17,7 +17,6 @@ import {
   line,
   number,
   remainDuration,
-  runPhase,
   signed,
   swapViews,
   traceBeaconNodes,
@@ -29,7 +28,6 @@ const GAIN_IDX = 4;
 const PENALTY_IDX = 5;
 
 export default function subjectIntro(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const addProgress = s.value(0);
   const frozen = s.value(0);
@@ -46,7 +44,6 @@ export default function subjectIntro(s, c) {
   const bgAura = aura(0, 40, 620, '#5ce1e622', '#ffd16618');
 
   const part1 = guardedDynamic(showPart1, (a) => {
-    const p = phase.value;
     const addP = addProgress.value;
     const frz = frozen.value;
     const bef = showBefore.value;
@@ -60,7 +57,6 @@ export default function subjectIntro(s, c) {
     const xRight = 560;
     const nodeY = 42;
     const trackY = 236;
-    const pulse = 0.65 + 0.35 * Math.sin(p * 3.8);
 
     const cursorX = xLeft + (xMid - xLeft) * addP + (xRight - xMid) * penP;
     const cursorCol =
@@ -90,7 +86,7 @@ export default function subjectIntro(s, c) {
       txt('BEFORE PENALTY', xMid, -124, 26, COSMOS.gold, 'mono').opacity(a),
       glassCell(xMid, nodeY, 310, 224, COSMOS.gold, {
         fill: bef > 0.5 ? '#241c10' : '#141728',
-        glow: bef > 0.5 ? 12 : 7 * pulse,
+        glow: bef > 0.5 ? 12 : 7,
         opacity: a,
       }),
       txt(
@@ -297,7 +293,6 @@ export default function subjectIntro(s, c) {
   });
 
   s.add(bgAura, part1, part2);
-  runPhase(s, c, phase, 14);
 
   c.on('intro-add-five', () => s.play(addProgress.to(1, { duration: 0.7 })));
   c.on('intro-freeze', () => s.play(frozen.to(1, { duration: 0.3 })));

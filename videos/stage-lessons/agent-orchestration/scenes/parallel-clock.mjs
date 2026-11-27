@@ -14,14 +14,11 @@ import {
   markDecoration,
   renderGauge,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function parallelClock(s, c) {
-  const phase = s.value(0);
-
   // Beat 0: Serial durations + parallel start signal (bottleneck withheld!)
   const showEval = s.value(0.25);
   const showHealth = s.value(0.25);
@@ -338,7 +335,6 @@ export default function parallelClock(s, c) {
   });
 
   s.add(bgAtmo, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   // Beat 0: Serial durations + parallel start signal (answer strictly withheld)
   tweenCue(s, c, 'eval-two', showEval, 1, { duration: 0.3 });

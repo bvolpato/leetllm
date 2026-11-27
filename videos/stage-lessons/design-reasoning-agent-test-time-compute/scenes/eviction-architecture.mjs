@@ -7,7 +7,6 @@ import {
   cinemaHeader,
   clampDur,
   dotItem,
-  driftValue,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
@@ -30,10 +29,8 @@ export function buildEvictionArchitecture(s, c) {
     ),
   );
 
-  const pulse = s.value(0);
   const vaseOn = s.value(0);
   const recOn = s.value(0);
-  driftValue(s, c, pulse, 3.0);
 
   c.on('ra-eviction-architecture-0-1', () =>
     s.play(
@@ -50,7 +47,6 @@ export function buildEvictionArchitecture(s, c) {
     guardedDynamic(
       () => 1,
       () => {
-        const p = pulse.value;
         const vs = vaseOn.value;
         const rc = recOn.value;
         const nodes = [];
@@ -131,7 +127,7 @@ export function buildEvictionArchitecture(s, c) {
               [-350, yLoop],
             ],
             ROLE.agent,
-            p,
+            0,
             { alpha: rAlpha },
           ),
           rect(520, 94, { fill: '#0d152b', stroke: ROLE.model, width: 3.2, radius: 10 })
@@ -162,7 +158,7 @@ export function buildEvictionArchitecture(s, c) {
               [290, yLoop],
             ],
             ROLE.ok,
-            p + 0.3,
+            0,
             { alpha: rAlpha },
           ),
           rect(260, 64, { fill: '#0b1224', stroke: ROLE.ok, width: 2.5, radius: 8 })

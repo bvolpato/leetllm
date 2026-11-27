@@ -11,9 +11,7 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
-  glowDot,
   guardedDynamic,
   hexGate,
   quadArcPts,
@@ -44,7 +42,7 @@ export default function schemaFalsehood(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const lr = lieReject.value;
       const qs = quoteStale.value;
       const to = threeOps.value;
@@ -199,16 +197,11 @@ export default function schemaFalsehood(s, c) {
         ).opacity(col3Alpha),
       );
 
-      nodes.push(
-        glowDot(-840 + ((p * 0.25) % 1) * 1680, 118, { radius: 4.5, color: ROLE.host, glow: 8 }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('pi-schema-falsehood-0', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('pi-schema-falsehood-0').start, 0.25) }));

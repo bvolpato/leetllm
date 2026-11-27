@@ -10,12 +10,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function topK(s, c) {
-  const phase = s.value(0);
   const stepVal = s.value(0);
 
   const bgAura = aura(0, 10, 660, '#12345e26', '#2a1c5416');
@@ -29,10 +27,8 @@ export default function topK(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const idx = Math.min(TOP_K_TRACE.length - 1, Math.max(0, Math.round(stepVal.value)));
     const cur = TOP_K_TRACE[idx];
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('STREAM OF SCORED DOCUMENTS', -855, -205, 26, COSMOS.cyan, 'mono', 'left'),
@@ -54,7 +50,7 @@ export default function topK(s, c) {
       nodes.push(
         glassCell(-465, y, 760, 86, col, {
           fill: isNow ? '#241e10' : '#101629',
-          glow: isNow ? 9 * pulse : 3,
+          glow: isNow ? 9 : 3,
           opacity: isNow ? 1 : isPast ? 0.85 : 0.72,
         }),
         txt(`${row.incoming}`, -810, y + 2, 30, col, 'mono', 'left'),
@@ -71,7 +67,7 @@ export default function topK(s, c) {
     nodes.push(
       glassCell(515, -75, 560, 122, COSMOS.amber, {
         fill: '#261d10',
-        glow: 9 * pulse,
+        glow: 9,
       }),
       txt('MIN-HEAP ROOT (WEAKEST KEPT)', 515, -108, 26, COSMOS.amber, 'mono'),
       txt(
@@ -118,7 +114,6 @@ export default function topK(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('top-k-beat-1-focus-1', () => s.play(stepVal.to(0, { duration: 0.35 })));
   c.on('top-k-beat-2-focus-1', () => s.play(stepVal.to(1, { duration: 0.45 })));

@@ -8,19 +8,16 @@ import {
   WARP_STRIDED,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function addresses(s, c) {
-  const phase = s.value(0);
   const showWarp = s.value(1);
   const stridedFocus = s.value(0);
   const coalesced = s.value(0);
@@ -43,7 +40,6 @@ export default function addresses(s, c) {
   const flatSix = A.flat(); // [1, 2, 0, -1, 3, 2]
 
   const warpView = guardedDynamic(showWarp, (a) => {
-    const p = phase.value;
     const co = coalesced.value > 0.5;
     const ss = showSectors.value;
     const st = showTotal.value;
@@ -144,8 +140,6 @@ export default function addresses(s, c) {
           txt(`Sec ${g} (8f)`, gx, 222, 26, COSMOS.ink, 'mono').opacity(ss * a),
         );
       }
-      const u = (p * 0.6) % 1;
-      nodes.push(glowDot(85 + u * 720, 286, { radius: 6, color: COSMOS.gold, opacity: ss * a }));
     }
 
     if (st > 0.02) {
@@ -168,8 +162,6 @@ export default function addresses(s, c) {
 
   // Beat 4: Same 6 words in linear memory read row-major vs col-major -> top-middle flips 2 -> 3!
   const layoutView = guardedDynamic(showLayout, (a) => {
-    const p = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.6);
     const nodes = [
       txt('STORAGE ORDER CHECK · SAME 6 WORDS IN MEMORY', 0, -215, 28, COSMOS.gold, 'mono').opacity(
         a,
@@ -182,7 +174,7 @@ export default function addresses(s, c) {
         txt(`idx ${i}`, lx, -158, 26, COSMOS.muted, 'mono').opacity(a),
         glassCell(lx, -86, 148, 86, isFlipped ? COSMOS.gold : ROLE.c, {
           fill: isFlipped ? '#292212' : '#101d34',
-          glow: isFlipped ? 10 * pulse : 5,
+          glow: isFlipped ? 10 : 5,
           opacity: a,
         }),
         txt(String(flatSix[i]), lx, -86, 38, isFlipped ? COSMOS.gold : COSMOS.ink, 'mono').opacity(
@@ -251,7 +243,6 @@ export default function addresses(s, c) {
   });
 
   s.add(bgAura, title, warpView, layoutView);
-  runPhase(s, c, phase, 14);
 
   c.on('strided-warp', () =>
     s.play(stridedFocus.to(1, { duration: remainDuration(c, 'strided-warp', 0.4) })),

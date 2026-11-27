@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -137,7 +136,7 @@ export default function contextAndMemory(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(coalaMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const ep = epOn.value;
       const sm = semOn.value;
       const pr = procOn.value;
@@ -220,7 +219,6 @@ export default function contextAndMemory(s, c) {
   );
 
   s.add(stageAura, header, act0, act1);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('context-and-memory-b1-1', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('context-and-memory-b1-1').start, 0.25) }));

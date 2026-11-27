@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function sourceContract(s, c) {
-  const phase = s.value(0);
   const step = s.value(0);
 
   const bgAura = aura(0, 20, 620, '#60a5fa1c', '#5ce1e618');
@@ -29,7 +26,6 @@ export default function sourceContract(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const pkgs = [
       {
         k: 'MEGATRON CORE',
@@ -81,9 +77,7 @@ export default function sourceContract(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 255, { radius: 6, color: ROLE.tp }),
       txt(
         'Record Core, Trainer, and Bridge commit versions with every run to reconstruct exact peer maps',
         0,
@@ -97,7 +91,6 @@ export default function sourceContract(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['mg-source-contract-b0', 0],
     ['mg-source-contract-b1', 1],

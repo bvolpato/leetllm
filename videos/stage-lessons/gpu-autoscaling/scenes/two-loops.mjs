@@ -9,7 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   dashedRule,
-  driftValue,
   glowDot,
   guardedDynamic,
   quadArcPts,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function twoLoops(s, c) {
-  const phase = s.value(0);
   const mode = s.value(0); // 1=data+control overview, 2=overload feedback & sidecar health trap
 
   const header = cinemaHeader(
@@ -39,7 +37,6 @@ export default function twoLoops(s, c) {
     () => 1,
     () => {
       const m = mode.value;
-      const p = phase.value;
       const dataY = -75;
       const ctrlY = 235;
       const nodes = [];
@@ -56,7 +53,7 @@ export default function twoLoops(s, c) {
             [790, dataY],
           ],
           ROLE.active,
-          p * 1.4,
+          0,
           { width: 4.2, glow: 10, photonCount: 3 },
         ),
       );
@@ -96,7 +93,7 @@ export default function twoLoops(s, c) {
             [790, ctrlY],
           ],
           ROLE.control,
-          p * 0.35,
+          0,
           { width: 3.6, glow: 9, photonCount: 2 },
         ),
       );
@@ -124,7 +121,7 @@ export default function twoLoops(s, c) {
           [-720, ctrlY - 72],
         ];
         nodes.push(
-          beamWithPhotons(fbPts, ROLE.reject, p * 1.1, {
+          beamWithPhotons(fbPts, ROLE.reject, 0, {
             width: 3.6,
             glow: 10,
             photonCount: 2,
@@ -167,7 +164,6 @@ export default function twoLoops(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 5.5, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-two-loops-b0', mode, 1, 0.35);
   tweenOn(s, c, 'ga-two-loops-b1', mode, 2, 0.35);

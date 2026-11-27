@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function synthesis(s, c) {
-  const phase = s.value(0);
   // step: 0=3 peers timeout, 1=ask which rank? (hold!), 2=open R2 log, 3=R2 OOM before collective!, 4=triage ladder
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function synthesis(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const rankCols = [ROLE.r0, ROLE.r1, ROLE.r2, ROLE.r3];
 
     const nodes = [
@@ -71,9 +67,7 @@ export default function synthesis(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 275, { radius: 6, color: st >= 3 ? ROLE.good : ROLE.bad }),
       txt(
         st >= 4
           ? 'Triage order: (1) missing/OOM rank -> (2) sequence/arg mismatch -> (3) test selected route'
@@ -91,7 +85,6 @@ export default function synthesis(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['synth-peers', 0],
     ['synth-question', 1],

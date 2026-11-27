@@ -9,15 +9,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   glowTex,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function cacheBytes(s, c) {
-  const phase = s.value(0);
   const multOn = s.value(0);
   const compOn = s.value(0);
 
@@ -38,7 +35,6 @@ export default function cacheBytes(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ml = multOn.value;
       const cp = compOn.value;
       const nodes = [];
@@ -105,12 +101,6 @@ export default function cacheBytes(s, c) {
       nodes.push(
         txt('SEPARATE WEIGHT TERM', 480, -425, 26, ROLE.worker, 'mono', 'center'),
         txt('params × bytes/param = 16 GB', 480, -378, 26, COSMOS.ink, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.focus,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -118,8 +108,6 @@ export default function cacheBytes(s, c) {
   );
 
   s.add(bgAura, header, eq, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('sd-cache-bytes-1-operation', () => {
     s.play(
       multOn.to(1, { duration: clampDur(c, c.cue('sd-cache-bytes-1-operation').start, 0.35) }),

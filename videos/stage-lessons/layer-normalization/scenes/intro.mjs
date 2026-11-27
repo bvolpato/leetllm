@@ -2,22 +2,8 @@
 // Twin glowing residual stream highways: an identical +1 write docking onto a 1-unit stream
 // (supplying 1/2) vs hovering poised above an 8-unit stream until AFTER the spoken "One ninth" cue.
 import { line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  glowDot,
-  glowingTrail,
-  guardedDynamic,
-  heroTitle,
-  txt,
-} from '../../cinematic-kit.mjs';
-import {
-  ROLE,
-  alignedWriteState,
-  cinemaAtmosphere,
-  lumBar,
-  playCue,
-  scenePulse,
-} from '../parts.mjs';
+import { COSMOS, glowingTrail, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
+import { ROLE, alignedWriteState, cinemaAtmosphere, lumBar, playCue } from '../parts.mjs';
 
 export default function intro(s, c) {
   const early = alignedWriteState({ beat: 0, beatP: 0 }); // streamNorm = 1
@@ -38,7 +24,6 @@ export default function intro(s, c) {
   const eighthHover = s.value(0); // 0 -> 1 brings pending +1 tile into poised hover
   const eighthDock = s.value(0); // 0 -> 1 docks +1 onto 8 -> 9 (AFTER eighth-share!)
   const eighthReveal = s.value(0); // reveals 1/9 and Pre-LN teaser (AFTER eighth-share!)
-  const pulse = s.value(0);
 
   const stageVis = s.value(1);
 
@@ -51,7 +36,6 @@ export default function intro(s, c) {
 
   const highwayLayer = guardedDynamic(stageVis, (alpha) => {
     const nodes = [];
-    const p = pulse.value;
     const fd = firstDock.value;
     const fsv = firstShareVis.value;
     const lg = lateBarGrow.value;
@@ -68,9 +52,8 @@ export default function intro(s, c) {
     );
 
     // Continuous luminous baseline tracks spanning full width
-    [topY, botY].forEach((ry, idx) => {
+    [topY, botY].forEach((ry) => {
       const trackY = ry + barH / 2 + 26;
-      const runnerX = leftX + ((p * 2.4 + idx * 0.45) % 1) * 1120;
       nodes.push(
         glowingTrail(
           [
@@ -79,12 +62,6 @@ export default function intro(s, c) {
           ],
           { color: '#2b3c68', width: 2.2, glow: 4, core: false, opacity: 0.72 * alpha },
         ),
-        glowDot(runnerX, trackY, {
-          radius: 5,
-          color: idx === 0 ? ROLE.write : ROLE.stream,
-          glow: 10,
-          opacity: 0.75 * alpha,
-        }),
       );
       for (let tick = 0; tick <= 9; tick++) {
         const tx = leftX + tick * unit;
@@ -177,9 +154,8 @@ export default function intro(s, c) {
 
     // Pending +1 tile hovering above unit 8 -> docks onto unit 9 AFTER eighth-share!
     if (eh > 0.02) {
-      const hoverFloat = Math.sin(p * Math.PI * 10) * 6 * (1 - ed);
       const t2X = leftX + late.streamNorm * unit + unit / 2 + (1 - ed) * 42;
-      const t2Y = botY - (1 - ed) * 108 + hoverFloat;
+      const t2Y = botY - (1 - ed) * 108;
       const tileCol = ROLE.gold;
       nodes.push(
         lumBar(t2X, t2Y, unit - 6, barH, {
@@ -229,7 +205,6 @@ export default function intro(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.stream, ROLE.gold), title, highwayLayer);
-  scenePulse(s, c, pulse);
 
   // Beat 0: First write docks onto 1 -> 2, revealing 1/2 AFTER first-share
   playCue(s, c, 'first-write', (d) => s.play(firstDock.to(1, { duration: d })), { dur: 0.8 });

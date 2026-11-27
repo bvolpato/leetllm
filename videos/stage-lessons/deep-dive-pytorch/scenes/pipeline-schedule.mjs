@@ -9,17 +9,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function pipelineSchedule(s, c) {
-  const phase = s.value(0);
   const mode = s.value(0); // 0=2mb forward, 1=GPipe vs 1F1B compare, 2=2mb bubble, 3=4mb smaller bubble
 
   const bgAura = aura(0, 20, 620, '#a78bfa1e', '#5ce1e618');
@@ -34,7 +31,6 @@ export default function pipelineSchedule(s, c) {
 
   const live = guardedDynamic(1, () => {
     const m = Math.round(mode.value);
-    const p = phase.value;
     const nodes = [];
 
     const drawGrid = (sched, x0, y0, cellW, cellH, label, labelCol) => {
@@ -135,14 +131,10 @@ export default function pipelineSchedule(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-760 + u * 1520, 310, { radius: 6, color: ROLE.grad }));
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-pipeline-schedule-0', () => s.play(mode.to(0, { duration: 0.25 })));
   c.on('pt-pipeline-schedule-1', () =>

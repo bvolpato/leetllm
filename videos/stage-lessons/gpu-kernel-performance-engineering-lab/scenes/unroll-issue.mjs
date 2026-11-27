@@ -8,7 +8,6 @@ import {
   aura,
   delay,
   glassCell,
-  glowDot,
   glowingTrail,
   group,
   guardedDynamic,
@@ -16,12 +15,10 @@ import {
   par,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function unrollIssue(s, c) {
-  const phase = s.value(0);
   const showPipe = s.value(1);
   const showAsm = s.value(0);
   const showLive = s.value(0);
@@ -51,7 +48,6 @@ export default function unrollIssue(s, c) {
 
   // Beat 0: 4-lane issue pipeline (global LDG latency overlapped ahead of STS shared stores)
   const pipeView = guardedDynamic(showPipe, (a) => {
-    const p = phase.value;
     const op = offsetsProg.value;
     const lp = loadsProg.value;
     const offsets = [0, 8, 16, 24];
@@ -107,9 +103,7 @@ export default function unrollIssue(s, c) {
       }
     });
 
-    const u = (p * 0.5) % 1;
     nodes.push(
-      glowDot(-520 + u * 1240, 250, { radius: 6, color: ROLE.gold, opacity: 0.75 * a }),
       txt(
         'Independent loads can issue in flight before dependent shared stores wait for them',
         0,
@@ -252,7 +246,6 @@ export default function unrollIssue(s, c) {
   });
 
   s.add(bgAura, title, pipeView, asmView, liveView);
-  runPhase(s, c, phase, 16);
 
   c.on('gpu-unroll-issue-offsets', () =>
     s.play(offsetsProg.to(1, { duration: remainDuration(c, 'gpu-unroll-issue-offsets', 0.75) })),

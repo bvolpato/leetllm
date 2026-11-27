@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function groupEnqueue(s, c) {
-  const phase = s.value(0);
   // step: 0..3=blocking GroupEnd, 4..7=nonblocking 2ms->4ms->9ms, 8..11=2-stream group join
   const step = s.value(0);
 
@@ -32,7 +29,6 @@ export default function groupEnqueue(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     // ms [0..10] -> x in [-560, 640] (120 px/ms)
     const mx = (ms) => -560 + ms * 120;
 
@@ -104,9 +100,7 @@ export default function groupEnqueue(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(mx(0) + u * (mx(10) - mx(0)), 268, { radius: 6, color: ROLE.comm }),
       txt(
         st >= 8
           ? 'Grouping calls across streams joins dependencies: NCCL waits for prior work on both'
@@ -122,7 +116,6 @@ export default function groupEnqueue(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-group-enqueue-b0-s0', 0],
     ['nc-group-enqueue-b0-s1', 1],

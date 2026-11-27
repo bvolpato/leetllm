@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   clampDur,
   coldMicro,
-  driftValue,
   glowBar,
   glowTex,
   guardedDynamic,
@@ -60,7 +59,7 @@ export default function oneAnswer(s, c) {
       const cV = countReveal.value;
       const ch = chargeProg.value;
       const tot = totalReveal.value;
-      const p = pulseT.value;
+      const p = 0;
 
       const nodes = [];
 
@@ -196,7 +195,6 @@ export default function oneAnswer(s, c) {
   );
 
   s.add(sceneAura, header, canvas);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('dated-rate-card', () => {
     const t = c.cue('dated-rate-card').start;

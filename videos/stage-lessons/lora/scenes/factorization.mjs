@@ -13,12 +13,10 @@ import {
   heroTitle,
   matrixGrid,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function factorization(s, c) {
-  const phase = s.value(0);
   const hlA = s.value(0);
   const hlB = s.value(0);
   const entryStep = s.value(0);
@@ -132,7 +130,6 @@ export default function factorization(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 12);
 
   c.on('factorization-b1-1', () => s.play(hlA.to(1, { duration: 0.4 })));
   c.on('factorization-b1-2', () => s.play(hlB.to(1, { duration: 0.4 })));

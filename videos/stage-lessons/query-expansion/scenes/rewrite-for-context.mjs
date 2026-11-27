@@ -43,14 +43,12 @@ export default function rewriteForContext(s, c) {
   const scoreRecovery = search(RECOVERY_QUERY, [SUPPORT_PAGES[1]])[0]?.score ?? 0;
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sh = showHistory.value;
     const sc = showCarry.value;
     const si = showInput.value;
     const sr = showResult.value;
     const rewritten = si > 0.4;
     const revealed = sr > 0.5;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('3D QUERY RE-AIMING', 555, -345, 26, COSMOS.emerald, 'mono'),
@@ -69,7 +67,7 @@ export default function rewriteForContext(s, c) {
       txt('CONVERSATION HISTORY', -855, -215, 26, COSMOS.gold, 'mono', 'left'),
       glassCell(-635, -138, 440, 82, sh > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: sh > 0.3 ? '#262010' : '#12192d',
-        glow: sh > 0.3 ? 9 * pulse : 3,
+        glow: sh > 0.3 ? 9 : 3,
       }),
       txt('Turn 1: "My API key leaked."', -835, -136, 26, COSMOS.gold, 'sans', 'left'),
 
@@ -90,7 +88,7 @@ export default function rewriteForContext(s, c) {
       txt('STANDALONE SEARCH QUERY', -325, -215, 26, COSMOS.emerald, 'mono', 'left'),
       glassCell(-105, -88, 440, 134, rewritten ? COSMOS.emerald : COSMOS.gold, {
         fill: rewritten ? '#0d2624' : '#141d34',
-        glow: rewritten ? 9 * pulse : 4,
+        glow: rewritten ? 9 : 4,
       }),
       txt(
         rewritten ? '"How do I revoke and rotate' : 'Carry task, strip secret:',
@@ -132,7 +130,7 @@ export default function rewriteForContext(s, c) {
 
       glassCell(-370, 256, 970, 106, revealed ? COSMOS.emerald : COSMOS.cyan, {
         fill: revealed ? '#0d2723' : '#11182c',
-        glow: revealed ? 10 * pulse : 3,
+        glow: revealed ? 10 : 3,
       }),
       txt(SUPPORT_PAGES[1].id.toUpperCase(), -832, 230, 26, COSMOS.emerald, 'mono', 'left'),
       txt(SUPPORT_PAGES[1].text, -832, 276, 28, COSMOS.ink, 'sans', 'left'),

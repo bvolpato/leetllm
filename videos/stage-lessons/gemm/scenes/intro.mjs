@@ -7,20 +7,17 @@ import {
   aura,
   buildSystolicGemm3d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   orbitScene,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function intro(s, c) {
   const kCursor = s.value(1);
-  const phase = s.value(0);
   const showLeft = s.value(0);
   const showRight = s.value(0);
   const cropped = s.value(0);
@@ -44,13 +41,11 @@ export default function intro(s, c) {
   const bRight = B[1][1]; // 4
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sl = showLeft.value;
     const sr = showRight.value;
     const cr = cropped.value;
     const cd = credit.value;
     const keepOpacity = Math.max(0.14, 1 - cr * 0.86);
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.5);
 
     const nodes = [
       txt('3D SYSTOLIC TILE RIG', 400, -405, 26, COSMOS.cyan, 'mono').glow(5, COSMOS.cyan),
@@ -60,7 +55,7 @@ export default function intro(s, c) {
       txt('SHARED A[1, 1]', -555, -152, 26, ROLE.a, 'mono'),
       glassCell(-555, -78, 170, 96, cd > 0.5 ? ROLE.good : ROLE.a, {
         fill: cd > 0.5 ? '#0e2824' : '#101d38',
-        glow: 10 * pulse,
+        glow: 10,
       }),
       txt(String(aVal), -555, -78, 46, cd > 0.5 ? ROLE.good : ROLE.a, 'mono').glow(6, ROLE.a),
 
@@ -80,17 +75,11 @@ export default function intro(s, c) {
     ];
 
     if (sl > 0.02) {
-      const u = (p * 0.65) % 1;
       nodes.push(
         glowingArc([-580, -28], [-634, 178], 12, {
           color: cd > 0.5 ? ROLE.good : ROLE.a,
           width: 3.6,
           opacity: 0.9 * sl,
-        }),
-        glowDot(-580 - 54 * u, -28 + 206 * u, {
-          radius: 6,
-          color: cd > 0.5 ? ROLE.good : COSMOS.gold,
-          opacity: sl,
         }),
         txt(`${aVal} × ${bLeft} = ${aVal * bLeft}`, -720, 274, 34, ROLE.c, 'mono')
           .glow(6, ROLE.c)
@@ -133,7 +122,6 @@ export default function intro(s, c) {
   });
 
   s.add(bgAura, gemm3d, title, live);
-  runPhase(s, c, phase, 14);
   orbitScene(s, c, gemm3d, { theta: -0.22, phi: 0.92 });
 
   c.on('left-product', () =>

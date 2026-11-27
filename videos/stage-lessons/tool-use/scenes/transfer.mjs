@@ -9,7 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   gateNode,
   glowMeter,
@@ -42,7 +41,7 @@ export default function transfer(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const cy = cycleOn.value;
       const lm = limitsOn.value;
       const rs = reserveOn.value;
@@ -215,7 +214,6 @@ export default function transfer(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('transfer-beat-1-focus-1', () => {
     s.play(cycleOn.to(1, { duration: clampDur(c, c.cue('transfer-beat-1-focus-1').start, 0.35) }));

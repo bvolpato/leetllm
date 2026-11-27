@@ -11,7 +11,6 @@ import {
   WORKSHEET_SEC,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   glowingArc,
   group,
@@ -19,12 +18,10 @@ import {
   heroTitle,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function logicalRate(s, c) {
-  const phase = s.value(0);
   const showRW = s.value(0);
   const showBytes = s.value(0);
   const showMiB = s.value(0);
@@ -51,8 +48,6 @@ export default function logicalRate(s, c) {
   );
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.5);
     const rw = showRW.value;
     const bt = showBytes.value;
     const mb = showMiB.value;
@@ -62,7 +57,6 @@ export default function logicalRate(s, c) {
     const ws = showWorksheet.value;
     const ct = showCounter.value;
     const cp = showCopy.value;
-    const u = (p * 0.48) % 1;
 
     const nodes = [
       // Left: Read plane (64 MiB)
@@ -80,11 +74,6 @@ export default function logicalRate(s, c) {
         color: ROLE.gold,
         width: 3.2,
         opacity: 0.7 * (0.3 + 0.7 * bt),
-      }),
-      glowDot(-155 + u * 310, -165 - Math.sin(u * Math.PI) * 24, {
-        radius: 6.5,
-        color: ROLE.gold,
-        opacity: 0.85,
       }),
 
       // Right: Write plane (64 MiB)
@@ -153,7 +142,7 @@ export default function logicalRate(s, c) {
           ROLE.good,
           'mono',
         )
-          .glow(8 * pulse, ROLE.good)
+          .glow(8, ROLE.good)
           .opacity(rt),
       );
     } else {
@@ -176,7 +165,6 @@ export default function logicalRate(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('gpu-logical-rate-readwrite', () =>
     s.play(showRW.to(1, { duration: remainDuration(c, 'gpu-logical-rate-readwrite', 0.45) })),

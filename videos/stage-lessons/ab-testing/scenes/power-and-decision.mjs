@@ -15,7 +15,6 @@ import {
   makePlot,
   normalPdf,
   planningPower,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -24,7 +23,6 @@ const P9246 = planningPower(9246);
 const P9336 = planningPower(9336);
 
 export default function powerAndDecision(s, c) {
-  const phase = s.value(0);
   const showScale = s.value(0);
   const showShort = s.value(0);
   const showFuller = s.value(0);
@@ -157,7 +155,6 @@ export default function powerAndDecision(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'scaling', showScale, 1, { duration: 0.45 });
   tweenCue(s, c, 'shortcut', showShort, 1, { duration: 0.45 });

@@ -4,7 +4,6 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -79,7 +78,6 @@ export default function tensorParallel(s, c) {
       glowingArc([164, -110], [296, -38], -22, { color: ROLE.comm, width: 3.6, opacity: 0.92 }),
       glowingArc([164, 95], [296, 22], 22, { color: ROLE.comm, width: 3.6, opacity: 0.92 }),
 
-      glowDot(-740 + ((p * 0.65) % 1) * 1480, 268, { radius: 6, color: ROLE.good }),
       txt(
         sl > 0.5
           ? 'Megatron TP: attention heads + MLP = 2 fwd + 2 bwd All-Reduces / layer (shrinks gathered matrices)'

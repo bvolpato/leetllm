@@ -10,7 +10,6 @@ import {
   aura,
   cinemaHeader,
   cinematic3d,
-  driftValue,
   guardedDynamic,
   orbitScene,
   tweenOn,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function migSlices(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=7 MIG hardware slices, 2=per-slice budget & auth/scheduling
 
   const header = cinemaHeader(
@@ -137,7 +135,6 @@ export default function migSlices(s, c) {
 
   s.add(bgAura, migView, header, dyn);
   orbitScene(s, c, migView, { theta: -0.24, phi: 0.9 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, phase, 5.5, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-mig-slices-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-mig-slices-b1', step, 2, 0.35);

@@ -4,7 +4,6 @@ import {
   aura,
   experiment,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -12,12 +11,10 @@ import {
   large,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function cpuContract(s, c) {
-  const phase = s.value(0);
   const showDiv = s.value(0);
   const showRnd = s.value(0);
   const showRec = s.value(0);
@@ -37,7 +34,6 @@ export default function cpuContract(s, c) {
   const blockEntries = experiment.block[1].slice(0, 8);
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const dv = showDiv.value;
     const rn = showRnd.value;
     const rc = showRec.value;
@@ -184,14 +180,12 @@ export default function cpuContract(s, c) {
       txt('x_fp8 · w_fp8  (6 exact + 512, -256)', 435, yBot + 22, 28, COSMOS.gold, 'mono').opacity(
         opM,
       ),
-      glowDot(-790 + ((p * 0.4) % 1) * 1580, 258, { radius: 5, color: COSMOS.cyan, opacity: 0.7 }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('cpu-divide', () =>
     s.play(showDiv.to(1, { duration: remainDuration(c, 'cpu-divide', 0.45) })),

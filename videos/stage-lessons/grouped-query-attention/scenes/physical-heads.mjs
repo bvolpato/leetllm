@@ -15,7 +15,6 @@ import {
   playCue,
   range,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -23,8 +22,6 @@ import {
 export default function physicalHeadsScene(s, c) {
   const first = physicalHeads(64, 8, 4);
   const second = physicalHeads(64, 8, 16);
-
-  const phase = s.value(0);
   const vSplit = s.value(1); // View 1: 64Q / 8KV on TP=4 -> TP=16
   const vInvalid = s.value(0); // View 2: 24Q / 6KV on 4 ranks (invalid split)
 
@@ -361,7 +358,6 @@ export default function physicalHeadsScene(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.key), title1, view1, view2);
-  runPhase(s, c, phase, 16);
 
   playCue(s, c, 'four', (d) => s.play(tpStage.to(1, { duration: Math.min(0.25, d) })), {
     after: true,

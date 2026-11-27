@@ -69,13 +69,11 @@ export default function hnswLayers(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sn = showNarrow.value;
     const sa = showAsk.value;
     const sAns = showAnswer.value;
     const ws = showWideStep.value;
     const sb = showBuild.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('3D HNSW MULTI-LAYER GRAPH (L1 -> L0)', 520, -330, 26, COSMOS.cyan, 'mono'),
@@ -129,7 +127,7 @@ export default function hnswLayers(s, c) {
 
       glassCell(-425, 186, 880, 128, sAns > 0.4 ? COSMOS.emerald : COSMOS.muted, {
         fill: sAns > 0.4 ? '#0e2824' : '#12182b',
-        glow: sAns > 0.4 ? 9 * pulse : 2,
+        glow: sAns > 0.4 ? 9 : 2,
       }),
       txt(
         sAns > 0.4

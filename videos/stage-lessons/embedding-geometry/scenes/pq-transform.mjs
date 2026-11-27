@@ -16,7 +16,6 @@ import {
   norm,
   playCue,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -26,7 +25,6 @@ export default function pqTransform(s, c) {
   const centroid = [3, 1];
   const residual = [doc[0] - centroid[0], doc[1] - centroid[1]]; // [1, 1]
 
-  const phase = s.value(0);
   const reconMix = s.value(0);
   const normLit = s.value(0);
   const theta = s.value(0);
@@ -65,8 +63,6 @@ export default function pqTransform(s, c) {
   );
 
   const planeLayer = dynamic(() => {
-    const pp = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(pp * 3.0);
     const rm = reconMix.value;
     const am = anchorMode.value;
     const ap = anchorPos.value;
@@ -115,7 +111,7 @@ export default function pqTransform(s, c) {
           color: ROLE.code,
           width: 4.2,
           tipSize: 15,
-          glow: 9 * pulse,
+          glow: 9,
           opacity: op,
         }),
       );
@@ -147,7 +143,7 @@ export default function pqTransform(s, c) {
           color: resCol,
           width: 6.5,
           tipSize: 20,
-          glow: 11 * pulse,
+          glow: 11,
           opacity: am,
         }),
         txt(
@@ -235,8 +231,6 @@ export default function pqTransform(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.violet, ROLE.code), title, cosFormula, planeLayer);
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'lengths', (d) => s.play(reconMix.to(1, { duration: d })), { dur: 1.8 });
   playCue(s, c, 'norm', (d) => s.play(normLit.to(1, { duration: d })), { dur: 0.5 });

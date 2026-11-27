@@ -8,8 +8,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   phaseDurations,
   sum,
@@ -17,7 +15,6 @@ import {
 } from '../parts.mjs';
 
 export default function timing(s, c) {
-  const phase = s.value(0);
   const debOn = s.value(0);
 
   const immTotal = sum(phaseDurations); // 183
@@ -40,7 +37,6 @@ export default function timing(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const db = debOn.value;
       const nodes = [];
 
@@ -166,12 +162,6 @@ export default function timing(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ed,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -179,8 +169,6 @@ export default function timing(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('timing-beat-2-focus-1', () => {
     s.play(debOn.to(1, { duration: clampDur(c, c.cue('timing-beat-2-focus-1').start, 0.4) }));
   });

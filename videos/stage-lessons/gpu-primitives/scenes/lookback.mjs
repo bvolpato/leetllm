@@ -14,13 +14,11 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
 
 export default function lookback(s, c) {
-  const phase = s.value(0);
   const showWalk = s.value(1);
   const showLegendA = s.value(0);
   const showLegendP = s.value(0);
@@ -37,7 +35,6 @@ export default function lookback(s, c) {
 
   // Beat 0-1: Decoupled look-back backward probe
   const walkView = guardedDynamic(showWalk, (a) => {
-    const p = phase.value;
     const step = walkStep.value;
     const stepsDone = Math.round(step);
     const off = showOffset.value;
@@ -109,7 +106,7 @@ export default function lookback(s, c) {
         .glow(10, COSMOS.gold)
         .opacity(a),
       glowDot(probeX, 92, {
-        radius: 12 + 2 * Math.sin(p * 4),
+        radius: 12,
         color: COSMOS.gold,
         opacity: a,
       }),
@@ -150,12 +147,10 @@ export default function lookback(s, c) {
 
   // Beat 2: Release / Acquire publication protocol
   const pubView = guardedDynamic(showPub, (a) => {
-    const p = phase.value;
     const st = pubState.value;
     const written = st >= 1.5;
     const released = st >= 2.5;
     const acquired = st >= 3.5;
-    const u = (p * 0.9) % 1;
 
     const nodes = [
       heroTitle(['Safe Publication:', 'Release & Acquire'], {
@@ -230,7 +225,6 @@ export default function lookback(s, c) {
           opacity: a,
           core: false,
         }),
-        glowDot(-375 + u * 190, -20, { radius: 7, color: COSMOS.cyan, opacity: a }),
       );
     }
     if (acquired) {
@@ -241,7 +235,6 @@ export default function lookback(s, c) {
           opacity: a,
           core: false,
         }),
-        glowDot(185 + u * 190, -20, { radius: 7, color: COSMOS.emerald, opacity: a }),
       );
     }
 
@@ -320,7 +313,6 @@ export default function lookback(s, c) {
   });
 
   s.add(bgAura, walkView, pubView, trafficView);
-  runPhase(s, c, phase, 14);
 
   c.on('lookback-records', () => s.play(showLegendA.to(1, { duration: 0.35 })));
   c.on('lookback-prefix', () => s.play(showLegendP.to(1, { duration: 0.35 })));

@@ -12,7 +12,6 @@ import {
   heroTitle,
   onCue,
   probBarH,
-  startAmbient,
   tokenPill,
   txt,
   verificationBudget,
@@ -26,7 +25,6 @@ import {
  * Phase 2: Depth 5 (3.69 / 1.75 = 2.11x) vs Depth 10 (4.57 / 2.50 = 1.83x).
  */
 export function cost(s, c) {
-  const amb = startAmbient(s, c);
   const alpha = 0.8;
   const y5 = expectedYield(alpha, 5); // 3.68928
   const y10 = expectedYield(alpha, 10); // 4.57050
@@ -57,7 +55,6 @@ export function cost(s, c) {
 
   // Phase 1: Geometric series + flat vs longer verification pass
   const v1 = guardedDynamic(p1, (a) => {
-    const t = amb.value;
     const tp = termsProg.value;
     const sy = showYieldVal.value;
     const db = showDraftBar.value;
@@ -208,12 +205,6 @@ export function cost(s, c) {
     }
 
     nodes.push(
-      glowDot(barLeft + ((t * 1.4) % 1) * (1.5 * unitPx), 335, {
-        radius: 5,
-        color: COSMOS.gold,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         ms > 0.25
           ? 'Real serving speed depends on measured drafting, verify, cache repair & scheduling'
@@ -232,7 +223,6 @@ export function cost(s, c) {
 
   // Phase 2: Depth 5 vs Depth 10
   const v2 = guardedDynamic(p2, (a) => {
-    const t = amb.value;
     const dy = showDepth10Yield.value;
     const ds = showDepth10Speed.value;
     const unitPx = 330;
@@ -320,12 +310,6 @@ export function cost(s, c) {
       }
     }
     nodes.push(
-      glowDot(barLeft + ((t * 1.4) % 1) * 825, 325, {
-        radius: 5,
-        color: COSMOS.gold,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Diminishing geometric returns + linear cost growth make depth 5 beat depth 10 here',
         0,
@@ -360,7 +344,6 @@ export function cost(s, c) {
  * Withholds "9 rounds keep both" until spoken cue `yield-both`!
  */
 export function positionYield(s, c) {
-  const amb = startAmbient(s, c);
   const y5 = expectedYield(0.8, 5);
 
   const firstPass = s.value(0);
@@ -384,7 +367,6 @@ export function positionYield(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const fp = firstPass.value;
       const rb = revealBoth.value;
       const rev = showReverse.value;
@@ -467,15 +449,6 @@ export function positionYield(s, c) {
         }
       });
 
-      nodes.push(
-        glowDot(-460 + ((t * 1.3) % 1) * 900, 342, {
-          radius: 5,
-          color: COSMOS.cyan,
-          glow: 10,
-          opacity: 0.7,
-        }),
-      );
-
       let foot = '100 rounds, 2 guesses each: only pos-1 survivors reach pos-2';
       let fCol = COSMOS.muted;
       if (geo > 0.25) {
@@ -513,7 +486,6 @@ export function positionYield(s, c) {
  * Phase 3: Measured EAGLE-3 batch-64 H100 result (1.38x vs Original EAGLE 0.99x).
  */
 export function loadCost(s, c) {
-  const amb = startAmbient(s, c);
   const ridge = weightWorksheet(1).ridge;
   const y2 = expectedYield(0.8, 2); // 2.44
 
@@ -537,7 +509,6 @@ export function loadCost(s, c) {
 
   // Phase 1: Intensity ruler 1 -> 64 -> 295.4
   const v1 = guardedDynamic(p1, (a) => {
-    const t = amb.value;
     const x0 = -740;
     const w = 1480;
     const y = 30;
@@ -577,12 +548,6 @@ export function loadCost(s, c) {
         a,
       ),
 
-      glowDot(x1 + ((t * 1.2) % 1) * (x64 - x1), y, {
-        radius: 5,
-        color: '#ffffff',
-        glow: 12,
-        opacity: 0.8 * a,
-      }),
       txt(
         '64 streams sharing one weight read still sit on the bandwidth slope below the dense ridge',
         0,
@@ -597,7 +562,6 @@ export function loadCost(s, c) {
 
   // Phase 2: Compute-bound regime (3 positions = 3.0 steps + 0.2 draft = 3.2 steps for 2.44 tokens)
   const v2 = guardedDynamic(p2, (a) => {
-    const t = amb.value;
     const cw = showComputeWin.value;
     const nodes = [
       txt(
@@ -659,20 +623,11 @@ export function loadCost(s, c) {
         ).opacity(cw * a),
       );
     }
-    nodes.push(
-      glowDot(-460 + ((t * 1.4) % 1) * 1100, 335, {
-        radius: 5,
-        color: COSMOS.rose,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
-    );
     return group(...nodes);
   });
 
   // Phase 3: Measured H100 batch-64 EAGLE-3 vs Original EAGLE
   const v3 = guardedDynamic(p3, (a) => {
-    const t = amb.value;
     const e3 = showEagle3.value;
     const oe = showOrigEagle.value;
     const baseY = 235;
@@ -718,12 +673,6 @@ export function loadCost(s, c) {
     );
 
     nodes.push(
-      glowDot(-290 + ((t * 1.4) % 1) * 580, baseY + 95, {
-        radius: 5,
-        color: COSMOS.emerald,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Real throughput depends on draft overhead, batching, and architecture: always measure at load',
         0,
@@ -756,7 +705,6 @@ export function loadCost(s, c) {
  * 16 streams x (1 pending + 2 draft) = 48 <= 64 limit (FITS, ~39.0 expected output tokens).
  */
 export function verificationBudgetScene(s, c) {
-  const amb = startAmbient(s, c);
   const b4 = verificationBudget(16, 4, 64, 0.8); // 80 inputs, fits: false
   const b2 = verificationBudget(16, 2, 64, 0.8); // 48 inputs, expectedOutput: 39.04, fits: true
 
@@ -778,7 +726,6 @@ export function verificationBudgetScene(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const s80 = show80.value;
       const den = showDeny.value;
       const d2 = showDepth2.value;
@@ -855,12 +802,6 @@ export function verificationBudgetScene(s, c) {
       }
 
       nodes.push(
-        glowDot(barLeft + ((t * 1.4) % 1) * (64 * scaleW), 325, {
-          radius: 5,
-          color: COSMOS.gold,
-          glow: 10,
-          opacity: 0.7,
-        }),
         txt(
           showPending.value > 0.1
             ? 'Admission reserves worst-case input positions (pending + draft); rejections never refund evaluated slots'

@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function actualLoaderCases(s, c) {
-  const phase = s.value(0);
   const revA = s.value(0);
   const revAF = s.value(0);
   const revBF = s.value(0);
@@ -33,7 +30,6 @@ export default function actualLoaderCases(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const rows = [
       {
         pkg: 'Build A (sm_120 + PTX)',
@@ -110,16 +106,12 @@ export default function actualLoaderCases(s, c) {
           .glow(6, ROLE.ir)
           .opacity(showTools.value),
       );
-    } else {
-      const u = (p * 0.5) % 1;
-      nodes.push(glowDot(-820 + u * 1640, 352, { radius: 6, color: ROLE.ir }));
     }
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.after('target-branches', () =>
     s.play(revA.to(1, { duration: remainDuration(c, 'target-branches', 0.4) })),

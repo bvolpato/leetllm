@@ -20,7 +20,6 @@ import {
   playCue,
   plotPlane,
   sampleCurve,
-  scenePulse,
   swapVis,
 } from '../parts.mjs';
 
@@ -44,7 +43,6 @@ export default function studyDiscrepancy(s, c) {
   const gridFill = s.value(0); // sl-study-discrepancy-0
   const shiftT = s.value(0); // sl-study-discrepancy-2: lowers whole loss curve by 0.30
   const beat2Mode = s.value(0);
-  const pulse = s.value(0);
 
   // Act 1: Three 10x10 glowing exponent proportion mosaics
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
@@ -192,7 +190,6 @@ export default function studyDiscrepancy(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.tokens), title, act1Layer, act2Layer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'sl-study-discrepancy-0', (d) => s.play(gridFill.to(1, { duration: d })), {
     dur: 1.5,

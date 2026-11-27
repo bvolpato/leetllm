@@ -13,7 +13,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fsmNode,
@@ -26,7 +25,6 @@ import {
 const TWO_FIELDS = JSON.stringify({ run_id: CI_RUN.run_id, status: CI_RUN.status });
 
 export default function interfaceContract(s, c) {
-  const pulse = s.value(0);
   const trimmed = s.value(0);
   const act = s.value(0); // 0 = trim preamble, 1 = missing keys, 2 = tool lookup
   const missingVerdict = s.value(0);
@@ -55,7 +53,6 @@ export default function interfaceContract(s, c) {
   const act01 = guardedDynamic(
     () => fadeOutHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
       const tr = trimmed.value;
       const isMissing = act.value > 0.5;
       const mv = missingVerdict.value;
@@ -100,7 +97,7 @@ export default function interfaceContract(s, c) {
           opacity: a,
         }),
         txt('1. JSON PARSER', g1X, gY + 130, 26, COSMOS.muted, 'mono', 'center').opacity(a),
-        beamWithPhotons(beamPts, syntaxOk ? ROLE.fsm : '#2f3d61', p * 1.1, {
+        beamWithPhotons(beamPts, syntaxOk ? ROLE.fsm : '#2f3d61', 0, {
           alpha: a * (syntaxOk ? 0.95 : 0.35),
           photonCount: syntaxOk ? 2 : 0,
         }),
@@ -198,7 +195,6 @@ export default function interfaceContract(s, c) {
   const act2 = guardedDynamic(
     () => fadeInHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
       const lk = lookupBeam.value;
       const nodes = [];
 
@@ -246,14 +242,14 @@ export default function interfaceContract(s, c) {
 
       const outArc = quadArcPts([-140, toolY + 10], [260, toolY - 15], -55);
       nodes.push(
-        beamWithPhotons(outArc, ROLE.fsm, p * 1.1, { alpha: a, width: 3.4 }),
+        beamWithPhotons(outArc, ROLE.fsm, 0, { alpha: a, width: 3.4 }),
         fsmNode(365, toolY + 15, 72, 'HOST', { color: ROLE.schema, size: 28, opacity: a }),
       );
 
       if (lk > 0.05) {
         const retArc = quadArcPts([260, toolY + 45], [-140, toolY + 65], 65);
         nodes.push(
-          beamWithPhotons(retArc, ROLE.prefix, p * 1.2 + 0.5, { alpha: a * lk, width: 3.6 }),
+          beamWithPhotons(retArc, ROLE.prefix, 0, { alpha: a * lk, width: 3.6 }),
           txt('SNAPSHOT RETURNED', 485, toolY - 10, 28, ROLE.prefix, 'mono', 'left')
             .glow(8, ROLE.prefix)
             .opacity(a * lk),
@@ -286,7 +282,6 @@ export default function interfaceContract(s, c) {
   );
 
   s.add(stageAura, header, logStrip, act01, act2);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('interface-trim', () => {
     s.play(trimmed.to(1, { duration: clampDur(c, c.cue('interface-trim').start, 0.4) }));

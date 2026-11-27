@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function agreement(s, c) {
-  const phase = s.value(0);
   // step: 0=agreed seq0, 1=seq1 mismatch on R2, 2=repaired seq1
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function agreement(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const rankCols = [ROLE.r0, ROLE.r1, ROLE.r2, ROLE.r3];
 
     const nodes = [
@@ -60,9 +56,7 @@ export default function agreement(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: st === 1 ? ROLE.bad : ROLE.good }),
       txt(
         st === 1
           ? 'Healthy links still hang! Compare earliest rank log divergence before blaming the network'
@@ -80,7 +74,6 @@ export default function agreement(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['agreement-communicator', 0],
     ['agreement-ordered', 0],

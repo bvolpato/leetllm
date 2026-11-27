@@ -9,14 +9,11 @@ import {
   base,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function freshness(s, c) {
-  const phase = s.value(0);
   const paint42 = s.value(0); // STRICT after fresh-paint!
   const arrive41 = s.value(0);
   const keep42Drop41 = s.value(0); // STRICT after fresh-keep!
@@ -33,7 +30,6 @@ export default function freshness(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const p42 = paint42.value;
       const a41 = arrive41.value;
       const kd = keep42Drop41.value;
@@ -190,22 +186,11 @@ export default function freshness(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.after('fresh-paint', () => {
     s.play(paint42.to(1, { duration: clampDur(c, c.cue('fresh-paint').end, 0.35) }));
   });

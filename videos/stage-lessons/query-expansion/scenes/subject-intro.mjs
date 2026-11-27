@@ -41,12 +41,10 @@ export default function subjectIntro(s, c) {
   const scoreRecovery = search(FOLLOW_UP, [SUPPORT_PAGES[1]])[0]?.score ?? 0;
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sf = showFollowUp.value;
     const ss = showSearch.value;
     const sr = showResult.value;
     const revealed = sr > 0.5;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const nodes = [
       // Right 3D stage caption
@@ -64,7 +62,7 @@ export default function subjectIntro(s, c) {
       txt('SUPPORT CHAT (LEFT BEHIND)', -855, -215, 26, COSMOS.muted, 'mono', 'left'),
       glassCell(-635, -138, 440, 82, revealed ? COSMOS.gold : COSMOS.dim, {
         fill: '#12192d',
-        glow: revealed ? 8 * pulse : 2,
+        glow: revealed ? 8 : 2,
       }),
       txt(
         'Turn 1: "My API key leaked."',
@@ -92,7 +90,7 @@ export default function subjectIntro(s, c) {
       txt('SEARCH BOX INPUT', -325, -215, 26, COSMOS.cyan, 'mono', 'left'),
       glassCell(-105, -88, 440, 134, ss > 0.3 ? COSMOS.cyan : COSMOS.blue, {
         fill: '#0f2036',
-        glow: ss > 0.3 ? 9 * pulse : 4,
+        glow: ss > 0.3 ? 9 : 4,
       }),
       txt(`"${FOLLOW_UP}"`, -300, -104, 30, COSMOS.ink, 'sans', 'left'),
       txt('Count each shared word once', -300, -56, 26, COSMOS.muted, 'sans', 'left'),
@@ -103,7 +101,7 @@ export default function subjectIntro(s, c) {
       // Page 1: Account overview
       glassCell(-370, 128, 970, 106, revealed ? COSMOS.amber : COSMOS.muted, {
         fill: revealed ? '#261b10' : '#11182c',
-        glow: revealed ? 9 * pulse : 3,
+        glow: revealed ? 9 : 3,
       }),
       txt(
         SUPPORT_PAGES[0].id.toUpperCase(),

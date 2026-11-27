@@ -11,7 +11,6 @@ import {
   guardedDynamic,
   heroTitle,
   lumBar,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -20,7 +19,6 @@ import { buildAuditRulerNodes } from '../audit-ruler.mjs';
 const ORIG = groundingPacket(23);
 
 export default function guardrailsScene(s, c) {
-  const phase = s.value(0);
   const showSpeed = s.value(0);
   const showPages = s.value(0);
   const showPoint = s.value(0);
@@ -149,7 +147,6 @@ export default function guardrailsScene(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'speed', showSpeed, 1, { duration: 0.45 });
   tweenCue(s, c, 'pages', showPages, 1, { duration: 0.45 });

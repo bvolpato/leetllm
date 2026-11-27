@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   playOn,
   stepAfter,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function iterationBoundary(s, c) {
-  const pulse = s.value(0);
   const iterProg = s.value(0);
   const memberOn = s.value(0);
   const b1On = s.value(0);
@@ -39,7 +37,6 @@ export default function iterationBoundary(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const iters = Math.max(1, Math.min(4, Math.ceil(iterProg.value * 4)));
       const mem = memberOn.value > 0.5;
       const b1 = b1On.value > 0.5;
@@ -162,8 +159,8 @@ export default function iterationBoundary(s, c) {
                   [cx, 84],
                 ],
                 ROLE.held,
-                p + i * 0.15,
-                { width: 3.6, glow: 8, photonCount: 1 },
+                0,
+                { width: 3.6, glow: 8 },
               ),
             );
           }
@@ -255,8 +252,6 @@ export default function iterationBoundary(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   playOn(s, c, 'mt-iteration-boundary-b0', iterProg, 1, 1.4);
   stepAfter(s, c, 'mt-iteration-boundary-s0-1', memberOn, 1);
   stepOn(s, c, 'mt-iteration-boundary-b1', b1On, 1);

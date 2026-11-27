@@ -12,12 +12,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function policyMismatch(s, c) {
-  const phase = s.value(0);
   const showDraw = s.value(0);
   const showLogits = s.value(0);
   const showWideProb = s.value(0);
@@ -58,8 +56,6 @@ export default function policyMismatch(s, c) {
     const rp = showRoundProb.value;
     const ra = showRoundAct.value;
     const dv = showDiverge.value;
-    const ph = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(ph * 3.8);
 
     const nodes = [
       // Top-right logit conversion readout
@@ -89,7 +85,7 @@ export default function policyMismatch(s, c) {
 
       // Blazing golden uniform-draw laser slicing BOTH rails
       line([xU, -225], [xU, 265], { stroke: COSMOS.gold, width: 4.5, dash: [10, 6] })
-        .glow(10 * pulse, COSMOS.gold)
+        .glow(10, COSMOS.gold)
         .opacity(0.5 + 0.5 * sd),
       txt(`uniform draw u = ${POLICY_FIX.uniform}`, xU, -258, 28, COSMOS.gold, 'mono').glow(
         6,
@@ -210,7 +206,6 @@ export default function policyMismatch(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('policy-mismatch-b1', () => s.play(showDraw.to(1, { duration: 0.6 })));
   c.on('policy-mismatch-b2', () => s.play(showLogits.to(1, { duration: 0.5 })));

@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -39,7 +38,7 @@ export default function completionEvidence(s, c) {
   const mode0 = guardedDynamic(
     () => fadeOutHalf(Math.min(1, claimMode.value)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const st = aStep.value;
       const bo = bOn.value;
       const nodes = [];
@@ -229,7 +228,6 @@ export default function completionEvidence(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1, mode2);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('invest-ci', () => {
     s.play(aStep.to(1, { duration: clampDur(c, c.cue('invest-ci').start, 0.3) }));

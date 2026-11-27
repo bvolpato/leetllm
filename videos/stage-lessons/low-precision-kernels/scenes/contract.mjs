@@ -7,19 +7,16 @@ import {
   decode8,
   encode8,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   hexByte,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function contract(s, c) {
-  const phase = s.value(0);
   const hlExp = s.value(0);
   const revealFnuz = s.value(0);
   const recodeFnuz = s.value(0);
@@ -42,7 +39,6 @@ export default function contract(s, c) {
   const fnuzNewVal = decode8(fnuzNewCode, 'fnuz'); // 1
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const hl = hlExp.value;
     const rev = revealFnuz.value;
     const rec = recodeFnuz.value;
@@ -136,10 +132,6 @@ export default function contract(s, c) {
       ).glow(8, fnuzCol),
     );
 
-    // Traveling pulse photon along the open corridor between top OCP and bottom FNUZ rails
-    const u = (p * 0.45) % 1;
-    nodes.push(glowDot(-250 + u * 740, 22, { radius: 6, color: fnuzCol }));
-
     // Bottom status bar
     nodes.push(
       glassCell(0, 382, 1560, 108, ver > 0.5 ? COSMOS.emerald : COSMOS.gold, {
@@ -164,7 +156,6 @@ export default function contract(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('contract-field', () =>
     s.play(hlExp.to(1, { duration: remainDuration(c, 'contract-field', 0.45) })),

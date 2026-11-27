@@ -16,7 +16,6 @@ import {
   lumBar,
   playCue,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -25,8 +24,6 @@ export default function latentScore(s, c) {
   const qPrime = MLA.WT.map((row) => dotProd(row, MLA.q)); // [1, 2]
   const s0 = dotProd(MLA.q, k0); // 5
   const s1 = dotProd(qPrime, MLA.c1); // 3
-
-  const phase = s.value(0);
   const stepRow = s.value(0);
   const stepKey = s.value(0);
   const stepScore = s.value(0);
@@ -329,7 +326,6 @@ export default function latentScore(s, c) {
 
   s.add(cinemaAtmosphere(ROLE.query, ROLE.pos), title, eqTop, live);
   c.show('fuse', valEq, { after: true, fade: 0.45 });
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'row', (d) => s.play(stepRow.to(1, { duration: d })), { dur: 0.55 });
   playCue(s, c, 'key', (d) => s.play(stepKey.to(1, { duration: d })), { after: true, dur: 0.5 });

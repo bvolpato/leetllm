@@ -9,11 +9,9 @@ import {
   ROLE,
   WORKER_COND_LINES,
   actorOrb,
-  ambientClock,
   cinemaAtmosphere,
   codeSpotlight,
   glowArrow,
-  glowDot,
   glowPill,
   guardedDynamic,
   hexAlpha,
@@ -28,7 +26,6 @@ export default function schedulerWorkers(s, c) {
     accent: ROLE.ok,
   });
 
-  const amb = ambientClock(s, c);
   const stage = s.value(0); // 0=concurrent Condition handoff, 1=failed vs blocked & lifecycle
   const handoff = s.value(0); // 0..6: claim, run, publish, release, notify, recheck
   const failStep = s.value(0); // 0=init, 1=failed, 2=blocked, 3=lifecycle, 4=sequential note
@@ -36,7 +33,6 @@ export default function schedulerWorkers(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(stage.value);
       const nodes = [];
 
@@ -269,12 +265,6 @@ export default function schedulerWorkers(s, c) {
       }
 
       nodes.push(
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5 + 1.5 * pulse,
-          color: st === 0 ? ROLE.ok : ROLE.fail,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'CLAIM UNDER LOCK  ·  RUN OUTSIDE  ·  PUBLISH UNDER LOCK',
           st === 1

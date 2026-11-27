@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function optimizer(s, c) {
-  const phase = s.value(0);
   // step: 0=6+12 ledger, 1=D=2 (12B), 2=D=4 (9B), 3=D=8 (7.5B), 4=unequal token support, 5=rank mean 5 vs token mean 2.5
   const step = s.value(0);
 
@@ -38,7 +35,6 @@ export default function optimizer(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st < 4) {
@@ -108,9 +104,7 @@ export default function optimizer(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 305, { radius: 6, color: ROLE.dp }),
       txt(
         st >= 4
           ? 'A clean collective and matching tensor shapes cannot catch a misweighted loss denominator'
@@ -126,7 +120,6 @@ export default function optimizer(s, c) {
   });
 
   s.add(bgAura, title, formulaTex, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['optimizer-beat-1-focus-1', 0],
     ['mg-optimizer-first-total', 1],

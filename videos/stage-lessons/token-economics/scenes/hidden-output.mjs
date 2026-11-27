@@ -10,7 +10,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowBar,
@@ -205,7 +204,6 @@ export default function hiddenOutput(s, c) {
   );
 
   s.add(sceneAura, header, mode01, mode2);
-  driftValue(s, c, pulseT, 3.5, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('te-hidden-output-0', () => {
     const t = c.cue('te-hidden-output-0').start;

@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function diagnosticEvidence(s, c) {
-  const phase = s.value(0);
   // step: 0=count 3 (hold!), 1=step 0!, 2=reset, 3=root=1, 4=scan col0 OK, 5=step 1!, 6=missing->step 1, 7=swap->step 0, 8..12=WARN/ATTN/RAS/shm/restore
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function diagnosticEvidence(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st < 8) {
@@ -128,9 +124,7 @@ export default function diagnosticEvidence(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 325, { radius: 6, color: ROLE.comm }),
       txt(
         'Never set NCCL_DEBUG=ATTN directly on mixed versions; older NCCL releases silently disable logging',
         0,
@@ -144,7 +138,6 @@ export default function diagnosticEvidence(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['log-count', 0],
     ['log-first', 1, true],

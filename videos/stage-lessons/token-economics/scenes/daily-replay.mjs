@@ -13,7 +13,6 @@ import {
   conciseMicro,
   dailySlices,
   dailyTotalMicro,
-  driftValue,
   evaluationMicro,
   fmtInt,
   glowBar,
@@ -198,7 +197,6 @@ export default function dailyReplay(s, c) {
   );
 
   s.add(sceneAura, header, stageCanvas);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('price-cohorts', () => {
     const t = c.cue('price-cohorts').start;

@@ -67,6 +67,11 @@ Options:
   --rebuild         Force a clean container build, including base/system dependency refresh.
   --with-sandbox    Also rebuild and deploy the isolated leetllm-sandbox service before web deploy.
   --with-codex      Also rebuild and deploy the isolated leetllm-codex service before web deploy.
+  --render-videos   Render missing or stale stage lesson MP4s, captions, and bloom posters before deploy.
+  --publish-videos  Upload verified lesson videos to Cloudflare R2 and update web/src/generated/lesson-videos.json
+                    (pruning superseded entries in web/src/lib/withheld-lesson-videos.json) before deploy.
+  --video-lessons=IDS  Comma-separated lesson IDs to scope --render-videos / --publish-videos (optional).
+  --video-output=DIR   Directory for rendered stage videos (optional; defaults to /mnt/bbackup/leetllm-stage-cinema or build/video-cinema).
   -h, --help        Show this help.
 
 Environment (or gitignored secrets/deploy.env; see deploy.env.example):
@@ -86,6 +91,10 @@ FAST_DEPLOY=0
 FORCE_REBUILD=0
 DEPLOY_SANDBOX=0
 DEPLOY_CODEX=0
+RENDER_VIDEOS=0
+PUBLISH_VIDEOS=0
+VIDEO_LESSONS=""
+VIDEO_OUTPUT=""
 for arg in "$@"; do
     case "$arg" in
         --account=*)
@@ -111,6 +120,18 @@ for arg in "$@"; do
             ;;
         --with-codex)
             DEPLOY_CODEX=1
+            ;;
+        --render-videos)
+            RENDER_VIDEOS=1
+            ;;
+        --publish-videos)
+            PUBLISH_VIDEOS=1
+            ;;
+        --video-lessons=*)
+            VIDEO_LESSONS="${arg#*=}"
+            ;;
+        --video-output=*)
+            VIDEO_OUTPUT="${arg#*=}"
             ;;
         -h|--help)
             usage
@@ -443,6 +464,25 @@ if ! gcloud secrets versions access latest \
     echo "❌ Error: Integration credentials are missing or unreadable: $LEETY_E2E_SECRET"
     echo "   Run: uv run scripts/provision-leety-integration-user.py"
     exit 1
+fi
+
+if [ "$RENDER_VIDEOS" -eq 1 ] || [ "$PUBLISH_VIDEOS" -eq 1 ]; then
+    echo ""
+    echo "🎬 Pre-deploy videos: render=${RENDER_VIDEOS}, publish=${PUBLISH_VIDEOS}..."
+    VIDEO_ARGS=()
+    if [ "$RENDER_VIDEOS" -eq 1 ]; then
+        VIDEO_ARGS+=(--render)
+    fi
+    if [ "$PUBLISH_VIDEOS" -eq 1 ]; then
+        VIDEO_ARGS+=(--publish)
+    fi
+    if [ -n "$VIDEO_LESSONS" ]; then
+        VIDEO_ARGS+=("--lessons=${VIDEO_LESSONS}")
+    fi
+    if [ -n "$VIDEO_OUTPUT" ]; then
+        VIDEO_ARGS+=("--output=${VIDEO_OUTPUT}")
+    fi
+    node "$DIR/scripts/render-publish-videos.mjs" "${VIDEO_ARGS[@]}"
 fi
 
 # ── Step 2: Smoke tests ──────────────────────────────────────────────

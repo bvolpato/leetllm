@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   recoveryVerdict,
@@ -54,7 +53,7 @@ export default function incidentRecovery(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const g = gatesOn.value;
       const st = caseStage.value;
       const nodes = [];
@@ -154,7 +153,6 @@ export default function incidentRecovery(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-incident-recovery-0', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('aa-incident-recovery-0').start, 0.25) }));

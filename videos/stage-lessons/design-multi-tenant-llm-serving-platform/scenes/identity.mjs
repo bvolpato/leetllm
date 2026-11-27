@@ -9,7 +9,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function identity(s, c) {
-  const pulse = s.value(0);
   const grantOn = s.value(0);
   const allowA = s.value(0);
   const selectB = s.value(0);
@@ -35,7 +33,6 @@ export default function identity(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const gOk = grantOn.value > 0.5;
       const aOk = allowA.value > 0.5;
       const isB = selectB.value > 0.5;
@@ -95,8 +92,8 @@ export default function identity(s, c) {
             [-36, 130],
           ],
           selColor,
-          p,
-          { width: 4.5, glow: 9, photonCount: 2 },
+          0,
+          { width: 4.5, glow: 9 },
         ),
       );
 
@@ -119,8 +116,8 @@ export default function identity(s, c) {
               [345, 130],
             ],
             ROLE.A,
-            p + 0.3,
-            { width: 4.5, glow: 9, photonCount: 2 },
+            0,
+            { width: 4.5, glow: 9 },
           ),
           txt('AUTHORIZED CONTEXT', -10, 272, 28, ROLE.ok, 'mono', 'center'),
         );
@@ -218,8 +215,6 @@ export default function identity(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'identity-principal', grantOn, 1);
   stepAfter(s, c, 'identity-allow-a', allowA, 1);
   stepOn(s, c, 'identity-select-b', selectB, 1);

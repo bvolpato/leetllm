@@ -184,10 +184,6 @@ export default function subjectIntro(s, c) {
       const tIdx = Math.min(conduit.length - 1, Math.floor(((tr - 0.08) / 0.84) * conduit.length));
       const [tx, ty] = conduit[tIdx];
       nodes.push(glowDot(tx, ty, { radius: 10, color: ROLE.candidate, glow: 16 }));
-    } else {
-      const pulseIdx = Math.min(conduit.length - 1, Math.floor(((ph * 0.35) % 1) * conduit.length));
-      const [px, py] = conduit[pulseIdx];
-      nodes.push(glowDot(px, py, { radius: 5.5, color: ROLE.evidence, glow: 10 }));
     }
 
     // Bottom-left: worker boundary permissions strip

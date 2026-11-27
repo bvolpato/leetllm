@@ -87,20 +87,6 @@ export default function circuitBreaker(s, c) {
           circle(14, { fill: COSMOS.bg, stroke: COSMOS.ink, width: 3.5 }).at(rightX, sy),
         );
 
-        // Moving photon along conduit when closed or probing
-        const pPos = (amb.value * 4) % 1;
-        if (modeIdx === 0 || modeIdx === 3) {
-          const px = -700 + 1400 * pPos;
-          nodes.push(glowDot(px, sy, { radius: 9, color: ROLE.sure, glow: 12, opacity: alpha }));
-        } else if (modeIdx === 1) {
-          // Rejected photon bounces back left
-          const bx = -700 + (leftX - 40 + 700) * Math.sin(pPos * Math.PI);
-          nodes.push(glowDot(bx, sy, { radius: 9, color: ROLE.fail, glow: 12, opacity: alpha }));
-        } else if (modeIdx === 2) {
-          const px = -700 + 1400 * pPos;
-          nodes.push(glowDot(px, sy, { radius: 10, color: ROLE.mark, glow: 14, opacity: alpha }));
-        }
-
         // State + Generation readout above switch
         nodes.push(
           glowPill(`${stateName}  ·  gen ${genNum}`, sx, -280, stateCol, { size: 30, alpha }),

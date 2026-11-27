@@ -9,8 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   trimSeg,
   txt,
@@ -18,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function cascadedVsNative(s, c) {
-  const phase = s.value(0);
   const inspectOn = s.value(0);
   const nativeOn = s.value(0);
   const sharedOn = s.value(0);
@@ -41,7 +38,6 @@ export default function cascadedVsNative(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ins = inspectOn.value;
       const nat = nativeOn.value;
       const sh = sharedOn.value;
@@ -72,8 +68,8 @@ export default function cascadedVsNative(s, c) {
 
       nodes.push(
         txt('CASCADED', -830, yCas, 26, ROLE.audio, 'mono', 'left'),
-        beamWithPhotons([c1a, c1b], ROLE.audio, p, { width: 3.8, photonCount: 2 }),
-        beamWithPhotons([c2a, c2b], ROLE.tool, p + 0.4, { width: 3.8, photonCount: 2 }),
+        beamWithPhotons([c1a, c1b], ROLE.audio, 0, { width: 3.8 }),
+        beamWithPhotons([c2a, c2b], ROLE.tool, 0, { width: 3.8 }),
         nStt.node,
         nLlm.node,
         nTts.node,
@@ -96,8 +92,8 @@ export default function cascadedVsNative(s, c) {
             [-nNat.r - 18, yNat],
           ],
           ROLE.native,
-          p * 1.1,
-          { width: 4, photonCount: 2, alpha: natAlpha },
+          0,
+          { width: 4, alpha: natAlpha },
         ),
         beamWithPhotons(
           [
@@ -105,8 +101,8 @@ export default function cascadedVsNative(s, c) {
             [540, yNat],
           ],
           ROLE.native,
-          p * 1.1 + 0.5,
-          { width: 4, photonCount: 2, alpha: natAlpha },
+          0,
+          { width: 4, alpha: natAlpha },
         ),
         nNat.node,
       );
@@ -143,12 +139,6 @@ export default function cascadedVsNative(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.native,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -156,8 +146,6 @@ export default function cascadedVsNative(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('cascaded-inspection', () => {
     s.play(inspectOn.to(1, { duration: clampDur(c, c.cue('cascaded-inspection').start, 0.35) }));
   });

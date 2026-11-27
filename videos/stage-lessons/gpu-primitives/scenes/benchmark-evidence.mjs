@@ -4,7 +4,6 @@ import {
   GRID_N,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -12,7 +11,6 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
@@ -20,8 +18,6 @@ import {
 const USEFUL_BYTES_SCAN = 12 * GRID_N; // 50,331,648
 
 export default function benchmarkEvidence(s, c) {
-  const phase = s.value(0);
-
   const showHarness = s.value(1);
   const showEvents = s.value(0);
 
@@ -35,9 +31,7 @@ export default function benchmarkEvidence(s, c) {
 
   // Beat 0: Benchmark harness composition (Allocate -> 5 warmups -> 30 timed invocations)
   const harnessView = guardedDynamic(showHarness, (a) => {
-    const p = phase.value;
     const ev = showEvents.value;
-    const u = (p * 0.9) % 1;
 
     const nodes = [
       heroTitle(['Timing the Full', 'GPU Operation'], {
@@ -96,7 +90,6 @@ export default function benchmarkEvidence(s, c) {
         line([bx1, by], [bx1 + (bx2 - bx1) * ev, by], { stroke: COSMOS.gold, width: 6 })
           .glow(10, COSMOS.gold)
           .opacity(ev * a),
-        glowDot(bx1 + u * (bx2 - bx1), by, { radius: 7, color: COSMOS.gold, opacity: ev * a }),
         txt('cudaEventElapsedTime()', 515, 96, 28, COSMOS.gold, 'mono').opacity(ev * a),
       );
     }
@@ -272,7 +265,6 @@ export default function benchmarkEvidence(s, c) {
   });
 
   s.add(bgAura, harnessView, bytesView, buildView);
-  runPhase(s, c, phase, 14);
 
   c.on('benchmark-evidence-step-1', () => s.play(showHarness.to(1, { duration: 0.3 })));
   c.on('benchmark-event', () => s.play(showEvents.to(1, { duration: 0.6 })));

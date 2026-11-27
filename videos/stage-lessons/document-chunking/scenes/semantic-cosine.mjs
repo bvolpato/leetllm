@@ -10,13 +10,11 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   topicVector,
   txt,
 } from '../parts.mjs';
 
 export default function semanticCosine(s, c) {
-  const phase = s.value(0);
   const showVecs = s.value(0);
   const showCos = s.value(0);
   const showZero = s.value(0);
@@ -40,11 +38,9 @@ export default function semanticCosine(s, c) {
   const c34 = cosine(v3, v4);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sv = showVecs.value;
     const sc = showCos.value;
     const sz = showZero.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     // Left: 2D topic-plane arrows (Rollback axis vs Handoff axis)
     const ox = -755;
@@ -79,7 +75,7 @@ export default function semanticCosine(s, c) {
 
       // S3 = [0, 3] along y-axis (right angle!)
       line([ox, oy], [ox, oy - v3[1] * scale], { stroke: COSMOS.amber, width: 5.0 }).glow(
-        sc > 0.3 ? 9 * pulse : 4,
+        sc > 0.3 ? 9 : 4,
         COSMOS.amber,
       ),
       glowDot(ox, oy - v3[1] * scale, { radius: 9, color: COSMOS.amber }),
@@ -105,7 +101,7 @@ export default function semanticCosine(s, c) {
 
       glassCell(495, 42, 770, 124, sc > 0.3 ? COSMOS.amber : COSMOS.muted, {
         fill: '#231b10',
-        glow: sc > 0.3 ? 9 * pulse : 2,
+        glow: sc > 0.3 ? 9 : 2,
       }),
       txt(
         `cos(S2, S3) = ${c23.toFixed(2)}  < 0.5 -> PROPOSE CUT!`,
@@ -120,7 +116,7 @@ export default function semanticCosine(s, c) {
 
       glassCell(495, 200, 770, 134, sz > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: sz > 0.3 ? '#29111a' : '#12182b',
-        glow: sz > 0.3 ? 10 * pulse : 2,
+        glow: sz > 0.3 ? 10 : 2,
       }),
       txt(
         `S4 ("No action..."): v = [${v4.join(', ')}] -> cos = ${String(c34)}`,
@@ -166,7 +162,6 @@ export default function semanticCosine(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('semantic-cosine-0', () => s.play(showVecs.to(1, { duration: 0.45 })));
   c.on('semantic-cosine-1', () => s.play(showCos.to(0.4, { duration: 0.35 })));

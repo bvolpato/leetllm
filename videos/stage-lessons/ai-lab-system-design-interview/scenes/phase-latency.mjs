@@ -8,14 +8,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function phaseLatency(s, c) {
-  const phase = s.value(0);
   const tokensOn = s.value(0);
   const longReveal = s.value(0); // STRICT after phase-long!
   const meanReveal = s.value(0); // STRICT after phase-mean!
@@ -32,7 +30,6 @@ export default function phaseLatency(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const tk = tokensOn.value;
       const lg = longReveal.value;
       const mn = meanReveal.value;
@@ -156,22 +153,11 @@ export default function phaseLatency(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.req,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('phase-first', () => {
     s.play(tokensOn.to(1, { duration: clampDur(c, c.cue('phase-first').start, 0.45) }));
   });

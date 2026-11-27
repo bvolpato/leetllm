@@ -13,7 +13,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fsmNode,
@@ -24,7 +23,6 @@ import {
 } from '../parts.mjs';
 
 export default function semanticGates(s, c) {
-  const pulse = s.value(0);
   const valuesChecked = s.value(0);
   const act = s.value(0); // 0 = status comparison, 1 = citation run_id join
   const runSwitched = s.value(0);
@@ -116,7 +114,6 @@ export default function semanticGates(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(act.value),
     (a) => {
-      const p = pulse.value;
       const sw = runSwitched.value;
       const ic = idChecked.value;
       const nodes = [];
@@ -147,11 +144,11 @@ export default function semanticGates(s, c) {
       const topBeam = quadArcPts([-220, 48], [135, 48], -34);
       const botBeam = quadArcPts([-220, 138], [135, 138], 34);
       nodes.push(
-        beamWithPhotons(topBeam, idMatch ? ROLE.legal : ROLE.prune, p * 1.1, {
+        beamWithPhotons(topBeam, idMatch ? ROLE.legal : ROLE.prune, 0, {
           alpha: a,
           width: 3.6,
         }),
-        beamWithPhotons(botBeam, ROLE.legal, p * 1.1 + 0.5, { alpha: a * 0.8, width: 2.8 }),
+        beamWithPhotons(botBeam, ROLE.legal, 0, { alpha: a * 0.8, width: 2.8 }),
         fsmNode(-42, 48, 52, idMatch ? '=' : '!=', {
           color: idMatch ? ROLE.legal : ROLE.prune,
           size: 36,
@@ -196,7 +193,6 @@ export default function semanticGates(s, c) {
   );
 
   s.add(stageAura, header, logBeacon, act0, act1);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('join-values', () => {
     s.play(valuesChecked.to(1, { duration: clampDur(c, c.cue('join-values').start, 0.4) }));

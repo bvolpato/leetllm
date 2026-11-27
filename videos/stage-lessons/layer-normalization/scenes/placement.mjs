@@ -3,24 +3,8 @@
 // through F(z)=0.2z+0.1. Strictly withholds Post-LN's normalized output sign ("Negative") until
 // AFTER the spoken "post-sign" cue, then propagates both routes into Block 2 showing stream drift.
 import { arrow, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  glowDot,
-  glowingTrail,
-  guardedDynamic,
-  heroTitle,
-  txt,
-} from '../../cinematic-kit.mjs';
-import {
-  ROLE,
-  cinemaAtmosphere,
-  fmt,
-  lumBar,
-  mean,
-  placementTrace,
-  playCue,
-  scenePulse,
-} from '../parts.mjs';
+import { COSMOS, glowingTrail, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
+import { ROLE, cinemaAtmosphere, fmt, lumBar, mean, placementTrace, playCue } from '../parts.mjs';
 
 export default function placement(s, c) {
   const b1 = placementTrace();
@@ -40,7 +24,6 @@ export default function placement(s, c) {
   const postStep = s.value(0); // 0 -> 1 (F) -> 2 (Add) -> 3 (LN, strictly AFTER post-sign!)
   const signReveal = s.value(0); // 0 -> 1 reveals "Negative" verdict AFTER post-sign
   const block2T = s.value(0); // 0 -> 1 switches to Block 2
-  const pulse = s.value(0);
   const stageVis = s.value(1);
 
   const cols = [-525, -125, 275, 675];
@@ -72,7 +55,7 @@ export default function placement(s, c) {
     );
   }
 
-  function drawHighway(nodes, kind, baseY, trace, stepVal, showFinal, alpha, p) {
+  function drawHighway(nodes, kind, baseY, trace, stepVal, showFinal, alpha) {
     const isPre = kind === 'pre';
     const labels = isPre ? preLabels : postLabels;
     const addCol = isPre ? 3 : 2;
@@ -107,12 +90,6 @@ export default function placement(s, c) {
         glow: 9,
         opacity: 0.9 * alpha,
       }),
-    );
-    // Flowing skip photon
-    const sf = (p * 2.5 + (isPre ? 0 : 0.5)) % 1;
-    const sx = cols[0] - 96 + (cols[addCol] + 82 - (cols[0] - 96)) * sf;
-    nodes.push(
-      glowDot(sx, wireY, { radius: 5.5, color: ROLE.stream, glow: 12, opacity: 0.85 * alpha }),
     );
 
     // 4 stage columns
@@ -165,7 +142,6 @@ export default function placement(s, c) {
     const postS = postStep.value;
     const sRev = signReveal.value;
     const isB2 = block2T.value > 0.5;
-    const p = pulse.value;
 
     const preTrace = isB2 ? b2Pre : b1.pre;
     const postTrace = isB2 ? b2Post : b1.post;
@@ -186,8 +162,8 @@ export default function placement(s, c) {
       ),
     );
 
-    drawHighway(nodes, 'pre', -110, preTrace, isB2 ? 3 : preS, true, alpha, p);
-    drawHighway(nodes, 'post', 205, postTrace, isB2 ? 3 : postS, isB2 || postS >= 2.5, alpha, p);
+    drawHighway(nodes, 'pre', -110, preTrace, isB2 ? 3 : preS, true, alpha);
+    drawHighway(nodes, 'post', 205, postTrace, isB2 ? 3 : postS, isB2 || postS >= 2.5, alpha);
 
     // Bottom floating status / prediction prompt / block 2 mean comparison
     let footerText = 'Both routes start from [1, 2, 4, 8]';
@@ -221,7 +197,6 @@ export default function placement(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.stream, ROLE.gold), title, mainLayer);
-  scenePulse(s, c, pulse);
 
   // Beat 1: Upper Pre-LN stages
   playCue(s, c, 'pre-read', (d) => s.play(preStep.to(1, { duration: d })), { dur: 0.65 });

@@ -10,12 +10,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function evaluateAndRelease(s, c) {
-  const phase = s.value(0);
   const showCutoff = s.value(0);
   const showChecks = s.value(0);
   const showChoice = s.value(0);
@@ -31,11 +29,9 @@ export default function evaluateAndRelease(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sCut = showCutoff.value;
     const sChk = showChecks.value;
     const sCh = showChoice.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt(
@@ -70,7 +66,7 @@ export default function evaluateAndRelease(s, c) {
       nodes.push(
         glassCell(0, y, 1680, 112, col, {
           fill: picked ? '#0e2824' : revealed && !row.releasable ? '#26111a' : '#10182d',
-          glow: picked ? 11 * pulse : sCut > 0.3 ? 5 : 2,
+          glow: picked ? 11 : sCut > 0.3 ? 5 : 2,
         }),
         txt(`${i + 1}. ${row.id}`, -815, y - 24, 26, col, 'mono', 'left'),
         txt(row.text, -815, y + 18, 26, COSMOS.ink, 'sans', 'left'),
@@ -97,7 +93,6 @@ export default function evaluateAndRelease(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('release-query-cutoff-b1-1', () => s.play(showCutoff.to(0.5, { duration: 0.35 })));
   c.on('release-ten-word-cutoff-b1-2', () => s.play(showCutoff.to(1, { duration: 0.4 })));

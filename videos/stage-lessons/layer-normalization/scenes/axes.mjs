@@ -2,14 +2,7 @@
 // 2-token sentence tensor [1,2,4] and [2,5,8] compared under per-token LayerNorm(3) vs
 // time+width LayerNorm((2,3)). Strictly withholds outcome until AFTER the "axes-edit" cue
 // when +100 surges into Token 2, proving why reducing across time leaks future information.
-import {
-  COSMOS,
-  glowDot,
-  glowingTrail,
-  guardedDynamic,
-  heroTitle,
-  txt,
-} from '../../cinematic-kit.mjs';
+import { COSMOS, glowingTrail, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
 import {
   ROLE,
   arcPts,
@@ -24,7 +17,6 @@ import {
   playCue,
   row1,
   row2,
-  scenePulse,
 } from '../parts.mjs';
 
 export default function axes(s, c) {
@@ -42,7 +34,6 @@ export default function axes(s, c) {
   const editAmt = s.value(0); // 0 -> 100 on axes-edit (AFTER cue!)
   const revealOutcome = s.value(0); // 0 -> 1 shows unchanged vs leak after edit
   const showShapeNote = s.value(0); // beat 2: PyTorch normalized_shape & BatchNorm note
-  const pulse = s.value(0);
   const stageVis = s.value(1);
 
   const mainLayer = guardedDynamic(stageVis, (alpha) => {
@@ -50,7 +41,6 @@ export default function axes(s, c) {
     const delta = editAmt.value;
     const rev = revealOutcome.value;
     const note = showShapeNote.value;
-    const p = pulse.value;
 
     const later = row2.map((v) => v + delta);
     const allNow = [...row1, ...later];
@@ -165,23 +155,6 @@ export default function axes(s, c) {
       ),
     );
 
-    // Subtle flowing photon along each reduction path
-    const tFlow = (p * 3) % 1;
-    nodes.push(
-      glowDot(b1X + (110 - b1X) * tFlow, yRow1 + (-145 - yRow1) * tFlow, {
-        radius: 5,
-        color: topCol,
-        glow: 10,
-        opacity: 0.8 * alpha,
-      }),
-      glowDot(b2X + (110 - b2X) * tFlow, 15 + (145 - 15) * tFlow, {
-        radius: 5,
-        color: botCol,
-        glow: 10,
-        opacity: 0.8 * alpha,
-      }),
-    );
-
     // RIGHT UPPER: Per-token calculation (3 numbers)
     const rx = 145;
     nodes.push(
@@ -280,7 +253,6 @@ export default function axes(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.write, ROLE.rms), title, mainLayer);
-  scenePulse(s, c, pulse);
 
   // Beat 1: Strictly on/after axes-edit, surge +100 into Token 2 and reveal unchanged vs leak
   playCue(

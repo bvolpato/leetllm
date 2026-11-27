@@ -15,12 +15,10 @@ import {
   playCue,
   renderGqaRack2d,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function attention(s, c) {
-  const phase = s.value(0);
   const lit = s.value(0);
   const cursor = s.value(-1);
 
@@ -92,7 +90,6 @@ export default function attention(s, c) {
         slots: 4,
         lit: lit.value,
         cursor: cursor.value,
-        phase: phase.value,
         colNames: ['Rain', 'fell', '2', '3'],
       }),
       rule(-90, -305, -90, 410, COSMOS.rule, 1.6).opacity(0.6),
@@ -292,7 +289,6 @@ export default function attention(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.query, ROLE.value), title, formula, plane0.node, plane1.node, live);
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'positions', (d) => s.play(cursor.to(-1, { duration: Math.min(0.2, d) })), {
     dur: 0.25,

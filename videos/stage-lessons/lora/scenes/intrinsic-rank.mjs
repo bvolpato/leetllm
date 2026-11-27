@@ -13,12 +13,10 @@ import {
   orbitScene,
   points3d,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function intrinsicRank(s, c) {
-  const phase = s.value(0);
   const thetaVal = s.value(1.6);
   const showBasis = s.value(0);
   const modeBA = s.value(0); // 0 = theta*I_3, 1 = rank-1 BA
@@ -170,7 +168,6 @@ export default function intrinsicRank(s, c) {
   });
 
   s.add(bgAura, view3d, title, eq, live);
-  runPhase(s, c, phase, 14);
   orbitScene(s, c, view3d, { theta: -0.2, phi: 0.94 });
 
   c.on('intrinsic-rank-1', () => s.play(thetaVal.to(2.0, { duration: 0.6 })));

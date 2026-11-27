@@ -12,7 +12,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   guardedDynamic,
   hexGate,
@@ -41,7 +40,7 @@ export default function parameterBoundaries(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const sq = sqlOn.value;
       const bd = boundOn.value;
       const ex = execOn.value;
@@ -129,7 +128,6 @@ export default function parameterBoundaries(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-parameter-boundaries-1', () => {
     s.play(sqlOn.to(1, { duration: clampDur(c, c.cue('tu-parameter-boundaries-1').start, 0.3) }));

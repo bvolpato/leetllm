@@ -16,7 +16,6 @@ import {
   lumBar,
   playCue,
   rule,
-  runPhase,
   scalarEncode,
   swapVis,
   txt,
@@ -30,7 +29,6 @@ export default function scalarCodec(s, c) {
   const code = scalarEncode(xVal, bound); // 42
   const decoded = code * scale; // 0.42
 
-  const phase = s.value(0);
   const vSigned = s.value(1);
   const vRange = s.value(0);
 
@@ -93,8 +91,6 @@ export default function scalarCodec(s, c) {
   });
 
   const signedLayer = guardedDynamic(vSigned, (alpha) => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const railY = -120;
     const idx = Math.max(0, Math.min(5, stageIdx.value));
     const i0 = Math.floor(idx);
@@ -127,7 +123,7 @@ export default function scalarCodec(s, c) {
           color: i === 4 ? ROLE.query : active ? ROLE.gold : '#3c507c',
           fillAlpha: active ? 0.24 : 0.14,
           strokeWidth: active ? 2.8 : 1.8,
-          glow: active ? 9 * pulse : 3,
+          glow: active ? 9 : 3,
           opacity: alpha,
         }),
       );
@@ -195,8 +191,6 @@ export default function scalarCodec(s, c) {
   });
 
   const rangeLayer = guardedDynamic(vRange, (alpha) => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const rp = rulerPos.value;
     const wid = showWiden.value;
     const inv = showInvalid.value;
@@ -256,7 +250,7 @@ export default function scalarCodec(s, c) {
       line([rR, realY - 14], [rR, realY + 14], { stroke: ROLE.A, width: 3.5 }).opacity(alpha),
       txt(wid > 0.5 ? '0' : '2', rL - 22, realY + 42, 30, ROLE.A, 'mono', 'right').opacity(alpha),
       txt('3', rR + 22, realY + 42, 30, ROLE.A, 'mono', 'left').opacity(alpha),
-      glowDot(realX, realY, { radius: 10, color: ROLE.A, glow: 12 * pulse, opacity: alpha }),
+      glowDot(realX, realY, { radius: 10, color: ROLE.A, glow: 12, opacity: alpha }),
       txt(
         wid > 0.5 ? '0..3' : realVal,
         realLblX,
@@ -288,7 +282,7 @@ export default function scalarCodec(s, c) {
       line([rR, codeY - 14], [rR, codeY + 14], { stroke: ROLE.query, width: 3.5 }).opacity(alpha),
       txt('0', rL - 22, codeY + 42, 30, ROLE.query, 'mono', 'right').opacity(alpha),
       txt('255', rR + 22, codeY + 42, 30, ROLE.query, 'mono', 'left').opacity(alpha),
-      glowDot(realX, codeY, { radius: 10, color: ROLE.query, glow: 12 * pulse, opacity: alpha }),
+      glowDot(realX, codeY, { radius: 10, color: ROLE.query, glow: 12, opacity: alpha }),
       txt(String(codeVal), realLblX, codeY - 42, 30, ROLE.query, 'mono', realLblAnchor).opacity(
         alpha,
       ),
@@ -345,8 +339,6 @@ export default function scalarCodec(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.code, ROLE.gold), title, signedFormula, signedLayer, rangeLayer);
-
-  runPhase(s, c, phase, 10);
 
   // Beat 0 & 1: Signed INT8 codec cues
   playCue(s, c, 'step', (d) => s.play(stepShown.to(1, { duration: d })), { after: true, dur: 0.4 });

@@ -12,7 +12,6 @@ import {
   autoNode,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -51,7 +50,7 @@ export default function benchmarkSurfaces(s, c) {
   const mode0A = guardedDynamic(
     () => fadeOutHalf(page2T.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const rows = [
         {
           name: 'SWE-bench',
@@ -125,7 +124,7 @@ export default function benchmarkSurfaces(s, c) {
   const mode0B = guardedDynamic(
     () => fadeInHalf(page2T.value) * fadeOutHalf(cfgMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const gp = gapOn.value;
       const rows = [
         {
@@ -216,7 +215,7 @@ export default function benchmarkSurfaces(s, c) {
   const mode1 = guardedDynamic(
     () => fadeInHalf(cfgMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const pn = pinOn.value;
       const v4 = v4On.value;
       const rr = rerunOn.value;
@@ -342,7 +341,6 @@ export default function benchmarkSurfaces(s, c) {
   );
 
   s.add(stageAura, header, mode0A, mode0B, mode1);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('bench-swe', () => {
     s.play(sweOn.to(1, { duration: clampDur(c, c.cue('bench-swe').start, 0.35) }));

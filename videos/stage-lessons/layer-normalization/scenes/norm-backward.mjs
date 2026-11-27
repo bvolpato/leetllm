@@ -4,7 +4,7 @@
 //   Act 2 (Beat 1): Two tokens sharing affine shift & gain, summing down columns strictly AFTER
 //     shared-shift-sum and shared-gain-sum cues.
 import { arrow, line } from 'vizmatic/stage';
-import { COSMOS, glowDot, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
+import { COSMOS, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
 import {
   ROLE,
   backwardTrace,
@@ -14,7 +14,6 @@ import {
   mean,
   playBeat,
   playCue,
-  scenePulse,
   swapVis,
 } from '../parts.mjs';
 
@@ -41,14 +40,12 @@ export default function normBackward(s, c) {
   // Act 2 shared accumulation reveals (strictly withheld as '?' until cues!)
   const shiftSumVis = s.value(0);
   const gainSumVis = s.value(0);
-  const pulse = s.value(0);
 
   const colXs = [-160, 115, 390, 665];
 
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
     const nodes = [];
     const lvl = stageLevel.value;
-    const p = pulse.value;
 
     nodes.push(
       txt(
@@ -109,14 +106,6 @@ export default function normBackward(s, c) {
       });
     });
 
-    // Subtle animated energy photon running down column f1
-    const activeRows = Math.min(3, Math.floor(lvl + 0.5));
-    const maxY = -185 + activeRows * 150;
-    const py = -185 + ((p * 2.8) % 1) * Math.max(40, maxY - -185);
-    nodes.push(
-      glowDot(colXs[0] - 122, py, { radius: 5, color: ROLE.gold, glow: 11, opacity: 0.78 * alpha }),
-    );
-
     // Bottom live scalar summary
     nodes.push(
       txt(
@@ -137,7 +126,6 @@ export default function normBackward(s, c) {
     const nodes = [];
     const sShift = shiftSumVis.value;
     const sGain = gainSumVis.value;
-    const p = pulse.value;
 
     nodes.push(
       txt(
@@ -206,17 +194,6 @@ export default function normBackward(s, c) {
       });
     });
 
-    // Subtle animated summation bead down column 0
-    const py = -185 + ((p * 2.5) % 1) * 440;
-    nodes.push(
-      glowDot(colXs[0] - 122, py, {
-        radius: 5.5,
-        color: ROLE.gold,
-        glow: 12,
-        opacity: 0.8 * alpha,
-      }),
-    );
-
     nodes.push(
       txt(
         'Token 2 = [4, 2, 0, 6] shares the same standardized x̂   ·   ε leaves slight scale sensitivity',
@@ -233,7 +210,6 @@ export default function normBackward(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.write, ROLE.norm), title, act1Layer, act2Layer);
-  scenePulse(s, c, pulse);
 
   // Beat 0: Reveal the 4 single-token backward steps sequentially
   playCue(s, c, 'backward-center', (d) => s.play(stageLevel.to(1, { duration: d })), { dur: 0.6 });

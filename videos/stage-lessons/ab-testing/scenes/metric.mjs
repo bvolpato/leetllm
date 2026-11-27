@@ -13,13 +13,11 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function metric(s, c) {
-  const phase = s.value(0);
   const showUsable = s.value(0);
   const showNoPage = s.value(0);
   const showDenom = s.value(0);
@@ -143,7 +141,6 @@ export default function metric(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'usable', showUsable, 1, { duration: 0.45 });
   tweenCue(s, c, 'no-page', showNoPage, 1, { duration: 0.45 });

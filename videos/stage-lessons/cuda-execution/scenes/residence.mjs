@@ -10,12 +10,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function residence(s, c) {
-  const phase = s.value(0);
   const copyProg = s.value(0);
   const landed = s.value(0);
   const showCode = s.value(0);
@@ -37,7 +35,6 @@ export default function residence(s, c) {
     const ld = landed.value;
     const sc = showCode.value;
     const ch = showChecks.value;
-    const pulse = 0.7 + 0.3 * Math.sin(phase.value * 3.5);
 
     const nodes = [
       txt('CPU HOST RAM · cpu_row', -855, -236, 26, COSMOS.blue, 'mono', 'left'),
@@ -95,7 +92,7 @@ export default function residence(s, c) {
       nodes.push(
         glassCell(cx, botY, cellW, 92, devStroke, {
           fill: ld > 0.5 ? (isTok6 ? '#1d2219' : '#0d202e') : '#0b101d',
-          glow: ld > 0.5 ? (isTok6 ? 10 * pulse : 7) : 0,
+          glow: ld > 0.5 ? (isTok6 ? 10 : 7) : 0,
         }),
         txt(
           ld > 0.5 ? String(val) : '?',
@@ -173,7 +170,6 @@ export default function residence(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('copy-row', () => s.play(copyProg.to(1, { duration: 1.0 })));
   c.on('device-residence', () => s.play(landed.to(1, { duration: 0.45 })));

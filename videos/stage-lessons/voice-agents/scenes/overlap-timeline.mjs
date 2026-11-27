@@ -9,9 +9,7 @@ import {
   cinemaHeader,
   clampDur,
   commitToAudio,
-  driftValue,
   firstAudioLatency,
-  glowDot,
   guardedDynamic,
   sequential,
   trace,
@@ -19,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function overlapTimeline(s, c) {
-  const phase = s.value(0);
   const sttOn = s.value(0);
   const llmOn = s.value(0);
   const ttsOn = s.value(0);
@@ -39,7 +36,6 @@ export default function overlapTimeline(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const st = sttOn.value;
       const lm = llmOn.value;
       const ts = ttsOn.value;
@@ -174,12 +170,6 @@ export default function overlapTimeline(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -187,8 +177,6 @@ export default function overlapTimeline(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('overlap-recognition-spoken', () => {
     s.play(sttOn.to(1, { duration: clampDur(c, c.cue('overlap-recognition-spoken').start, 0.35) }));
   });

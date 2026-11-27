@@ -5,19 +5,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function hierarchy(s, c) {
-  const phase = s.value(0);
   const fanOut = s.value(0);
   const showWarp = s.value(0);
   const showIntensity = s.value(0);
@@ -40,7 +37,6 @@ export default function hierarchy(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const fo = fanOut.value;
     const sw = showWarp.value;
     const si = showIntensity.value;
@@ -102,18 +98,6 @@ export default function hierarchy(s, c) {
           ),
         );
       }
-    }
-
-    // Animated fan-out photon streaking across row 3
-    if (fo > 0.3) {
-      const u = (p * 0.65) % 1;
-      nodes.push(
-        glowDot(gx0 - 38 + u * (16 * stride), gy0 + activeRow * stride, {
-          radius: 8,
-          color: COSMOS.gold,
-          glow: 12,
-        }),
-      );
     }
 
     // Warp highlight frame over rows 0..1 (32 threads = 1 warp)
@@ -187,7 +171,6 @@ export default function hierarchy(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('fan-sixteen', () =>
     s.play(fanOut.to(1, { duration: remainDuration(c, 'fan-sixteen', 0.45) })),

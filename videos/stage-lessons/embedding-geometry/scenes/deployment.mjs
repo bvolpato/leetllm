@@ -13,7 +13,6 @@ import {
   lumBar,
   playCue,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -23,7 +22,6 @@ export default function deployment(s, c) {
   const codeGb = 38.4;
   const bothGb = 192.0;
 
-  const phase = s.value(0);
   const candLit = s.value(0);
   const showCode = s.value(0);
   const showBoth = s.value(0);
@@ -41,8 +39,6 @@ export default function deployment(s, c) {
   });
 
   const stageLayer = dynamic(() => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const cLit = candLit.value;
     const sc = showCode.value;
     const sb = showBoth.value;
@@ -89,7 +85,7 @@ export default function deployment(s, c) {
         color: cLit > 0.3 ? ROLE.code : '#3c507c',
         fillAlpha: cLit > 0.3 ? 0.24 : 0.1,
         strokeWidth: cLit > 0.3 ? 2.6 : 1.6,
-        glow: cLit > 0.3 ? 9 * pulse : 2,
+        glow: cLit > 0.3 ? 9 : 2,
       }),
       txt('INT8 search', -710, 125, 28, cLit > 0.3 ? ROLE.code : COSMOS.dim, 'mono'),
       arrow([-565, 125], [-475, 125], {
@@ -101,7 +97,7 @@ export default function deployment(s, c) {
         color: cLit > 0.3 ? ROLE.gold : '#3c507c',
         fillAlpha: cLit > 0.3 ? 0.22 : 0.1,
         strokeWidth: cLit > 0.3 ? 2.6 : 1.6,
-        glow: cLit > 0.3 ? 9 * pulse : 2,
+        glow: cLit > 0.3 ? 9 : 2,
       }),
       txt('Fetch FP32', -340, 125, 28, cLit > 0.3 ? ROLE.gold : COSMOS.dim, 'mono'),
       arrow([-208, 125], [-118, 125], {
@@ -113,7 +109,7 @@ export default function deployment(s, c) {
         color: cLit > 0.3 ? ROLE.A : '#3c507c',
         fillAlpha: cLit > 0.3 ? 0.24 : 0.1,
         strokeWidth: cLit > 0.3 ? 2.6 : 1.6,
-        glow: cLit > 0.3 ? 9 * pulse : 2,
+        glow: cLit > 0.3 ? 9 : 2,
       }),
       txt('Rescore', -20, 125, 28, cLit > 0.3 ? ROLE.A : COSMOS.dim, 'mono'),
     );
@@ -143,7 +139,7 @@ export default function deployment(s, c) {
         lumBar(barL + (wCode * sc) / 2, 58, Math.max(12, wCode * sc), 44, {
           color: ROLE.code,
           fillAlpha: 0.38,
-          glow: 8 * pulse,
+          glow: 8,
           opacity: sc,
         }),
         txt(
@@ -166,7 +162,7 @@ export default function deployment(s, c) {
           color: ROLE.gold,
           fillAlpha: 0.3,
           strokeWidth: 2.6,
-          glow: 9 * pulse,
+          glow: 9,
           opacity: sb,
         }),
         txt(`${bothGb.toFixed(1)} GB`, barL + maxW + 22, 168, 32, ROLE.gold, 'mono', 'left')
@@ -236,8 +232,6 @@ export default function deployment(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.code, ROLE.gold), title, stageLayer, premLayer, askLayer, timeLayer);
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'candidate', (d) => s.play(candLit.to(1, { duration: d })), { dur: 0.6 });
   playCue(s, c, 'code', (d) => s.play(showCode.to(1, { duration: d })), { after: true, dur: 0.55 });

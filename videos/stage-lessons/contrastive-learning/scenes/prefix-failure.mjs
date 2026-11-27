@@ -7,7 +7,6 @@ import {
   ROLE,
   cinemaAtmosphere,
   finiteUnit,
-  glowDot,
   glowMatrix,
   glowVector,
   guardedDynamic,

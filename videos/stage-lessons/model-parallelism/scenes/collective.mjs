@@ -6,7 +6,6 @@ import {
   aura,
   buildCluster3d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -239,7 +238,6 @@ export default function collective(s, c) {
     group(
       txt('3D COLLECTIVE RING', 495, -395, 26, COSMOS.gold, 'mono').glow(5, COSMOS.gold),
       txt('Latency + bandwidth scale with topology', 495, 420, 26, COSMOS.muted, 'sans'),
-      glowDot(-820 + ((phase.value * 0.55) % 1) * 960, 420, { radius: 6, color: COSMOS.gold }),
     ),
   );
 

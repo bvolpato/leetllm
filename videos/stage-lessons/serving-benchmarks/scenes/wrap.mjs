@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   radialGauge,
   receiptClockNodes,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function wrap(s, c) {
-  const phase = s.value(0);
   const openHi = s.value(0); // highlights r06 still open at 2.0 s
   const drainProg = s.value(0); // 0 = 2000 ms, 1 = 2500 ms (after wrap-drain starts)
   const receiptLit = s.value(0); // wrap-receipt
@@ -40,7 +38,6 @@ export default function wrap(s, c) {
     () => {
       const dp = drainProg.value;
       const rl = receiptLit.value;
-      const pulse = 0.72 + 0.28 * Math.sin(phase.value * 4.8);
       const untilMs = cutoff + dp * (receipt.horizon - cutoff);
       const drained = dp >= 0.96;
 
@@ -129,9 +126,7 @@ export default function wrap(s, c) {
             30,
             ROLE.focus,
             'mono',
-          )
-            .glow(7, ROLE.focus)
-            .opacity(pulse),
+          ).glow(7, ROLE.focus),
         );
       }
 
@@ -140,7 +135,6 @@ export default function wrap(s, c) {
   );
 
   s.add(stageAura, header, clockView);
-  driftValue(s, c, phase, 7, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('wrap-window', () => {
     const t = c.cue('wrap-window').start;

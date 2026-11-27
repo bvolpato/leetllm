@@ -10,7 +10,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -168,7 +167,6 @@ export default function scopeAndProvenance(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   // Strict prediction withholding: reveal admitted billing rows AFTER spoken clause!
   c.after('scope-filter', () => {

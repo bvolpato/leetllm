@@ -5,7 +5,6 @@ import { line } from 'vizmatic/stage';
 import {
   COSMOS,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   glowCross,
   glowDot,
@@ -21,7 +20,6 @@ import {
 export default function contractLoop(s, c) {
   const title = sceneHeading(['What should the test count?'], { accent: ROLE.ok });
 
-  const amb = ambientClock(s, c);
   const singleDone = s.value(0);
   const singlePass = s.value(0);
   const raceSeen = s.value(0);
@@ -32,7 +30,6 @@ export default function contractLoop(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const nodes = [];
 
       // Floating assertion centerpiece (no box chrome, glowing capsule)
@@ -155,7 +152,7 @@ export default function contractLoop(s, c) {
       if (iso) {
         nodes.push(
           glowDot(colX.calls - 262, y2, {
-            radius: 7 + 3 * pulse,
+            radius: 8,
             color: ROLE.focus,
             glow: 12,
             opacity: alpha,

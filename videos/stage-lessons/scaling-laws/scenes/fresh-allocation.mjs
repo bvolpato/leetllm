@@ -28,7 +28,6 @@ import {
   playCue,
   plotPlane,
   sampleCurve,
-  scenePulse,
   swapVis,
 } from '../parts.mjs';
 
@@ -69,7 +68,6 @@ export default function freshAllocation(s, c) {
 
   const tableVis = s.value(1);
   const dualVis = s.value(0);
-  const pulse = s.value(0);
 
   // Left stage: Feasible map & iso-compute hyperbola N*D = 900
   const mapLayer = guardedDynamic(s.value(1), (alpha) => {
@@ -366,7 +364,6 @@ export default function freshAllocation(s, c) {
     dualLayer,
     footerLayer,
   );
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'fresh-plans', (d) => s.play(plansGlow.to(1, { duration: d })), { dur: 0.7 });
   playCue(s, c, 'fresh-ratio', (d) => s.play(ratioVis.to(1, { duration: d })), {

@@ -19,7 +19,6 @@ import {
   lumBar,
   makePlot,
   query,
-  runAmbientPhase,
   tweenCue,
   txt,
   xy,
@@ -29,7 +28,6 @@ const DIST_B = distance(query, xy[1]); // 1.84
 const DIST_C = distance(query, xy[2]); // 1.91
 
 export default function ivf(s, c) {
-  const phase = s.value(0);
   const showRoute = s.value(0);
   const showCoarse = s.value(0);
   const showPredict = s.value(0);
@@ -231,7 +229,6 @@ export default function ivf(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   c.on('query', () => s.play(showRoute.to(0.35, { duration: 0.3 })));
   tweenCue(s, c, 'route', showRoute, 1, { duration: 0.45 });

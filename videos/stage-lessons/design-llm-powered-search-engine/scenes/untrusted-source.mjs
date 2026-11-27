@@ -9,14 +9,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function untrustedSource(s, c) {
-  const pulse = s.value(0);
   const linkOn = s.value(0);
   const scopeOn = s.value(0);
   const reqProg = s.value(0);
@@ -186,8 +184,6 @@ export default function untrustedSource(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-untrusted-source-0', () => {
     s.play(linkOn.to(1, { duration: clampDur(c, c.cue('se-untrusted-source-0').start, 0.35) }));
   });

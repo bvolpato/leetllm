@@ -13,12 +13,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function packingWork(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const lengthsLit = s.value(0);
   const separateOn = s.value(0);
@@ -247,7 +245,6 @@ export default function packingWork(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-packing-work-lengths', () =>
     s.play(lengthsLit.to(1, { duration: remainDuration(c, 'pt-packing-work-lengths', 0.5) })),

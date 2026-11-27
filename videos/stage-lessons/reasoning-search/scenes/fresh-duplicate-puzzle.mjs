@@ -16,7 +16,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowTex,
@@ -71,7 +70,7 @@ export default function freshDuplicatePuzzle(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const pr = pairsOn.value;
       const fv = fivesOn.value;
       const wr = wrongOn.value;
@@ -333,7 +332,6 @@ export default function freshDuplicatePuzzle(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('fresh-pairs', () => {
     s.play(pairsOn.to(1, { duration: clampDur(c, c.cue('fresh-pairs').start, 0.35) }));

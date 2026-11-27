@@ -14,7 +14,6 @@ import {
   heroTitle,
   lumBar,
   playCue,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -23,7 +22,6 @@ export default function authorizedFunnel(s, c) {
   const bits = (v) => v.map((x) => Number(x > 0)).join('');
   const qBits = bits(AUTH.query); // "1010"
 
-  const phase = s.value(0);
   const showTie = s.value(0);
   const gatePos = s.value(2); // column index: 2 (post-filter) -> 1 (native pre-filter)
   const privCol = s.value(0); // 0 -> 1 (shortlist) -> 2 (permission gate)
@@ -49,8 +47,6 @@ export default function authorizedFunnel(s, c) {
   const laneStatus = ['denied', 'allowed', 'allowed'];
 
   const funnelLayer = dynamic(() => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const gp = gatePos.value; // 2 -> 1
     const gateX = colXs[1] + (gp - 1) * (colXs[2] - colXs[1]);
     const isPre = gp < 1.5;
@@ -116,10 +112,7 @@ export default function authorizedFunnel(s, c) {
 
     // Moving glowing gold permission laser barrier
     nodes.push(
-      line([gateX, -210], [gateX, 275], { stroke: ROLE.gold, width: 5.5 }).glow(
-        12 * pulse,
-        ROLE.gold,
-      ),
+      line([gateX, -210], [gateX, 275], { stroke: ROLE.gold, width: 5.5 }).glow(12, ROLE.gold),
       txt('ACCESS GATE', gateX, 308, 26, ROLE.gold, 'mono').glow(6, ROLE.gold),
     );
 
@@ -142,7 +135,7 @@ export default function authorizedFunnel(s, c) {
       nodes.push(
         glowRing(px, rowYs[0], 20, ROLE.danger, {
           width: 3.5,
-          glow: 11 * pulse,
+          glow: 11,
           opacity: privAlive.value,
         }),
         glowDot(px, rowYs[0], {
@@ -164,7 +157,7 @@ export default function authorizedFunnel(s, c) {
     // Candidate 1: Rotation (allowed)
     const rx = colAt(rotCol.value);
     nodes.push(
-      glowRing(rx, rowYs[1], 20, ROLE.A, { width: 3.5, glow: 11 * pulse }),
+      glowRing(rx, rowYs[1], 20, ROLE.A, { width: 3.5, glow: 11 }),
       glowDot(rx, rowYs[1], { radius: 9, color: ROLE.A, glow: 12 }),
     );
 
@@ -202,8 +195,6 @@ export default function authorizedFunnel(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.A), title, funnelLayer);
-
-  runPhase(s, c, phase, 12);
 
   playCue(s, c, 'tie', (d) => s.play(showTie.to(1, { duration: d })), { dur: 0.5 });
   playCue(s, c, 'ask', (d) => s.play(footMode.to(1, { duration: 0.05 })), { dur: 0.1 });

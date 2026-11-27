@@ -28,7 +28,6 @@ import {
   gpFixture,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   makeAxes,
   marginFixture,
   mix,
@@ -59,7 +58,6 @@ export function multiclassHeads(s, c) {
   const fitP = s.value(0);
   const s2P = s.value(0);
   const shiftP = s.value(0);
-  const drift = s.value(0);
 
   const classNames = ['auto', 'review', 'escalate'];
   const classCols = [ROLE.negative, ROLE.threshold, ROLE.positive];
@@ -222,7 +220,6 @@ export function multiclassHeads(s, c) {
   );
 
   s.add(headline, view01, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-multiclass-heads-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-softmax-heads', headP, 1, { dur: 0.75 });
   cueTo(s, c, 'lr-class-distribution', distP, 1, { dur: 0.8 });
@@ -247,7 +244,6 @@ export function stableSoftmax(s, c) {
   const extP = s.value(0);
   const s2P = s.value(0);
   const clipP = s.value(0);
-  const drift = s.value(0);
 
   const row0 = [10, 12, 10];
   const dist0 = stableDistribution(row0);
@@ -403,7 +399,6 @@ export function stableSoftmax(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-stable-softmax-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-shift-largest', shiftP, 1, { dur: 0.9 });
   cueTo(s, c, 'lr-exp-normalizer', normP, 1, { dur: 0.8 });
@@ -427,7 +422,6 @@ export function marginObjective(s, c) {
   const penP = s.value(0);
   const s2P = s.value(0);
   const impP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.threshold, seed: 28 }));
   s.add(decorAura(-180, 0, 560, '#ffd1661a', '#5ce1e614'));
@@ -571,7 +565,6 @@ export function marginObjective(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-margin-objective-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-functional-margin', margP, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-hinge-cleared', clrP, 1, { dur: 0.95 });
@@ -595,7 +588,6 @@ export function kernelUncertainty(s, c) {
   const varP = s.value(0);
   const s2P = s.value(0);
   const noiseP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.score, seed: 29 }));
   s.add(decorAura(430, -20, 520, '#5ce1e61c', '#a78bfa18'));
@@ -793,7 +785,6 @@ export function kernelUncertainty(s, c) {
   );
 
   s.add(headline, view3dWrap, view0, view12);
-  livingDrift(s, c, drift, 1);
   orbitScene(
     s,
     c,

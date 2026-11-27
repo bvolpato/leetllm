@@ -11,7 +11,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowTex,
   guardedDynamic,
   txt,
@@ -210,7 +209,6 @@ export default function uctConstruction(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('uct-means', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('uct-means').start, 0.25) }));

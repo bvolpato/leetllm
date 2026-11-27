@@ -7,7 +7,6 @@ import {
   cinemaAura,
   cinemaStars,
   clockDial,
-  glowDot,
   glowingCurve,
   heroTitle,
   rotaryScore,

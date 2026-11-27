@@ -11,14 +11,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowTex,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function rrfRule(s, c) {
-  const pulse = s.value(0);
   const startOn = s.value(0);
   const dedupOn = s.value(0);
   const barsProg = s.value(0);
@@ -166,8 +164,6 @@ export default function rrfRule(s, c) {
   );
 
   s.add(stageAura, header, rrfEq, view);
-  driftValue(s, c, pulse, 4.5, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-rrf-rule-0', () => {
     s.play(startOn.to(1, { duration: clampDur(c, c.cue('se-rrf-rule-0').start, 0.35) }));
   });

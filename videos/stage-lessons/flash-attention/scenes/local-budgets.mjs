@@ -12,13 +12,11 @@ import {
   orbitScene,
   rect,
   remainDuration,
-  runPhase,
   siliconSlab3d,
   txt,
 } from '../parts.mjs';
 
 export default function localBudgets(s, c) {
-  const phase = s.value(0);
   const showTiers = s.value(0.5);
   const showTile = s.value(0);
   const showSubtotal = s.value(0);
@@ -145,7 +143,6 @@ export default function localBudgets(s, c) {
   });
 
   s.add(bgAura, view3d, title, live);
-  runPhase(s, c, phase, 10);
   orbitScene(s, c, view3d, { theta: -0.32, phi: 0.98 });
 
   c.on('local-budgets-beat-1', () => s.play(showTiers.to(1, { duration: 0.4 })));

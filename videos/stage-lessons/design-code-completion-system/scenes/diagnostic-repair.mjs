@@ -6,7 +6,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
@@ -31,9 +30,6 @@ export function buildDiagnosticRepair(s, c) {
   );
 
   const stage2 = s.value(0);
-  const pulse = s.value(0);
-  driftValue(s, c, pulse, 2.0);
-
   c.on('cc-diagnostic-repair-1', () =>
     s.play(stage2.to(1, { duration: clampDur(c, c.cue('cc-diagnostic-repair-1').start, 0.6) })),
   );
@@ -86,7 +82,6 @@ export function buildDiagnosticRepair(s, c) {
       () => 1,
       () => {
         const s2 = stage2.value;
-        const p = pulse.value;
         const nodes = [];
 
         rows.forEach((r, idx) => {
@@ -101,8 +96,8 @@ export function buildDiagnosticRepair(s, c) {
                 [-52, y],
               ],
               r.col,
-              p + idx * 0.16,
-              { photonCount: active > 0.7 ? 1 : 0, alpha: active },
+              0,
+              { alpha: active },
             ),
           );
           nodes.push(txt(r.check, -24, y, 26, COSMOS.ink, 'mono', 'left').opacity(active));

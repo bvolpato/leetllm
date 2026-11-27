@@ -9,7 +9,6 @@ import {
   chunks,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   pendingText,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function alignmentLedger(s, c) {
-  const phase = s.value(0);
   const zoomOn = s.value(0);
   const slice11 = s.value(0); // STRICT after align-first!
   const slice16 = s.value(0); // STRICT after align-second!
@@ -40,7 +38,6 @@ export default function alignmentLedger(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const zm = zoomOn.value;
       const s11 = slice11.value;
       const s16 = slice16.value;
@@ -175,12 +172,6 @@ export default function alignmentLedger(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.focus,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -188,8 +179,6 @@ export default function alignmentLedger(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('align-zoom', () => {
     s.play(zoomOn.to(1, { duration: clampDur(c, c.cue('align-zoom').start, 0.4) }));
   });

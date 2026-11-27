@@ -8,12 +8,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function filterScope(s, c) {
-  const phase = s.value(0);
   const showShortlist = s.value(0);
   const showPreFilter = s.value(0);
   const showOverfetch = s.value(0);
@@ -39,14 +37,12 @@ export default function filterScope(s, c) {
   ];
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const ss = showShortlist.value;
     const sp = showPreFilter.value;
     const so = showOverfetch.value;
     const s4 = showFour.value;
     const sa = showAuth.value;
     const su = showUniverse.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: 4 ranked pages (top 2 are v1, ranks 3-4 are v2)
@@ -59,7 +55,7 @@ export default function filterScope(s, c) {
       nodes.push(
         glassCell(-465, y, 760, 86, col, {
           fill: row.ok ? '#0e2624' : '#28111a',
-          glow: (sp > 0.3 && row.ok) || (ss > 0.3 && !row.ok) ? 8 * pulse : 3,
+          glow: (sp > 0.3 && row.ok) || (ss > 0.3 && !row.ok) ? 8 : 3,
         }),
         txt(`#${row.rank}  score ${row.score}`, -815, y + 2, 28, COSMOS.ink, 'mono', 'left'),
         txt(
@@ -95,7 +91,7 @@ export default function filterScope(s, c) {
 
       glassCell(495, 28, 750, 118, sp > 0.3 || s4 > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: sp > 0.3 ? '#0e2824' : '#12182b',
-        glow: sp > 0.3 ? 9 * pulse : 2,
+        glow: sp > 0.3 ? 9 : 2,
       }),
       txt('PRE-FILTER OR OVERFETCH DEPTH 4', 150, 2, 26, COSMOS.emerald, 'mono', 'left'),
       txt(
@@ -112,7 +108,7 @@ export default function filterScope(s, c) {
 
       glassCell(495, 184, 750, 148, su > 0.3 || sa > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10203a',
-        glow: su > 0.3 ? 8 * pulse : 2,
+        glow: su > 0.3 ? 8 : 2,
       }),
       txt('PERMISSIONS & MATCHED UNIVERSE', 150, 146, 26, COSMOS.cyan, 'mono', 'left'),
       txt(
@@ -142,7 +138,6 @@ export default function filterScope(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('filter-shortlist', () => s.play(showShortlist.to(1, { duration: 0.45 })));
   c.on('filter-first', () => s.play(showPreFilter.to(1, { duration: 0.45 })));

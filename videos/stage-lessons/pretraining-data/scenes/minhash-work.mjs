@@ -16,12 +16,10 @@ import {
   photonStream,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function minhashWork(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const exactCheck = s.value(0);
 
@@ -54,7 +52,6 @@ export default function minhashWork(s, c) {
   // Part 1: Exact hashing pipeline + byte equality verification
   const part1Live = guardedDynamic(showPart1, (a) => {
     const ex = exactCheck.value;
-    const ph = phase.value;
     const steps = [
       { label: 'Source bytes', sub: 'O(bytes) read', x: -580, color: COSMOS.blue },
       { label: 'Normalize', sub: 'strip / lowercase', x: 0, color: COSMOS.cyan },
@@ -69,12 +66,12 @@ export default function minhashWork(s, c) {
         accent: COSMOS.cyan,
         eyebrow: 'NEAR-DUPLICATE SIGNATURES · 32 SALTED HASHES',
       }).opacity(a),
-      ...photonStream([-350, -55], [-230, -55], 0, ph, {
+      ...photonStream([-350, -55], [-230, -55], 0, 0, {
         color: COSMOS.cyan,
         count: 3,
         opacity: a,
       }),
-      ...photonStream([230, -55], [350, -55], 0, ph + 0.7, {
+      ...photonStream([230, -55], [350, -55], 0, 0, {
         color: COSMOS.gold,
         count: 3,
         opacity: a,
@@ -214,7 +211,6 @@ export default function minhashWork(s, c) {
     const bl = bandsLit.value;
     const el = edgeLit.value;
     const kl = keepLit.value;
-    const ph = phase.value;
 
     const nodes = [
       txt(
@@ -246,7 +242,7 @@ export default function minhashWork(s, c) {
         txt(hex, -470, y + 2, 28, COSMOS.cyan, 'mono').opacity(a),
         glassCell(470, y, 470, 64, COSMOS.cyan, { fill: '#0e1b2d', glow: 6, opacity: a }),
         txt(hex, 470, y + 2, 28, COSMOS.cyan, 'mono').opacity(a),
-        ...photonStream([-230, y], [230, y], 0, ph + i * 0.5, {
+        ...photonStream([-230, y], [230, y], 0, 0, {
           color: COSMOS.gold,
           count: 2,
           opacity: bl * a,
@@ -291,7 +287,6 @@ export default function minhashWork(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live, part3Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-minhash-work-exact', () =>
     s.play(exactCheck.to(1, { duration: remainDuration(c, 'pt-minhash-work-exact', 0.6) })),

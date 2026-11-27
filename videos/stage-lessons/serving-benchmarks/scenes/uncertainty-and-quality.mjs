@@ -9,7 +9,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   glowDot,
   glowingTrail,
   guardedDynamic,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function uncertaintyAndQuality(s, c) {
-  const phase = s.value(0);
   const obsLit = s.value(0.35);
   const wilsonProg = s.value(0);
   const floorAlert = s.value(0);
@@ -203,7 +201,6 @@ export default function uncertaintyAndQuality(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, phase, 7, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('quality-observed-attainment', () => {
     const t = c.cue('quality-observed-attainment').start;

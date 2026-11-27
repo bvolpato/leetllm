@@ -6,18 +6,15 @@ import {
   PROJ_ONEHOT,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function referenceLadder(s, c) {
-  const phase = s.value(0);
   const showGap = s.value(0.35);
   const showTelemetry = s.value(0);
 
@@ -32,7 +29,6 @@ export default function referenceLadder(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const gp = showGap.value;
     const tm = showTelemetry.value;
 
@@ -150,19 +146,12 @@ export default function referenceLadder(s, c) {
         'sans',
         'left',
       ).opacity(opT),
-
-      glowDot(-580 + ((p * 0.45) % 1) * 1160, 42, {
-        radius: 5.5,
-        color: COSMOS.gold,
-        opacity: 0.75,
-      }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('lp-reference-ladder-build-0', () =>
     s.play(showGap.to(1, { duration: remainDuration(c, 'lp-reference-ladder-build-0', 0.45) })),

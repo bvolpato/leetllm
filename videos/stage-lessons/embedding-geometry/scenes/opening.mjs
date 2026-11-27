@@ -15,7 +15,6 @@ import {
   lumBar,
   orbitScene,
   playCue,
-  runPhase,
   txt,
 } from '../parts.mjs';
 import { glowArc } from '../parts.mjs';
@@ -34,7 +33,6 @@ export default function opening(s, c) {
   const degB = Math.round((angleB * 180) / Math.PI);
 
   const ink = s.value(0.28);
-  const phase = s.value(0);
   const askVis = s.value(0);
   const sweepA = s.value(0);
   const showDegA = s.value(0);
@@ -111,8 +109,6 @@ export default function opening(s, c) {
   // Main live 2D vector field
   const vectorStage = dynamic(() => {
     const k = ink.value;
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.2);
     const nodes = [
       // Faint guide trajectories & subtle horizontal baseline
       line(origin, aTip, { stroke: '#233458', width: 2 }).opacity(0.55),
@@ -163,21 +159,21 @@ export default function opening(s, c) {
         color: ROLE.B,
         width: 7.5,
         tipSize: 22,
-        glow: 11 * pulse,
+        glow: 11,
         dotRadius: 6,
       }),
       glowVector(origin, tip(GUIDES[0].vector.map((x) => x * k)), {
         color: ROLE.A,
         width: 7.5,
         tipSize: 22,
-        glow: 11 * pulse,
+        glow: 11,
         dotRadius: 6,
       }),
       glowVector(origin, tip(QUERY.map((x) => x * k)), {
         color: ROLE.query,
         width: 8,
         tipSize: 22,
-        glow: 12 * pulse,
+        glow: 12,
         dotRadius: 6,
       }),
       glowDot(origin[0], origin[1], { radius: 7, color: COSMOS.ink, glow: 8 }),
@@ -270,7 +266,6 @@ export default function opening(s, c) {
 
   // Continuous ambient motion + 3D orbit
   c.at(0.05, () => s.play(ink.to(1, { duration: 1.15, ease: linear })));
-  runPhase(s, c, phase, 8);
   orbitScene(s, c, sphere3d, { theta: 0.45, phi: 0.94 });
 
   // Cues (strict prediction withholding)

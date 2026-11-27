@@ -14,12 +14,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function projection(s, c) {
-  const phase = s.value(0);
   const showOrigPair = s.value(0);
   const showErr1 = s.value(0);
   const showErr2 = s.value(0);
@@ -255,7 +253,6 @@ export default function projection(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 16);
 
   c.on('projection-original-pair', () =>
     s.play(showOrigPair.to(1, { duration: remainDuration(c, 'projection-original-pair', 0.45) })),

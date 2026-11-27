@@ -8,7 +8,6 @@ import {
   ROLE,
   callerTag,
   cinemaAtmosphere,
-  glowDot,
   glowRing,
   glowingTrail,
   heroTitle,

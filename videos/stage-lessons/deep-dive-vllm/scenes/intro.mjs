@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = intro-word ("on" -> 6th GPU place?)
   // 1 = intro-whole-step (6-input GPU step)
@@ -38,7 +35,6 @@ export default function intro(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     const count = st >= 6 ? 5 : 4;
@@ -186,16 +182,13 @@ export default function intro(s, c) {
             ? 'Block 1 is full: 4 R1 prompt inputs run beside R0, and 5 wait'
             : 'Predict: Block 1 has 4 cells for 4 words. Where would "on" store its KV?';
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 315, { radius: 6, color: st >= 6 ? ROLE.good : COSMOS.gold }),
       txt(caption, 0, 376, 28, st >= 6 ? ROLE.good : blocked ? ROLE.bad : COSMOS.gold, 'sans'),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['intro-word', 0],
     ['intro-whole-step', 1],

@@ -2,20 +2,9 @@
 // POST /v1/responses + GET /v1/requests/{id} sharing server-minted request_id, redacted secrets,
 // documented 429 vs 503 split, and circuit-breaker fallback requiring approved policy + budget.
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function apiReceipt(s, c) {
-  const phase = s.value(0);
   const logOn = s.value(0);
   const statusOn = s.value(0);
   const fallbackOn = s.value(0);
@@ -37,7 +26,6 @@ export default function apiReceipt(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const lg = logOn.value;
       const st = statusOn.value;
       const fb = fallbackOn.value;
@@ -121,12 +109,6 @@ export default function apiReceipt(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.req,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -134,8 +116,6 @@ export default function apiReceipt(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('sd-api-receipt-1-operation', () => {
     s.play(logOn.to(1, { duration: clampDur(c, c.cue('sd-api-receipt-1-operation').start, 0.35) }));
   });

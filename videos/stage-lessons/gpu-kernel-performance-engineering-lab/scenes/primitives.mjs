@@ -10,18 +10,15 @@ import {
   aura,
   compactProgress,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function primitives(s, c) {
-  const phase = s.value(0);
   const redShow = s.value(0);
   const scanProg = s.value(0);
   const whyScan = s.value(0);
@@ -37,14 +34,11 @@ export default function primitives(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const rd = redShow.value;
     const sp = scanProg.value;
     const ws = whyScan.value;
     const visibleCount = Math.min(8, Math.floor(sp * 8.99));
     const snap = compactProgress(visibleCount);
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.6);
-    const u = (p * 0.48) % 1;
 
     const nodes = [
       txt('INDEX', -740, -210, 26, COSMOS.muted, 'mono'),
@@ -61,7 +55,7 @@ export default function primitives(s, c) {
         txt(String(i), cx, -210, 26, COSMOS.muted, 'mono'),
         glassCell(cx, -110, 140, 88, lit ? ROLE.bad : COSMOS.rule, {
           fill: lit ? '#30101e' : '#0e1628',
-          glow: lit ? 8 * pulse : 0,
+          glow: lit ? 8 : 0,
         }),
         txt(String(bit), cx, -110, 40, lit ? ROLE.bad : COSMOS.muted, 'mono'),
 
@@ -116,7 +110,6 @@ export default function primitives(s, c) {
           width: 3.4,
           opacity: 0.85 * sp,
         }),
-        glowDot(-515 + u * 1204, -34, { radius: 6, color: ROLE.gold, opacity: sp }),
       );
     }
 
@@ -136,7 +129,6 @@ export default function primitives(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('primitives-beat-1-focus-1', () =>
     s.play(redShow.to(1, { duration: remainDuration(c, 'primitives-beat-1-focus-1', 0.45) })),

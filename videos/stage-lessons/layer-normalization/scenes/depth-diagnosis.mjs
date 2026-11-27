@@ -23,7 +23,6 @@ import {
   lumBar,
   playBeat,
   playCue,
-  scenePulse,
   swapVis,
 } from '../parts.mjs';
 
@@ -46,11 +45,9 @@ export default function depthDiagnosis(s, c) {
   const alignedN = s.value(0); // 0 -> 8 on eight-writes
   const uncorrN = s.value(0); // 0 -> 8 on add-variance
   const bypassT = s.value(0); // 0 -> 1 on bypass-block
-  const pulse = s.value(0);
 
   // ACT 1a: Xiong et al. initialization bounds (paired with MathJax equations)
   const act1aLayer = guardedDynamic(act1aVis, (alpha) => {
-    const p = pulse.value;
     const nodes = [
       txt(
         'Last FFN second weight matrix at initialization  (Xiong et al.)',
@@ -82,18 +79,6 @@ export default function depthDiagnosis(s, c) {
         ],
         { color: ROLE.write, width: 4, glow: 10, opacity: alpha },
       ),
-      glowDot(-640 + ((p * 2.5) % 1) * 420, 190, {
-        radius: 6,
-        color: ROLE.alert,
-        glow: 12,
-        opacity: alpha,
-      }),
-      glowDot(220 + ((p * 2.5) % 1) * 420, 190, {
-        radius: 6,
-        color: ROLE.write,
-        glow: 12,
-        opacity: alpha,
-      }),
       txt('Large gradients near the output', -430, 252, 28, COSMOS.muted, 'sans', 'center').opacity(
         alpha,
       ),
@@ -130,7 +115,6 @@ export default function depthDiagnosis(s, c) {
   const act1bLayer = guardedDynamic(act1bVis, (alpha) => {
     const nodes = [];
     const lr = lrVal.value;
-    const p = pulse.value;
     const barLeft = -220;
     const maxBarW = 840; // corresponds to update = 0.08
 
@@ -185,9 +169,7 @@ export default function depthDiagnosis(s, c) {
       );
     });
 
-    const scanX = barLeft + ((p * 2.2) % 1) * maxBarW;
     nodes.push(
-      glowDot(scanX, 275, { radius: 5, color: ROLE.gold, glow: 10, opacity: 0.75 * alpha }),
       txt(
         'Test warmup and measure actual optimizer updates across every layer',
         0,
@@ -207,7 +189,6 @@ export default function depthDiagnosis(s, c) {
     const nodes = [];
     const nA = alignedN.value;
     const nU = uncorrN.value;
-    const p = pulse.value;
 
     const plane = coordPlane({
       originX: -720,
@@ -240,7 +221,7 @@ export default function depthDiagnosis(s, c) {
       nodes.push(
         glowingTrail(pts, { color: ROLE.alert, width: 5, glow: 12, opacity: alpha }),
         glowDot(endPt[0], endPt[1], {
-          radius: 9 + Math.sin(p * Math.PI * 8) * 1.5,
+          radius: 9,
           color: ROLE.alert,
           glow: 15,
           opacity: alpha,
@@ -260,7 +241,7 @@ export default function depthDiagnosis(s, c) {
       nodes.push(
         glowingTrail(pts, { color: ROLE.write, width: 5, glow: 12, opacity: alpha }),
         glowDot(endPt[0], endPt[1], {
-          radius: 9 + Math.sin(p * Math.PI * 8) * 1.5,
+          radius: 9,
           color: ROLE.write,
           glow: 15,
           opacity: alpha,
@@ -303,7 +284,6 @@ export default function depthDiagnosis(s, c) {
   const act3Layer = guardedDynamic(act3Vis, (alpha) => {
     const nodes = [];
     const bp = bypassT.value;
-    const p = pulse.value;
 
     nodes.push(
       txt(
@@ -382,20 +362,6 @@ export default function depthDiagnosis(s, c) {
             .opacity(bp * alpha),
         );
       }
-
-      // Flowing signal photon
-      const t = (p * 2.4 + (row.isTrial ? 0.5 : 0)) % 1;
-      const px = -540 + t * 980;
-      const py =
-        bypassed && px > -210 && px < 190 ? y - Math.sin(((px + 210) / 400) * Math.PI) * 62 : y;
-      nodes.push(
-        glowDot(px, py, {
-          radius: 7,
-          color: bypassed ? ROLE.gold : ROLE.write,
-          glow: 14,
-          opacity: alpha,
-        }),
-      );
     });
 
     nodes.push(
@@ -423,7 +389,6 @@ export default function depthDiagnosis(s, c) {
     act2Layer,
     act3Layer,
   );
-  scenePulse(s, c, pulse);
 
   // Beat 0 -> example-steps: hide MathJax bounds and swap to SGD step lengths
   c.hide('example-steps', [postBoundEq, preBoundEq]);

@@ -19,7 +19,6 @@ import {
   lossTrace,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -29,7 +28,6 @@ const WRONG_R1 = lossTrace(FRESH_LOGITS, 1); // scoring 'docs' at row 1 -> 2.306
 const MEAN_VAL = (DOG_TRACE.loss + FRESH_TRACE.loss) / 2; // 1.238
 
 export default function teacherForcing(s, c) {
-  const phase = s.value(0);
   const vTokens = s.value(1);
   const vRows = s.value(0);
 
@@ -319,7 +317,6 @@ export default function teacherForcing(s, c) {
   });
 
   s.add(bgAura, title, viewTokens, viewRows);
-  runAmbientPhase(s, c, phase, 2.2);
 
   // Beat 0 cues
   c.on('teacher-forcing-0', () => {

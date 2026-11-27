@@ -15,7 +15,6 @@ import {
   lumBar,
   playCue,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -30,7 +29,6 @@ export default function coordinates(s, c) {
     extent: () => 4.6,
   });
 
-  const phase = s.value(0);
   const showFirst = s.value(0);
   const showSecond = s.value(0);
   const vPremise = s.value(1);
@@ -59,8 +57,6 @@ export default function coordinates(s, c) {
 
   // Animated projection beams + right-column operand tracks
   const projLayer = dynamic(() => {
-    const p = phase.value;
-    const pulse = 0.78 + 0.22 * Math.sin(p * 3.0);
     const nodes = [
       rule(185, -395, 185, 395, COSMOS.rule, 1.8).opacity(0.6),
       txt('HORIZONTAL REACH', 235, -245, 26, COSMOS.muted, 'mono', 'left'),
@@ -75,7 +71,7 @@ export default function coordinates(s, c) {
         line(tipA, footA, { stroke: ROLE.A, width: 3.6, dash: [9, 7] })
           .glow(7, ROLE.A)
           .opacity(a),
-        glowDot(footA[0], footA[1], { radius: 8, color: ROLE.A, glow: 11 * pulse, opacity: a }),
+        glowDot(footA[0], footA[1], { radius: 8, color: ROLE.A, glow: 11, opacity: a }),
         txt('Rotation guide', 235, -175, 36, ROLE.A, 'serif', 'left').glow(5, ROLE.A).opacity(a),
         txt('1 × 1  +  0 × 0.2', 235, -118, 34, COSMOS.ink, 'mono', 'left').opacity(a),
         lumBar(235 + 65 * a, -64, 130 * a, 16, {
@@ -97,7 +93,7 @@ export default function coordinates(s, c) {
         line(tipB, footB, { stroke: ROLE.B, width: 3.6, dash: [9, 7] })
           .glow(7, ROLE.B)
           .opacity(a),
-        glowDot(footB[0], footB[1], { radius: 8, color: ROLE.B, glow: 11 * pulse, opacity: a }),
+        glowDot(footB[0], footB[1], { radius: 8, color: ROLE.B, glow: 11, opacity: a }),
         txt('Audit guide', 235, 32, 36, ROLE.B, 'serif', 'left').glow(5, ROLE.B).opacity(a),
         txt('1 × 4  +  0 × 2', 235, 88, 34, COSMOS.ink, 'mono', 'left').opacity(a),
         lumBar(235 + 260 * a, 142, 520 * a, 16, {
@@ -141,8 +137,6 @@ export default function coordinates(s, c) {
     askNode,
     resultNode,
   );
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'first', (d) => s.play(showFirst.to(1, { duration: d })), { dur: 0.65 });
   playCue(s, c, 'second', (d) => s.play(showSecond.to(1, { duration: d })), { dur: 0.65 });

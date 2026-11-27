@@ -14,7 +14,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -50,7 +49,7 @@ export default function hostPolicy(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const lu = lookupHi.value;
       const dn = deniedOn.value;
       const ga = grantArrives.value;
@@ -279,7 +278,6 @@ export default function hostPolicy(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('host-proposal', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('host-proposal').start, 0.25) }));

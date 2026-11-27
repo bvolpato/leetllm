@@ -33,12 +33,10 @@ export default function subjectIntro(s, c) {
   const graph3d = makeKnowledgeConstellation3D(555, -20, phase, 'intro');
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sb = showBook.value;
     const sp = showPark.value;
     const sc = showChoose.value;
     const pub = showPub.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: Record A (Lena's card) -> Two candidates sharing name "River Walk"
@@ -63,7 +61,7 @@ export default function subjectIntro(s, c) {
         sc > 0.4 ? COSMOS.emerald : sb > 0.3 ? COSMOS.gold : COSMOS.muted,
         {
           fill: sc > 0.4 ? '#0e2824' : '#181e34',
-          glow: sc > 0.4 ? 10 * pulse : 3,
+          glow: sc > 0.4 ? 10 : 3,
         },
       ),
       txt('BOOK: "River Walk"', -835, -22, 26, COSMOS.emerald, 'mono', 'left'),
@@ -90,7 +88,7 @@ export default function subjectIntro(s, c) {
       // Bottom prompt / verdict strip (strict c.after withholding!)
       glassCell(-405, 206, 920, 128, pub > 0.4 ? COSMOS.emerald : COSMOS.gold, {
         fill: pub > 0.4 ? '#0e2824' : '#231c10',
-        glow: pub > 0.4 ? 9 * pulse : 3,
+        glow: pub > 0.4 ? 9 : 3,
       }),
       txt(
         pub > 0.4

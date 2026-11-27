@@ -14,7 +14,6 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
   fadeInNodes,
   glowTex,
   guardedDynamic,
@@ -24,7 +23,6 @@ import {
 } from '../parts.mjs';
 
 export default function controller(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=poll0 ask, 2=10 total(AFTER), 3=+6 pending(AFTER), 4=poll1 ask, 5=0 add(AFTER), 6=missing telemetry
 
   const header = cinemaHeader('PENDING-AWARE AUTOSCALER', 'The next poll', 'never double-counts', {
@@ -95,8 +93,6 @@ export default function controller(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
-      const blink = 0.68 + 0.32 * Math.sin(p * 5.0);
       const missing = st >= 5.5;
 
       const nodes = [
@@ -136,7 +132,7 @@ export default function controller(s, c) {
           txt('POLL 1  ·  PREDICT:', -860, 82, 26, ROLE.predict, 'mono', 'left'),
           txt('How many total replicas to request?', -860, 140, 32, ROLE.predict, 'sans', 'left')
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
         );
       }
 
@@ -174,7 +170,7 @@ export default function controller(s, c) {
           ),
           txt('PREDICT: How many MORE workers?', -860, 145, 32, ROLE.predict, 'sans', 'left')
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
         );
       }
 
@@ -233,7 +229,6 @@ export default function controller(s, c) {
 
   s.add(bgAura, fleetView, header, dyn);
   orbitScene(s, c, fleetView, { theta: -0.22, phi: 0.88 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, phase, 6.5, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0: Question 1 (NO reveal!)
   c.on('waiting-snapshot', () => {

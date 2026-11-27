@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   guardedDynamic,
   hexGate,
@@ -42,7 +41,7 @@ export default function scopedRead(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const sc = scopeCheckOn.value;
       const uf = uniformOn.value;
       const np = noPayloadOn.value;
@@ -172,7 +171,6 @@ export default function scopedRead(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-scoped-read-1', () => {
     s.play(pulse.to(0.35, { duration: clampDur(c, c.cue('tu-scoped-read-1').start, 0.25) }));

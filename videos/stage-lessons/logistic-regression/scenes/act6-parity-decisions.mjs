@@ -19,7 +19,6 @@ import {
   gradientTrajectory,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   makeAxes,
   mix,
   neonCurve,
@@ -50,7 +49,6 @@ export function implementationParity(s, c) {
   const s2P = s.value(0);
   const step1P = s.value(0);
   const remP = s.value(0);
-  const drift = s.value(0);
 
   const r3Base = sigmoid(dotVec(fittedWeights, [1, 2, 3]));
   const r3Pen = sigmoid(dotVec(penalizedWeights, [1, 2, 3]));
@@ -240,7 +238,6 @@ export function implementationParity(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-implementation-parity-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-library-coefficients', libP, 1, { dur: 0.85 });
   cueTo(s, c, 'lr-implementation-parity-step-1', s1P, 1, { dur: 0.85 });
@@ -275,7 +272,6 @@ export function freshOperatingPoint(s, c) {
   const highSelP = s.value(0);
   const highPolP = s.value(0);
   const chooseP = s.value(0);
-  const drift = s.value(0);
 
   const { probs, fpCost, fnCost, offers } = FRESH_BATCH;
 
@@ -414,7 +410,6 @@ export function freshOperatingPoint(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'new-scores', scoresP, 1, { dur: 0.8 });
   cueTo(s, c, 'auto-prices', autoP, 1, { dur: 0.7 });
   cueTo(s, c, 'review-prices', revP, 1, { dur: 0.7 });
@@ -446,7 +441,6 @@ export function decisionScene(s, c) {
   const missP = s.value(0);
   const extraP = s.value(0);
   const recP = s.value(0);
-  const drift = s.value(0);
 
   const pol50 = policyAt(0.5);
   const extraCost = costForCounts({ fp: 1, fn: 0 }); // $18
@@ -564,7 +558,6 @@ export function decisionScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'frozen-cut', cutP, 1, { dur: 0.6 });
   cueTo(s, c, 'final-route', routeP, 1, { after: true, dur: 0.85 });
   cueTo(s, c, 'final-label', labelP, 1, { after: true, dur: 0.6 });

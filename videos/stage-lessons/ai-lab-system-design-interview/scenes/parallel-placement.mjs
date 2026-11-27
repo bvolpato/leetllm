@@ -12,7 +12,6 @@ import {
   cinematic3d,
   clampDur,
   driftValue,
-  glowDot,
   guardedDynamic,
   orbitScene,
   txt,
@@ -82,7 +81,6 @@ export default function parallelPlacement(s, c) {
   const overlay = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ph = physOn.value;
       const sb = subOn.value;
       const nodes = [];
@@ -127,12 +125,6 @@ export default function parallelPlacement(s, c) {
           'center',
         ),
         txt('MEMORY FIT DOES NOT PROVE LATENCY SLO', 330, -405, 26, ROLE.focus, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.worker,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);

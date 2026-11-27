@@ -22,7 +22,6 @@ import {
   heroTitle,
   liftIntervalNodes,
   liftVerdictText,
-  livingDrift,
   makeAxes,
   markDecor,
   mix,
@@ -49,7 +48,6 @@ export function pairedUncertainty(s, c) {
   const manyP = s.value(0);
   const ivP = s.value(0);
   const zeroP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.lift, seed: 11 }));
   s.add(decorAura(-420, 30, 480, '#60a5fa1a', '#07091000'));
@@ -283,7 +281,6 @@ export function pairedUncertainty(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'bootstrap-draw', drawP, 1, { dur: 1.5 });
   cueTo(s, c, 'bootstrap-repeat', repP, 1, { dur: 0.65 });
   beatTo(s, c, 1, v2P, 1, { dur: 0.72 });
@@ -308,7 +305,6 @@ export function intervalContract(s, c) {
   const v2P = s.value(0);
   const c2P = s.value(0);
   const tiesP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.threshold, seed: 12 }));
   s.add(decorAura(0, 20, 560, '#ffd16618', '#ff6b8b14'));
@@ -558,7 +554,6 @@ export function intervalContract(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'interval-contract-0', c0P, 1, { dur: 0.4 });
   cueTo(s, c, 'hyp-interval-studies', studP, 1, { dur: 2.0 });
   beatTo(s, c, 1, v1P, 1, { dur: 0.72 });
@@ -581,7 +576,6 @@ export function usefulLift(s, c) {
   const questP = s.value(0);
   const holdP = s.value(0);
   const freezeP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.threshold, seed: 13 }));
   s.add(decorAura(0, 20, 560, '#ffd1661a', '#5ce1e614'));
@@ -676,7 +670,6 @@ export function usefulLift(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'useful-threshold', threshP, 1, { dur: 0.65 });
   cueTo(s, c, 'development-range', rangeP, 1, { dur: 1.0 });
   cueTo(s, c, 'useful-question', questP, 1, { after: true, dur: 0.6 });
@@ -697,7 +690,6 @@ export function passAtKScene(s, c) {
   const cntP = s.value(0);
   const p3P = s.value(0);
   const ret1P = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.modelB, seed: 14 }));
   s.add(decorAura(0, 60, 560, '#6ee7b71c', '#5ce1e614'));
@@ -845,7 +837,6 @@ export function passAtKScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'pool-show', poolP, 1, { dur: 0.7 });
   cueTo(s, c, 'subset-predict', predP, 1, { dur: 0.6 });
   cueTo(s, c, 'subset-run', runP, 1, { dur: 0.6 });
@@ -873,7 +864,6 @@ export function passkTarget(s, c) {
   const curveP = s.value(0);
   const v2P = s.value(0);
   const c2P = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.lift, seed: 15 }));
   s.add(decorAura(0, 20, 560, '#5ce1e61c', '#6ee7b712'));
@@ -1108,7 +1098,6 @@ export function passkTarget(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'passk-target-0', c0P, 1, { dur: 0.4 });
   cueTo(s, c, 'hyp-target-first', firstP, 1, { dur: 0.55 });
   cueTo(s, c, 'target-open-three', openP, 1, { dur: 0.65 });

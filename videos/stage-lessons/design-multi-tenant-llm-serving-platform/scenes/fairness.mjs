@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   clampDur,
   deficitPlayback,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function fairness(s, c) {
-  const pulse = s.value(0);
   const drrTime = s.value(0);
   const askOn = s.value(0);
   const done3On = s.value(0);
@@ -200,8 +198,6 @@ export default function fairness(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   c.on('fair-round-one', () => {
     const q = c.cue('fair-round-one');
     s.play(drrTime.to(1, { duration: clampDur(c, q.start, Math.max(0.6, q.end - q.start)) }));

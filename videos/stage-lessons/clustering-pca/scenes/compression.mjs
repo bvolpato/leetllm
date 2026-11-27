@@ -17,7 +17,6 @@ import {
   makePlot,
   pca,
   query,
-  runAmbientPhase,
   tweenCue,
   txt,
   xy,
@@ -29,7 +28,6 @@ const footOf = (p) => {
 };
 
 export default function compression(s, c) {
-  const phase = s.value(0);
   const dropC = s.value(0);
   const showErrC = s.value(0);
   const showQuery = s.value(0);
@@ -275,7 +273,6 @@ export default function compression(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'single', dropC, 1, { duration: 0.7 });
   tweenCue(s, c, 'error', showErrC, 1, { duration: 0.45 });

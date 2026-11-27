@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
   fadeInNodes,
   fadeOutNodes,
   glowBar,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function controllerBoundaries(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=56 reqs->12 desired, 2=low@100s, 3=399s question(PREDICT!), 4=400s drain 1(AFTER!), 5=20-replica cap
 
   const header = cinemaHeader('HYSTERESIS & FLEET BOUNDS', 'When can one', 'worker go?', {
@@ -90,8 +88,6 @@ export default function controllerBoundaries(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
-      const blink = 0.68 + 0.32 * Math.sin(p * 5.0);
 
       const elapsed = st >= 3.5 ? 300 : st >= 2.5 ? 299 : st >= 1.5 ? 40 : 0;
       const clockS = st >= 3.5 ? 400 : st >= 2.5 ? 399 : st >= 1.5 ? 140 : 100;
@@ -155,7 +151,7 @@ export default function controllerBoundaries(s, c) {
             'left',
           )
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
         );
       }
 
@@ -212,7 +208,6 @@ export default function controllerBoundaries(s, c) {
 
   s.add(bgAura, fleetView, header, dyn);
   orbitScene(s, c, fleetView, { theta: -0.22, phi: 0.88 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('desired-twelve', () => {
     s.play(step.to(1, { duration: clampDur(c, c.cue('desired-twelve').start, 0.3) }));

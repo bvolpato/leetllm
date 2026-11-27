@@ -13,7 +13,6 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
   fadeInNodes,
   glowTex,
   guardedDynamic,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function replicaBudget(s, c) {
-  const phase = s.value(0);
   const perRepLit = s.value(0.3);
   const askHundred = s.value(0);
   const revealTwenty = s.value(0); // strictly AFTER replicas-twenty!
@@ -211,7 +209,6 @@ export default function replicaBudget(s, c) {
 
   s.add(stageAura, fleetView, header, fleetEq, leftPanel);
   orbitScene(s, c, fleetView, { theta: -0.22, phi: 0.88 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, phase, 7, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('replica-budget-beat-0', () => {
     const t = c.cue('replica-budget-beat-0').start;

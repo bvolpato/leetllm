@@ -6,7 +6,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
@@ -31,9 +30,6 @@ export function buildEvaluationRelease(s, c) {
   );
 
   const stage = s.value(0);
-  const pulse = s.value(0);
-  driftValue(s, c, pulse, 2.2);
-
   c.on('cc-evaluation-release-1', () =>
     s.play(stage.to(1, { duration: clampDur(c, c.cue('cc-evaluation-release-1').start, 0.55) })),
   );
@@ -67,7 +63,6 @@ export function buildEvaluationRelease(s, c) {
       () => 1,
       () => {
         const st = stage.value;
-        const p = pulse.value;
         const nodes = [];
 
         // Stage 1: Offline evaluation
@@ -91,7 +86,7 @@ export function buildEvaluationRelease(s, c) {
                 [offXs[i + 1] - 150, yOff],
               ],
               ROLE.ed,
-              p + i * 0.2,
+              0,
               { alpha: offAlpha },
             ),
           );
@@ -134,8 +129,8 @@ export function buildEvaluationRelease(s, c) {
                 [onXs[i + 1] - 120, yOn],
               ],
               ROLE.ok,
-              p * 1.1 + i * 0.18,
-              { photonCount: st >= 0.4 ? 2 : 0, alpha: onAlpha },
+              0,
+              { alpha: onAlpha },
             ),
           );
         }

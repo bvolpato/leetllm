@@ -16,12 +16,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function transfer(s, c) {
-  const phase = s.value(0);
   const zeroCollapse = s.value(0);
   const scaleShift = s.value(0);
   const showScaleEq = s.value(0);
@@ -71,8 +69,6 @@ export default function transfer(s, c) {
     const rc = showRecovered.value;
     const fc = showFwdCast.value;
     const fw = showFwdWarn.value;
-    const ph = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(ph * 3.8);
 
     const nodes = [
       // Exponent highway rail
@@ -82,7 +78,7 @@ export default function transfer(s, c) {
         stroke: COSMOS.rose,
         width: 4,
         dash: [8, 6],
-      }).glow(8 * pulse, COSMOS.rose),
+      }).glow(8, COSMOS.rose),
       txt('2⁻²⁵ half-step', xHalfStep, axisY - 134, 26, COSMOS.rose, 'mono'),
       // First subnormal marker at 2^-24
       line([xFirstSub, axisY - 22], [xFirstSub, axisY + 18], {
@@ -246,7 +242,6 @@ export default function transfer(s, c) {
   });
 
   s.add(bgAura, title, scaleTex, unscaleTex, live);
-  runPhase(s, c, phase, 14);
 
   c.after('tiny-gradient', () =>
     s.play(zeroCollapse.to(1, { duration: remainDuration(c, 'tiny-gradient', 0.4, 0.35, true) })),

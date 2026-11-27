@@ -5,7 +5,6 @@ import {
   aura,
   buildLoweringConduit3d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -42,7 +41,6 @@ export default function hostDevicePackage(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sp = split.value;
     const pk = packed.value;
     const as = assembled.value;
@@ -126,9 +124,6 @@ export default function hostDevicePackage(s, c) {
         txt('.target sm_90  (a / f narrows compat)', -510, 348, 26, ROLE.ptx, 'mono').opacity(hd),
       );
     }
-
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-840 + u * 580, 152, { radius: 6, color: COSMOS.gold }));
 
     return group(...nodes);
   });

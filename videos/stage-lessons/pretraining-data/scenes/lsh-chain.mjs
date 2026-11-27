@@ -18,12 +18,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function lshChain(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const formulaOn = s.value(0);
   const curveExtent = s.value(0.05);
@@ -315,7 +313,6 @@ export default function lshChain(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-lsh-chain-formula', () =>
     s.play(formulaOn.to(1, { duration: remainDuration(c, 'pt-lsh-chain-formula', 0.6) })),

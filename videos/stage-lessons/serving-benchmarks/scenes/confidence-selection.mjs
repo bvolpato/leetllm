@@ -13,7 +13,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -25,7 +24,6 @@ import {
 } from '../parts.mjs';
 
 export default function confidenceSelection(s, c) {
-  const phase = s.value(0);
   const smallLit = s.value(0);
   const goldWallHi = s.value(0);
   const mode01 = s.value(0); // 0 = Wilson intervals, 1 = 20 vs 30 replica fleet impact
@@ -221,7 +219,6 @@ export default function confidenceSelection(s, c) {
   );
 
   s.add(stageAura, header, wilsonEq, view0, view1);
-  driftValue(s, c, phase, 8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('confidence-selection-beat-0', () => {
     const t = c.cue('confidence-selection-beat-0').start;

@@ -205,11 +205,6 @@ export default function humanReference(s, c) {
         );
       }
 
-      // Quiet connector orbit so right side is alive even at beat 0
-      const orbX = xMid + Math.cos(p * Math.PI * 2) * 14;
-      const orbY = 305 + Math.sin(p * Math.PI * 2) * 8;
-      nodes.push(circle(4, { fill: ROLE.human, stroke: null }).at(orbX, orbY).opacity(0.65));
-
       return group(...nodes);
     },
   );

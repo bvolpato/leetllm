@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function placement(s, c) {
-  const phase = s.value(0);
   const showCols = s.value(0);
   const revSum = s.value(0);
   const rev11 = s.value(0);
@@ -38,7 +35,6 @@ export default function placement(s, c) {
     const r11 = rev11.value;
     const r22 = rev22.value;
     const m = Math.round(mode.value);
-    const p = phase.value;
 
     const nodes = [
       // Left: Sum-Partial inputs
@@ -118,9 +114,7 @@ export default function placement(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 215, { radius: 6, color: m === 2 ? ROLE.copy : ROLE.good }),
       txt(
         m === 2
           ? 'Same logical vector [11, 22] · next operator dictates Replicate vs Shard placement'
@@ -141,7 +135,6 @@ export default function placement(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('partial-columns', () =>
     s.play(showCols.to(1, { duration: remainDuration(c, 'partial-columns', 0.35) })),

@@ -9,7 +9,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function rolloutAndStreams(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const newRouteOn = s.value(0);
   const oldKeepOn = s.value(0);
@@ -40,7 +38,6 @@ export default function rolloutAndStreams(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const newR = newRouteOn.value > 0.5;
       const oldK = oldKeepOn.value > 0.5;
       const b1 = b1On.value > 0.5;
@@ -173,8 +170,8 @@ export default function rolloutAndStreams(s, c) {
                 [200, 20],
               ],
               ROLE.ok,
-              p,
-              { width: 4.5, glow: 10, photonCount: 2 },
+              0,
+              { width: 4.5, glow: 10 },
             ),
           );
         }
@@ -278,8 +275,6 @@ export default function rolloutAndStreams(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-rollout-and-streams-b0', b0On, 1);
   stepAfter(s, c, 'mt-rollout-and-streams-s0-0', newRouteOn, 1);
   stepAfter(s, c, 'mt-rollout-and-streams-s0-1', oldKeepOn, 1);

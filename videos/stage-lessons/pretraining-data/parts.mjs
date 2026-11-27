@@ -305,53 +305,26 @@ function deepDecoration(node) {
   return node;
 }
 
-/** Animated glowing photon stream along a horizontal or curved conduit. */
+/** Glowing conduit along a horizontal or curved path. */
 export function photonStream(
   p0,
   p1,
   liftY,
-  phase,
-  { color = COSMOS.cyan, count = 5, radius = 5.5, opacity = 0.92, speed = 0.24, trail = true } = {},
+  _phase,
+  { color = COSMOS.cyan, opacity = 0.92, trail = true } = {},
 ) {
-  const mx = (p0[0] + p1[0]) * 0.5;
-  const my = (p0[1] + p1[1]) * 0.5 + liftY;
-  const evalPt = (t) => {
-    const u = 1 - t;
-    return [
-      u * u * p0[0] + 2 * u * t * mx + t * t * p1[0],
-      u * u * p0[1] + 2 * u * t * my + t * t * p1[1],
-    ];
-  };
-  const nodes = [];
-  if (trail) {
-    nodes.push(
-      deepDecoration(
-        glowingArc(p0, p1, liftY, {
-          color,
-          width: 2.8,
-          opacity: opacity * 0.5,
-          glow: 6,
-          core: false,
-        }),
-      ),
-    );
-  }
-  for (let i = 0; i < count; i++) {
-    const t = (phase * speed + i / count) % 1;
-    const [px, py] = evalPt(t);
-    const env = Math.sin(Math.PI * t);
-    nodes.push(
-      deepDecoration(
-        glowDot(px, py, {
-          radius: radius * (0.7 + 0.35 * env),
-          color,
-          glow: 10,
-          opacity: opacity * (0.35 + 0.65 * env),
-        }),
-      ),
-    );
-  }
-  return nodes;
+  if (!trail) return [];
+  return [
+    deepDecoration(
+      glowingArc(p0, p1, liftY, {
+        color,
+        width: 2.8,
+        opacity: opacity * 0.5,
+        glow: 6,
+        core: false,
+      }),
+    ),
+  ];
 }
 
 /** Luminous horizontal bar (no outer slide card). */

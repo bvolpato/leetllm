@@ -8,11 +8,9 @@ import { line } from 'vizmatic/stage';
 import {
   COSMOS,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   glowArrow,
   glowCross,
-  glowDot,
   glowPill,
   guardedDynamic,
   lowerFooter,
@@ -26,7 +24,6 @@ export default function workerRuntime(s, c) {
     accent: ROLE.record,
   });
 
-  const amb = ambientClock(s, c);
   const stage = s.value(0); // 0=GIL & free-threading, 1=pickle & isolated copy, 2=asyncio yield vs block
   const serStep = s.value(0); // 0=init, 1=copied to worker, 2=lambda rejected, 3=worker appends ERROR
   const asyncMode = s.value(0); // 0=yield (interleaved), 1=blocking sleep (serialized!)
@@ -34,7 +31,6 @@ export default function workerRuntime(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(stage.value);
       const nodes = [];
 
@@ -301,12 +297,6 @@ export default function workerRuntime(s, c) {
       }
 
       nodes.push(
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5 + 1.5 * pulse,
-          color: ROLE.record,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'GIL  ·  FREE-THREADING  ·  PICKLE ISOLATION  ·  ASYNCIO',
           st === 2

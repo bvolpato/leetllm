@@ -14,13 +14,10 @@ import {
   guardedDynamic,
   heroTitle,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function freshRuntime(s, c) {
-  const phase = s.value(0);
-
   // Part 1: Reduction of 13 inputs across 2 x 8-thread blocks (Beats 0..2)
   const showPart1 = s.value(1);
   const appendProg = s.value(0);
@@ -269,7 +266,6 @@ export default function freshRuntime(s, c) {
   });
 
   s.add(bgAura, title, part1, part2);
-  runPhase(s, c, phase, 16);
 
   // Beats 0..2 cues
   c.on('fresh-append', () => s.play(appendProg.to(1, { duration: 0.7 })));

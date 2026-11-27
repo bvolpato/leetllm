@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   fmt,
   glowDot,
   glowingTrail,
@@ -21,7 +20,6 @@ import {
 } from '../parts.mjs';
 
 export default function recoveryCost(s, c) {
-  const phase = s.value(0);
   const sizeVis = s.value(0);
   const replayProg = s.value(0); // 0 -> 1 (0.8s)
   const replayRateVis = s.value(0);
@@ -57,7 +55,6 @@ export default function recoveryCost(s, c) {
   const raceDyn = guardedDynamic(
     () => 1,
     () => {
-      const ph = phase.value;
       const nodes = [];
 
       // Spec readout on top-right
@@ -118,7 +115,7 @@ export default function recoveryCost(s, c) {
               [xEnd, y1],
             ],
             ROLE.key,
-            ph * 0.7,
+            0,
             { width: 14, glow: 12, photonCount: 3 },
           ),
           glowDot(xEnd, y1, { radius: 9, color: '#ffffff', glow: 14 }),
@@ -201,7 +198,6 @@ export default function recoveryCost(s, c) {
       const y3 = 188;
       if (slowLaneVis.value > 0.05) {
         const sA = slowLaneVis.value;
-        const pulse = 0.68 + 0.32 * Math.sin(ph * 5.2);
         nodes.push(
           txt('SWAP (SLOW LINK)', -855, y3 - 18, 28, ROLE.waste, 'mono', 'left').opacity(sA),
           txt(
@@ -219,7 +215,7 @@ export default function recoveryCost(s, c) {
           nodes.push(
             txt('PREDICT: Transfer vs Replay?', 0, 400, 32, ROLE.focus, 'mono')
               .glow(8, ROLE.focus)
-              .opacity(sA * predictVis.value * pulse),
+              .opacity(sA * predictVis.value),
           );
         }
 
@@ -277,7 +273,6 @@ export default function recoveryCost(s, c) {
   );
 
   s.add(stageAura, header, raceDyn);
-  driftValue(s, c, phase, 8.5, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0
   c.on('size', () => {

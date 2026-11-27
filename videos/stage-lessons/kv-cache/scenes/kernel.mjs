@@ -14,9 +14,7 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   glowBar,
-  glowDot,
   guardedDynamic,
   quadArcPts,
   showPair,
@@ -26,7 +24,6 @@ import {
 export default function kernel(s, c) {
   const act1Vis = s.value(1);
   const act2Vis = s.value(0);
-  const phase = s.value(0);
 
   // Act 1 state
   const overrunVis = s.value(0);
@@ -57,7 +54,6 @@ export default function kernel(s, c) {
     const cp = copyVis.value;
     const pr = pagedReadStep.value;
     const vs = validStep.value;
-    const ph = phase.value;
     const nodes = [];
 
     // Request A's Block Table banner (left-middle, y = -170)
@@ -126,7 +122,7 @@ export default function kernel(s, c) {
             [x8 + 40, blockY - 64],
           ],
           ROLE.waste,
-          ph * 0.9,
+          0,
           { width: 4.5, glow: 12, photonCount: 2, alpha: a * ov },
         ),
         txt(
@@ -149,7 +145,7 @@ export default function kernel(s, c) {
       const pA = a * Math.min(1, pr);
       const arcPts = quadArcPts([blockX(7), blockY - 46], [blockX(2), blockY - 46], -105, 32);
       nodes.push(
-        beamWithPhotons(arcPts, ROLE.fresh, ph * 0.65, {
+        beamWithPhotons(arcPts, ROLE.fresh, 0, {
           width: 4.2,
           glow: 11,
           photonCount: 3,
@@ -256,7 +252,6 @@ export default function kernel(s, c) {
   const act2Dyn = guardedDynamic(act2Vis, (a) => {
     const pf = perfStep.value;
     const va = vAttnStep.value;
-    const ph = phase.value;
     const nodes = [];
 
     // Left panel: Paged Kernel (+20-26% slower) vs Overall Serving Throughput (2-4x)
@@ -340,7 +335,7 @@ export default function kernel(s, c) {
             [vx0 + 3 * 195 + 70, vY - 52],
           ],
           ROLE.fresh,
-          ph * 0.75,
+          0,
           { width: 4.2, glow: 12, photonCount: 3, alpha: vA },
         ),
         txt(
@@ -375,15 +370,6 @@ export default function kernel(s, c) {
           .opacity(pA),
         txt(`Phys ${pid}`, px, pY, 26, ROLE.key, 'mono').opacity(pA),
       );
-      if (va >= 2.5) {
-        nodes.push(
-          glowDot(
-            cx + (px - cx) * ((ph * 0.5 + i * 0.25) % 1),
-            vY + 38 + (pY - 38 - (vY + 38)) * ((ph * 0.5 + i * 0.25) % 1),
-            { radius: 5.2, color: ROLE.focus, glow: 10, opacity: vA },
-          ),
-        );
-      }
     });
     if (va >= 4.5) {
       nodes.push(
@@ -397,7 +383,6 @@ export default function kernel(s, c) {
   });
 
   s.add(act1Aura, act1Header, act1Dyn, act2Dyn);
-  driftValue(s, c, phase, 9.0, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0 cues
   c.on('easy-miss', () => {

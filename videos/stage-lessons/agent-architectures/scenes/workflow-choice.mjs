@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   quadArcPts,
@@ -34,7 +33,7 @@ export default function workflowChoice(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const rl = ruleOn.value;
       const dt = detailOn.value;
       const fl = followReveal.value;
@@ -138,7 +137,6 @@ export default function workflowChoice(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('choice-notice', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('choice-notice').start, 0.25) }));

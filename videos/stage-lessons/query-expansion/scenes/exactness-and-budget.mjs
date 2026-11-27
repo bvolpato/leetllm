@@ -13,12 +13,10 @@ import {
   remainDuration,
   requestBudget,
   retrievalRun,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function exactnessAndBudget(s, c) {
-  const phase = s.value(0);
   const act = s.value(0); // 0 = 4-call budget, 1 = exact incident ID lookup
   const sentCount = s.value(0); // 0 .. 4
   const showStop = s.value(0);
@@ -43,7 +41,6 @@ export default function exactnessAndBudget(s, c) {
   const swappedId = 'INC-48219';
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const inIncident = act.value > 0.5;
     const calls = Math.round(sentCount.value);
     const stopped = showStop.value > 0.5;
@@ -52,7 +49,6 @@ export default function exactnessAndBudget(s, c) {
     const restored = showRestore.value > 0.5;
     const cited = showCite.value > 0.5;
     const nextReady = showNext.value > 0.4;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const nodes = [];
 
@@ -105,7 +101,7 @@ export default function exactnessAndBudget(s, c) {
       nodes.push(
         glassCell(715, 54, 280, 336, stopped ? COSMOS.rose : COSMOS.gold, {
           fill: stopped ? '#2a121c' : '#10182d',
-          glow: stopped ? 10 * pulse : 4,
+          glow: stopped ? 10 : 4,
         }),
         txt('BUDGET', 715, -72, 26, COSMOS.gold, 'mono'),
         txt(
@@ -163,7 +159,7 @@ export default function exactnessAndBudget(s, c) {
         restored ? COSMOS.emerald : proposed ? COSMOS.amber : COSMOS.dim,
         {
           fill: restored ? '#0d2723' : proposed ? '#261b10' : '#10182d',
-          glow: restored ? 10 * pulse : 5,
+          glow: restored ? 10 : 5,
         },
       ),
       txt(
@@ -200,7 +196,7 @@ export default function exactnessAndBudget(s, c) {
       nodes.push(
         glassCell(0, y, 1710, 92, border, {
           fill: isSelected ? (isTrueRow && cited ? '#0d2723' : '#2a121c') : '#10182d',
-          glow: isSelected ? 10 * pulse : 2,
+          glow: isSelected ? 10 : 2,
           radius: 10,
         }),
         txt(row.id, -832, y + 2, 34, isSelected ? border : COSMOS.ink, 'mono', 'left'),
@@ -241,7 +237,6 @@ export default function exactnessAndBudget(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('budget-raw', () => s.play(sentCount.to(1, { duration: 0.35 })));
   c.on('budget-quota', () => s.play(sentCount.to(2, { duration: 0.35 })));

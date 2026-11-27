@@ -5,18 +5,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function trafficBound(s, c) {
-  const phase = s.value(0);
   // step: 0..4=concrete 16B->24B sent/recv, 5..8=general 2(k-1)/k M formula, 9..11=bandwidth bound + switch reduction + FP order
   const step = s.value(0);
 
@@ -39,7 +36,6 @@ export default function trafficBound(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
 
     const nodes = [
       // Top row: Reduce-Scatter 3 sends + All-Gather 3 sends
@@ -105,9 +101,7 @@ export default function trafficBound(s, c) {
       ),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 290, { radius: 6, color: COSMOS.gold }),
       txt(
         'Ring is bandwidth-optimal for point-to-point links, but 2(k-1) hops grow linearly with rank count',
         0,
@@ -121,7 +115,6 @@ export default function trafficBound(s, c) {
   });
 
   s.add(bgAura, title, formula, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-traffic-bound-b0-s0', 0],
     ['nc-traffic-bound-b0-s1', 1],

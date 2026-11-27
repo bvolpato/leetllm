@@ -6,7 +6,6 @@ import {
   COSMOS,
   ROLE,
   cinemaAtmosphere,
-  glowDot,
   glowRing,
   guardedDynamic,
   heroTitle,

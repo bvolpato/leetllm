@@ -10,7 +10,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowTex,
   guardedDynamic,
   txt,
@@ -139,7 +138,6 @@ export default function contextTriangle(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-context-triangle-0', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('aa-context-triangle-0').start, 0.25) }));

@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function runnerVersions(s, c) {
-  const phase = s.value(0);
   // step: 0=op-0 gpu_worker branch, 1=v1-engine (V2 runner inside V1!), 2=op-1 platforms & hybrid/SSM, 3=op-2 / guide-conflict resolution
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function runnerVersions(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 1) {
@@ -149,9 +145,7 @@ export default function runnerVersions(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 315, { radius: 6, color: ROLE.kv }),
       txt(
         st <= 1
           ? '"V2" here names a modular model runner inside the V1 engine'
@@ -169,7 +163,6 @@ export default function runnerVersions(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['vv-runner-versions-op-0', 0],
     ['vv-runner-versions-v1-engine', 1, true],

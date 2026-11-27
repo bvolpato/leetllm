@@ -9,13 +9,11 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   tokenCell,
   txt,
 } from '../parts.mjs';
 
 export default function pairContract(s, c) {
-  const phase = s.value(0);
   const ctxMatched = s.value(0.35);
   const tokInspected = s.value(0);
   const identicalTrap = s.value(0);
@@ -33,7 +31,6 @@ export default function pairContract(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const cm = ctxMatched.value;
     const ti = tokInspected.value;
     const tr = identicalTrap.value;
@@ -177,18 +174,10 @@ export default function pairContract(s, c) {
       );
     }
 
-    // Ambient pulse dot moving through token chain
-    const u = (p * 0.5) % 1;
-    nodes.push(
-      glowDot(-690 + u * 960, rowAY - 54, { radius: 5, color: COSMOS.cyan, opacity: 0.8 }),
-      glowDot(-690 + u * 960, rowBY + 54, { radius: 5, color: COSMOS.violet, opacity: 0.8 }),
-    );
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('match-shared-context', () => s.play(ctxMatched.to(1, { duration: 0.45 })));
   c.on('inspect-scorer-input', () => s.play(tokInspected.to(1, { duration: 0.45 })));

@@ -17,12 +17,10 @@ import {
   rect,
   remainAfter,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function profileBoundary(s, c) {
-  const phase = s.value(0);
   const showBars = s.value(1);
   const showTotal = s.value(0);
   const askHalf = s.value(0);
@@ -228,7 +226,6 @@ export default function profileBoundary(s, c) {
   });
 
   s.add(bgAura, title, barsView, profView);
-  runPhase(s, c, phase, 14);
 
   c.on('fi-profile-boundary-0', () =>
     s.play(showTotal.to(0.2, { duration: remainDuration(c, 'fi-profile-boundary-0', 0.35) })),

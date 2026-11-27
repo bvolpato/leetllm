@@ -9,8 +9,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   glowMeter,
   glowTex,
   guardedDynamic,
@@ -18,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function demand(s, c) {
-  const phase = s.value(0);
   const headOn = s.value(0);
 
   const header = cinemaHeader(
@@ -42,7 +39,6 @@ export default function demand(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const hd = headOn.value;
       const nodes = [];
 
@@ -90,12 +86,6 @@ export default function demand(s, c) {
           'serif',
           'center',
         ).glow(hd > 0.4 ? 6 : 0, ROLE.focus),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.req,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -103,8 +93,6 @@ export default function demand(s, c) {
   );
 
   s.add(bgAura, header, eq, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('demand-beat-2-focus-1', () => {
     s.play(headOn.to(1, { duration: clampDur(c, c.cue('demand-beat-2-focus-1').start, 0.4) }));
   });

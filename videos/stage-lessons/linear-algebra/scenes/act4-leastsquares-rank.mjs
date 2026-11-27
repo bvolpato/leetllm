@@ -30,7 +30,6 @@ import {
   glassPlate,
   glowDot,
   glowTex,
-  livingDrift,
   markDecor,
   mix,
   normalizeVector,
@@ -55,7 +54,6 @@ export function fitProjection(s, c) {
   const resP = s.value(0);
   const slowHi = s.value(0);
   const rollHi = s.value(0);
-  const drift = s.value(0);
 
   s.add(aura(-230, 30, 620, '#6ee7b726', '#60a5fa18'));
 
@@ -213,12 +211,7 @@ export function fitProjection(s, c) {
         }
         parts.push(glowDot(px, yy + 28, { radius: 9, color: LA.fit, glow: 12 }));
       } else {
-        const pulse = 0.72 + 0.28 * Math.sin(drift.value * Math.PI * 8);
-        parts.push(
-          txt('?', mapRail(2.6), yy - 6, 34, COSMOS.gold, 'mono')
-            .glow(8, COSMOS.gold)
-            .opacity(pulse),
-        );
+        parts.push(txt('?', mapRail(2.6), yy - 6, 34, COSMOS.gold, 'mono').glow(8, COSMOS.gold));
       }
       return parts;
     });
@@ -258,7 +251,6 @@ export function fitProjection(s, c) {
   });
 
   s.add(view3d, hud);
-  livingDrift(s, c, drift, 1);
   orbitScene(s, c, view3d, { theta: -0.18, phi: 0.94 });
 
   pulseCue(s, c, 'fit-span', spanP, 1, { dur: 0.6 });
@@ -407,7 +399,6 @@ export function rankCollapse(s, c) {
 // ---------------------------------------------------------------------------
 export function rankFit(s, c) {
   const fitP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: LA.fit, opacity: 0.48, seed: 20 }));
   s.add(aura(-210, 40, 560, '#6ee7b722', '#ffd16614'));
@@ -442,7 +433,6 @@ export function rankFit(s, c) {
     const lineEnd = plane.pt(4.4, 0);
 
     const rx = 560;
-    const pulse = 1 + 0.06 * Math.sin(drift.value * Math.PI * 8);
 
     return group(
       txt('RANK-1 PROJECTION', -840, -420, 26, LA.fit, 'mono', 'left'),
@@ -464,7 +454,7 @@ export function rankFit(s, c) {
       p > 0.85
         ? markDecor(rightAngle(curPt, orig, yPt, { size: 24, stroke: COSMOS.gold, width: 3 }))
         : group(),
-      glowDot(curPt[0], curPt[1], { radius: 14 * pulse, color: LA.fit, glow: 16 }),
+      glowDot(curPt[0], curPt[1], { radius: 14, color: LA.fit, glow: 16 }),
       // Right summary plate
       glassPlate(rx, 20, 560, 640, { stroke: LA.fit, glow: 6 }),
       txt(`WEIGHT SUM  s = ${fmt(sVal, 2)}`, rx, -235, 28, LA.fit, 'mono'),
@@ -483,7 +473,6 @@ export function rankFit(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'duplicate-fit', fitP, 1, { dur: 1.5 });
 }
@@ -495,7 +484,6 @@ export function rankFit(s, c) {
 export function rankNull(s, c) {
   const slideP = s.value(0);
   const minP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.gold, opacity: 0.48, seed: 21 }));
   s.add(aura(-210, 30, 560, '#ffd16622', '#6ee7b716'));
@@ -527,7 +515,6 @@ export function rankNull(s, c) {
     const minRadius = Math.hypot(minS[0] - orig[0], minS[1] - orig[1]);
 
     const rx = 535;
-    const pulse = 1 + 0.07 * Math.sin(drift.value * Math.PI * 8);
 
     const nodes = [
       txt('NULLSPACE  B[1, −1]ᵀ = 0', -840, -420, 26, COSMOS.gold, 'mono', 'left'),
@@ -541,7 +528,7 @@ export function rankNull(s, c) {
       // Origin-to-weight radius vector
       vecArrow(orig, curS, { color: mP > 0.5 ? LA.fit : COSMOS.cyan, width: 5, glow: 10 }),
       glowDot(curS[0], curS[1], {
-        radius: 14 * pulse,
+        radius: 14,
         color: mP > 0.5 ? LA.fit : COSMOS.gold,
         glow: 14,
       }),
@@ -596,7 +583,6 @@ export function rankNull(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'nullspace-rule', slideP, 1, { dur: 2.6 });
   cueTo(s, c, 'minimum-weight', minP, 1, { dur: 1.1 });

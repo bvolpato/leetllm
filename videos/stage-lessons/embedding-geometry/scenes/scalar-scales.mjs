@@ -13,7 +13,6 @@ import {
   lumBar,
   playCue,
   rule,
-  runPhase,
   scalarEncode,
   swapVis,
   txt,
@@ -36,7 +35,6 @@ export default function scalarScales(s, c) {
     ),
   ); // [8.031, 1.000]
 
-  const phase = s.value(0);
   const showCodes = s.value(0);
   const vWrong = s.value(0);
   const vAsk = s.value(0);
@@ -53,8 +51,6 @@ export default function scalarScales(s, c) {
 
   // Top premise + dual 127-step rulers
   const rulerLayer = dynamic(() => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const cOp = showCodes.value;
     const rL = -360;
     const rR = 760;
@@ -95,10 +91,10 @@ export default function scalarScales(s, c) {
             color: cols[i],
             fillAlpha: 0.42,
             strokeWidth: 2,
-            glow: 8 * pulse,
+            glow: 8,
             opacity: cOp,
           }),
-          glowDot(px, ry, { radius: 10, color: cols[i], glow: 13 * pulse, opacity: cOp }),
+          glowDot(px, ry, { radius: 10, color: cols[i], glow: 13, opacity: cOp }),
           txt(`${ids[i]}  code ${codeVal}`, i === 1 ? px - 95 : px, ry - 42, 32, cols[i], 'mono')
             .glow(6, cols[i])
             .opacity(cOp),
@@ -187,8 +183,6 @@ export default function scalarScales(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.A, ROLE.B), title, rulerLayer, wrongLayer, askLayer, restoredLayer);
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'codes', (d) => s.play(showCodes.to(1, { duration: d })), {
     after: true,

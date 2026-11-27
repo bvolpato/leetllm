@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function offload(s, c) {
-  const phase = s.value(0);
   const showCopy = s.value(0);
   const showAuto = s.value(0);
   const showPipe = s.value(0);
@@ -34,7 +31,6 @@ export default function offload(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sc = showCopy.value;
     const sa = showAuto.value;
     const sp = showPipe.value;
@@ -121,7 +117,6 @@ export default function offload(s, c) {
         'mono',
       ),
 
-      glowDot(-760 + ((p * 0.65) % 1) * 1520, 295, { radius: 6, color: COSMOS.gold }),
       txt(
         'Start host copy while GPU is busy; trace where compute finishes before bytes arrive',
         0,
@@ -136,7 +131,6 @@ export default function offload(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('host-transfer', () =>
     s.play(showCopy.to(1, { duration: remainDuration(c, 'host-transfer', 0.45) })),

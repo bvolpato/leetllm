@@ -5,7 +5,6 @@ import {
   KEEP_ADDR,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -13,7 +12,6 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   signed,
   swapViews,
   txt,
@@ -23,8 +21,6 @@ const PLAY_2 = signed(ARTICLE_INPUT[2]); // "+4"
 const SLOT_2 = KEEP_ADDR[2]; // 1
 
 export default function libraryBaseline(s, c) {
-  const phase = s.value(0);
-
   const showScope = s.value(1);
   const highlightBlock = s.value(0);
   const showWiden = s.value(0);
@@ -41,10 +37,8 @@ export default function libraryBaseline(s, c) {
 
   // Beat 0: Device vs Block CUB collectives + int32 -> int64 widening
   const scopeView = guardedDynamic(showScope, (a) => {
-    const p = phase.value;
     const blk = highlightBlock.value;
     const wid = showWiden.value;
-    const u = (p * 0.85) % 1;
 
     const nodes = [
       heroTitle(['Start With CUB:', 'Device vs Block'], {
@@ -89,7 +83,6 @@ export default function libraryBaseline(s, c) {
         core: false,
       }),
       txt('widen BEFORE add', -95, 134, 26, COSMOS.gold, 'mono').opacity(a),
-      glowDot(-295 + u * 400, 185, { radius: 7, color: COSMOS.gold, opacity: a }),
 
       glassCell(480, 185, 700, 118, wid > 0.5 ? COSMOS.emerald : COSMOS.gold, {
         fill: wid > 0.5 ? '#0d2624' : '#241c10',
@@ -198,10 +191,8 @@ export default function libraryBaseline(s, c) {
 
   // Beat 2: Kernel fusion savings (HBM roundtrip vs register)
   const fusionView = guardedDynamic(showFusion, (a) => {
-    const p = phase.value;
     const fus = showFusedPath.value;
     const mtc = showMatchNote.value;
-    const u = (p * 0.9) % 1;
 
     const nodes = [
       heroTitle(['What Kernel', 'Fusion Saves'], {
@@ -226,14 +217,12 @@ export default function libraryBaseline(s, c) {
           opacity: alphaRow,
           core: false,
         }),
-        glowDot(-215 + u * 110, y, { radius: 6.5, color: col, opacity: alphaRow }),
 
         glassCell(75, y, 360, 94, col, { fill: '#142038', glow: 9, opacity: alphaRow }),
         txt(`Dest: slot ${SLOT_2}`, 75, y, 30, col, 'mono').opacity(alphaRow),
         txt(midSub, 75, y + 76, 26, col, 'sans').opacity(alphaRow),
 
         glowingArc([255, y], [365, y], 0, { color: col, width: 4, opacity: alphaRow, core: false }),
-        glowDot(255 + u * 110, y, { radius: 6.5, color: col, opacity: alphaRow }),
 
         glassCell(580, y, 410, 94, col, { fill: '#0e242a', glow: 9, opacity: alphaRow }),
         txt(`out[${SLOT_2}] = ${PLAY_2}`, 580, y, 34, col, 'mono').opacity(alphaRow),
@@ -271,7 +260,6 @@ export default function libraryBaseline(s, c) {
   });
 
   s.add(bgAura, scopeView, storageView, fusionView);
-  runPhase(s, c, phase, 14);
 
   c.on('library-block', () => s.play(highlightBlock.to(1, { duration: 0.4 })));
   c.on('library-baseline-step-1', () => s.play(showWiden.to(1, { duration: 0.45 })));

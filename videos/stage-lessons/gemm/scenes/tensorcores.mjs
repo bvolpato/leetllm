@@ -18,13 +18,11 @@ import {
   orbitScene,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function tensorcores(s, c) {
   const kCursor = s.value(0);
-  const phase = s.value(0);
   const showFrag = s.value(1);
   const fragProg = s.value(0.25);
   const showWide = s.value(0);
@@ -203,7 +201,6 @@ export default function tensorcores(s, c) {
   });
 
   s.add(bgAura, gemm3d, title, eq, fragView, cornerView);
-  runPhase(s, c, phase, 14);
   const tailStart = c.cue('tail-panel').start;
   orbitScene(
     s,

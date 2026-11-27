@@ -19,7 +19,6 @@ import {
   makePlot,
   orbitScene,
   pca,
-  runAmbientPhase,
   tweenCue,
   txt,
   xy,
@@ -28,7 +27,6 @@ import {
 const OPT_ANGLE = Math.atan2(pca.vector[1], pca.vector[0]);
 
 export default function pcaScene(s, c) {
-  const phase = s.value(0);
   const centerAmt = s.value(0);
   const projAmt = s.value(0);
   const rotAngle = s.value(-0.05); // starts horizontal, rotates cleanly up to OPT_ANGLE
@@ -170,7 +168,6 @@ export default function pcaScene(s, c) {
   });
 
   s.add(bgAura, ellip3d, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
   orbitScene(s, c, ellip3d, { theta: 0.48, phi: 0.96 });
 
   tweenCue(s, c, 'center', centerAmt, 1, { duration: 0.8 });

@@ -11,12 +11,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function localContextBudget(s, c) {
-  const phase = s.value(0);
   const showPack1 = s.value(0);
   const showReject1 = s.value(0);
   const showRescore = s.value(0);
@@ -33,12 +31,10 @@ export default function localContextBudget(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const p1 = showPack1.value;
     const r1 = showReject1.value;
     const rs = showRescore.value;
     const p2 = showPack2.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: Pass 1 (Relation 0.98/30t + Policy 0.91/55t = 85/90t -> 5 left, Report 80t rejected!)
@@ -127,7 +123,7 @@ export default function localContextBudget(s, c) {
         p2 > 0.4 ? COSMOS.amber : rs > 0.3 ? COSMOS.gold : COSMOS.muted,
         {
           fill: p2 > 0.4 ? '#231c10' : '#181e34',
-          glow: rs > 0.3 ? 9 * pulse : 2,
+          glow: rs > 0.3 ? 9 : 2,
         },
       ),
       txt('1. Cache report (0.99) -> 80 tok', 145, -134, 26, COSMOS.gold, 'mono', 'left'),
@@ -182,7 +178,6 @@ export default function localContextBudget(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('local-context-budget-local', () => s.play(showPack1.to(0.25, { duration: 0.3 })));
   c.on('local-context-budget-place-edge', () => s.play(showPack1.to(0.55, { duration: 0.3 })));

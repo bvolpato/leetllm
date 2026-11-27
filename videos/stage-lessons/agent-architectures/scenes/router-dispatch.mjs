@@ -9,7 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   quadArcPts,
@@ -34,7 +33,7 @@ export default function routerDispatch(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const bd = buildOn.value;
       const sc = schemaOn.value;
       const dc = docsOn.value;
@@ -150,7 +149,6 @@ export default function routerDispatch(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-router-dispatch-0', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('aa-router-dispatch-0').start, 0.25) }));

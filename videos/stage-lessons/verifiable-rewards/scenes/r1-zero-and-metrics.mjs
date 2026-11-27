@@ -11,7 +11,6 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -121,7 +120,6 @@ export default function r1ZeroAndMetrics(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('vr-r1-zero-and-metrics-b0', () => s.play(phase.to(1.5, { duration: 0.4 })));
   c.on('vr-base-r1-zero-and-metrics', () => s.play(sSingle.to(0.6, { duration: 0.35 })));

@@ -3,14 +3,7 @@
 // Strictly withholds comparison deltas until compare-future (after) and compare-past (after),
 // pairing a glowing lower-triangular signal graph on the left with Euclidean change bars on the right.
 import { line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  glowDot,
-  glowingTrail,
-  guardedDynamic,
-  heroTitle,
-  txt,
-} from '../../cinematic-kit.mjs';
+import { COSMOS, glowingTrail, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
 import {
   INPUT,
   MODEL,
@@ -52,7 +45,6 @@ export default function causality(s, c) {
   const deltaAmt = s.value(0); // 0 -> 4 perturbation magnitude
   const showFutCmp = s.value(0); // STRICTLY AFTER compare-future!
   const showPastCmp = s.value(0); // STRICTLY AFTER compare-past!
-  const pulse = s.value(0);
   const stageVis = s.value(1);
 
   const mainLayer = guardedDynamic(stageVis, (alpha) => {
@@ -120,7 +112,6 @@ export default function causality(s, c) {
       );
     });
 
-    const pPhase = (pulse.value * 5) % 1;
     for (let r = 0; r < 3; r++) {
       for (let k = 0; k < 3; k++) {
         const cx = gridX + k * step;
@@ -146,17 +137,6 @@ export default function causality(s, c) {
             'center',
           ).opacity(alpha),
         );
-        if (hit && revealed > 0.2 && k === selected) {
-          const px = -280 + pPhase * 110;
-          nodes.push(
-            glowDot(px, cy, {
-              radius: 6,
-              color: ROLE.attn,
-              glow: 10,
-              opacity: (1 - pPhase) * alpha,
-            }),
-          );
-        }
       }
     }
 
@@ -253,11 +233,6 @@ export default function causality(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.attn, ROLE.mask), title, mainLayer);
-
-  const fullSpan = Math.max(1, c.end - c.start - 0.6);
-  c.at(0.1, () => {
-    s.play(pulse.to(1, { duration: fullSpan }));
-  });
 
   // Beat 0: perturb final row "the" by +4 (withhold comparison!)
   playCue(s, c, 'change-future', (d) => s.play(deltaAmt.to(4, { duration: d })), { dur: 0.9 });

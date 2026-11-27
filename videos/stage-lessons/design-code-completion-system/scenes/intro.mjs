@@ -2,20 +2,9 @@
 // Editor line with pasted "graph." (caret moved +6 cols!) while blue stale reply "graph.allows(req)"
 // arrives for the old col -> STRICT prediction pause -> scratch line shows "graph.graph.allows(req)" -> DROP!
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   const pasteOn = s.value(0);
   const joinOn = s.value(0);
   const dropReveal = s.value(0); // STRICT after intro-drop!
@@ -32,7 +21,6 @@ export default function intro(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ps = pasteOn.value;
       const jn = joinOn.value;
       const dr = dropReveal.value;
@@ -136,12 +124,6 @@ export default function intro(s, c) {
       nodes.push(
         txt('STALE SNAPSHOT TRAP', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Old column != live yellow caret', 480, -378, 26, COSMOS.muted, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: pktCol,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -149,8 +131,6 @@ export default function intro(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('intro-paste', () => {
     s.play(pasteOn.to(1, { duration: clampDur(c, c.cue('intro-paste').start, 0.35) }));
   });

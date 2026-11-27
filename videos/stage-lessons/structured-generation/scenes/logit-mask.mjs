@@ -14,7 +14,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowMeter,
   glowTex,
   guardedDynamic,
@@ -24,7 +23,6 @@ import {
 } from '../parts.mjs';
 
 export default function logitMask(s, c) {
-  const pulse = s.value(0);
   const inputsHi = s.value(0);
   const maskDrop = s.value(0);
   const normBeam = s.value(0);
@@ -47,7 +45,6 @@ export default function logitMask(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const ih = inputsHi.value;
       const md = maskDrop.value;
       const nb = normBeam.value;
@@ -127,7 +124,7 @@ export default function logitMask(s, c) {
           );
           if (ok) {
             const beam = quadArcPts([210, y], [370, y], -18);
-            nodes.push(beamWithPhotons(beam, ROLE.legal, p * 1.3, { alpha: nb, width: 3.6 }));
+            nodes.push(beamWithPhotons(beam, ROLE.legal, 0, { alpha: nb, width: 3.6 }));
           }
         } else {
           nodes.push(txt('?', 540, y, 30, COSMOS.dim, 'mono', 'center'));
@@ -158,7 +155,6 @@ export default function logitMask(s, c) {
   );
 
   s.add(stageAura, header, maskEq, stageView);
-  driftValue(s, c, pulse, 4.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('mask-inputs', () => {
     s.play(inputsHi.to(1, { duration: clampDur(c, c.cue('mask-inputs').start, 0.35) }));

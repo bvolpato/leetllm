@@ -16,7 +16,6 @@ import {
   repairSceneSnapshot,
   repairTrace,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
   verifyInvariant,
@@ -54,7 +53,6 @@ export default function evidenceLoop(s, c) {
   verifyInvariant(rejectsXml(oneCase('<failure/>', 'classname="A" name=" "')), 'blank rejected');
   verifyInvariant(rejectsXml('<testsuite>'), 'malformed XML rejected');
 
-  const phase = s.value(0);
   const leftMode = s.value(0); // 0=contract, 1=attempt/repair, 2=edge-case table
   const mode0 = s.value(1);
   const mode1 = s.value(0);
@@ -407,7 +405,6 @@ export default function evidenceLoop(s, c) {
   });
 
   s.add(bgAtmo, title, live);
-  runAmbientPhase(s, c, phase, 2.5);
 
   // Beat 0: Contract
   tweenCue(s, c, 'ev-fixture', leftMode, 0, { duration: 0.25 });

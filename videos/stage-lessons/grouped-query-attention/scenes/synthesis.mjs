@@ -14,12 +14,10 @@ import {
   line,
   playCue,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function synthesis(s, c) {
-  const phase = s.value(0);
   const showAsk = s.value(0);
   const showShort = s.value(0);
   const showLong = s.value(0);
@@ -36,7 +34,6 @@ export default function synthesis(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const ph = phase.value;
     const ask = showAsk.value;
     const sh = showShort.value;
     const lg = showLong.value;
@@ -167,13 +164,6 @@ export default function synthesis(s, c) {
       txt('After return', xAt(0.84), phaseY, 26, ROLE.gold, 'mono', 'center'),
     );
 
-    // Subtle animated scan dot along the 5 MiB plateau
-    const scanU = 0.24 + ((ph * 0.25) % 1) * 0.44;
-    nodes.push(
-      glowDot(xAt(scanU), -50 - 145, { radius: 5, color: ROLE.query, glow: 10 }),
-      glowDot(xAt(scanU), 185 - 145, { radius: 5, color: ROLE.query, glow: 10 }),
-    );
-
     // Bottom 3-pillar floating verification checklist (glowing orbital rings, ZERO prose boxes!)
     nodes.push(rule(-855, 290, 855, 290, COSMOS.rule, 1.5).opacity(0.6));
     if (gs === 0) {
@@ -238,7 +228,6 @@ export default function synthesis(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.value), title, live);
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'ask', (d) => s.play(showAsk.to(1, { duration: d })), { dur: 0.45 });
   playCue(s, c, 'short', (d) => s.play(showShort.to(1, { duration: d })), {

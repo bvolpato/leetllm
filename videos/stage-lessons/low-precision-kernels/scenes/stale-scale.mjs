@@ -16,12 +16,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function staleScale(s, c) {
-  const phase = s.value(0);
   const showOldDiv = s.value(0);
   const showCurrent = s.value(0);
   const reveal500 = s.value(0);
@@ -37,7 +35,6 @@ export default function staleScale(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const oldD = showOldDiv.value;
     const cur = showCurrent.value;
     const rev = reveal500.value;
@@ -183,11 +180,6 @@ export default function staleScale(s, c) {
         .opacity(0.25 + 0.75 * cur),
     );
 
-    // Animated traveling signal photon along the open gap between the two conversion lanes
-    const u = (p * 0.45) % 1;
-    const px = -516 + u * 1000;
-    nodes.push(glowDot(px, 86, { radius: 6, color: cur > 0.5 ? COSMOS.cyan : COSMOS.rose }));
-
     // Bottom takeaway once revealed
     if (rev > 0.02) {
       nodes.push(
@@ -208,7 +200,6 @@ export default function staleScale(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('stale-divide', () =>
     s.play(showOldDiv.to(1, { duration: remainDuration(c, 'stale-divide', 0.45) })),

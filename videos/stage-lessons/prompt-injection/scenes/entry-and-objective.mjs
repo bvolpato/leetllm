@@ -12,7 +12,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   gateNode,
   guardedDynamic,
@@ -42,7 +41,7 @@ export default function entryAndObjective(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const sh = srcHi.value;
       const pa = pasteOn.value;
       const fe = fetchOn.value;
@@ -212,7 +211,6 @@ export default function entryAndObjective(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('entry-source', () => {
     s.play(srcHi.to(1, { duration: clampDur(c, c.cue('entry-source').start, 0.35) }));

@@ -14,7 +14,6 @@ import {
   clampDur,
   coldMicro,
   dashedRule,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fmtInt,
@@ -299,7 +298,6 @@ export default function coldReservation(s, c) {
   );
 
   s.add(sceneAura, header, mode0, mode1, mode2);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('cold-receipts', () => {
     const t = c.cue('cold-receipts').start;

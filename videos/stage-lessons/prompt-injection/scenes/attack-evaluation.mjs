@@ -15,7 +15,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -127,7 +126,7 @@ export default function attackEvaluation(s, c) {
   const mode1 = guardedDynamic(
     () => fadeInHalf(mode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const tr = traceReveal.value;
       const cr = credHi.value;
       const ds = destHi.value;
@@ -265,7 +264,6 @@ export default function attackEvaluation(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('attack-evaluation-beat-1-focus-1', () => {
     s.play(

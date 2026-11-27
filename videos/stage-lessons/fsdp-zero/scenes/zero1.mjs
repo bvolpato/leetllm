@@ -6,18 +6,15 @@ import {
   ZERO_1,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function zero1(s, c) {
-  const phase = s.value(0);
   const shardOpt = s.value(0); // 0 -> 1 shrinks optimizer from 4 -> 1
   const showFive = s.value(0);
   const focusW = s.value(0);
@@ -33,7 +30,6 @@ export default function zero1(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const so = shardOpt.value;
     const sf = showFive.value;
     const fw = focusW.value;
@@ -112,9 +108,7 @@ export default function zero1(s, c) {
       txt('Weights stay full', 600, 68, 26, fw > 0.5 ? COSMOS.gold : COSMOS.muted, 'sans'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 280, { radius: 6, color: ROLE.good }),
       txt(
         'Each rank updates only its own 1/4 optimizer shard · full parameters stay on every GPU',
         0,
@@ -129,7 +123,6 @@ export default function zero1(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('zero1-b1-1', () =>
     s.play(shardOpt.to(0.5, { duration: remainDuration(c, 'zero1-b1-1', 0.5) })),

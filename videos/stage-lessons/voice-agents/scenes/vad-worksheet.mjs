@@ -9,14 +9,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function vadWorksheet(s, c) {
-  const phase = s.value(0);
   const roundOn = s.value(0);
   const retainOn = s.value(0);
   const trimOn = s.value(0);
@@ -34,7 +31,6 @@ export default function vadWorksheet(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const rnd = roundOn.value;
       const ret = retainOn.value;
       const trm = trimOn.value;
@@ -176,22 +172,11 @@ export default function vadWorksheet(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.audio,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('va-vad-worksheet-0-3', () => {
     s.play(roundOn.to(1, { duration: clampDur(c, c.cue('va-vad-worksheet-0-3').start, 0.35) }));
   });

@@ -14,7 +14,6 @@ import {
   parametricSurface,
   point3d,
   polyPath,
-  radialGradient,
   rect,
   surface,
 } from 'vizmatic/stage';
@@ -306,22 +305,7 @@ export function clockDial({
   subColor = COSMOS.muted,
 } = {}) {
   const nodes = [];
-  if (auraColor) {
-    nodes.push(
-      markDecoration(
-        circle(radius * 1.42, {
-          fill: radialGradient([0, 0], radius * 1.42, [
-            [0, auraColor],
-            [0.55, '#4c2f8a10'],
-            [1, '#07091000'],
-          ]),
-          stroke: null,
-        })
-          .at(cx, cy)
-          .set('blend', 'screen'),
-      ),
-    );
-  }
+  void auraColor;
   nodes.push(
     circle(radius, { fill: null, stroke: ringColor, width: 2.4 }).at(cx, cy),
     circle(radius * 0.52, { fill: null, stroke: '#273558', width: 1.4, dash: [5, 8] }).at(cx, cy),

@@ -11,7 +11,6 @@ import {
   cinemaRails,
   crossPhase,
   deliverUntilStop,
-  glowDot,
   glowingArc,
   glowingTrail,
   guardedDynamic,
@@ -32,7 +31,6 @@ import {
  * Phase 3: Ordered stopping on [sang, EOS, today] -> delivers sang, stops at EOS, drops today.
  */
 export function commit(s, c) {
-  const amb = startAmbient(s, c);
   const p1 = s.value(1);
   const p2 = s.value(0);
   const p3 = s.value(0);
@@ -58,7 +56,6 @@ export function commit(s, c) {
 
   // Phase 1: Rejection + trim + pending correction
   const v1 = guardedDynamic(p1, (a) => {
-    const t = amb.value;
     const sc = showChain.value;
     const tr = trimKV.value;
     const pc = showPendingCorr.value;
@@ -119,12 +116,6 @@ export function commit(s, c) {
     }
 
     nodes.push(
-      glowDot(-560 + ((t * 1.4) % 1) * 1190, 225, {
-        radius: 5,
-        color: COSMOS.amber,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Trim rejected suffix KV first; the sampled replacement still needs a forward pass',
         0,
@@ -139,7 +130,6 @@ export function commit(s, c) {
 
   // Phase 2: Full acceptance -> bonus token EOS from row 4
   const v2 = guardedDynamic(p2, (a) => {
-    const t = amb.value;
     const sb = showBonus.value;
     const bp = showBonusPend.value;
     const nodes = [];
@@ -177,12 +167,6 @@ export function commit(s, c) {
     });
 
     nodes.push(
-      glowDot(-540 + ((t * 1.5) % 1) * 1080, 155, {
-        radius: 5.5,
-        color: COSMOS.gold,
-        glow: 12,
-        opacity: 0.75 * a,
-      }),
       txt(
         'Committed: sang, softly, today, EOS   |   Computed KV: sang, softly, today (EOS pending)',
         0,
@@ -197,7 +181,6 @@ export function commit(s, c) {
 
   // Phase 3: Ordered stopping at EOS
   const v3 = guardedDynamic(p3, (a) => {
-    const t = amb.value;
     const sc = stopScan.value;
     const eos = hitEos.value;
     const nodes = [];
@@ -260,12 +243,6 @@ export function commit(s, c) {
     }
 
     nodes.push(
-      glowDot(-440 + ((t * 1.4) % 1) * 440, 105, {
-        radius: 5,
-        color: COSMOS.emerald,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Never deliver tokens after the first EOS or output limit in a verified block',
         0,
@@ -300,7 +277,6 @@ export function commit(s, c) {
  * Phase 3: Edge-case invariants (depth 0, p=q, disjoint, validation, EOS).
  */
 export function roundCpu(s, c) {
-  const amb = startAmbient(s, c);
   const p1 = s.value(1);
   const p2 = s.value(0);
   const p3 = s.value(0);
@@ -321,7 +297,6 @@ export function roundCpu(s, c) {
   });
 
   const v1 = guardedDynamic(p1, (a) => {
-    const t = amb.value;
     const rows = [
       { prefix: 'empty prefix', p: [0.4, 0.5, 0.1], q: [0.6, 0.3, 0.1] },
       { prefix: 'after "noon"', p: [0.1, 0.6, 0.3], q: [0.6, 0.3, 0.1] },
@@ -361,12 +336,6 @@ export function roundCpu(s, c) {
       );
     });
     nodes.push(
-      glowDot(-650 + ((t * 1.4) % 1) * 1200, 345, {
-        radius: 5,
-        color: COSMOS.cyan,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Draft records every proposal law first; target supplies one conditional row per prefix + bonus',
         0,
@@ -380,7 +349,6 @@ export function roundCpu(s, c) {
   });
 
   const v2 = guardedDynamic(p2, (a) => {
-    const t = amb.value;
     const branches = [
       { label: 'Reject at pos 1', out: 'dawn', prog: br1.value, col: COSMOS.rose },
       { label: 'Reject at pos 2', out: 'noon -> dusk', prog: br2.value, col: COSMOS.amber },
@@ -418,12 +386,6 @@ export function roundCpu(s, c) {
       }
     });
     nodes.push(
-      glowDot(-580 + ((t * 1.5) % 1) * 1160, 345, {
-        radius: 5,
-        color: COSMOS.emerald,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Three scripted draws exercise every branch: early rejection, late rejection, and bonus emission',
         0,
@@ -437,7 +399,6 @@ export function roundCpu(s, c) {
   });
 
   const v3 = guardedDynamic(p3, (a) => {
-    const t = amb.value;
     const g = showGuards.value;
     const guards = [
       { k: 'depth = 0', v: 'ordinary target sample', c: COSMOS.cyan },
@@ -468,14 +429,6 @@ export function roundCpu(s, c) {
         }),
       );
     });
-    nodes.push(
-      glowDot(-235 + ((t * 1.5) % 1) * 140, 291, {
-        radius: 5,
-        color: COSMOS.gold,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
-    );
     return group(...nodes);
   });
 
@@ -496,7 +449,6 @@ export function roundCpu(s, c) {
  * p(a)*p(b|a) against observed frequency (max abs diff = 0.0037 < 0.006 tolerance).
  */
 export function sequenceCheck(s, c) {
-  const amb = startAmbient(s, c);
   const showExact = s.value(0);
   const showObserved = s.value(0);
   const showStale = s.value(0);
@@ -524,7 +476,6 @@ export function sequenceCheck(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const ex = showExact.value;
       const obs = showObserved.value;
       const st = showStale.value;
@@ -588,16 +539,6 @@ export function sequenceCheck(s, c) {
           }
         }
       }
-
-      // Ambient scan bead
-      nodes.push(
-        glowDot(-800 + ((t * 1.3) % 1) * 1600, 358, {
-          radius: 5,
-          color: COSMOS.emerald,
-          glow: 10,
-          opacity: 0.7,
-        }),
-      );
 
       const foot =
         st > 0.25
@@ -849,7 +790,6 @@ export function weightRoofline(s, c) {
  * plus sequential draft reads (5 x 2 GB ~ 3.0 ms at peak bandwidth).
  */
 export function weightReuse(s, c) {
-  const amb = startAmbient(s, c);
   const w1 = weightWorksheet(1);
   const w6 = weightWorksheet(6);
 
@@ -871,7 +811,6 @@ export function weightReuse(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const f5 = addFive.value;
       const sc = showCompute.value;
       const d1 = showDraftOne.value;
@@ -920,11 +859,6 @@ export function weightReuse(s, c) {
         line([-490, -162], [spanEnd, -162], { stroke: COSMOS.gold, width: 4.0 })
           .glow(12, COSMOS.gold)
           .set('blend', 'screen'),
-        glowDot(-490 + ((t * 1.6) % 1) * (spanEnd + 490), -162, {
-          radius: 7,
-          color: '#ffffff',
-          glow: 14,
-        }),
         txt(
           `${posCount} position${posCount > 1 ? 's' : ''} -> ${posCount} FLOP/byte`,
           220,

@@ -11,7 +11,6 @@ import {
   clampDur,
   coldEvaluationMicro,
   dashedRule,
-  driftValue,
   evaluationMicro,
   fadeInHalf,
   fadeOutHalf,
@@ -226,7 +225,6 @@ export default function batchRecovery(s, c) {
   );
 
   s.add(sceneAura, header, mode0, mode12);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('te-batch-recovery-0', () => {
     const t = c.cue('te-batch-recovery-0').start;

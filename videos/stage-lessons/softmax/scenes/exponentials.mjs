@@ -18,13 +18,11 @@ import {
   guardedDynamic,
   heroTitle,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function exponentials(s, c) {
-  const phase = s.value(0);
   const wRan = s.value(0);
   const wSlept = s.value(0);
   const wAte = s.value(0);
@@ -58,7 +56,6 @@ export default function exponentials(s, c) {
     const rat = showRatio.value;
     const surv = showSurvives.value;
     const ovf = showOverflow.value;
-    const pulse = 0.72 + 0.28 * Math.sin(phase.value * 3.0);
 
     const activeShift = off > 1 ? 3 + off : sh;
     const { nodes, xOf } = buildRulerBars(-810, 20, 145, 310, LOGITS, PROBS, {
@@ -97,7 +94,7 @@ export default function exponentials(s, c) {
         glowingArc([x1, -18], [x0, -215], -45, {
           color: MARK_COLOR,
           width: 3.4,
-          glow: 9 * pulse,
+          glow: 9,
           opacity: rat,
         }),
         txt('e² ≈ 7.39× ratio', (x1 + x0) / 2 - 40, -225, 28, MARK_COLOR, 'mono').opacity(rat),
@@ -170,7 +167,6 @@ export default function exponentials(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'exp-ran', wRan, 1, { duration: 0.45 });
   tweenCue(s, c, 'exp-slept', wSlept, 1, { duration: 0.45 });

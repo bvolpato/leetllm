@@ -13,7 +13,6 @@ import {
   memoryAccess,
   renderGauge,
   rule,
-  runAmbientPhase,
   runtimeAccess,
   seq,
   tweenCue,
@@ -48,7 +47,6 @@ export default function wasmFailureMatrix(s, c) {
   verifyInvariant(runtimeAccess('wasm', '/work/report.xml').allowed === true, 'report allowed');
   verifyInvariant(runtimeAccess('wasm', '/work/notes.txt').allowed === false, 'notes denied');
 
-  const phase = s.value(0);
   const rowLit = PROBES.map(() => s.value(0));
   const rowMark = PROBES.map(() => s.value(0));
   const rowPulse = PROBES.map(() => s.value(0));
@@ -400,7 +398,6 @@ export default function wasmFailureMatrix(s, c) {
   });
 
   s.add(bgAtmo, title, live);
-  runAmbientPhase(s, c, phase, 2.4);
 
   // Wire all 8 matrix rows
   PROBES.forEach((probe, i) => {

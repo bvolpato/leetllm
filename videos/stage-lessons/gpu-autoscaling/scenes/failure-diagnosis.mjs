@@ -10,7 +10,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   glowBar,
   glowDot,
   guardedDynamic,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function failureDiagnosis(s, c) {
-  const phase = s.value(0);
   const mode = s.value(0); // 0=flapping+tail, 1=retry storm, 2=chunked prefill
 
   const header = cinemaHeader('FAILURE SIGNATURES & REMEDIES', 'Fix the first', 'failed boundary', {
@@ -36,7 +34,6 @@ export default function failureDiagnosis(s, c) {
     () => 1,
     () => {
       const m = mode.value;
-      const p = phase.value;
       const nodes = [];
 
       if (m < 0.5) {
@@ -87,7 +84,7 @@ export default function failureDiagnosis(s, c) {
                   [cx + 160, 135],
                 ],
                 col,
-                p * 0.9,
+                0,
                 { width: 3.0, glow: 7, photonCount: 1 },
               ),
             );
@@ -139,7 +136,7 @@ export default function failureDiagnosis(s, c) {
                   [attempts[i + 1].x - 195, -45],
                 ],
                 ROLE.expired,
-                p * 1.1,
+                0,
                 { width: 3.4, glow: 9, photonCount: 1 },
               ),
             );
@@ -147,7 +144,7 @@ export default function failureDiagnosis(s, c) {
         }
         const backArc = quadArcPts([620, 20], [-620, 20], 155, 32);
         nodes.push(
-          beamWithPhotons(backArc, ROLE.expired, p * 0.85, {
+          beamWithPhotons(backArc, ROLE.expired, 0, {
             width: 3.6,
             glow: 10,
             photonCount: 2,
@@ -217,7 +214,7 @@ export default function failureDiagnosis(s, c) {
               [820, 145],
             ],
             ROLE.warm,
-            p * 0.9,
+            0,
             { width: 4.2, glow: 10, photonCount: 4 },
           ),
           glowDot(-460, 145, { radius: 11, color: ROLE.warm, glow: 14 }),
@@ -248,7 +245,6 @@ export default function failureDiagnosis(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-failure-diagnosis-b0', mode, 0, 0.2);
   tweenOn(s, c, 'ga-failure-diagnosis-b1', mode, 1, 0.35);

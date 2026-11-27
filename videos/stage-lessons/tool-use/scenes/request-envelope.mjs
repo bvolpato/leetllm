@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   envelopeSnapshot,
   gateNode,
@@ -44,7 +43,7 @@ export default function requestEnvelope(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const fd = fieldsOn.value;
       const sp = streamProg.value;
       const ad = adapterOn.value;
@@ -233,7 +232,6 @@ export default function requestEnvelope(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('request-envelope-beat-1-focus-1', () => {
     s.play(

@@ -15,7 +15,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -27,7 +26,6 @@ import {
 } from '../parts.mjs';
 
 export default function wholeToken(s, c) {
-  const pulse = s.value(0);
   const lettersHi = s.value(0);
   const punctHi = s.value(0);
   const prefixHi = s.value(0);
@@ -52,7 +50,6 @@ export default function wholeToken(s, c) {
   const shopView = guardedDynamic(
     () => fadeOutHalf(lookupMode.value),
     (a) => {
-      const p = pulse.value;
       const lh = lettersHi.value;
       const ph = punctHi.value;
       const pr = prefixHi.value;
@@ -190,7 +187,7 @@ export default function wholeToken(s, c) {
       // Commit arc from A toward prefix when shop-commit fires (generous clearance below prefix text)
       if (cm > 0.05) {
         const arc = quadArcPts([-440, -68], [-320, -120], -14);
-        nodes.push(beamWithPhotons(arc, ROLE.legal, p * 1.2, { alpha: a * cm, width: 3.4 }));
+        nodes.push(beamWithPhotons(arc, ROLE.legal, 0, { alpha: a * cm, width: 3.4 }));
       }
 
       nodes.push(
@@ -217,7 +214,6 @@ export default function wholeToken(s, c) {
   const ciView = guardedDynamic(
     () => fadeInHalf(lookupMode.value),
     (a) => {
-      const p = pulse.value;
       const nodes = [];
       const tokA = CI_TRIAL.suffix; // iled"}
       const tokB = CI_TRIAL.suffix + '!'; // iled"}!
@@ -279,7 +275,7 @@ export default function wholeToken(s, c) {
 
       const beam = quadArcPts([-675, 295], [300, 295], -18);
       nodes.push(
-        beamWithPhotons(beam, ROLE.legal, p * 1.2, { alpha: a * 0.85, width: 3.2 }),
+        beamWithPhotons(beam, ROLE.legal, 0, { alpha: a * 0.85, width: 3.2 }),
         txt(`AFTER SAMPLING A: ${CI_TRIAL.nextBuffer}`, -840, 355, 34, ROLE.legal, 'mono', 'left')
           .glow(8, ROLE.legal)
           .opacity(a),
@@ -293,7 +289,6 @@ export default function wholeToken(s, c) {
   );
 
   s.add(stageAura, header, shopView, ciView);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('whole-token-b1-1', () => {
     s.play(lettersHi.to(1, { duration: clampDur(c, c.cue('whole-token-b1-1').start, 0.35) }));

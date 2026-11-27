@@ -86,14 +86,12 @@ export default function resumeDataArtifacts(s, c) {
         );
       });
 
-      // Verification scanner sweeps along a dedicated horizontal rail below the capsules (never crossing text!)
+      // Verification rail below the capsules (never crossing text!)
       if (vs > 0.05) {
-        const scanX = -760 + ((p * 0.4) % 1) * 1520;
         nodes.push(
           line([-760, 248], [760, 248], { stroke: COSMOS.emerald, width: 3 })
             .glow(8, COSMOS.emerald)
             .opacity(vs * a * 0.75),
-          glowDot(scanX, 248, { radius: 9, color: COSMOS.emerald, opacity: vs * a }),
         );
       }
 

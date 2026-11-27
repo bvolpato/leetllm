@@ -13,7 +13,6 @@ import {
   cinemaHeader,
   clampDur,
   digestIdentity,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fsmNode,
@@ -38,7 +37,6 @@ const DUP_RES = digestIdentity(
 );
 
 export default function digestIdentities(s, c) {
-  const pulse = s.value(0);
   const b0Hi = s.value(0);
   const unknownFlag = s.value(0);
   const b1Hi = s.value(0);
@@ -147,7 +145,6 @@ export default function digestIdentities(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(act.value),
     (a) => {
-      const p = pulse.value;
       const lw = lastWins.value;
       const dr = dupReject.value;
       const nodes = [];
@@ -190,7 +187,7 @@ export default function digestIdentities(s, c) {
 
       // Right top: Naive dict conversion silently drops healthy -> outage!
       nodes.push(
-        beamWithPhotons(quadArcPts([35, -55], [225, -55], -22), ROLE.review, p * 1.1, {
+        beamWithPhotons(quadArcPts([35, -55], [225, -55], -22), ROLE.review, 0, {
           alpha: a * (0.4 + 0.6 * lw),
           width: 3.2,
           photonCount: lw > 0.2 ? 1 : 0,
@@ -256,7 +253,6 @@ export default function digestIdentities(s, c) {
   );
 
   s.add(stageAura, header, act0, act1);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-digest-identities-0', () => {
     s.play(b0Hi.to(1, { duration: clampDur(c, c.cue('sg-digest-identities-0').start, 0.35) }));

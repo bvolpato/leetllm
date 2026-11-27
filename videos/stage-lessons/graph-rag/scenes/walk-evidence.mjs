@@ -10,13 +10,11 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
   walk,
 } from '../parts.mjs';
 
 export default function walkEvidence(s, c) {
-  const phase = s.value(0);
   const showHop1 = s.value(0);
   const showHop2 = s.value(0);
   const showAdmit = s.value(0);
@@ -35,12 +33,10 @@ export default function walkEvidence(s, c) {
   const walked = walk('person:lena');
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const h1 = showHop1.value;
     const h2 = showHop2.value;
     const ad = showAdmit.value;
     const ct = showCaution.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Top: 2-hop cursor traversal Lena -> book:river -> Willow Press
@@ -69,7 +65,7 @@ export default function walkEvidence(s, c) {
 
       glassCell(605, -124, 390, 118, h2 > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#231c10',
-        glow: h2 > 0.3 ? 9 * pulse : 2,
+        glow: h2 > 0.3 ? 9 : 2,
       }),
       txt('publisher:willow', 605, -138, 26, COSMOS.gold, 'mono'),
       txt('HOP 2', 605, -96, 26, COSMOS.ink, 'mono'),
@@ -77,7 +73,7 @@ export default function walkEvidence(s, c) {
       // Bottom left: Admitted evidence set (check access + version + provenance)
       glassCell(-445, 134, 810, 218, ad > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: '#0e2624',
-        glow: ad > 0.3 ? 9 * pulse : 2,
+        glow: ad > 0.3 ? 9 : 2,
       }),
       txt(
         `ADMITTED (${walked.sources.length}/2): access=OK, current`,
@@ -119,7 +115,7 @@ export default function walkEvidence(s, c) {
       // Bottom right: Path is a retrieval lead, not automatic proof
       glassCell(465, 134, 790, 218, ct > 0.3 ? COSMOS.amber : COSMOS.muted, {
         fill: '#231c10',
-        glow: ct > 0.3 ? 8 * pulse : 2,
+        glow: ct > 0.3 ? 8 : 2,
       }),
       txt('A SHORT PATH IS ONLY A RETRIEVAL LEAD', 100, 66, 26, COSMOS.amber, 'mono', 'left'),
       txt(
@@ -166,7 +162,6 @@ export default function walkEvidence(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('walk-evidence-b1-1', () => s.play(showHop1.to(0.5, { duration: 0.3 })));
   c.on('walk-evidence-walk-author', () => s.play(showHop1.to(1, { duration: 0.35 })));

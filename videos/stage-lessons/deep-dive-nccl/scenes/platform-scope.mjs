@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function platformScope(s, c) {
-  const phase = s.value(0);
   const step = s.value(0);
 
   const bgAura = aura(0, 20, 620, '#a78bfa1e', '#5ce1e618');
@@ -29,7 +26,6 @@ export default function platformScope(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const inTls = st >= 4;
 
     const nodes = [
@@ -73,9 +69,7 @@ export default function platformScope(s, c) {
       txt('External network plugins configure TLS separately', 420, 92, 26, COSMOS.muted, 'sans'),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 255, { radius: 6, color: inTls ? ROLE.good : ROLE.r3 }),
       txt(
         'Check hardware-feature boundaries (MIG fabric limits & plugin encryption scope) before deployment',
         0,
@@ -89,7 +83,6 @@ export default function platformScope(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-platform-scope-b0-s0', 0],
     ['nc-platform-scope-b0-s1', 1],

@@ -6,18 +6,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   prefixReuse,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function failureDrill(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = warm Replica A reference: [10,20,30,40] matches 4/4
   // 1 = edit first ID 10 -> 99
@@ -41,7 +38,6 @@ export default function failureDrill(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st < 7) {
@@ -155,9 +151,7 @@ export default function failureDrill(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 295, { radius: 6, color: st === 5 ? COSMOS.gold : ROLE.fail }),
       txt(
         st === 0
           ? 'Warm Replica A matches all 4 leading IDs [10, 20, 30, 40].'
@@ -185,7 +179,6 @@ export default function failureDrill(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['drill-reference', 0],
     ['drill-change', 1],

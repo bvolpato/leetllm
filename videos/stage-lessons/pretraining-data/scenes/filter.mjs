@@ -12,12 +12,10 @@ import {
   laserRail,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function filter(s, c) {
-  const phase = s.value(0);
   const cutoff = s.value(0.2);
   const labelPulse = s.value(0);
   const rulePrompt = s.value(0);
@@ -163,7 +161,6 @@ export default function filter(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('filter-b1-1', () =>
     s.play(labelPulse.to(1, { duration: remainDuration(c, 'filter-b1-1', 0.6) })),

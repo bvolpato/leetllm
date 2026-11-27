@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function choose(s, c) {
-  const phase = s.value(0);
   // mode: 0=baseline(3.0->7.0), 1=ckpt(1.5->5.5), 2=long-seq question(4.5 -> HOLD!), 3=long-seq answer(8.5 OOM!)
   const mode = s.value(0);
 
@@ -31,7 +28,6 @@ export default function choose(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const m = Math.round(mode.value);
     const actUnits = m === 0 ? 3.0 : m === 1 ? 1.5 : 4.5;
     const peak = 2.0 + 1.5 + 0.5 + actUnits; // 7.0, 5.5, 8.5
@@ -104,14 +100,12 @@ export default function choose(s, c) {
     nodes.push(
       glassCell(0, 225, 1480, 118, vCol, { fill: '#0e192c', glow: 9 }),
       txt(verdict, 0, 225, 28, vCol, 'mono'),
-      glowDot(-740 + ((p * 0.65) % 1) * 1480, 345, { radius: 6, color: vCol }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.after('joint-allocations', () => s.play(mode.to(0, { duration: 0.35 })));
   c.on('checkpoint-savings', () =>

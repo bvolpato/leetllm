@@ -13,12 +13,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function precisionContract(s, c) {
-  const phase = s.value(0);
   const showRuler = s.value(1);
   // rulerState: 0=start(1024), 1=exact+0.25 (hold!), 2=round-above, 3=exact-0.375, 4=round-below
   const rulerState = s.value(0);
@@ -44,8 +42,6 @@ export default function precisionContract(s, c) {
 
   const rulerView = guardedDynamic(showRuler, (a) => {
     const st = Math.round(rulerState.value);
-    const p = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt(
@@ -95,7 +91,7 @@ export default function precisionContract(s, c) {
     const x16 = mapX(fp16Val);
 
     nodes.push(
-      glowDot(x32, -18, { radius: 13, color: ROLE.good, glow: 12 * pulse, opacity: a }),
+      glowDot(x32, -18, { radius: 13, color: ROLE.good, glow: 12, opacity: a }),
       txt(
         st === 1 || st === 3 ? 'FP32: ?' : `FP32: ${fp32Val}`,
         x32,
@@ -104,7 +100,7 @@ export default function precisionContract(s, c) {
         ROLE.good,
         'mono',
       ).opacity(a),
-      glowDot(x16, 18, { radius: 13, color: ROLE.bad, glow: 12 * pulse, opacity: a }),
+      glowDot(x16, 18, { radius: 13, color: ROLE.bad, glow: 12, opacity: a }),
       txt(
         st === 1 || st === 3 ? 'FP16: ?' : `FP16: ${fp16Val}`,
         x16,
@@ -224,7 +220,6 @@ export default function precisionContract(s, c) {
   });
 
   s.add(bgAura, title, rulerView, cancelView);
-  runPhase(s, c, phase, 14);
 
   c.on('exact-above', () =>
     s.play(rulerState.to(1, { duration: remainDuration(c, 'exact-above', 0.35) })),

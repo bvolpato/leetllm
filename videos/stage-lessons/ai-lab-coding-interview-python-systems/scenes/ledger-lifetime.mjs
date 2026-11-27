@@ -8,11 +8,9 @@ import {
   COSMOS,
   LEDGER,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   glowArcArrow,
   glowCross,
-  glowDot,
   glowPill,
   guardedDynamic,
   lowerFooter,
@@ -26,7 +24,6 @@ export default function ledgerLifetime(s, c) {
     accent: ROLE.record,
   });
 
-  const amb = ambientClock(s, c);
   const stage = s.value(0); // 0=reject & replay, 1=True==1 dict collision, 2=3-write crash & atomic tx
   const s0Step = s.value(0); // 0=init, 1=reject absent, 2=retry after deposit, 3=replay 100
   const collided = s.value(0);
@@ -35,7 +32,6 @@ export default function ledgerLifetime(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(stage.value);
       const nodes = [];
 
@@ -128,13 +124,11 @@ export default function ledgerLifetime(s, c) {
             color: ROLE.fail,
             width: 3.6,
             alpha: hit ? alpha : 0.45 * alpha,
-            photonT: hit ? (amb.value * 4) % 1 : null,
           }),
           glowArcArrow([320, -96], [95, 25], 25, {
             color: ROLE.warn,
             width: 3.6,
             alpha: hit ? alpha : 0.45 * alpha,
-            photonT: hit ? (amb.value * 4 + 0.5) % 1 : null,
           }),
           glowPill(
             hit
@@ -279,12 +273,6 @@ export default function ledgerLifetime(s, c) {
       }
 
       nodes.push(
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5 + 1.5 * pulse,
-          color: ROLE.record,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'LEDGER LIFETIME  ·  TYPE SAFETY  ·  ATOMIC DURABILITY',
           st === 1

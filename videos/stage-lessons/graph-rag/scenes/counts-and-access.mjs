@@ -10,12 +10,10 @@ import {
   heroTitle,
   remainDuration,
   reportAudience,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function countsAndAccess(s, c) {
-  const phase = s.value(0);
   const showStaff = s.value(0);
   const showPublic = s.value(0);
   const showSec = s.value(0);
@@ -41,13 +39,11 @@ export default function countsAndAccess(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const ss = showStaff.value;
     const sp = showPublic.value;
     const sc = showSec.value;
     const sb = showBoth.value;
     const sv = showV2.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: Audience intersection check (strict c.after withholding on staff & security admission!)
@@ -93,7 +89,7 @@ export default function countsAndAccess(s, c) {
         sb > 0.4 ? COSMOS.emerald : sp > 0.4 ? COSMOS.gold : COSMOS.muted,
         {
           fill: sb > 0.4 ? '#0e2824' : '#231c10',
-          glow: 9 * pulse,
+          glow: 9,
         },
       ),
       txt(
@@ -135,7 +131,7 @@ export default function countsAndAccess(s, c) {
 
       glassCell(495, -72, 750, 198, sv > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: sv > 0.3 ? '#28111a' : '#12182b',
-        glow: sv > 0.3 ? 10 * pulse : 2,
+        glow: sv > 0.3 ? 10 : 2,
       }),
       txt('B REPLACED WITH V2 -> BLOCK IMMEDIATELY:', 145, -132, 26, COSMOS.rose, 'mono', 'left'),
       txt(
@@ -197,7 +193,6 @@ export default function countsAndAccess(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('counts-and-access-readers', () => s.play(showStaff.to(1, { duration: 0.4 })));
   c.after('counts-and-access-public-only', () => s.play(showPublic.to(1, { duration: 0.4 })));

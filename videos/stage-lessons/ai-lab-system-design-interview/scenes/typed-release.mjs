@@ -2,20 +2,9 @@
 // Incoming metric tuples (observed, echoed_min) checked against host's own versioned policy (0.95),
 // plus strict leak-count typing isolating None (blank) vs False (bool) vs 0 (int -> PASS!).
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function typedRelease(s, c) {
-  const phase = s.value(0);
   const editOn = s.value(0);
   const denyOn = s.value(0); // STRICT after packet-deny!
   const freshOn = s.value(0);
@@ -33,7 +22,6 @@ export default function typedRelease(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ed = editOn.value;
       const dn = denyOn.value;
       const fr = freshOn.value;
@@ -124,12 +112,6 @@ export default function typedRelease(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.policy,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -137,8 +119,6 @@ export default function typedRelease(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('packet-edit', () => {
     s.play(editOn.to(1, { duration: clampDur(c, c.cue('packet-edit').start, 0.35) }));
   });

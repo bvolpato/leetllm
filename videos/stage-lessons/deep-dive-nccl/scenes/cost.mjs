@@ -10,19 +10,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function cost(s, c) {
-  const phase = s.value(0);
   // step: 0=starts, 1=1KB small, 2=1KB tree wins, 3=200KB size, 4=200KB fill, 5=200KB tie 18us, 6=1MB size, 7=1MB predict (hold!), 8=ring 42, 9=tree 58, 10=result 42 vs 58, 11=rule
   const step = s.value(0);
 
@@ -45,7 +42,6 @@ export default function cost(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
 
     const is1M = st >= 6;
     const is200K = st >= 3 && !is1M;
@@ -166,16 +162,11 @@ export default function cost(s, c) {
                   ? '1 KB: Tree wins!'
                   : '6 ring starts (12 us) vs 4 tree starts (8 us)';
 
-    const u = (p * 0.65) % 1;
-    nodes.push(
-      glowDot(-760 + u * 1520, 235, { radius: 6, color: st >= 10 ? ROLE.good : COSMOS.gold }),
-      txt(verdict, 0, 320, 28, st >= 10 ? ROLE.good : COSMOS.gold, 'sans'),
-    );
+    nodes.push(txt(verdict, 0, 320, 28, st >= 10 ? ROLE.good : COSMOS.gold, 'sans'));
     return group(...nodes);
   });
 
   s.add(bgAura, title, formula, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['cost-starts', 0],
     ['cost-small', 1],

@@ -4,19 +4,16 @@ import {
   STALE_RT,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function scaleConventions(s, c) {
-  const phase = s.value(0);
   const showConvA = s.value(0.5);
   const showConvB = s.value(0);
   const showIdeal = s.value(0);
@@ -41,7 +38,6 @@ export default function scaleConventions(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const ca = showConvA.value;
     const cb = showConvB.value;
     const idl = showIdeal.value;
@@ -121,15 +117,6 @@ export default function scaleConventions(s, c) {
       ).opacity(opB),
     );
 
-    // Traveling photon along the open corridor between Convention A and Convention B
-    const u = (p * 0.42) % 1;
-    nodes.push(
-      glowDot(-552 + u * 824, -62, {
-        radius: 6,
-        color: cb > 0.5 ? COSMOS.gold : COSMOS.cyan,
-      }),
-    );
-
     // Bottom left: Ideal formula + all-zero guard (Beat 1)
     const opZ = 0.18 + 0.82 * Math.max(idl, zr);
     nodes.push(
@@ -173,7 +160,6 @@ export default function scaleConventions(s, c) {
   });
 
   s.add(bgAura, title, eqA, live);
-  runPhase(s, c, phase, 14);
 
   c.on('lp-scale-conventions-build-0', () =>
     s.play(showConvA.to(1, { duration: remainDuration(c, 'lp-scale-conventions-build-0', 0.45) })),

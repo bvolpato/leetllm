@@ -8,7 +8,6 @@ import {
   aura,
   buildScorePlane3d,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,

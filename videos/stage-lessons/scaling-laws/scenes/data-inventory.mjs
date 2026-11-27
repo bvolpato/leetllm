@@ -7,7 +7,7 @@
 //   Act 3 (Beat 2): Four corpus-yield stages + Sardana 47-model overtraining horizon limits.
 import { line } from 'vizmatic/stage';
 import { COSMOS, glowDot, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
-import { ROLE, cinemaAtmosphere, lumBar, playCue, scenePulse, swapVis } from '../parts.mjs';
+import { ROLE, cinemaAtmosphere, lumBar, playCue, swapVis } from '../parts.mjs';
 
 export default function dataInventory(s, c) {
   const title = heroTitle(['Can four runs share', 'the same text?'], {
@@ -26,7 +26,6 @@ export default function dataInventory(s, c) {
   const disjointMode = s.value(0); // disjoint-data
   const timeProg = s.value(0); // sl-data-inventory-1
   const filterProg = s.value(0); // sl-data-inventory-2
-  const pulse = s.value(0);
 
   // Act 1: 15T shared corpus vs 4 disjoint corpora
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
@@ -293,7 +292,6 @@ export default function dataInventory(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.tokens), title, act1Layer, act2Layer, act3Layer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'sl-data-inventory-0', (d) => s.play(runProg.to(1, { duration: d })), { dur: 1.5 });
   playCue(s, c, 'disjoint-data', (d) => s.play(disjointMode.to(1, { duration: d })), { dur: 0.55 });

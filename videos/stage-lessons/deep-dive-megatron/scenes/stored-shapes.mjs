@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function storedShapes(s, c) {
-  const phase = s.value(0);
   const step = s.value(0);
 
   const bgAura = aura(0, 20, 620, '#60a5fa1c', '#6ee7b718');
@@ -30,7 +27,6 @@ export default function storedShapes(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const maxDiff = Math.max(...LARGE_MLP.output.map((v, i) => Math.abs(v - LARGE_MLP.serial[i])));
 
     const nodes = [
@@ -69,9 +65,7 @@ export default function storedShapes(s, c) {
       ),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: st >= 3 ? ROLE.good : ROLE.tp }),
       txt(
         'Transposing math [in, out] to stored [out, in] preserves exact channel ownership; fused GPU kernels set own tolerances',
         0,
@@ -85,7 +79,6 @@ export default function storedShapes(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['mg-stored-shapes-b0', 0],
     ['mg-storage-transpose', 1],

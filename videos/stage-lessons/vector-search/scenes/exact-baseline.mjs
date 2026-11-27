@@ -13,12 +13,10 @@ import {
   meterBar,
   pointById,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function exactBaseline(s, c) {
-  const phase = s.value(0);
   const showB = s.value(0);
   const showC = s.value(0);
   const showA = s.value(0);
@@ -40,13 +38,11 @@ export default function exactBaseline(s, c) {
     .sort((a, b) => a.d2 - b.d2 || a.id.localeCompare(b.id));
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sb = showB.value;
     const sc = showC.value;
     const sa = showA.value;
     const sr = showRest.value;
     const sp = showPair.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const rows = [];
     for (let i = 0; i < sorted.length; i++) {
@@ -62,7 +58,7 @@ export default function exactBaseline(s, c) {
       rows.push(
         glassCell(445, ry, 830, 58, col, {
           fill: isTop2 && sp > 0.3 ? '#0e2824' : '#10182d',
-          glow: isTop2 && sp > 0.3 ? 8 * pulse : 2,
+          glow: isTop2 && sp > 0.3 ? 8 : 2,
         }),
         txt(
           `#${i + 1}  ${row.id} (${row.x.toFixed(1)}, ${row.y.toFixed(1)})`,
@@ -157,7 +153,7 @@ export default function exactBaseline(s, c) {
 
       glassCell(-465, 198, 780, 134, sp > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#231c10',
-        glow: sp > 0.3 ? 9 * pulse : 2,
+        glow: sp > 0.3 ? 9 : 2,
       }),
       txt(
         sp > 0.3 ? 'EXACT TOP-2 REFERENCE: [ A, B ]' : 'EXACT REFERENCE PAIR: [ ?, ? ]',
@@ -198,7 +194,6 @@ export default function exactBaseline(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('measure-b', () => s.play(showB.to(1, { duration: 0.4 })));
   c.on('measure-c', () => s.play(showC.to(1, { duration: 0.4 })));

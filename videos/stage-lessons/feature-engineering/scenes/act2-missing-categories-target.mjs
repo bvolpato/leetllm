@@ -40,7 +40,6 @@ export function missingness(s, c) {
   const impP = s.value(0);
   const indP = s.value(0);
   const artP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.eligible, seed: 7 }));
   s.add(decorAura(340, 20, 480, '#5ce1e61c', '#ff6b8b14'));
@@ -132,7 +131,6 @@ export function missingness(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'missingness-beat-1-focus-1', b1P, 1, { dur: 0.7 });
   cueTo(s, c, 'missingness-beat-2-focus-1', impP, 1, { dur: 0.7 });
   cueTo(s, c, 'missingness-beat-2-focus-2', indP, 1, { dur: 0.9 });
@@ -305,7 +303,6 @@ export function categoryContract(s, c) {
   const mapP = s.value(0);
   const ignP = s.value(0);
   const spP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.good, seed: 9 }));
   s.add(decorAura(0, 20, 560, '#6ee7b71a', '#a78bfa14'));
@@ -409,7 +406,6 @@ export function categoryContract(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'feature-category-map', mapP, 0.75, { dur: 0.6 });
   cueTo(s, c, 'category-contract-0', mapP, 1, { dur: 0.55 });
   cueTo(s, c, 'category-contract-1', ignP, 1, { dur: 0.75 });
@@ -428,7 +424,6 @@ export function crossfitConstruction(s, c) {
   const heldP = s.value(0);
   const flipP = s.value(0);
   const wgtP = s.value(0);
-  const drift = s.value(0);
 
   const flippedRows = targetRows.map((r, i) => (i === 7 ? { ...r, missed: 0 } : r));
   const fullFlipped = encode(flippedRows, [], 7); // 5/12 = 0.4167
@@ -571,7 +566,6 @@ export function crossfitConstruction(s, c) {
   });
 
   s.add(headline, eqTex, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'feature-target-prior', fullP, 0.45, { dur: 0.6 });
   cueTo(s, c, 'feature-target-full', fullP, 1, { dur: 0.75 });
   cueTo(s, c, 'fold-split', splitP, 1, { dur: 0.8 });
@@ -597,7 +591,6 @@ export function maturedEncoding(s, c) {
   const advP = s.value(0);
   const tenP = s.value(0);
   const splP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.clock, seed: 11 }));
   s.add(decorAura(0, 20, 560, '#ffd1661a', '#5ce1e614'));
@@ -707,7 +700,6 @@ export function maturedEncoding(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'mature-first', firstP, 1, { dur: 0.7 });
   cueTo(s, c, 'feature-label-seven', sevP, 1, { dur: 0.7 });
   cueTo(s, c, 'feature-label-nine', nineP, 1, { dur: 0.9 });

@@ -11,8 +11,6 @@ import {
   cinemaHeader,
   clampDur,
   clock,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
@@ -34,7 +32,7 @@ export default function stateRecord(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const rp = replyOn.value;
       const hr = hoursOn.value;
       const cl = closeOn.value;
@@ -142,17 +140,11 @@ export default function stateRecord(s, c) {
         );
       }
 
-      // Live scanning photon on ruler
-      nodes.push(
-        glowDot(x0 + ((p * 0.4) % 1) * (x1 - x0), rY, { radius: 5, color: ROLE.ok, glow: 9 }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('record-request', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('record-request').start, 0.25) }));

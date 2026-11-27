@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function diagnosis(s, c) {
-  const phase = s.value(0);
   const step = s.value(0);
 
   const bgAura = aura(0, 20, 620, '#60a5fa1c', '#a78bfa18');
@@ -29,7 +26,6 @@ export default function diagnosis(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const walls = [
       { k: 'TENSOR (TP)', w: 'Wide matrix width', col: ROLE.tp, x: -560, y: -105 },
       { k: 'PIPELINE (PP)', w: 'Deep layer count', col: ROLE.pp, x: 0, y: -105 },
@@ -50,9 +46,7 @@ export default function diagnosis(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 280, { radius: 6, color: ROLE.tp }),
       txt(
         st >= 1
           ? 'Use the smallest supported combination that removes the measured wall, then profile the new wait'
@@ -68,7 +62,6 @@ export default function diagnosis(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['mg-diagnosis-b0', 0],
     ['mg-diagnosis-b1', 1],

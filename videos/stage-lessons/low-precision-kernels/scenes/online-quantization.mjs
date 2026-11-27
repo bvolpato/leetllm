@@ -5,7 +5,6 @@ import {
   box3d,
   cinematic3d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -84,7 +83,6 @@ export default function onlineQuantization(s, c) {
   view3d.add(...tcSlab, ...actBlock, ...wtBlock, ...risers, promoPhotons, ...cudaSlab);
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const tl = showTiles.value;
     const pr = showPromote.value;
     const mv = showMove.value;
@@ -172,12 +170,6 @@ export default function onlineQuantization(s, c) {
         );
       }
     });
-
-    // Moving photon cleanly below the reported pipeline boxes
-    if (mv > 0.2) {
-      const u = (p * 0.45) % 1;
-      nodes.push(glowDot(-690 + u * 1075, py + 72, { radius: 6, color: COSMOS.gold, opacity: mv }));
-    }
 
     // Proposed future optimization badge on far right
     if (ft > 0.02) {

@@ -10,14 +10,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function speculativePath(s, c) {
-  const phase = s.value(0);
   const count5Rev = s.value(0); // STRICT after spec-count!
   const sampleMode = s.value(0);
   const normReveal = s.value(0); // STRICT after spec-normalize!
@@ -40,7 +37,6 @@ export default function speculativePath(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const c5 = count5Rev.value;
       const sm = sampleMode.value;
       const nr = normReveal.value;
@@ -199,12 +195,6 @@ export default function speculativePath(s, c) {
       nodes.push(
         txt('EXACT VERIFICATION', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Preserves target distribution strictly', 480, -378, 26, ROLE.ok, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.model,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -212,8 +202,6 @@ export default function speculativePath(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.6);
-
   c.after('spec-count', () => {
     s.play(count5Rev.to(1, { duration: clampDur(c, c.cue('spec-count').end, 0.35) }));
   });

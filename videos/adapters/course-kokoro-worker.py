@@ -31,8 +31,8 @@ def read_requests(queue):
 @contextlib.contextmanager
 def slot(adapter):
     count = int(os.environ.get("LEETLLM_KOKORO_SLOTS", "2"))
-    if not 1 <= count <= 4:
-        raise ValueError("LEETLLM_KOKORO_SLOTS must be between 1 and 4")
+    if not 1 <= count <= 16:
+        raise ValueError("LEETLLM_KOKORO_SLOTS must be between 1 and 16")
     if count == 2:
         with adapter.synthesis_slot():
             yield
@@ -64,10 +64,10 @@ def acquire_mps():
     return handle
 
 
-def serve(adapter, requests, protocol, make_pipeline, try_mps):
+def serve(adapter, requests, protocol, make_pipeline, try_mps, try_cuda=False):
     pipeline = None
     lease = None
-    device = "cpu"
+    device = "cuda" if try_cuda else "cpu"
     while True:
         request = json.loads(requests.get())
         adapter.require_synthesis_enabled()
@@ -77,7 +77,7 @@ def serve(adapter, requests, protocol, make_pipeline, try_mps):
                     request["voice"], request["rate"])
             while True:
                 try:
-                    if try_mps and lease is None:
+                    if try_mps and lease is None and device != "cuda":
                         lease = acquire_mps()
                         if lease is not None:
                             device = "mps"
@@ -90,7 +90,10 @@ def serve(adapter, requests, protocol, make_pipeline, try_mps):
                 except RuntimeError:
                     if device == "cpu":
                         raise
-                    try_mps = False
+                    if device == "cuda":
+                        try_cuda = False
+                    else:
+                        try_mps = False
                     device = "cpu"
                     try:
                         if pipeline is not None:
@@ -98,8 +101,9 @@ def serve(adapter, requests, protocol, make_pipeline, try_mps):
                     except RuntimeError:
                         pipeline = None
                     finally:
-                        lease.close()
-                        lease = None
+                        if lease is not None:
+                            lease.close()
+                            lease = None
             response = {"ok": True, "device": device}
         except Exception as error:
             response = {"ok": False, "error": f"{type(error).__name__}: {error}"}
@@ -124,8 +128,14 @@ def main():
 
         torch.set_num_threads(1)
         torch.set_num_interop_threads(1)
-        try_mps = os.environ.get("LEETLLM_KOKORO_DEVICE") == "mps" and torch.backends.mps.is_available()
-        serve(adapter, requests, protocol, KPipeline, try_mps)
+        requested_device = os.environ.get("LEETLLM_KOKORO_DEVICE", "auto").lower()
+        cuda_mod = getattr(torch, "cuda", None)
+        cuda_available = bool(cuda_mod and cuda_mod.is_available())
+        mps_mod = getattr(getattr(torch, "backends", None), "mps", None)
+        mps_available = bool(mps_mod and mps_mod.is_available())
+        try_cuda = requested_device in ("cuda", "auto") and cuda_available
+        try_mps = requested_device == "mps" and mps_available
+        serve(adapter, requests, protocol, KPipeline, try_mps, try_cuda=try_cuda)
 
 
 if __name__ == "__main__":

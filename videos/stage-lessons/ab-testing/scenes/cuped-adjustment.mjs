@@ -17,7 +17,6 @@ import {
   heroTitle,
   orbitScene,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -26,7 +25,6 @@ const C = AB_VISUAL_FIXTURES.cuped;
 const TOY_RES = cupedVariance(9, 4, 3); // 6.75
 
 export default function cupedAdjustment(s, c) {
-  const phase = s.value(0);
   const adjustAmt = s.value(0);
   const showToy = s.value(0);
   const showSim = s.value(0);
@@ -153,7 +151,6 @@ export default function cupedAdjustment(s, c) {
   });
 
   s.add(bgAura, cloud3d, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
   orbitScene(s, c, cloud3d, { theta: 0.48, phi: 0.96 });
 
   tweenCue(s, c, 'incident', adjustAmt, 0.08, { duration: 0.35 });

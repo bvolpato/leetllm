@@ -12,7 +12,6 @@ import {
   rect,
   remainDuration,
   rlvrGroupUpdate,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -111,7 +110,6 @@ export default function categoricalStep(s, c) {
   });
 
   s.add(bgAura, title, live, eqStep);
-  runPhase(s, c, phase, 14);
 
   c.on('vr-categorical-step-b0', () => s.play(phase.to(1.5, { duration: 0.4 })));
   c.on('vr-zero-loss-categorical-step', () => s.play(sGrad.to(0.5, { duration: 0.35 })));

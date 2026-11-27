@@ -16,12 +16,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function exposureSchedule(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const massP = s.value(0);
   const shareOn = s.value(0);
@@ -340,7 +338,6 @@ export default function exposureSchedule(s, c) {
   });
 
   s.add(bgAura, part1Live, part2aLive, part2bLive, part3Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-exposure-schedule-mass', () =>
     s.play(massP.to(1, { duration: remainDuration(c, 'pt-exposure-schedule-mass', 0.9) })),

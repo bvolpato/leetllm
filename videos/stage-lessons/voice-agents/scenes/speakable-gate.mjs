@@ -2,20 +2,9 @@
 // 400 ms commit-to-audio budget split at 200 ms decision deadline, showing 3 tool outcomes
 // (pending -> closed -> failed) and separation of Executor vs Speech Formatter.
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function speakableGate(s, c) {
-  const phase = s.value(0);
   const splitOn = s.value(0);
   const stateMode = s.value(0); // 0=pending, 1=closed, 2=failed
   const authOn = s.value(0);
@@ -32,7 +21,6 @@ export default function speakableGate(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const sp = splitOn.value;
       const sm = stateMode.value;
       const au = authOn.value;
@@ -134,12 +122,6 @@ export default function speakableGate(s, c) {
           'sans',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -147,8 +129,6 @@ export default function speakableGate(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('va-speakable-gate-0-1', () => {
     s.play(splitOn.to(1, { duration: clampDur(c, c.cue('va-speakable-gate-0-1').start, 0.35) }));
   });

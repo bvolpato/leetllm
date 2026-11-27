@@ -15,7 +15,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -58,7 +57,7 @@ export default function permissionBeforeRanking(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(Math.min(1, act.value)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const fl = filterOn.value;
       const nodes = [];
 
@@ -234,7 +233,7 @@ export default function permissionBeforeRanking(s, c) {
   const act2 = guardedDynamic(
     () => fadeInHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const qr = queryOn.value;
       const pA = projA.value;
       const sA = scoreA.value;
@@ -401,7 +400,6 @@ export default function permissionBeforeRanking(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-permission-before-ranking-1', () => {
     s.play(

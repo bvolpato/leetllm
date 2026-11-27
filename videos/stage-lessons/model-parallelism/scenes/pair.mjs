@@ -7,7 +7,6 @@ import {
   aura,
   circle,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -15,7 +14,6 @@ import {
   remainAfterDuration,
   remainBeatDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -32,7 +30,6 @@ function dotExpr(rank, col) {
 }
 
 export default function pair(s, c) {
-  const phase = s.value(0);
   const pFeat = s.value(0);
   const pMatch = s.value(0);
   const pPos = s.value(0);
@@ -200,14 +197,11 @@ export default function pair(s, c) {
       );
     }
 
-    nodes.push(
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 420, { radius: 6, color: COSMOS.gold }),
-    );
+    nodes.push();
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('complete-features', () =>
     s.play(pFeat.to(1, { duration: remainDuration(c, 'complete-features', 0.4) })),

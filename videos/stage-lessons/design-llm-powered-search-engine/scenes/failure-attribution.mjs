@@ -9,14 +9,12 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   quadArcPts,
   txt,
 } from '../parts.mjs';
 
 export default function failureAttribution(s, c) {
-  const pulse = s.value(0);
   const startOn = s.value(0);
   const stepRetr = s.value(0);
   const stepPack = s.value(0);
@@ -68,7 +66,6 @@ export default function failureAttribution(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const b2 = beat2On.value > 0.5;
       const idx =
         stepAccess.value > 0.5 ? 3 : stepSynth.value > 0.5 ? 2 : stepPack.value > 0.5 ? 1 : 0;
@@ -95,11 +92,10 @@ export default function failureAttribution(s, c) {
           beamWithPhotons(
             quadArcPts([xs[i] + 175, -25], [xs[i + 1] - 175, -25], 0, 12),
             beamCol,
-            p + i * 0.25,
+            0,
             {
               width: 3.4,
               glow: 7,
-              photonCount: 1,
             },
           ),
         );
@@ -155,8 +151,6 @@ export default function failureAttribution(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-failure-attribution-0', () => {
     s.play(startOn.to(1, { duration: clampDur(c, c.cue('se-failure-attribution-0').start, 0.35) }));
   });

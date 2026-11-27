@@ -15,14 +15,12 @@ import {
   lumBar,
   makePlot,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
   xy,
 } from '../parts.mjs';
 
 export default function auditLabels(s, c) {
-  const phase = s.value(0);
   const showSamples = s.value(0);
   const showMeta = s.value(0);
   const showRun = s.value(0);
@@ -174,7 +172,6 @@ export default function auditLabels(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'samples', showSamples, 1, { duration: 0.45 });
   tweenCue(s, c, 'metadata', showMeta, 1, { duration: 0.45 });

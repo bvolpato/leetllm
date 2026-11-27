@@ -14,7 +14,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   gateNode,
   glowMeter,
@@ -51,7 +50,7 @@ export default function requiredFanIn(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const ln = launchOn.value;
       const v17 = v17On.value;
       const to = timeoutOn.value;
@@ -222,7 +221,6 @@ export default function requiredFanIn(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('join-launch', () => {
     s.play(launchOn.to(1, { duration: clampDur(c, c.cue('join-launch').start, 0.3) }));

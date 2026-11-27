@@ -4,7 +4,6 @@ import {
   arrow,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -57,7 +56,6 @@ export default function targetModules(s, c) {
         8,
         COSMOS.cyan,
       ),
-      glowDot(-40 + ((p * 0.7) % 1) * 140, 20, { radius: 6, color: COSMOS.cyan }),
     ];
 
     // 4 Attention slabs on left

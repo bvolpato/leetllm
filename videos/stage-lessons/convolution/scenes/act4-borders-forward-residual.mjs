@@ -19,7 +19,6 @@ import {
   fmtSigned,
   fmtVal,
   glowBar,
-  glowDot,
   glowTex,
   heroTitle,
   livingDrift,

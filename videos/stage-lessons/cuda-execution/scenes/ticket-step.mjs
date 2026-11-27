@@ -15,12 +15,10 @@ import {
   orbitScene,
   remainDuration,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function ticketStep(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const poolProg = s.value(0);
   const logitsProg = s.value(0);
@@ -275,7 +273,6 @@ export default function ticketStep(s, c) {
   });
 
   s.add(bgAura, tensor3d, title, part1, part2, part3);
-  runPhase(s, c, phase, 14);
   orbitScene(
     s,
     c,

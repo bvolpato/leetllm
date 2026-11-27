@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowMeter,
   guardedDynamic,
   quadArcPts,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function authorityScope(s, c) {
-  const pulse = s.value(0);
   const fanout = s.value(0);
   const beat1On = s.value(0);
   const recheckSlide = s.value(0);
@@ -36,7 +34,6 @@ export default function authorityScope(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const fn = fanout.value;
       const b1 = beat1On.value > 0.5;
       const rc = recheckSlide.value;
@@ -66,10 +63,9 @@ export default function authorityScope(s, c) {
         const lit = i < litCount;
         const col = lit ? ROLE.policy : COSMOS.dim;
         nodes.push(
-          beamWithPhotons(quadArcPts([x, -245], [x, -168], 0, 12), col, p + i * 0.15, {
+          beamWithPhotons(quadArcPts([x, -245], [x, -168], 0, 12), col, 0, {
             width: 2.8,
             glow: lit ? 7 : 0,
-            photonCount: lit ? 1 : 0,
             alpha: lit ? 0.95 : 0.35,
           }),
           rect(246, 114, { fill: '#0d1528', stroke: col, width: lit ? 2.6 : 1.8, radius: 12 }).at(
@@ -223,8 +219,6 @@ export default function authorityScope(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-authority-scope-0', () => {
     s.play(fanout.to(1, { duration: clampDur(c, c.cue('se-authority-scope-0').start, 1.1) }));
   });

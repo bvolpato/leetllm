@@ -13,7 +13,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -171,7 +170,7 @@ export default function reviewAndRetention(s, c) {
   const mode1 = guardedDynamic(
     () => fadeInHalf(nistMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const gl = gateLever.value;
       const tl = traceLever.value;
       const rl = receiptLever.value;
@@ -258,7 +257,6 @@ export default function reviewAndRetention(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('pi-review-and-retention-0', () => {
     s.play(

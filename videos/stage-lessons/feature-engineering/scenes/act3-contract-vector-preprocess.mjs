@@ -16,7 +16,6 @@ import {
   glowTex,
   glowingTrail,
   heroTitle,
-  livingDrift,
   mix,
   numCell,
   rule,
@@ -34,7 +33,6 @@ export function contract(s, c) {
   const unitP = s.value(0);
   const convP = s.value(0);
   const ordP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.clock, seed: 12 }));
   s.add(decorAura(0, 20, 560, '#ffd1661c', '#5ce1e614'));
@@ -140,7 +138,6 @@ export function contract(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'contract-compare', cmpP, 1, { dur: 0.7 });
   cueTo(s, c, 'contract-unit-name', unitP, 1, { dur: 0.65, after: true });
   cueTo(s, c, 'contract-convert', convP, 1, { dur: 0.9 });
@@ -158,7 +155,6 @@ export function rowValidation(s, c) {
   const fldP = s.value(0);
   const blkP = s.value(0);
   const zerP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.eligible, seed: 13 }));
   s.add(decorAura(0, 30, 540, '#5ce1e61a', '#6ee7b714'));
@@ -266,7 +262,6 @@ export function rowValidation(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'validation-offset', offP, 1, { dur: 0.7 });
   cueTo(s, c, 'validation-naive', naiP, 1, { dur: 0.7 });
   cueTo(s, c, 'validation-fields', fldP, 1, { dur: 0.8 });
@@ -287,7 +282,6 @@ export function vectorConstruction(s, c) {
   const resP = s.value(0);
   const swapP = s.value(0);
   const restP = s.value(0);
-  const drift = s.value(0);
 
   const ordered = featureVector({
     pool: 'a100-pool',
@@ -406,7 +400,6 @@ export function vectorConstruction(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'vector-construction-0', bldP, 0.45, { dur: 0.6 });
   cueTo(s, c, 'feature-vector-build', bldP, 1, { dur: 0.7 });
   cueTo(s, c, 'vector-construction-1', prdP, 0.2, { dur: 0.5 });
@@ -432,7 +425,6 @@ export function preprocessingChange(s, c) {
   const capP = s.value(0);
   const pairP = s.value(0);
   const freshP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.leak, seed: 15 }));
   s.add(decorAura(240, 20, 520, '#ff6b8b1c', '#5ce1e614'));
@@ -553,7 +545,6 @@ export function preprocessingChange(s, c) {
   });
 
   s.add(headline, eqTex, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'preprocessing-change-beat-1-focus-1', capP, 0.08, { dur: 0.45 });
   cueTo(s, c, 'feature-cap-change', capP, 1, { dur: 1.0 });
   cueTo(s, c, 'preprocessing-change-beat-2-focus-2', pairP, 0.35, { dur: 0.5 });

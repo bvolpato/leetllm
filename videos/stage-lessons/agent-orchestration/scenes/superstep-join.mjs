@@ -11,7 +11,6 @@ import {
   cinemaAtmosphere,
   crossSwap,
   glowArrow,
-  glowDot,
   glowRing,
   guardedDynamic,
   heroTitle,

@@ -16,7 +16,6 @@ import {
   playCue,
   pqTables,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -36,7 +35,6 @@ export default function pqDistance(s, c) {
   const enc1d = [2.0, 2.0];
   const encQ1d = 2.0;
 
-  const phase = s.value(0);
   const vLookup = s.value(1);
   const vLine = s.value(0);
 
@@ -68,8 +66,6 @@ export default function pqDistance(s, c) {
 
   // View 1: Glowing 4x2 ADC lookup matrix + live accumulator
   const lookupLayer = guardedDynamic(vLookup, (alpha) => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const mIdx = Math.round(modeIdx.value);
     const activeCode = mIdx >= 0 ? codes[mIdx] : null;
     const f1 = hasFirst.value;
@@ -105,7 +101,7 @@ export default function pqDistance(s, c) {
           color: sel0 ? ROLE.gold : '#3c507c',
           fillAlpha: sel0 ? 0.28 : 0.12,
           strokeWidth: sel0 ? 3.2 : 1.6,
-          glow: sel0 ? 11 * pulse : 3,
+          glow: sel0 ? 11 : 3,
           opacity: alpha,
         }),
         txt(
@@ -121,7 +117,7 @@ export default function pqDistance(s, c) {
           color: sel1 ? ROLE.gold : '#3c507c',
           fillAlpha: sel1 ? 0.28 : 0.12,
           strokeWidth: sel1 ? 3.2 : 1.6,
-          glow: sel1 ? 11 * pulse : 3,
+          glow: sel1 ? 11 : 3,
           opacity: alpha,
         }),
         txt(
@@ -242,8 +238,6 @@ export default function pqDistance(s, c) {
 
   // View 2: 1D number line ADC vs SDC comparison
   const lineLayer = guardedDynamic(vLine, (alpha) => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const dm = docsMix.value;
     const qm = queryMix.value;
     const rL = -620;
@@ -265,12 +259,12 @@ export default function pqDistance(s, c) {
         txt(String(v), mapX(v), ry - 135, 30, COSMOS.muted, 'mono').opacity(alpha),
       ]),
       // Query marker above line
-      glowDot(qx, ry - 58, { radius: 11, color: ROLE.query, glow: 12 * pulse, opacity: alpha }),
+      glowDot(qx, ry - 58, { radius: 11, color: ROLE.query, glow: 12, opacity: alpha }),
       txt('q', qx + 36, ry - 58, 34, ROLE.query, 'mono', 'left').opacity(alpha),
       // Document A & B markers below line
-      glowDot(ax, ry + 56, { radius: 11, color: ROLE.A, glow: 11 * pulse, opacity: alpha }),
+      glowDot(ax, ry + 56, { radius: 11, color: ROLE.A, glow: 11, opacity: alpha }),
       txt('A', ax + 36, ry + 56, 34, ROLE.A, 'mono', 'left').opacity(alpha),
-      glowDot(bx, ry + 116, { radius: 11, color: ROLE.B, glow: 11 * pulse, opacity: alpha }),
+      glowDot(bx, ry + 116, { radius: 11, color: ROLE.B, glow: 11, opacity: alpha }),
       txt('B', bx + 36, ry + 116, 34, ROLE.B, 'mono', 'left').opacity(alpha),
 
       rule(-720, 95, 720, 95, COSMOS.rule, 1.8).opacity(0.6 * alpha),
@@ -326,8 +320,6 @@ export default function pqDistance(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.code), title, lookupLayer, lineLayer);
-
-  runPhase(s, c, phase, 12);
 
   // View 1 cues
   playCue(s, c, 'first', (d) => s.play(hasFirst.to(1, { duration: d })), {

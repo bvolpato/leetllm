@@ -16,7 +16,6 @@ import {
   autoNode,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -63,7 +62,7 @@ export default function releaseReport(s, c) {
   const mode0 = guardedDynamic(
     () => fadeOutHalf(gateMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const fi = fieldsOn.value;
       const dm = domainOn.value;
       const nn = nanTrap.value;
@@ -315,7 +314,6 @@ export default function releaseReport(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('report-fields', () => {
     s.play(fieldsOn.to(1, { duration: clampDur(c, c.cue('report-fields').start, 0.35) }));

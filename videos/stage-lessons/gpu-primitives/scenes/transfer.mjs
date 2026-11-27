@@ -12,13 +12,11 @@ import {
   line,
   number,
   remainDuration,
-  runPhase,
   signed,
   txt,
 } from '../parts.mjs';
 
 export default function transfer(s, c) {
-  const phase = s.value(0);
   const showValues = s.value(0);
   const showFirstTrue = s.value(0);
   const editedPlay3 = s.value(0);
@@ -166,7 +164,6 @@ export default function transfer(s, c) {
   });
 
   s.add(bgAura, live);
-  runPhase(s, c, phase, 14);
 
   c.on('test-compare', () => s.play(showValues.to(1, { duration: 0.4 })));
   c.after('test-pass', () => s.play(showFirstTrue.to(1, { duration: 0.35 })));

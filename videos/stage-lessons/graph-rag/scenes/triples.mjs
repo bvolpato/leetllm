@@ -9,12 +9,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function triples(s, c) {
-  const phase = s.value(0);
   const showDir = s.value(0);
   const showRec = s.value(0);
   const showFail = s.value(0);
@@ -31,12 +29,10 @@ export default function triples(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sd = showDir.value;
     const sr = showRec.value;
     const sf = showFail.value;
     const sg = showGnn.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Top: Directed triple chain with per-edge source receipts
@@ -75,7 +71,7 @@ export default function triples(s, c) {
       // Bottom left: Extraction failure modes (omit, reverse, invent)
       glassCell(-445, 134, 810, 218, sf > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: sf > 0.3 ? '#26111a' : '#12182b',
-        glow: sf > 0.3 ? 9 * pulse : 2,
+        glow: sf > 0.3 ? 9 : 2,
       }),
       txt('EXTRACTION RISKS (SCHEMA != TRUTH)', -815, 68, 26, COSMOS.rose, 'mono', 'left'),
       txt('· Omit a real link present in the text', -815, 114, 26, COSMOS.ink, 'sans', 'left'),
@@ -93,7 +89,7 @@ export default function triples(s, c) {
       // Bottom right: GraphRAG retrieval vs GNN learned message passing (mean(0.4, 0.8) = 0.6)
       glassCell(465, 134, 790, 218, sg > 0.3 ? COSMOS.violet : COSMOS.muted, {
         fill: '#181430',
-        glow: sg > 0.3 ? 9 * pulse : 2,
+        glow: sg > 0.3 ? 9 : 2,
       }),
       txt('GRAPHRAG LINKS VS GNN MESSAGE PASSING', 100, 68, 26, COSMOS.violet, 'mono', 'left'),
       txt(
@@ -132,7 +128,6 @@ export default function triples(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('triples-b1-1', () => s.play(showDir.to(0.4, { duration: 0.3 })));
   c.on('triples-b1-2', () => s.play(showDir.to(0.6, { duration: 0.3 })));

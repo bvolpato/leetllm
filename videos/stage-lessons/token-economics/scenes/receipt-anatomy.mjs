@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
   fadeInNodes,
   fmtInt,
   glowBar,
@@ -201,7 +200,6 @@ export default function receiptAnatomy(s, c) {
 
   s.add(sceneAura, view3d, header, hud);
   orbitScene(s, c, view3d, { theta: -0.36, phi: 0.9 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, pulseT, 3.0, { startOffset: 0.1, endMargin: 0.5 });
 
   // Reference readWire/outTower cleanly so all 3D layers animate on cue
   c.on('provider-receipt', () => {

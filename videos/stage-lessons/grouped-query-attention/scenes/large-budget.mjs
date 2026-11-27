@@ -13,7 +13,6 @@ import {
   playCue,
   rect,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -36,8 +35,6 @@ export default function largeBudget(s, c) {
   const maxLong = longPayload[2][0]; // 2.75 TB (1Mi MHA)
   const poolBytes = 10 * 2 ** 30;
   const caps = model.large.map((raw) => Math.floor(poolBytes / (raw / 32))); // [1, 8, 64]
-
-  const phase = s.value(0);
   const barVals = [s.value(0), s.value(0), s.value(0)];
   const showBar = [s.value(0), s.value(0), s.value(0)];
   const showWeight = s.value(0);
@@ -296,7 +293,6 @@ export default function largeBudget(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.query, ROLE.alert), title, live);
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'dimensions', (d) => s.play(showDims.to(1, { duration: Math.min(0.3, d) })), {
     dur: 0.35,

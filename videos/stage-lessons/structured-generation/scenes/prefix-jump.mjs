@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fsmNode,
@@ -24,7 +23,6 @@ import {
 } from '../parts.mjs';
 
 export default function prefixJump(s, c) {
-  const pulse = s.value(0);
   const b0Hi = s.value(0);
   const promptFlipped = s.value(0);
   const act = s.value(0); // 0 = KV vs grammar cache, 1 = forced jump-forward + join retokenize
@@ -46,7 +44,6 @@ export default function prefixJump(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(act.value),
     (a) => {
-      const p = pulse.value;
       const ch = promptFlipped.value;
       const bh = b0Hi.value;
       const nodes = [];
@@ -119,41 +116,26 @@ export default function prefixJump(s, c) {
 
       // Optical beams: A -> KV & Grammar, B -> KV (breaks when promptFlipped!) & B -> Grammar (always alive!)
       nodes.push(
-        beamWithPhotons(quadArcPts([-180, yA + 10], [472, yA], -18), ROLE.legal, p * 1.1, {
+        beamWithPhotons(quadArcPts([-180, yA + 10], [472, yA], -18), ROLE.legal, 0, {
           alpha: a * (0.5 + 0.5 * bh),
           width: 3.4,
         }),
-        beamWithPhotons(
-          quadArcPts([-180, yA + 25], [472, yB - 20], 10),
-          ROLE.prefix,
-          p * 1.1 + 0.3,
-          {
-            alpha: a * 0.75,
-            width: 2.8,
-          },
-        ),
-        beamWithPhotons(
-          quadArcPts([-180, yB + 12], [472, yB + 12], 18),
-          ROLE.prefix,
-          p * 1.1 + 0.6,
-          {
-            alpha: a,
-            width: 3.6,
-          },
-        ),
+        beamWithPhotons(quadArcPts([-180, yA + 25], [472, yB - 20], 10), ROLE.prefix, 0, {
+          alpha: a * 0.75,
+          width: 2.8,
+        }),
+        beamWithPhotons(quadArcPts([-180, yB + 12], [472, yB + 12], 18), ROLE.prefix, 0, {
+          alpha: a,
+          width: 3.6,
+        }),
       );
 
       if (ch < 0.5) {
         nodes.push(
-          beamWithPhotons(
-            quadArcPts([-180, yB - 10], [472, yA + 22], -12),
-            ROLE.legal,
-            p * 1.1 + 0.5,
-            {
-              alpha: a * (1 - ch),
-              width: 3.2,
-            },
-          ),
+          beamWithPhotons(quadArcPts([-180, yB - 10], [472, yA + 22], -12), ROLE.legal, 0, {
+            alpha: a * (1 - ch),
+            width: 3.2,
+          }),
         );
       } else {
         nodes.push(
@@ -188,7 +170,6 @@ export default function prefixJump(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(act.value),
     (a) => {
-      const p = pulse.value;
       const sp = stepsProg.value;
       const ap = appendProg.value;
       const b2 = b2Hi.value;
@@ -233,16 +214,11 @@ export default function prefixJump(s, c) {
         );
         if (idx < 2) {
           nodes.push(
-            beamWithPhotons(
-              quadArcPts([x + 128, -110], [x + 292, -110], 0),
-              ROLE.prefix,
-              p * 1.1 + idx * 0.4,
-              {
-                alpha: a * (lit ? 0.9 : 0.35),
-                width: 3,
-                photonCount: lit ? 1 : 0,
-              },
-            ),
+            beamWithPhotons(quadArcPts([x + 128, -110], [x + 292, -110], 0), ROLE.prefix, 0, {
+              alpha: a * (lit ? 0.9 : 0.35),
+              width: 3,
+              photonCount: lit ? 1 : 0,
+            }),
           );
         }
       });
@@ -346,7 +322,6 @@ export default function prefixJump(s, c) {
   );
 
   s.add(stageAura, header, act0, act1);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-prefix-jump-0', () => {
     s.play(b0Hi.to(1, { duration: clampDur(c, c.cue('sg-prefix-jump-0').start, 0.35) }));

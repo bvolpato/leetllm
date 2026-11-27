@@ -19,7 +19,6 @@ import {
   lumBar,
   makePlot,
   orbitScene,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -28,7 +27,6 @@ const B = AB_VISUAL_FIXTURES.bandit;
 const P1 = B.pullTrace[0]; // sampleControl 0.976, sampleTreatment 0.560, reward 0
 
 export default function banditRouting(s, c) {
-  const phase = s.value(0);
   const showSample = s.value(0);
   const showChoose = s.value(0);
   const showAlloc = s.value(0);
@@ -175,7 +173,6 @@ export default function banditRouting(s, c) {
   });
 
   s.add(bgAura, bandit3d, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
   orbitScene(s, c, bandit3d, { theta: 0.45, phi: 0.98 });
 
   tweenCue(s, c, 'update-rule', showSample, 0.35, { duration: 0.35 });

@@ -11,12 +11,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function naive(s, c) {
-  const phase = s.value(0);
   const mode = s.value(0); // 0=idle, 1=independent(24), 2=shared(12)
   const sameWork = s.value(0);
 
@@ -31,12 +29,10 @@ export default function naive(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const m = mode.value;
     const sw = sameWork.value;
     const isShared = m >= 1.5;
     const showDots = m >= 0.5;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [];
 
@@ -50,7 +46,7 @@ export default function naive(s, c) {
         nodes.push(
           glassCell(cx, cy, 134, 92, isThree ? COSMOS.gold : ROLE.a, {
             fill: isThree ? '#262111' : '#101d38',
-            glow: isThree ? 10 * pulse : 5,
+            glow: isThree ? 10 : 5,
           }),
           txt(String(A[r][k]), cx, cy, 40, isThree ? COSMOS.gold : COSMOS.ink, 'mono'),
         );
@@ -124,7 +120,6 @@ export default function naive(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('independent-reads', () =>
     s.play(mode.to(1, { duration: remainDuration(c, 'independent-reads', 0.45) })),

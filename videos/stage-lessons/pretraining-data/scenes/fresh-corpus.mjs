@@ -18,12 +18,10 @@ import {
   releaseEvaluation,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function freshCorpus(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const predictOn = s.value(0);
   const cutoff = s.value(0.7);
@@ -440,7 +438,6 @@ export default function freshCorpus(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live, part3Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-fresh-corpus-predict', () =>
     s.play(predictOn.to(1, { duration: remainDuration(c, 'pt-fresh-corpus-predict', 0.5) })),

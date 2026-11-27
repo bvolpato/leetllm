@@ -16,7 +16,6 @@ import {
   cinematic3d,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInNodes,
   fadeOutNodes,
   fmt,
@@ -28,7 +27,6 @@ import {
 } from '../parts.mjs';
 
 export default function shrink(s, c) {
-  const phase = s.value(0);
   const act1Vis = s.value(1);
   const act2Vis = s.value(0);
   const act3Vis = s.value(0);
@@ -479,7 +477,6 @@ export default function shrink(s, c) {
   });
 
   s.add(act1Aura, act1Header, act1Dyn, act2Dyn, act3Dyn, act4Dyn);
-  driftValue(s, c, phase, 12.0, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0 (7 cues)
   const b0Cues = [

@@ -13,7 +13,6 @@ import {
   cinematic3d,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInNodes,
   freshBurstSchedules,
   guardedDynamic,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function freshWaves(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=Q1(18s), 2=4->64/8(AFTER), 3=5th GPU(AFTER), 4=5->72(AFTER), 5=Q2(12s gate), 6=5->60/12(AFTER), 7=6->72(AFTER), 8=R72->GPU6@12s(AFTER)
 
   const header = cinemaHeader('YOUR TURN  ·  NEW CLOCK', 'The last start', 'moves inward', {
@@ -82,8 +80,6 @@ export default function freshWaves(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
-      const blink = 0.68 + 0.32 * Math.sin(p * 5.0);
       const shorterGate = st >= 4.5;
       const gpus = st >= 6.5 ? 6 : st >= 2.5 ? 5 : 4;
 
@@ -121,7 +117,7 @@ export default function freshWaves(s, c) {
             'left',
           )
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
           txt('Count refills on 6s clock through 18s', -860, 26, 26, COSMOS.muted, 'sans', 'left'),
         );
       }
@@ -170,10 +166,10 @@ export default function freshWaves(s, c) {
           txt('GATE MOVES: 18 s -> 12 s (5 GPUs kept)', -860, -35, 28, ROLE.focus, 'mono', 'left'),
           txt('PREDICT: Who loses their start?', -860, 32, 30, ROLE.predict, 'sans', 'left')
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
           txt('And how many warm GPUs are needed now?', -860, 88, 28, ROLE.predict, 'sans', 'left')
             .glow(7, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
         );
       }
 
@@ -294,7 +290,6 @@ export default function freshWaves(s, c) {
 
   s.add(bgAura, waveView, header, dyn);
   orbitScene(s, c, waveView, { theta: -0.22, phi: 0.88 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, phase, 7.5, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0: Q1 (18s gate: NO reveal!)
   c.on('fresh-input', () => {

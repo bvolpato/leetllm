@@ -8,12 +8,10 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function cpuCorrectness(s, c) {
-  const phase = s.value(0);
   const blockMode = s.value(0); // 0=base, 1=Bc=3 (3,3,1), 2=Bc=1, 3=Bc=20
   const showBackwardNote = s.value(0);
 
@@ -35,7 +33,6 @@ export default function cpuCorrectness(s, c) {
   const gy0 = -245;
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const bm = Math.round(blockMode.value);
     const bwd = showBackwardNote.value;
 
@@ -94,17 +91,15 @@ export default function cpuCorrectness(s, c) {
             ? [[0, 7, COSMOS.emerald]]
             : [];
 
-    const activeGroup = groups.length ? Math.floor(p * 1.4) % groups.length : -1;
     const totalH = 5 * cell + 4 * gap + 18;
-    groups.forEach(([start, len, col], gi) => {
+    groups.forEach(([start, len, col]) => {
       const bx0 = gx0 + start * (cell + gap) - 6;
       const bw = len * cell + (len - 1) * gap + 12;
-      const isAct = gi === activeGroup;
       nodes.push(
-        rect(bw, totalH, { fill: null, stroke: col, width: isAct ? 4.2 : 2.2, radius: 10 })
+        rect(bw, totalH, { fill: null, stroke: col, width: 3.2, radius: 10 })
           .at(bx0 + bw * 0.5, gy0 + (5 * cell + 4 * gap) * 0.5)
-          .glow(isAct ? 10 : 4, col)
-          .opacity(isAct ? 1 : 0.55),
+          .glow(8, col)
+          .opacity(0.92),
       );
     });
 
@@ -153,7 +148,6 @@ export default function cpuCorrectness(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('cpu-correctness-beat-1', () => s.play(blockMode.to(0.1, { duration: 0.3 })));
   c.on('cpu-correctness-beat-2', () => s.play(blockMode.to(1, { duration: 0.4 })));

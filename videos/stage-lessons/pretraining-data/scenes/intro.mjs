@@ -16,12 +16,10 @@ import {
   photonStream,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   const menuPulse = s.value(0);
   const chooseGlow = s.value(0);
   const activeCutoff = s.value(0); // 0 = withheld (prediction), 1 = active
@@ -41,7 +39,6 @@ export default function intro(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const ph = phase.value;
     const mp = menuPulse.value;
     const cg = chooseGlow.value;
     const act = activeCutoff.value;
@@ -65,12 +62,12 @@ export default function intro(s, c) {
 
     // Background flowing crawl photons converging onto both records
     nodes.push(
-      ...photonStream([-900, -140], [menuX - 240, -100], -35, ph, {
+      ...photonStream([-900, -140], [menuX - 240, -100], -35, 0, {
         color: menuCol,
         count: 4,
         opacity: menuDrop ? 0.25 : 0.72,
       }),
-      ...photonStream([900, -140], [codeX + 260, -100], -35, ph + 1.5, {
+      ...photonStream([900, -140], [codeX + 260, -100], -35, 0, {
         color: codeCol,
         count: 4,
         opacity: codeDrop ? 0.25 : 0.8,
@@ -213,7 +210,6 @@ export default function intro(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-intro-menu', () =>
     s.play(menuPulse.to(1, { duration: remainDuration(c, 'pt-intro-menu', 0.6) })),

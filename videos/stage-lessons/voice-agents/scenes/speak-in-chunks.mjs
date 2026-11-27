@@ -8,8 +8,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   speechChunks,
   toolTrace,
@@ -17,7 +15,6 @@ import {
 } from '../parts.mjs';
 
 export default function speakInChunks(s, c) {
-  const phase = s.value(0);
   const playhead = s.value(60); // ms on call clock: 60 -> 380 -> 640 -> 955
   const askOn = s.value(0);
   const ackReveal = s.value(0); // STRICT after speech-ack!
@@ -41,7 +38,6 @@ export default function speakInChunks(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const headMs = playhead.value;
       const ask = askOn.value;
       const ack = ackReveal.value;
@@ -219,22 +215,11 @@ export default function speakInChunks(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.audio,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('speech-first', () => {
     s.play(playhead.to(380, { duration: clampDur(c, c.cue('speech-first').start, 0.5) }));
   });

@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -45,7 +44,7 @@ export default function strictContract(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(Math.min(1, act.value)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const idv = idOn.value;
       const ex = extraOn.value;
       const nodes = [];
@@ -114,7 +113,7 @@ export default function strictContract(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(Math.min(1, act.value)) * fadeOutHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const nl = nullOn.value;
       const bl = boolOn.value;
       const rn = reqNullOn.value;
@@ -205,7 +204,7 @@ export default function strictContract(s, c) {
   const act2 = guardedDynamic(
     () => fadeInHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const dr = dupReaderOn.value;
       const dd = dupDefaultOn.value;
       const nodes = [];
@@ -290,7 +289,6 @@ export default function strictContract(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-strict-contract-1', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('tu-strict-contract-1').start, 0.25) }));

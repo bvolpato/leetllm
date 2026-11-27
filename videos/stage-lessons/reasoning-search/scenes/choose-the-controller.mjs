@@ -13,7 +13,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   orbRadius,
@@ -46,7 +45,7 @@ export default function chooseTheController(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const g1 = group1.value;
       const g2 = group2.value;
       const ev = evalOn.value;
@@ -99,7 +98,6 @@ export default function chooseTheController(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('choose-the-controller-beat-1-focus-1', () => {
     s.play(

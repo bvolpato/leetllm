@@ -10,7 +10,6 @@ import {
   autoNode,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   railBar,
   river,
@@ -37,7 +36,7 @@ export default function transfer(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const ph = pageHi.value;
       const wb = webBench.value;
       const db = dbOpen.value;
@@ -200,7 +199,6 @@ export default function transfer(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('episode-evidence', () => {
     s.play(pageHi.to(1, { duration: clampDur(c, c.cue('episode-evidence').start, 0.35) }));

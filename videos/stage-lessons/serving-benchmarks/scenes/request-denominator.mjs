@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function requestDenominator(s, c) {
-  const phase = s.value(0);
   const beatMode = s.value(0); // 0 -> 1 -> 2
   const r = servingReceipt();
 
@@ -127,7 +125,6 @@ export default function requestDenominator(s, c) {
   );
 
   s.add(stageAura, header, clockView);
-  driftValue(s, c, phase, 6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('request-denominator-beat-1-focus-1', () => {
     const t = c.cue('request-denominator-beat-1-focus-1').start;

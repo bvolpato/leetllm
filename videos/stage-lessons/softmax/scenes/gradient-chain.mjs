@@ -19,7 +19,6 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   stableSoftmax,
   tweenCue,
   txt,
@@ -32,7 +31,6 @@ const NUDGED_PROBS = stableSoftmax([LOGITS[0], LOGITS[1] + NUDGE, LOGITS[2]]);
 const DELTAS = NUDGED_PROBS.map((p, i) => p - PROBS[i]);
 
 export default function gradientChain(s, c) {
-  const phase = s.value(0);
   const vNudge = s.value(1);
   const vCancel = s.value(0);
 
@@ -373,7 +371,6 @@ export default function gradientChain(s, c) {
   });
 
   s.add(bgAura, title, view1, view2);
-  runAmbientPhase(s, c, phase, 2.2);
 
   // Beat 0-2 cues
   c.on('gradient-chain-0', () => {

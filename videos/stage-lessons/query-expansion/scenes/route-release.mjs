@@ -12,12 +12,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function routeRelease(s, c) {
-  const phase = s.value(0);
   const showRepairs = s.value(0);
   const gateMode = s.value(0); // 0 = repair map, 1 = 3-route release gate
   const showFirstGate = s.value(0);
@@ -39,7 +37,6 @@ export default function routeRelease(s, c) {
   const routeNames = { baseline: 'Raw hybrid', rewrite: 'Rewrite', expensive: 'Costly route' };
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sRep = showRepairs.value;
     const inGate = gateMode.value > 0.5;
     const firstDone = showFirstGate.value > 0.5;
@@ -47,7 +44,6 @@ export default function routeRelease(s, c) {
     const isTight = tightenStarted.value > 0.5;
     const tightVerdict = showTightVerdict.value > 0.5;
     const sEv = showEvidence.value > 0.4;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const nodes = [];
 
@@ -149,7 +145,7 @@ export default function routeRelease(s, c) {
       nodes.push(
         glassCell(0, y, 1710, 122, border, {
           fill: showVerdict && passes ? '#0d2723' : '#10182d',
-          glow: showVerdict && passes ? 10 * pulse : 2,
+          glow: showVerdict && passes ? 10 : 2,
         }),
         txt(routeNames[route.id], -835, y + 2, 30, COSMOS.cyan, 'sans', 'left'),
       );
@@ -228,7 +224,6 @@ export default function routeRelease(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('route-repairs', () => s.play(showRepairs.to(1, { duration: 0.45 })));
   c.onBeat(1, () => s.play(gateMode.to(1, { duration: 0.3 })));

@@ -6,17 +6,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function alltoallLayout(s, c) {
-  const phase = s.value(0);
   // step: 0=3x3 equal chunks, 1=uneven [2,1,3] padded to 9, 2=grouped Send/Recv without padding
   const step = s.value(0);
 
@@ -32,7 +29,6 @@ export default function alltoallLayout(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st === 0) {
@@ -114,9 +110,7 @@ export default function alltoallLayout(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 275, { radius: 6, color: st === 2 ? ROLE.good : COSMOS.gold }),
       txt(
         st === 2
           ? 'Group sends with matching receives so variable expert exchanges make forward progress'
@@ -134,7 +128,6 @@ export default function alltoallLayout(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-alltoall-layout-b0-s0', 0],
     ['nc-alltoall-layout-b0-s1', 0],

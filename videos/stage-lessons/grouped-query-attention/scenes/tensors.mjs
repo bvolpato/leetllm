@@ -14,12 +14,10 @@ import {
   rect,
   renderGqaRack2d,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function tensors(s, c) {
-  const phase = s.value(0);
   const mode = s.value(1); // starts GQA (2), opens to MHA (0), returns to GQA (1)
   const tokCount = s.value(2); // 2 -> 3 on 'append'
   const lit = s.value(-1);
@@ -59,7 +57,6 @@ export default function tensors(s, c) {
         slots: 4,
         lit: lit.value,
         cursor: -1,
-        phase: phase.value,
         colNames: ['Rain', 'fell', '2', '3'],
       }),
       rule(-95, -310, -95, 410, COSMOS.rule, 1.6).opacity(0.6),
@@ -183,7 +180,6 @@ export default function tensors(s, c) {
 
   s.add(cinemaAtmosphere(ROLE.key, ROLE.value), title, live);
   c.show('payload', payloadFormula, { fade: 0.4 });
-  runPhase(s, c, phase, 14);
 
   playCue(
     s,

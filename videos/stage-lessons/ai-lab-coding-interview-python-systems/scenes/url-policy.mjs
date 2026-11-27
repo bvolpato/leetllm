@@ -6,10 +6,8 @@ import { line } from 'vizmatic/stage';
 import {
   COSMOS,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   glowArcArrow,
-  glowDot,
   glowPill,
   guardedDynamic,
   hexAlpha,
@@ -22,7 +20,6 @@ import {
 export default function urlPolicy(s, c) {
   const title = sceneHeading(['Which links share a fetch?'], { accent: ROLE.workerB });
 
-  const amb = ambientClock(s, c);
   const originFocus = s.value(0);
   const hostLowered = s.value(0);
   const stripped = s.value(0);
@@ -37,7 +34,6 @@ export default function urlPolicy(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const lowHost = hostLowered.value > 0.5;
       const isStripped = stripped.value > 0.5;
       const hasQ2 = queryTwo.value > 0.5;
@@ -89,13 +85,11 @@ export default function urlPolicy(s, c) {
             color: ROLE.ok,
             width: 3.4,
             alpha,
-            photonT: (amb.value * 4) % 1,
           }),
           glowArcArrow([lx + 260, -64], [lx + 210, 32], 14, {
             color: ROLE.ok,
             width: 3.4,
             alpha,
-            photonT: (amb.value * 4 + 0.5) % 1,
           }),
         );
       }
@@ -223,12 +217,6 @@ export default function urlPolicy(s, c) {
           'sans',
           'center',
         ).opacity(alpha),
-        glowDot(-380 + 220 * Math.cos(amb.value * Math.PI * 6), 275, {
-          radius: 5 + 2 * pulse,
-          color: ROLE.workerB,
-          glow: 9,
-          opacity: 0.7 * alpha,
-        }),
         lowerFooter(
           'SCHEME + LOWER(HOST) + PORT + PATH + QUERY',
           netCheck.value > 0.5

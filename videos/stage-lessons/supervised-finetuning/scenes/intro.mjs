@@ -4,7 +4,6 @@ import {
   TOKENS,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -84,12 +83,6 @@ export default function intro(s, c) {
           'mono',
         ).opacity(vis),
       );
-      if (vis > 0.8) {
-        const u = (p * 0.45 + i * 0.33) % 1;
-        const bx = slotX[i] * 0.4 + (slotX[i] - slotX[i] * 0.4) * u;
-        const by = -76 + (slotY - 70 - -76) * u;
-        nodes.push(glowDot(bx, by, { radius: 5, color: col, opacity: vis }));
-      }
     });
 
     // Bracket grouping reply text vs turn ending cleanly below capsules (zero arc collision)

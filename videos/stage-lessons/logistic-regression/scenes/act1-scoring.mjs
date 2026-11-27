@@ -30,7 +30,6 @@ import {
   glowingTrail,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   makeAxes,
   mix,
   neonCurve,
@@ -55,7 +54,6 @@ export function intro(s, c) {
   const propP = s.value(0);
   const moveP = s.value(0);
   const revP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.score, seed: 1 }));
   s.add(decorAura(180, -30, 560, '#5ce1e622', '#ffd16612'));
@@ -75,7 +73,6 @@ export function intro(s, c) {
     const pr = propP.value;
     const mv = moveP.value;
     const rv = revP.value;
-    const ph = drift.value;
     const nodes = [];
 
     const rx0 = -760;
@@ -125,13 +122,12 @@ export function intro(s, c) {
 
     // Dropping glowing request orb pinned at score 0.624
     const dropY = mix(-225, ry, smooth(dp));
-    const pulse = 1 + 0.09 * Math.sin(ph * Math.PI * 8);
     nodes.push(
       line([scoreX, dropY - 96], [scoreX, dropY], { stroke: ROLE.score, width: 3.5 }).glow(
         8,
         ROLE.score,
       ),
-      glowDot(scoreX, dropY, { radius: 14 * pulse, color: ROLE.score, glow: 16 }),
+      glowDot(scoreX, dropY, { radius: 14, color: ROLE.score, glow: 16 }),
       txt('Change team access', scoreX, dropY - 224, 30, COSMOS.muted, 'sans'),
       txt(openingRequest.p.toFixed(3), scoreX, dropY - 160, 58, ROLE.score, 'mono').glow(
         10,
@@ -188,7 +184,6 @@ export function intro(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'opening-score', dropP, 1, { dur: 0.9 });
   cueTo(s, c, 'opening-auto', autoP, 1, { after: true, dur: 0.65 });
   cueTo(s, c, 'opening-proposal', propP, 1, { dur: 0.7 });
@@ -205,7 +200,6 @@ export function evidenceScore(s, c) {
   const ambP = s.value(0);
   const supP = s.value(0);
   const totP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.loss, seed: 2 }));
   s.add(decorAura(0, 40, 560, '#a78bfa20', '#5ce1e614'));
@@ -224,7 +218,6 @@ export function evidenceScore(s, c) {
     const aP = smooth(ambP.value);
     const sP = smooth(supP.value);
     const tP = totP.value;
-    const ph = drift.value;
     const nodes = [];
 
     const x0 = -740;
@@ -313,7 +306,6 @@ export function evidenceScore(s, c) {
     // Final total strictly withheld until score-total completes
     const preTot = fadeOut(tP);
     const postTot = fadeIn(tP);
-    const pulse = 1 + 0.1 * Math.sin(ph * Math.PI * 8);
     if (preTot > 0.02) {
       nodes.push(
         txt('z = −4.9 + 10.2 − 4.8 = ?', 0, 335, 44, COSMOS.muted, 'mono').opacity(preTot),
@@ -327,7 +319,7 @@ export function evidenceScore(s, c) {
             width: 3.5,
           }).glow(8, ROLE.threshold),
           glowDot(xOf(roundedScore), axisY, {
-            radius: 13 * pulse,
+            radius: 13,
             color: ROLE.threshold,
             glow: 16,
           }),
@@ -345,7 +337,6 @@ export function evidenceScore(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'score-intercept', intP, 1, { dur: 0.85 });
   cueTo(s, c, 'score-ambiguity', ambP, 1, { dur: 0.95 });
   cueTo(s, c, 'score-support', supP, 1, { dur: 0.95 });
@@ -362,7 +353,6 @@ export function sigmoidScene(s, c) {
   const reqP = s.value(0);
   const fullP = s.value(0);
   const logitP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.score, seed: 3 }));
   s.add(decorAura(-220, 10, 560, '#5ce1e61f', '#ffd16614'));
@@ -396,7 +386,6 @@ export function sigmoidScene(s, c) {
     const rp = smooth(reqP.value);
     const fp = fullP.value;
     const lp = logitP.value;
-    const ph = drift.value;
     const nodes = [];
 
     nodes.push(
@@ -446,14 +435,11 @@ export function sigmoidScene(s, c) {
     const activeZ = mix(roundedScore, FITTED_OPENING_LOGIT, smooth(fp));
     const reqPt = ax.pt(activeZ, sigmoid(activeZ));
     if (rp > 0.04) {
-      const pulse = 1 + 0.1 * Math.sin(ph * Math.PI * 8);
       nodes.push(
         line(ax.pt(activeZ, 0), reqPt, { stroke: ROLE.score, width: 2.5, dash: [6, 6] }).opacity(
           rp,
         ),
-        glowDot(reqPt[0], reqPt[1], { radius: 12 * pulse, color: ROLE.score, glow: 16 }).opacity(
-          rp,
-        ),
+        glowDot(reqPt[0], reqPt[1], { radius: 12, color: ROLE.score, glow: 16 }).opacity(rp),
       );
     }
 
@@ -536,7 +522,6 @@ export function sigmoidScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'sigmoid-center', centerP, 1, { dur: 0.95 });
   cueTo(s, c, 'sigmoid-tail', tailP, 1, { dur: 0.9 });
   cueTo(s, c, 'request-probability', reqP, 1, { dur: 0.85 });
@@ -560,7 +545,6 @@ export function boundaryGeometryScene(s, c) {
   const vertP = s.value(0);
   const vertOnlyP = s.value(0);
   const constP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.score, seed: 4 }));
   s.add(decorAura(340, -10, 520, '#5ce1e61c', '#ff6b8b14'));
@@ -846,7 +830,6 @@ export function boundaryGeometryScene(s, c) {
   );
 
   s.add(headline, view3dWrap, view0, view12);
-  livingDrift(s, c, drift, 1);
   orbitScene(
     s,
     c,
@@ -875,7 +858,6 @@ export function logLossScene(s, c) {
   const corrP = s.value(0);
   const stabP = s.value(0);
   const resP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.positive, seed: 5 }));
   s.add(decorAura(0, 30, 560, '#ff6b8b1f', '#5ce1e614'));
@@ -1000,7 +982,6 @@ export function logLossScene(s, c) {
     () => fadeIn(stabP.value),
     (vis) => {
       const rs = resP.value;
-      const ph = drift.value;
       const nodes = [];
 
       nodes.push(
@@ -1048,11 +1029,8 @@ export function logLossScene(s, c) {
       ];
       parts.forEach(([lbl, val, col], i) => {
         const cx = -560 + i * 560;
-        const pulse = 1 + 0.06 * Math.sin(ph * Math.PI * 8 + i);
         nodes.push(
-          circle(10 * pulse, { fill: col, stroke: null })
-            .at(cx, 200)
-            .glow(10, col),
+          circle(10, { fill: col, stroke: null }).at(cx, 200).glow(10, col),
           txt(lbl, cx, 250, 28, COSMOS.muted, 'mono'),
           txt(val, cx, 305, 32, col, 'mono'),
         );
@@ -1063,7 +1041,6 @@ export function logLossScene(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'loss-select-outcome', selP, 1, { dur: 0.7 });
   cueTo(s, c, 'loss-wrong', wrongP, 1, { dur: 0.85 });
   cueTo(s, c, 'loss-correct', corrP, 1, { dur: 0.9 });

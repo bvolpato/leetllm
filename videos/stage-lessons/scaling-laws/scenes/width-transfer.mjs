@@ -13,7 +13,6 @@ import {
   lumBar,
   playBeat,
   playCue,
-  scenePulse,
   simultaneousWidthUpdate,
   swapVis,
 } from '../parts.mjs';
@@ -49,7 +48,6 @@ export default function widthTransfer(s, c) {
   const mupTwoVis = s.value(0); // AFTER sl-width-transfer-1
   const lowerRateT = s.value(0); // sl-width-transfer-2: eta 1 -> 0.25
   const mupHalfVis = s.value(0); // AFTER width-half
-  const pulse = s.value(0);
 
   // Act 1 (Beat 0): Alternating path cancellation at width = 16
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
@@ -300,7 +298,6 @@ export default function widthTransfer(s, c) {
   );
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.tokens), title, act1Layer, act2Layer);
-  scenePulse(s, c, pulse);
 
   // Beat 0: path cancellation
   playCue(s, c, 'width-positive', (d) => s.play(posVis.to(1, { duration: d })), {

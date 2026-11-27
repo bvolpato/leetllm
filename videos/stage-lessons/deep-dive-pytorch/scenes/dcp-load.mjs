@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function dcpLoad(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=construct first, 1=planner resharding [4..7] -> R0:[4,5] & R1:[6,7], 2=CPU round-trip, 3=exact match
 
   const bgAura = aura(0, 20, 620, '#5ce1e61e', '#6ee7b718');
@@ -30,7 +27,6 @@ export default function dcpLoad(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = stage.value;
-    const p = phase.value;
 
     const nodes = [
       // Top: Checkpoint shard files on storage
@@ -79,16 +75,12 @@ export default function dcpLoad(s, c) {
       ),
     ];
 
-    const u = (p * 0.65) % 1;
-    nodes.push(
-      glowDot(-740 + u * 1480, 355, { radius: 6, color: st >= 3 ? ROLE.good : ROLE.copy }),
-    );
+    nodes.push();
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-dcp-load-0', () => s.play(stage.to(0, { duration: 0.25 })));
   c.on('pt-dcp-load-1', () =>

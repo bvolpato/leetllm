@@ -15,13 +15,11 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function tokenReduction(s, c) {
-  const phase = s.value(0);
   const vIgnore = s.value(1);
   const vPool = s.value(0);
   const vEmpty = s.value(0);
@@ -330,7 +328,6 @@ export default function tokenReduction(s, c) {
   });
 
   s.add(bgAura, title, viewIgnore, viewPool, viewEmpty);
-  runAmbientPhase(s, c, phase, 2.2);
 
   // Beat 0
   c.on('token-reduction-0', () => {

@@ -12,12 +12,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function accumulation(s, c) {
-  const phase = s.value(0);
   const fp16Steps = s.value(0);
   const fp16Flat = s.value(0);
   const fp32Steps = s.value(0);
@@ -194,7 +192,6 @@ export default function accumulation(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('accumulation-beat-1-focus-1', () =>
     s.play(fp16Steps.to(4, { duration: remainDuration(c, 'accumulation-beat-1-focus-1', 1.4) })),

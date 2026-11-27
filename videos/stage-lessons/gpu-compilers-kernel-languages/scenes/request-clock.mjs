@@ -6,18 +6,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function requestClock(s, c) {
-  const phase = s.value(0);
   const showNvrtc = s.value(0);
   const showLink = s.value(0);
   const ptxPhase = s.value(0); // 1=init(10), 2=load(5), 3=jit(60), 4=pub(2), 5=launch(1), 6=total(78)
@@ -38,7 +35,6 @@ export default function requestClock(s, c) {
   const mx = (ms) => -540 + ms * 14;
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const nv = showNvrtc.value;
     const lk = showLink.value;
     const pp = ptxPhase.value;
@@ -128,14 +124,10 @@ export default function requestClock(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-540 + u * 1120, 204, { radius: 6, color: COSMOS.gold }));
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('compiler-producers', () =>
     s.play(showNvrtc.to(1, { duration: remainDuration(c, 'compiler-producers', 0.4) })),

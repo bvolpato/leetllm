@@ -6,18 +6,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function goodputGate(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = define qualified goodput vs offered-load capacity (all offered in denominator)
   // 1 = 10s trial setup: 10 req/s (92/100) vs 12 req/s (105/120)
@@ -39,7 +36,6 @@ export default function goodputGate(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const showA = st >= 2;
     const showB = st >= 3;
     const showWinner = st >= 4;
@@ -118,9 +114,7 @@ export default function goodputGate(s, c) {
     renderTrial(-410, GOODPUT_10, showA, true);
     renderTrial(410, GOODPUT_12, showB, false);
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 295, { radius: 6, color: showWinner ? ROLE.decode : COSMOS.gold }),
       txt(
         showWinner
           ? '10 req/s passes (92%); 12 req/s fails (87.5%) despite 10.5/s goodput; test 11/s.'
@@ -136,7 +130,6 @@ export default function goodputGate(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-goodput-gate-beat-0', 0],
     ['sg-goodput-gate-beat-1', 1],

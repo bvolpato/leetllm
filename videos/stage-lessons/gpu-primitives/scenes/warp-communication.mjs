@@ -7,9 +7,7 @@ import {
   bezier3d,
   box3d,
   cinematic3d,
-  evalArc2d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -109,7 +107,6 @@ export default function warpCommunication(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const rd = Math.round(round.value);
     const done = stepDone.value;
     const rep = isReplay.value > 0.5;
@@ -185,7 +182,6 @@ export default function warpCommunication(s, c) {
     const srcX = x0 + peer * stepX;
     const dstX = x0 + receiver * stepX;
     if (!ex) {
-      const u = (p * 0.9) % 1;
       nodes.push(
         glowingArc([srcX, laneY + 52], [dstX, laneY + 52], 96, {
           color: COSMOS.gold,
@@ -193,8 +189,6 @@ export default function warpCommunication(s, c) {
           opacity: 0.92,
         }),
       );
-      const [px, py] = evalArc2d([srcX, laneY + 52], [dstX, laneY + 52], 96, u);
-      nodes.push(glowDot(px, py, { radius: 8, color: COSMOS.gold }));
     } else {
       nodes.push(
         glowingArc([srcX, laneY + 52], [dstX, laneY + 52], 82, {

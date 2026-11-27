@@ -11,9 +11,7 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
-  glowDot,
   guardedDynamic,
   quadArcPts,
   txt,
@@ -37,7 +35,7 @@ export default function poisonedMemory(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const ct = crossTurn.value;
       const rc = recheckHi.value;
       const dm = dualMeasure.value;
@@ -164,11 +162,6 @@ export default function poisonedMemory(s, c) {
           'mono',
           'left',
         ).opacity(dAlpha),
-        glowDot(-840 + ((p * 0.25) % 1) * 1680, 215, {
-          radius: 4.5,
-          color: ROLE.untrusted,
-          glow: 8,
-        }),
       );
 
       return group(...nodes);
@@ -176,7 +169,6 @@ export default function poisonedMemory(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('pi-poisoned-memory-0', () => {
     s.play(crossTurn.to(1, { duration: clampDur(c, c.cue('pi-poisoned-memory-0').start, 0.45) }));

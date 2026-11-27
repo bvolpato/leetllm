@@ -15,7 +15,6 @@ import {
   clampDur,
   conciseMicro,
   dashedRule,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -267,7 +266,6 @@ export default function wrap(s, c) {
   );
 
   s.add(sceneAura, header, mode0, mode1);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('payoff-receipts', () => {
     const t = c.cue('payoff-receipts').start;

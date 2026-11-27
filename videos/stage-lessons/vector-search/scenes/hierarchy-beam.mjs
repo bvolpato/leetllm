@@ -36,13 +36,11 @@ export default function hierarchyBeam(s, c) {
   const hnsw3d = makeHnswTower3D(555, -20, phase);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const su = showUpper.value;
     const sn = showNarrow.value;
     const sw = showWide.value;
     const sh = showHidden.value;
     const sheap = showHeaps.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const r1Last = RETAIN_1.at(-1);
     const r3Last = RETAIN_3.at(-1);
@@ -81,7 +79,7 @@ export default function hierarchyBeam(s, c) {
         sh > 0.3 ? COSMOS.emerald : sw > 0.3 ? COSMOS.gold : COSMOS.rose,
         {
           fill: sh > 0.3 ? '#0e2824' : '#181e34',
-          glow: sw > 0.3 ? 9 * pulse : 3,
+          glow: sw > 0.3 ? 9 : 3,
         },
       ),
       txt(
@@ -117,7 +115,7 @@ export default function hierarchyBeam(s, c) {
       // Left bottom: Candidate min-queue + Result max-heap stopping rule
       glassCell(-405, 206, 920, 152, sheap > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#101d35',
-        glow: sheap > 0.3 ? 8 * pulse : 2,
+        glow: sheap > 0.3 ? 8 : 2,
       }),
       txt(
         'MIN-QUEUE (NEXT NEAREST)  |  MAX-HEAP (WORST KEPT)',

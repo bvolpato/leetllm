@@ -20,7 +20,6 @@ import {
   onCue,
   probBarH,
   sampleProposal,
-  startAmbient,
   tokenPill,
   txt,
   verifyBeam,
@@ -33,7 +32,6 @@ import {
  * causal arc traces softly -> today, keeps sang, rejects softly & dependent today.
  */
 export function intro(s, c) {
-  const amb = startAmbient(s, c);
   const draftCount = s.value(0); // 0 -> 1 -> 2 -> 3
   const verifyWave = s.value(0); // 0 -> 1 scan across 3 guesses
   const askToday = s.value(0);
@@ -55,7 +53,6 @@ export function intro(s, c) {
   const sceneView = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const dc = draftCount.value;
       const vw = verifyWave.value;
       const ask = askToday.value;
@@ -100,7 +97,6 @@ export function intro(s, c) {
 
       // Glowing reader cursor (advances past "sang" when keepSang activates; bottom stays above "KEPT")
       const cursorX = -330 + ks * 270;
-      const pulseR = 7 + 3 * Math.sin(t * Math.PI * 10);
       nodes.push(
         line([cursorX, rowY - 120], [cursorX, rowY + 38], {
           stroke: COSMOS.gold,
@@ -108,7 +104,7 @@ export function intro(s, c) {
         })
           .glow(14, COSMOS.gold)
           .set('blend', 'screen'),
-        glowDot(cursorX, rowY - 124, { radius: pulseR, color: COSMOS.gold, glow: 14 }),
+        glowDot(cursorX, rowY - 124, { radius: 8, color: COSMOS.gold, glow: 14 }),
         txt('READER CURSOR', cursorX, rowY - 165, 26, COSMOS.gold, 'mono'),
       );
 
@@ -287,7 +283,6 @@ export function intro(s, c) {
  * uniform draw u = 0.35 landing inside dog [0.20, 0.70], aligned served-law rule.
  */
 export function draft(s, c) {
-  const amb = startAmbient(s, c);
   const showDraft = s.value(0);
   const showTarget = s.value(0);
   const showStrip = s.value(0);
@@ -309,7 +304,6 @@ export function draft(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const sd = showDraft.value;
       const st = showTarget.value;
       const ss = showStrip.value;
@@ -445,13 +439,12 @@ export function draft(s, c) {
         if (dp > 0.04) {
           const uDraw = 0.35 * dp;
           const ux = stripX + uDraw * stripW;
-          const pulse = 9 + 4 * Math.sin(t * Math.PI * 10);
           nodes.push(
             line([ux, stripY - 52], [ux, stripY - 30], { stroke: COSMOS.gold, width: 3.8 })
               .glow(12, COSMOS.gold)
               .set('blend', 'screen'),
             glowDot(ux, stripY - 40, { radius: 7, color: '#ffffff', glow: 14 }),
-            circle(pulse, { fill: null, stroke: COSMOS.gold, width: 2.0 })
+            circle(12, { fill: null, stroke: COSMOS.gold, width: 2.0 })
               .at(ux, stripY - 40)
               .opacity(0.6)
               .set('blend', 'screen'),
@@ -491,7 +484,6 @@ export function draft(s, c) {
  * Prediction withheld during beat 0 (question) and beat 2 (u = 0.80 question)!
  */
 export function accept(s, c) {
-  const amb = startAmbient(s, c);
   const d0 = decomposition(P, Q);
   const qDog = Q[1]; // 0.5
   const pDog = P[1]; // 0.3
@@ -530,7 +522,6 @@ export function accept(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const inp = showInputs.value;
       const askR = askRatio.value;
       const revR = revealRatio.value;
@@ -651,13 +642,12 @@ export function accept(s, c) {
         } else {
           verdictTxt = `u = ${uVal.toFixed(2)}`;
         }
-        const ringR = 14 + 6 * Math.sin(t * Math.PI * 10);
         nodes.push(
           line([ux, rulerY - 38], [ux, rulerY + 38], { stroke: markerCol, width: 4.5 })
             .glow(12, markerCol)
             .set('blend', 'screen'),
           glowDot(ux, rulerY, { radius: 9, color: '#ffffff', glow: 16 }),
-          circle(ringR, { fill: null, stroke: markerCol, width: 2.4 })
+          circle(16, { fill: null, stroke: markerCol, width: 2.4 })
             .at(ux, rulerY)
             .opacity(0.75)
             .set('blend', 'screen'),
@@ -712,7 +702,6 @@ export function accept(s, c) {
  * residual max(0,p-q), normalized residual bars, AND live q -> p morph collapsing Z -> 0!
  */
 export function residual(s, c) {
-  const amb = startAmbient(s, c);
   const showDeficit = s.value(0);
   const showNorm = s.value(0);
   const focusBird = s.value(0);
@@ -743,7 +732,6 @@ export function residual(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const m = morphMatch.value;
       const def = showDeficit.value;
       const norm = showNorm.value;
@@ -872,7 +860,6 @@ export function residual(s, c) {
         const rVal = dec.residual ? dec.residual[i] : 0;
         const rH = rVal * normScale * norm;
         if (rH > 2) {
-          const glowPulse = 12 + 5 * Math.sin(t * Math.PI * 8);
           nodes.push(
             rect(barW, rH, {
               fill: '#a78bfa68',
@@ -881,7 +868,7 @@ export function residual(s, c) {
               radius: 8,
             })
               .at(cx, baseY - rH * 0.5)
-              .glow(glowPulse, COSMOS.violet)
+              .glow(14, COSMOS.violet)
               .set('blend', 'screen'),
           );
         }
@@ -953,7 +940,6 @@ export function residual(s, c) {
  *   3. New draft TWO_GAP_Q = [0.3, 0.2, 0.5] -> cat rejects 0.30, splitting 1/3 to dog, 2/3 to bird!
  */
 export function proof(s, c) {
-  const amb = startAmbient(s, c);
   const showAccepted = s.value(0);
   const askSpace = s.value(0);
   const flowOrig = s.value(0); // 0 -> 1 moves rejected 0.2+0.1 into bird
@@ -989,7 +975,6 @@ export function proof(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const acc = showAccepted.value;
       const askS = askSpace.value;
       const fl = flowOrig.value;
@@ -1147,12 +1132,6 @@ export function proof(s, c) {
           ),
         );
       }
-
-      // Dynamic ambient photon sliding along the active conservation rail
-      const px = rowXs + ((t * 1.4) % 1) * (0.5 * scaleW);
-      nodes.push(
-        glowDot(px, rowYs[0] + 42, { radius: 4.5, color: COSMOS.emerald, glow: 8, opacity: 0.7 }),
-      );
 
       // Bottom narration-synced prompt / takeaway
       let foot = 'Excess rejected mass fills every target shortfall with zero waste';

@@ -13,13 +13,11 @@ import {
   glowingTrail,
   guardedDynamic,
   heroTitle,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function scores(s, c) {
-  const phase = s.value(0);
   const showLogits = s.value(0);
   const showGaps = s.value(0);
   const offset = s.value(0);
@@ -62,7 +60,6 @@ export default function scores(s, c) {
     const gOn = showGaps.value;
     const lOn = showLogits.value;
     const nOn = showNext.value;
-    const pulse = 0.72 + 0.28 * Math.sin(phase.value * 3.0);
 
     const { nodes, xOf } = buildRulerBars(-810, 40, 120, 310, LOGITS, PROBS, {
       offset: off,
@@ -100,7 +97,7 @@ export default function scores(s, c) {
             [xRan, gy],
             [xRan, gy - 14],
           ],
-          { color: MARK_COLOR, width: 4.0, glow: 10 * pulse, opacity: gOn },
+          { color: MARK_COLOR, width: 4.0, glow: 10, opacity: gOn },
         ),
         txt('gap = +2.0', (xSlept + xRan) / 2, gy + 38, 30, MARK_COLOR, 'mono').opacity(gOn),
         glowingTrail(
@@ -161,7 +158,6 @@ export default function scores(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'score-values', showLogits, 1, { duration: 0.55 });
   c.show('score-logits', eqLogits);

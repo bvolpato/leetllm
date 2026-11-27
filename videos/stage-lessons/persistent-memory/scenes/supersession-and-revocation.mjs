@@ -8,9 +8,7 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeOutHalf,
-  glowDot,
   glowMeter,
   guardedDynamic,
   memNode,
@@ -77,7 +75,7 @@ export default function supersessionAndRevocation(s, c) {
   const rig = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
+      const p = 0;
       const sv2 = v2Source.value;
       const emp = showEmpty.value;
       const iv2 = v2Index.value;
@@ -360,15 +358,11 @@ export default function supersessionAndRevocation(s, c) {
         }
       }
 
-      const pulseX = -780 + ((p * 90) % 160);
-      nodes.push(glowDot(pulseX, 425, { radius: 4.5, color: srcColor, glow: 8, opacity: 0.7 }));
-
       return group(...nodes);
     },
   );
 
   s.add(bgAuras, header, rig);
-  driftValue(s, c, phase, 4.4);
 
   c.on('read-reopened', () => {
     s.play(phase.to(0.3, { duration: clampDur(c, c.cue('read-reopened').start, 0.25) }));

@@ -3,14 +3,13 @@
 // drafts (8.19e12 -> 3.28e13 -> 1.31e14 FLOPs), plus Snell et al.'s adaptive MATH trade-off.
 import {
   COSMOS,
-  glowDot,
   glowTex,
   glowingTrail,
   guardedDynamic,
   heroTitle,
   txt,
 } from '../../cinematic-kit.mjs';
-import { ROLE, arcPts, cinemaAtmosphere, lumBar, playCue, scenePulse } from '../parts.mjs';
+import { ROLE, arcPts, cinemaAtmosphere, lumBar, playCue } from '../parts.mjs';
 
 export default function testTimeBudget(s, c) {
   const title = heroTitle(['What can change', 'after training ends?'], {
@@ -24,13 +23,11 @@ export default function testTimeBudget(s, c) {
   const modeGlow = s.value(0); // sl-test-time-budget-0
   const draftCount = s.value(1); // 1 -> 4 -> 16
   const mathVis = s.value(0); // sl-test-time-budget-2
-  const pulse = s.value(0);
 
   const stageLayer = guardedDynamic(s.value(1), (alpha) => {
     const nodes = [];
     const k = Math.max(1, Math.min(16, Math.round(draftCount.value)));
     const mv = mathVis.value;
-    const p = pulse.value;
 
     // Left: Frozen 8B model weights monolith
     const modelX = -655;
@@ -125,12 +122,6 @@ export default function testTimeBudget(s, c) {
       )
         .glow(mv > 0.3 ? 6 : 0, ROLE.optimal)
         .opacity(alpha),
-      glowDot(-450 + ((p * 2.2) % 1) * 900, 412, {
-        radius: 5,
-        color: mv > 0.3 ? ROLE.optimal : ROLE.tokens,
-        glow: 10,
-        opacity: 0.75 * alpha,
-      }),
     );
 
     return nodes;
@@ -144,7 +135,6 @@ export default function testTimeBudget(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.tokens), title, stageLayer, eq);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'sl-test-time-budget-0', (d) => s.play(modeGlow.to(1, { duration: d })), {
     dur: 0.7,

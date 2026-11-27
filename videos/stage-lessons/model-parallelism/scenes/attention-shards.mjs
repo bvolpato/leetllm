@@ -4,7 +4,6 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -12,12 +11,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function attentionShards(s, c) {
-  const phase = s.value(0);
   const pIntro = s.value(0);
   const pProj = s.value(0);
   const pHeads = s.value(0);
@@ -167,14 +164,11 @@ export default function attentionShards(s, c) {
       );
     }
 
-    nodes.push(
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 425, { radius: 6, color: ROLE.gpu0 }),
-    );
+    nodes.push();
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('mp-attention-shards-0', () =>
     s.play(pIntro.to(1, { duration: remainDuration(c, 'mp-attention-shards-0', 0.35) })),

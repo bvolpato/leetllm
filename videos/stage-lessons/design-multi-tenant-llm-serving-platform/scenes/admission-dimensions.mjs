@@ -7,7 +7,6 @@ import {
   ROLE,
   aura,
   cinemaHeader,
-  driftValue,
   glowMeter,
   guardedDynamic,
   stepAfter,
@@ -25,7 +24,6 @@ const RESERVOIRS = [
 ];
 
 export default function admissionDimensions(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const b1On = s.value(0);
   const fourAvailOn = s.value(0);
@@ -227,8 +225,6 @@ export default function admissionDimensions(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.0);
-
   stepOn(s, c, 'mt-admission-dimensions-b0', b0On, 1);
   stepOn(s, c, 'mt-admission-dimensions-b1', b1On, 1);
   stepAfter(s, c, 'mt-admission-dimensions-s1-0', fourAvailOn, 1);

@@ -9,12 +9,10 @@ import {
   heroTitle,
   photonStream,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function privacy(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const spansOn = s.value(0);
 
@@ -92,7 +90,6 @@ export default function privacy(s, c) {
   const part2Live = guardedDynamic(showPart2, (a) => {
     const rp = replaceOn.value;
     const rg = registerOn.value;
-    const ph = phase.value;
     const replaced = rp > 0.5;
 
     const nodes = [
@@ -131,7 +128,7 @@ export default function privacy(s, c) {
         'mono',
       ).opacity(a),
 
-      ...photonStream([0, 68], [0, 124], 0, ph, {
+      ...photonStream([0, 68], [0, 124], 0, 0, {
         color: COSMOS.gold,
         count: 3,
         opacity: rg * a,
@@ -247,7 +244,6 @@ export default function privacy(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live, part3Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-privacy-spans', () =>
     s.play(spansOn.to(1, { duration: remainDuration(c, 'pt-privacy-spans', 0.6) })),

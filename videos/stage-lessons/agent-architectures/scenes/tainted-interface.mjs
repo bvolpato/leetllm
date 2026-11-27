@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   txt,
@@ -33,7 +32,7 @@ export default function taintedInterface(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const bl = blockOn.value;
       const ap = apprOn.value;
       const d1 = draft1On.value;
@@ -131,7 +130,6 @@ export default function taintedInterface(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-tainted-interface-0', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('aa-tainted-interface-0').start, 0.25) }));

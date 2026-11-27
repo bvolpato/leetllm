@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -50,7 +49,7 @@ export default function strictReceipt(s, c) {
   const mode0 = guardedDynamic(
     () => fadeOutHalf(auditMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const hs = hostOn.value;
       const fl = fieldsOn.value;
       const vl = validOn.value;
@@ -252,7 +251,7 @@ export default function strictReceipt(s, c) {
   const mode1 = guardedDynamic(
     () => fadeInHalf(auditMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const cb = checkBOn.value;
       const mq = misquoteOn.value;
       const nodes = [];
@@ -338,7 +337,6 @@ export default function strictReceipt(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('host-binding', () => {
     s.play(hostOn.to(1, { duration: clampDur(c, c.cue('host-binding').start, 0.35) }));

@@ -2,20 +2,9 @@
 // Special-token injection safety (literal marker strings encoded as ordinary text!),
 // preserving return suffix, and testing both allowed & denied permission cases.
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function infillBoundaries(s, c) {
-  const phase = s.value(0);
   const escOn = s.value(0);
   const insOn = s.value(0);
 
@@ -36,7 +25,6 @@ export default function infillBoundaries(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const es = escOn.value;
       const ins = insOn.value;
       const nodes = [];
@@ -108,12 +96,6 @@ export default function infillBoundaries(s, c) {
         ),
         txt('MIDDLE ONLY', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Suffix stays pinned in buffer', 480, -378, 26, ROLE.ok, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -121,8 +103,6 @@ export default function infillBoundaries(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('cc-infill-boundaries-1', () => {
     s.play(escOn.to(1, { duration: clampDur(c, c.cue('cc-infill-boundaries-1').start, 0.35) }));
   });

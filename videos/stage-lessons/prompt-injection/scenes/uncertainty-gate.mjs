@@ -13,7 +13,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -65,7 +64,7 @@ export default function uncertaintyGate(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const lr = largeReveal.value;
       const i20 = input20On.value;
       const gh = guessHi.value;
@@ -282,21 +281,11 @@ export default function uncertaintyGate(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(px0 + ((p * 0.25) % 1) * (px1 - px0), py0, {
-          radius: 4.5,
-          color: ROLE.host,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('bound-start', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('bound-start').start, 0.25) }));

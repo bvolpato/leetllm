@@ -23,7 +23,6 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeInNodes,
   fadeOutHalf,
@@ -37,7 +36,6 @@ import {
 } from '../parts.mjs';
 
 export default function size(s, c) {
-  const phase = s.value(0);
   const mode70B = s.value(0); // 0 = 8B, 1 = 70B challenge
   const factorStep = s.value(0); // 1..6 formula factors
   const shareVis = s.value(0);
@@ -307,7 +305,6 @@ export default function size(s, c) {
   const left70BDyn = guardedDynamic(
     () => fadeInHalf(mode70B.value),
     (a) => {
-      const pulse = 0.72 + 0.28 * Math.sin(phase.value * 5.0);
       const nodes = [
         txt(
           `${BIG_LAYERS} layers  ·  ${HEADS} KV heads  ·  ${HEAD_SIZE} width  ·  2 B`,
@@ -323,7 +320,7 @@ export default function size(s, c) {
       const askA = a * ask70Vis.value * fadeOutHalf(ans70Vis.value);
       if (askA > 0.02) {
         nodes.push(
-          txt('CALCULATE', -855, 22, 26, ROLE.focus, 'mono', 'left').opacity(askA * pulse),
+          txt('CALCULATE', -855, 22, 26, ROLE.focus, 'mono', 'left').opacity(askA),
           txt('What does one token cost?', -855, 82, 38, COSMOS.ink, 'serif', 'left').opacity(askA),
           txt('2 × 80 × 8 × 128 × 2  =  ?', -855, 148, 32, ROLE.focus, 'mono', 'left')
             .glow(6, ROLE.focus)
@@ -409,7 +406,6 @@ export default function size(s, c) {
   // Initial picture
   s.add(stageAura, prismView, header8B, stageCaption, left8BDyn, left70BDyn);
   orbitScene(s, c, prismView, { theta: -0.34, phi: 0.94 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, phase, 9.0, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0 cues (8B shape)
   c.show('shape', eq8B);

@@ -12,7 +12,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   guardedDynamic,
   quadArcPts,
@@ -37,7 +36,7 @@ export default function layeredSignals(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const r0 = row0Hi.value;
       const r1 = row1Hi.value;
       const r2 = row2Hi.value;
@@ -154,7 +153,6 @@ export default function layeredSignals(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('layered-signals-beat-1-focus-1', () => {
     s.play(

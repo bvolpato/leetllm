@@ -16,7 +16,6 @@ import {
   lumBar,
   makePlot,
   pairedContrastVariance,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -25,7 +24,6 @@ const P = AB_VISUAL_FIXTURES.paired;
 const TOY_PAIRED = pairedContrastVariance(9, 4, 3); // 7
 
 export default function pairedPrompts(s, c) {
-  const phase = s.value(0);
   const showCancel = s.value(0);
   const showVar = s.value(0);
   const showInd = s.value(0);
@@ -146,7 +144,6 @@ export default function pairedPrompts(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'cancel', showCancel, 1, { duration: 0.45 });
   c.show('variance', eqVar);

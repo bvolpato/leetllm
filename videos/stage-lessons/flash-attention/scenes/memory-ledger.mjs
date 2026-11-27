@@ -17,12 +17,10 @@ import {
   rect,
   remainDuration,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function memoryLedger(s, c) {
-  const phase = s.value(0);
   const showScore = s.value(0);
   const showFour = s.value(0);
   const showAxes = s.value(0);
@@ -148,7 +146,6 @@ export default function memoryLedger(s, c) {
   });
 
   s.add(bgAura, view3d, title, eq, live);
-  runPhase(s, c, phase, 10);
   orbitScene(s, c, view3d, { theta: -0.34, phi: 0.96 });
 
   c.on('memory-ledger-beat-1', () => s.play(showScore.to(0.6, { duration: 0.35 })));

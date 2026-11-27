@@ -2,20 +2,9 @@
 // Visual proof: 480 samples at 24 kHz = 20 ms (960 bytes) stretches by +50% to 30 ms when
 // mislabeled at 16 kHz, alongside 320 samples at 16 kHz = 20 ms (640 bytes).
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function pcmContract(s, c) {
-  const phase = s.value(0);
   const formulaOn = s.value(0);
   const stretchOn = s.value(0); // 0 = 20ms at 24kHz, 1 = 30ms mislabeled at 16kHz!
   const bytesOn = s.value(0);
@@ -37,7 +26,6 @@ export default function pcmContract(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const fm = formulaOn.value;
       const st = stretchOn.value;
       const bt = bytesOn.value;
@@ -165,12 +153,6 @@ export default function pcmContract(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.audio,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -178,8 +160,6 @@ export default function pcmContract(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('va-pcm-contract-1-0', () => {
     s.play(formulaOn.to(1, { duration: clampDur(c, c.cue('va-pcm-contract-1-0').start, 0.35) }));
   });

@@ -9,7 +9,6 @@ import {
   ROLE,
   aura,
   cinemaHeader,
-  driftValue,
   glowBar,
   guardedDynamic,
   tweenOn,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function hybridBudget(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=64-block ribbon, 2=2 GiB KV, 3=144 MiB/req recurrent, 4=54 GB + 15%, 5=65.3 GB total
 
   const header = cinemaHeader(
@@ -174,7 +172,6 @@ export default function hybridBudget(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 5.5, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-hybrid-budget-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-hybrid-budget-b1', step, 2, 0.3);

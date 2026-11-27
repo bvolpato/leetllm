@@ -9,14 +9,12 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   quadArcPts,
   txt,
 } from '../parts.mjs';
 
 export default function sseIdentity(s, c) {
-  const pulse = s.value(0);
   const startOn = s.value(0);
   const inheritOn = s.value(0);
   const beat1On = s.value(0);
@@ -35,7 +33,6 @@ export default function sseIdentity(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const inh = inheritOn.value > 0.5;
       const b1 = beat1On.value > 0.5;
       const clr = clearOn.value > 0.5;
@@ -87,10 +84,9 @@ export default function sseIdentity(s, c) {
           txt(row.idText, -810, y - 24, 28, row.col, 'mono', 'left'),
           txt(row.dataText, -810, y + 26, 28, COSMOS.ink, 'mono', 'left'),
 
-          beamWithPhotons(quadArcPts([110, y], [285, y], 0, 12), row.col, p + i * 0.3, {
+          beamWithPhotons(quadArcPts([110, y], [285, y], 0, 12), row.col, 0, {
             width: 3.2,
             glow: 7,
-            photonCount: 1,
           }),
 
           rect(540, 108, { fill: '#0e1526', stroke: row.regCol, width: 2.8, radius: 14 })
@@ -129,8 +125,6 @@ export default function sseIdentity(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-sse-identity-0', () => {
     s.play(startOn.to(1, { duration: clampDur(c, c.cue('se-sse-identity-0').start, 0.35) }));
   });

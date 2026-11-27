@@ -21,7 +21,6 @@ import {
   guardedDynamic,
   heroTitle,
   iqr,
-  livingDrift,
   mean,
   median,
   mix,
@@ -51,7 +50,6 @@ export function intro(s, c) {
   const finP = s.value(0);
   const cntP = s.value(0);
   const cpyP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.eligible, seed: 1 }));
   s.add(decorAura(-420, 40, 480, '#5ce1e61c', '#ff6b8b14'));
@@ -221,7 +219,6 @@ export function intro(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'intro-flags', flagP, 1, { dur: 0.7 });
   cueTo(s, c, 'intro-reading', readP, 1, { dur: 0.7 });
   cueTo(s, c, 'intro-rewind', rewindP, 1, { dur: 0.95 });
@@ -243,7 +240,6 @@ export function decisionTime(s, c) {
   const selP = s.value(0);
   const ageP = s.value(0);
   const noonP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.clock, seed: 2 }));
   s.add(decorAura(240, 20, 520, '#ffd1661c', '#5ce1e614'));
@@ -361,7 +357,6 @@ export function decisionTime(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'decision-packets', pktP, 1, { dur: 0.7 });
   cueTo(s, c, 'decision-filter', filP, 1, { dur: 0.7 });
   cueTo(s, c, 'decision-selected', selP, 1, { dur: 0.65, after: true });
@@ -378,7 +373,6 @@ export function temporalContract(s, c) {
   const pickP = s.value(0);
   const beat2P = s.value(0);
   const finP = s.value(0);
-  const drift = s.value(0);
 
   const winner = eligibleFeatureEvent(REVISION_RECORDS, 540, 'J-204');
 
@@ -501,7 +495,6 @@ export function temporalContract(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'temporal-contract-0', revP, 1, { dur: 0.7 });
   cueTo(s, c, 'temporal-contract-1', pickP, 1, { dur: 0.7, after: true });
   beatTo(s, c, 2, beat2P, 1, { dur: 0.8 });
@@ -519,7 +512,6 @@ export function numericalScale(s, c) {
   const sepP = s.value(0);
   const robP = s.value(0);
   const outP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.eligible, seed: 4 }));
   s.add(decorAura(0, 40, 560, '#5ce1e61a', '#ff6b8b14'));
@@ -654,7 +646,6 @@ export function numericalScale(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'numerical-scale-beat-1-focus-1', stdP, 1, { dur: 0.7 });
   cueTo(s, c, 'feature-standard-separation', sepP, 1, { dur: 0.7 });
   cueTo(s, c, 'numerical-scale-beat-2-focus-1', robP, 0.35, { dur: 0.55 });
@@ -677,7 +668,6 @@ export function runningStatistics(s, c) {
   const s3mP = s.value(0);
   const s3pP = s.value(0);
   const varP = s.value(0);
-  const drift = s.value(0);
 
   const trace = welfordTrace([2, 4, 6]);
 
@@ -793,7 +783,6 @@ export function runningStatistics(s, c) {
   });
 
   s.add(headline, eqTex, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'running-statistics-0', s1P, 0.04, { dur: 0.4 });
   cueTo(s, c, 'welford-first', s1P, 1, { dur: 0.8 });
   cueTo(s, c, 'welford-second', s2P, 1, { dur: 0.6 });
@@ -813,7 +802,6 @@ export function scaleArtifact(s, c) {
   const p0 = s.value(0);
   const p1 = s.value(0);
   const logP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.vector, seed: 6 }));
   s.add(decorAura(0, 30, 560, '#a78bfa1c', '#5ce1e614'));
@@ -904,7 +892,6 @@ export function scaleArtifact(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'scale-artifact-0', p0, 1, { dur: 0.7 });
   cueTo(s, c, 'scale-artifact-1', p1, 1, { dur: 0.7 });
   cueTo(s, c, 'feature-scale-log', logP, 1, { dur: 0.85 });

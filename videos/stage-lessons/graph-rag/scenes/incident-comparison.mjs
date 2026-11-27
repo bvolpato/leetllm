@@ -10,12 +10,10 @@ import {
   incidentSelection,
   lexicalRows,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function incidentComparison(s, c) {
-  const phase = s.value(0);
   const showBase = s.value(0);
   const showHop1 = s.value(0);
   const showHop2 = s.value(0);
@@ -40,7 +38,6 @@ export default function incidentComparison(s, c) {
   );
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sb = showBase.value;
     const h1 = showHop1.value;
     const h2 = showHop2.value;
@@ -48,7 +45,6 @@ export default function incidentComparison(s, c) {
     const sr = showReplace.value;
     const so = showOpen.value;
     const rv = showRevoke.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: 3 incident notes (strict prediction withholding on which drops out & which hop 2 adds!)
@@ -102,7 +98,7 @@ export default function incidentComparison(s, c) {
         rv > 0.3 ? COSMOS.rose : st > 0.4 ? COSMOS.emerald : sb > 0.4 ? COSMOS.rose : COSMOS.gold,
         {
           fill: rv > 0.3 ? '#29111a' : st > 0.4 ? '#0e2824' : '#231c10',
-          glow: st > 0.4 || rv > 0.3 ? 9 * pulse : 3,
+          glow: st > 0.4 || rv > 0.3 ? 9 : 3,
         },
       ),
       txt(
@@ -176,7 +172,7 @@ export default function incidentComparison(s, c) {
         so > 0.4 ? COSMOS.amber : sr > 0.3 ? COSMOS.rose : COSMOS.muted,
         {
           fill: so > 0.4 ? '#231c10' : '#181e34',
-          glow: sr > 0.3 ? 9 * pulse : 2,
+          glow: sr > 0.3 ? 9 : 2,
         },
       ),
       txt('PROPOSED 1-HOP: Service -> Breach (#2031)', 145, 52, 26, COSMOS.rose, 'mono', 'left'),
@@ -218,7 +214,6 @@ export default function incidentComparison(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('incident-comparison-look', () => s.play(showBase.to(0.15, { duration: 0.3 })));
   c.after('incident-comparison-baseline', () => s.play(showBase.to(1, { duration: 0.4 })));

@@ -6,7 +6,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
@@ -32,9 +31,6 @@ export function buildPublicMatches(s, c) {
 
   const matchT = s.value(0);
   const testT = s.value(0);
-  const pulse = s.value(0);
-  driftValue(s, c, pulse, 2.0);
-
   c.on('cc-public-index', () =>
     s.play(matchT.to(1, { duration: clampDur(c, c.cue('cc-public-index').start, 0.55) })),
   );
@@ -64,7 +60,6 @@ export function buildPublicMatches(s, c) {
       () => {
         const m = matchT.value;
         const t = testT.value;
-        const p = pulse.value;
         const nodes = [];
 
         // Left branch: Provenance / public-code index check
@@ -75,7 +70,7 @@ export function buildPublicMatches(s, c) {
               [-540, -44],
             ],
             ROLE.model,
-            p,
+            0,
           ),
         );
         nodes.push(txt('1. PUBLIC-CODE MATCH CHECK', -840, -4, 28, ROLE.model, 'mono', 'left'));
@@ -103,7 +98,7 @@ export function buildPublicMatches(s, c) {
               [140, -44],
             ],
             ROLE.ok,
-            p * 1.1,
+            0,
             { alpha: tAlpha },
           ),
         );

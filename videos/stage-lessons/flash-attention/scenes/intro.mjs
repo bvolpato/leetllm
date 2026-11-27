@@ -18,7 +18,6 @@ import {
   orbitScene,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -57,11 +56,9 @@ export default function intro(s, c) {
 
   // Part 1: 2-slot SRAM scratch + waiting key + persistent row summary
   const part1Live = guardedDynamic(showPart1, (a) => {
-    const p = phase.value;
     const sv = savedPair.value;
     const ru = reusedSlot.value;
     const rd = rowDone.value;
-    const pulse = 0.65 + 0.35 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('ON-CHIP SRAM SCRATCH (2 SLOTS)', -855, -138, 26, COSMOS.gold, 'mono', 'left').opacity(a),
@@ -130,7 +127,7 @@ export default function intro(s, c) {
       nodes.push(
         glassCell(-405, 148, 320, 108, COSMOS.emerald, {
           fill: '#0d2224',
-          glow: 9 * pulse,
+          glow: 9,
           opacity: sv * a,
         }),
         txt('ROW SUMMARY', -405, 118, 26, COSMOS.emerald, 'mono').opacity(sv * a),
@@ -311,7 +308,6 @@ export default function intro(s, c) {
   });
 
   s.add(bgAura, terrain3d, title1, part1Live, part2Live);
-  runPhase(s, c, phase, 16);
   const part1Dur = Math.max(2.0, c.cue('read-test').start - c.start - 0.5);
   orbitScene(
     s,

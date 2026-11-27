@@ -6,18 +6,15 @@ import {
   SPEC_STALE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function identity(s, c) {
-  const phase = s.value(0);
   const revOrig = s.value(0);
   const saved = s.value(0);
   const hdrChanged = s.value(0);
@@ -38,7 +35,6 @@ export default function identity(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const ro = revOrig.value;
     const sv = saved.value;
     const hc = hdrChanged.value;
@@ -47,7 +43,6 @@ export default function identity(s, c) {
     const rm = revMiss.value;
     const cm = compiling.value;
     const rb = revRebuilt.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: Source + Header input
@@ -57,7 +52,7 @@ export default function identity(s, c) {
 
       glassCell(-630, 88, 410, 118, hc > 0.5 ? COSMOS.gold : ROLE.cubin, {
         fill: hc > 0.5 ? '#2b2210' : '#0e2624',
-        glow: hc > 0.5 ? 11 * pulse : 6,
+        glow: hc > 0.5 ? 11 : 6,
       }),
       txt('INCLUDED HEADER', -630, 60, 26, hc > 0.5 ? COSMOS.gold : ROLE.cubin, 'mono'),
       txt(
@@ -99,7 +94,7 @@ export default function identity(s, c) {
         rb > 0.5 ? ROLE.cubin : rm > 0.5 ? COSMOS.gold : kh > 0.5 ? ROLE.ir : COSMOS.dim,
         {
           fill: rb > 0.5 ? '#0d2924' : '#0e192b',
-          glow: rb > 0.5 ? 12 * pulse : rm > 0.5 ? 9 : 2,
+          glow: rb > 0.5 ? 12 : rm > 0.5 ? 9 : 2,
         },
       ),
       txt('LOOKUP B: KEY = MAIN + HEADER BYTES', 240, 56, 26, COSMOS.muted, 'mono'),
@@ -138,9 +133,7 @@ export default function identity(s, c) {
       }),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-820 + u * 1640, 326, { radius: 6, color: rb > 0.5 ? ROLE.cubin : COSMOS.gold }),
       txt(
         rb > 0.5
           ? 'Main-only key served stale 9 · full recipe key rebuilt 18'
@@ -159,7 +152,6 @@ export default function identity(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.after('cache-original', () =>
     s.play(revOrig.to(1, { duration: remainDuration(c, 'cache-original', 0.4) })),

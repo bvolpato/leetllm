@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function ownershipContract(s, c) {
-  const phase = s.value(0);
   // step: 0..5=collective ops, 6=scaling Q, 7=avg 833.25, 8=ncclAvg, 9=double-div 208.31!, 10=objective match
   const step = s.value(0);
 
@@ -31,7 +28,6 @@ export default function ownershipContract(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const nodes = [];
 
     if (st < 5.5) {
@@ -122,9 +118,7 @@ export default function ownershipContract(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: st >= 9 ? ROLE.bad : ROLE.comm }),
       txt(
         st >= 6
           ? 'Match ncclSum vs ncclAvg to your training loss scaling; never divide by world size twice'
@@ -140,7 +134,6 @@ export default function ownershipContract(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-ownership-contract-b0-s0', 0],
     ['nc-ownership-contract-b0-s1', 1],

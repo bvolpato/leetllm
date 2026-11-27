@@ -11,12 +11,10 @@ import {
   guardedDynamic,
   heroTitle,
   rect,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function activationBudget(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1); // Beat 0: 32 x 128 x 768 x 4 = 12 MiB
   const inputSolved = s.value(0);
 
@@ -237,7 +235,6 @@ export default function activationBudget(s, c) {
   });
 
   s.add(bgAura, title, part1, part2, part3);
-  runPhase(s, c, phase, 14);
 
   c.after('activation-input', () => {
     const dur = afterDuration(c, 'activation-input', 0.4);

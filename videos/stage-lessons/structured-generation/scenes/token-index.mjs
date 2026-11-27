@@ -88,7 +88,6 @@ export default function tokenIndex(s, c) {
   const trieRibbon = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const tp = trieProg.value;
       const lit = Math.round(tp * SHARED_BYTES.length);
       const nodes = [];
@@ -126,21 +125,16 @@ export default function tokenIndex(s, c) {
       const braceX = x0 + 5 * step;
       // Branch A: terminates at brace -> iled"} (emerald)
       nodes.push(
-        beamWithPhotons(quadArcPts([braceX + 42, y], [120, y - 34], -18), ROLE.legal, p * 1.1, {
+        beamWithPhotons(quadArcPts([braceX + 42, y], [120, y - 34], -18), ROLE.legal, 0, {
           width: 3.2,
           photonCount: 1,
         }),
         txt('A: iled"}  (ACCEPT)', 140, y - 36, 30, ROLE.legal, 'mono', 'left').glow(7, ROLE.legal),
         // Branch B: extra edge -> ! -> iled"}! (rose)
-        beamWithPhotons(
-          quadArcPts([braceX + 42, y + 10], [120, y + 54], 18),
-          ROLE.prune,
-          p * 1.1 + 0.5,
-          {
-            width: 3.2,
-            photonCount: 1,
-          },
-        ),
+        beamWithPhotons(quadArcPts([braceX + 42, y + 10], [120, y + 54], 18), ROLE.prune, 0, {
+          width: 3.2,
+          photonCount: 1,
+        }),
         tokenChip('!', 160, y + 54, { w: 66, h: 58, color: ROLE.prune, size: 32, glow: 8 }),
         txt('B: iled"}!  (PRUNE)', 225, y + 54, 30, ROLE.prune, 'mono', 'left'),
       );

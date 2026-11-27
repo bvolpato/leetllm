@@ -2,20 +2,9 @@
 // 3 replays of the same 15-char ghost: (1) unchanged Tab inserts 15 chars, (2) policy changes before Tab
 // -> STRICT prediction pause -> inserts NOTHING, (3) typing "all" rebases remaining "ows(request)" at col 26!
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function acceptanceRace(s, c) {
-  const phase = s.value(0);
   const policyChg = s.value(0);
   const emptyReveal = s.value(0); // STRICT after tab-empty!
   const rebaseOn = s.value(0);
@@ -32,7 +21,6 @@ export default function acceptanceRace(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const pc = policyChg.value;
       const em = emptyReveal.value;
       const rb = rebaseOn.value;
@@ -123,12 +111,6 @@ export default function acceptanceRace(s, c) {
         ),
         txt('CHECK TWICE', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('At paint AND atomically at Tab', 480, -378, 26, ROLE.ok, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -136,8 +118,6 @@ export default function acceptanceRace(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('tab-policy', () => {
     s.play(policyChg.to(1, { duration: clampDur(c, c.cue('tab-policy').start, 0.35) }));
   });

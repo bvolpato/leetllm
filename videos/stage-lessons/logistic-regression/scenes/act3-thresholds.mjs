@@ -22,7 +22,6 @@ import {
   guardedDynamic,
   harmonicFixture,
   heroTitle,
-  livingDrift,
   makeAxes,
   mix,
   neonCurve,
@@ -46,7 +45,6 @@ import {
 export function boundaryScene(s, c) {
   const regP = s.value(0);
   const lowP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.threshold, seed: 13 }));
   s.add(decorAura(-180, 0, 560, '#ffd1661c', '#5ce1e614'));
@@ -145,7 +143,6 @@ export function boundaryScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'boundary-region', regP, 1, { dur: 0.85 });
   cueTo(s, c, 'lower-threshold', lowP, 1, { dur: 1.0 });
 }
@@ -158,7 +155,6 @@ export function confusionScene(s, c) {
   const routeP = s.value(0);
   const sweepP = s.value(0);
   const costP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.score, seed: 14 }));
   s.add(decorAura(0, 10, 560, '#5ce1e61a', '#ff6b8b14'));
@@ -290,7 +286,6 @@ export function confusionScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'route-validation', routeP, 1, { dur: 1.1 });
   cueTo(s, c, 'threshold-sweep-b2-2', sweepP, 1, { dur: 1.25 });
   cueTo(s, c, 'cost-alternatives-b3-2', costP, 1, { dur: 0.9 });
@@ -304,7 +299,6 @@ export function denominatorsScene(s, c) {
   const precP = s.value(0);
   const recP = s.value(0);
   const f1P = s.value(0);
-  const drift = s.value(0);
 
   const tpTokens = validationScores.filter((v) => v.label === 1 && v.p >= 0.2);
   const fpTokens = validationScores.filter((v) => v.label === 0 && v.p >= 0.2);
@@ -404,7 +398,6 @@ export function denominatorsScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'precision-cohort', precP, 1, { dur: 0.9 });
   cueTo(s, c, 'recall-cohort', recP, 1, { dur: 0.9 });
   cueTo(s, c, 'f1-receipt', f1P, 1, { dur: 0.75 });
@@ -422,7 +415,6 @@ export function harmonicMean(s, c) {
   const ansP = s.value(0);
   const s2P = s.value(0);
   const cntP = s.value(0);
-  const drift = s.value(0);
 
   const ext = harmonicFixture(1, 0, 99);
 
@@ -545,7 +537,6 @@ export function harmonicMean(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-harmonic-mean-step-0', s0P, 1, { dur: 0.7 });
   cueTo(s, c, 'lr-harmonic-formula', fmlP, 1, { dur: 0.8 });
   cueTo(s, c, 'lr-harmonic-mean-step-1', s1P, 1, { dur: 0.85 });
@@ -570,7 +561,6 @@ export function capacityScene(s, c) {
   const seat6P = s.value(0);
   const tri6P = s.value(0);
   const ch6P = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.threshold, seed: 17 }));
   s.add(decorAura(0, 10, 560, '#ffd1661b', '#ff6b8b14'));
@@ -693,7 +683,6 @@ export function capacityScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'policy-queues', q0P, 1, { dur: 0.7 });
   cueTo(s, c, 'policy-middle', midP, 1, { dur: 0.9 });
   cueTo(s, c, 'policy-low', lowP, 1, { dur: 0.9 });
@@ -720,7 +709,6 @@ export function calibratedCost(s, c) {
   const crossP = s.value(0);
   const cutP = s.value(0);
   const capP = s.value(0);
-  const drift = s.value(0);
 
   const breakEven = probabilityCost(0.2).cut; // 18/138 ≈ 0.13043
 
@@ -890,7 +878,6 @@ export function calibratedCost(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'lr-expected-auto', autoP, 1, { dur: 0.9 });
   cueTo(s, c, 'lr-expected-review', revP, 1, { dur: 0.9 });
   cueTo(s, c, 'first-risk-answer', ans1P, 1, { after: true, dur: 0.6 });

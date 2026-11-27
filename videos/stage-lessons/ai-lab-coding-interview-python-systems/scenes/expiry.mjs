@@ -5,7 +5,6 @@ import { line } from 'vizmatic/stage';
 import {
   COSMOS,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   expiryState,
   glowCross,
@@ -23,7 +22,6 @@ import {
 export default function expiry(s, c) {
   const title = sceneHeading(['Two reads, one', 'millisecond apart'], { accent: ROLE.focus });
 
-  const amb = ambientClock(s, c);
   const written = s.value(0);
   const hasDeadline = s.value(0);
   const clockShown = s.value(0);
@@ -51,7 +49,6 @@ export default function expiry(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const isWritten = written.value > 0.5;
       const isDl = hasDeadline.value > 0.5;
       const isMiss = revealMiss.value > 0.5;
@@ -245,7 +242,7 @@ export default function expiry(s, c) {
             'center',
           )
             .glow(7, ROLE.focus)
-            .opacity(alpha * (0.82 + 0.18 * pulse)),
+            .opacity(alpha),
         );
       } else {
         nodes.push(

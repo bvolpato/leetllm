@@ -5,16 +5,13 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function pipelineScaling(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=policy, 1=microbatches, 2=sum 20, 3=mean 5, 4=double-scaled 1.25, 5=unequal weights
 
   const bgAura = aura(0, 20, 620, '#6ee7b718', '#fb71851c');
@@ -29,7 +26,6 @@ export default function pipelineScaling(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = stage.value;
-    const p = phase.value;
     const grads = [2, 4, 6, 8];
 
     const nodes = [
@@ -93,9 +89,7 @@ export default function pipelineScaling(s, c) {
       txt('Silent 4× update shrinkage!', 550, 182, 26, ROLE.bad, 'sans'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 275, { radius: 6, color: st >= 4 ? ROLE.bad : ROLE.good }),
       txt(
         st >= 5
           ? 'Unequal microbatches must weight by sample count; verify against an unsplit full-batch step'
@@ -112,7 +106,6 @@ export default function pipelineScaling(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-pipeline-scaling-0', () => s.play(stage.to(0, { duration: 0.25 })));
   c.on('pt-pipeline-scaling-1', () =>

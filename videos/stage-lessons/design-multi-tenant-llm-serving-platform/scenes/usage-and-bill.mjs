@@ -12,7 +12,6 @@ import {
   STEP_TOTAL_COST,
   aura,
   cinemaHeader,
-  driftValue,
   glowMeter,
   guardedDynamic,
   stepAfter,
@@ -21,7 +20,6 @@ import {
 } from '../parts.mjs';
 
 export default function usageAndBill(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const recFieldsOn = s.value(0);
   const retryAttemptOn = s.value(0);
@@ -278,8 +276,6 @@ export default function usageAndBill(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.0);
-
   stepOn(s, c, 'mt-usage-and-bill-b0', b0On, 1);
   stepAfter(s, c, 'mt-usage-and-bill-s0-0', recFieldsOn, 1);
   stepAfter(s, c, 'mt-usage-and-bill-s0-1', retryAttemptOn, 1);

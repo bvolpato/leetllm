@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   gateNode,
   glowDot,
@@ -42,7 +41,7 @@ export default function releaseObservation(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const pr = proposeOn.value;
       const rd = readOn.value;
       const fl = fileOn.value;
@@ -186,12 +185,6 @@ export default function releaseObservation(s, c) {
             .glow(8, beamCol)
             .opacity(Math.max(ak, gp)),
         );
-      } else {
-        nodes.push(
-          circle(6, { fill: ROLE.runtime, stroke: null })
-            .at(rLeft + ((p * 0.45) % 1) * rSpan, rY)
-            .glow(10, ROLE.runtime),
-        );
       }
 
       // Bottom execution-boundary comparison (always visible dim, illuminates on `release-host`)
@@ -257,7 +250,6 @@ export default function releaseObservation(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('release-propose', () => {
     s.play(proposeOn.to(1, { duration: clampDur(c, c.cue('release-propose').start, 0.3) }));

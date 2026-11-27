@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   clampDur,
   cleanRelease,
-  driftValue,
   guardedDynamic,
   orbNode,
   orbRadius,
@@ -45,7 +44,7 @@ export default function typedObservationHandoff(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const ms = missingHi.value;
       const rq = reqOn.value;
       const au = authOn.value;
@@ -182,7 +181,6 @@ export default function typedObservationHandoff(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tool-missing', () => {
     s.play(missingHi.to(1, { duration: clampDur(c, c.cue('tool-missing').start, 0.35) }));

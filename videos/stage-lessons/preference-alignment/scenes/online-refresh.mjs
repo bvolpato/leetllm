@@ -3,7 +3,6 @@ import {
   COSMOS,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -120,7 +119,6 @@ export default function onlineRefresh(s, c) {
         width: 4,
         glow: 9,
       }),
-      glowDot(-15 + 30 * Math.sin(p * 3), 6, { radius: 7, color: COSMOS.emerald, glow: 12 }),
 
       // BOTTOM: Online DPO / IPO / IPO-MD sampling distribution spectrum
       glassCell(0, 272, 1680, 212, mx > 0.2 || fm > 0.2 ? COSMOS.violet : COSMOS.dim, {

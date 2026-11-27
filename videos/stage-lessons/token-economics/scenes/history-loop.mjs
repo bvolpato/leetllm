@@ -11,7 +11,6 @@ import {
   cents,
   cinemaHeader,
   clampDur,
-  driftValue,
   fmtInt,
   guardedDynamic,
   historyUsage,
@@ -188,7 +187,6 @@ export default function historyLoop(s, c) {
   );
 
   s.add(sceneAura, header, stageCanvas);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('te-history-loop-0', () => {
     const t = c.cue('te-history-loop-0').start;

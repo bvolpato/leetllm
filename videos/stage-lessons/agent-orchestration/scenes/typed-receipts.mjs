@@ -12,7 +12,6 @@ import {
   conduitPts,
   crossSwap,
   glowArrow,
-  glowDot,
   glowRing,
   glowingTrail,
   guardedDynamic,
@@ -20,7 +19,6 @@ import {
   line,
   lumBar,
   rule,
-  runAmbientPhase,
   samplePolyline,
   shortHash,
   tweenCue,
@@ -28,7 +26,6 @@ import {
 } from '../parts.mjs';
 
 export default function typedReceipts(s, c) {
-  const phase = s.value(0);
   const stage0 = s.value(1);
   const stage1 = s.value(0);
   const stage2 = s.value(0);
@@ -73,7 +70,6 @@ export default function typedReceipts(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const ph = phase.value;
     const m0 = stage0.value;
     const m1 = stage1.value;
     const m2 = stage2.value;
@@ -147,11 +143,6 @@ export default function typedReceipts(s, c) {
           opacity: m0,
           core: false,
         }),
-        glowDot(...samplePolyline(pIn, (ph * 0.35) % 1), {
-          radius: 6,
-          color: ROLE.eval,
-          opacity: m0,
-        }),
         lumBar(midX, midY, 240, 120, {
           color: evalEvLit.value > 0.3 ? ROLE.eval : ROLE.triage,
           fillOpacity: 0.18,
@@ -215,15 +206,7 @@ export default function typedReceipts(s, c) {
             core: false,
           }),
         );
-        if (ch.allowed) {
-          nodes.push(
-            glowDot(...samplePolyline(pts, (ph * 0.35 + 0.3) % 1), {
-              radius: 6.5,
-              color: ROLE.pass,
-              opacity: m0,
-            }),
-          );
-        } else if (ch.hot > 0.3) {
+        if (!ch.allowed && ch.hot > 0.3) {
           const [bx, by] = samplePolyline(pts, 0.55);
           nodes.push(
             line([bx - 14, by - 14], [bx + 14, by + 14], { stroke: ROLE.reject, width: 4.5 })
@@ -578,7 +561,6 @@ export default function typedReceipts(s, c) {
   });
 
   s.add(bgAtmo, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   // Beat 0: Narrow output wrapper
   tweenCue(s, c, 'node-state', stateLit, 1, { duration: 0.35 });

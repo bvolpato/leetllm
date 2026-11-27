@@ -6,18 +6,15 @@ import {
   aura,
   bottomEdge,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function transfer(s, c) {
-  const phase = s.value(0);
   const qFocus = s.value(0);
   const revPanels = s.value(0); // 2 full + 1 tail
   const revLoads = s.value(0); // B[1,1]=4 and B[3,1]=-2
@@ -44,7 +41,6 @@ export default function transfer(s, c) {
   const maskedLoads = BOTTOM_SAFE.panels.map((p) => p.right[1][1]); // [4, -2, 0]
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const rp = revPanels.value;
     const rl = revLoads.value;
     const tz = revTailZero.value;
@@ -53,7 +49,6 @@ export default function transfer(s, c) {
     const p2p = revP2Prod.value;
     const p2s = revP2Sum.value;
     const p3s = revP3Sum.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8 + qFocus.value);
 
     const nodes = [
       txt('5 INNER POSITIONS (k = 0..4) FOR TOP-RIGHT C[0, 1]', 0, -256, 28, COSMOS.cyan, 'mono'),
@@ -91,7 +86,7 @@ export default function transfer(s, c) {
 
         glassCell(cx, 22, 160, 66, highlightMasked ? COSMOS.gold : ROLE.b, {
           fill: highlightMasked ? '#2c2210' : '#261120',
-          glow: highlightMasked ? 12 * pulse : 5,
+          glow: highlightMasked ? 12 : 5,
         }),
         txt(String(bCol1[k]), cx, 22, 36, highlightMasked ? COSMOS.gold : ROLE.b, 'mono'),
       );
@@ -173,9 +168,7 @@ export default function transfer(s, c) {
         );
       }
       if (p3s > 0.5) {
-        const u = (p * 0.7) % 1;
         nodes.push(
-          glowDot(-405 + u * 995, 304, { radius: 7, color: ROLE.good }),
           txt(
             'T(1,1) stayed for the loads, skipped its store → neighbor gets exact 9!',
             0,
@@ -192,7 +185,6 @@ export default function transfer(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('bottom-question', () =>
     s.play(qFocus.to(1, { duration: remainDuration(c, 'bottom-question', 0.45) })),

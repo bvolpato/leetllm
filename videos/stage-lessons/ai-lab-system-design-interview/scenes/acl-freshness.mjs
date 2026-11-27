@@ -8,14 +8,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function aclFreshness(s, c) {
-  const phase = s.value(0);
   const gapOn = s.value(0);
   const auditOn = s.value(0);
 
@@ -36,7 +34,6 @@ export default function aclFreshness(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const gp = gapOn.value;
       const au = auditOn.value;
       const nodes = [];
@@ -141,12 +138,6 @@ export default function aclFreshness(s, c) {
         ).opacity(aAlpha),
         txt('FRESHNESS PREDICATE', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('0 <= age <= budget (finite & known!)', 480, -378, 26, COSMOS.ink, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.warn,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -154,8 +145,6 @@ export default function aclFreshness(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('sd-acl-freshness-1-operation', () => {
     s.play(
       gapOn.to(1, { duration: clampDur(c, c.cue('sd-acl-freshness-1-operation').start, 0.4) }),

@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   quadArcPts,
@@ -40,7 +39,7 @@ export default function selfConsistency(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const mj = majOn.value;
       const ti = tieOn.value;
       const rv = revOn.value;
@@ -127,7 +126,6 @@ export default function selfConsistency(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-self-consistency-0', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('aa-self-consistency-0').start, 0.25) }));

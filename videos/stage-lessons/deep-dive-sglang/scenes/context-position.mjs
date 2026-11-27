@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function contextPosition(s, c) {
-  const phase = s.value(0);
   // step: 0=shared prefix -> ticket divergence, 1=repeated Label/Explanation separate hidden states,
   // 2=early timestamp/template token breaks hit, 3=output-only grammar vs prompt-rendered schema
   const step = s.value(0);
@@ -32,7 +29,6 @@ export default function contextPosition(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st < 2) {
@@ -141,9 +137,7 @@ export default function contextPosition(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 308, { radius: 6, color: st >= 2 ? COSMOS.gold : ROLE.radix }),
       txt(
         st >= 3
           ? 'Schema in prompt changes tokens; output mask keeps KV.'
@@ -161,7 +155,6 @@ export default function contextPosition(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-context-position-beat-0', 0],
     ['sg-context-diverge', 1, true],

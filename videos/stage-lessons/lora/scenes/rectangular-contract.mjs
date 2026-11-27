@@ -14,12 +14,10 @@ import {
   rect,
   rectangularExample,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function rectangularContract(s, c) {
-  const phase = s.value(0);
   const showRect = s.value(1);
   const showStep1 = s.value(0);
   const showStep2 = s.value(0);
@@ -231,7 +229,6 @@ export default function rectangularContract(s, c) {
   });
 
   s.add(bgAura, title, partRect, partFlops);
-  runPhase(s, c, phase, 14);
 
   c.on('rectangular-contract-1', () => s.play(showStep1.to(1, { duration: 0.4 })));
   c.on('rectangular-contract-2', () => s.play(showStep2.to(1, { duration: 0.35 })));

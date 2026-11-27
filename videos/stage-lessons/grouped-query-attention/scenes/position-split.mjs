@@ -16,7 +16,6 @@ import {
   line,
   playCue,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -25,8 +24,6 @@ export default function positionSplit(s, c) {
   const rotKey = [-baseKey[1], baseKey[0]]; // [-2, 5]
   const q0Abs = MLA.WT.map((row) => dotProd(row, MLA.q)); // [1, 2]
   const q1Abs = MLA.WT.map((row) => dotProd(row, [MLA.q[1], -MLA.q[0]])); // [0, -1]
-
-  const phase = s.value(0);
   const angle = s.value(0); // 0 -> pi/2 on 'turn'
   const showAxisNote = s.value(0);
   const showId = s.value(0);
@@ -255,7 +252,6 @@ export default function positionSplit(s, c) {
 
   s.add(cinemaAtmosphere(ROLE.pos, ROLE.gold), title, plane.node, live);
   c.show('back', ropeEq, { fade: 0.4 });
-  runPhase(s, c, phase, 14);
 
   playCue(
     s,

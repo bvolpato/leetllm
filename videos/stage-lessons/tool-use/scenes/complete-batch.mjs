@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -43,7 +42,7 @@ export default function completeBatch(s, c) {
   const mainAct = guardedDynamic(
     () => fadeOutHalf(zeroMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const st = statusOn.value;
       const bc = byteCapOn.value;
       const lf = lateFailMode.value;
@@ -179,7 +178,7 @@ export default function completeBatch(s, c) {
   const zeroAct = guardedDynamic(
     () => fadeInHalf(zeroMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const zd = zeroDetailOn.value;
       const nodes = [];
 
@@ -255,7 +254,6 @@ export default function completeBatch(s, c) {
   );
 
   s.add(stageAura, header, mainAct, zeroAct);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-complete-batch-1', () => {
     s.play(pulse.to(0.35, { duration: clampDur(c, c.cue('tu-complete-batch-1').start, 0.25) }));

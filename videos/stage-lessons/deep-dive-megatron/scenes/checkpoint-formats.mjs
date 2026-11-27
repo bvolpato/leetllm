@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function checkpointFormats(s, c) {
-  const phase = s.value(0);
   // step: 0=optimizer API, 1=DP-reshardable vs fully-reshardable, 2=Energon cursor, 3=missing raises, 4=absent restarts, 5=3/4 busy, 6=atomic publish
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function checkpointFormats(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     const rows = [
@@ -79,9 +75,7 @@ export default function checkpointFormats(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 295, { radius: 6, color: ROLE.tp }),
       txt(
         'Converting weights gives an inference model; continuing training needs optimizer + data cursor too',
         0,
@@ -95,7 +89,6 @@ export default function checkpointFormats(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['mg-checkpoint-formats-b0', 0],
     ['mg-format-dp', 1],

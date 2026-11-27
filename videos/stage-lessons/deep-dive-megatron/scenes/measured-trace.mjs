@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function measuredTrace(s, c) {
-  const phase = s.value(0);
   // step: 0=async enqueue, 1=CUDA event sync, 2=Nsight Sys/Compute + NCCL bw, 3=axis diagnosis, 4=TP crossing slow link
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function measuredTrace(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 1) {
@@ -122,9 +118,7 @@ export default function measuredTrace(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 295, { radius: 6, color: ROLE.cp }),
       txt(
         'Active warps alone never diagnose a link stall; change one causal input on a matched workload',
         0,
@@ -138,7 +132,6 @@ export default function measuredTrace(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['mg-measured-trace-b0', 0],
     ['mg-completed-work', 1],

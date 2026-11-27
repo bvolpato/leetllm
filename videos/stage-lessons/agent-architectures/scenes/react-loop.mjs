@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   nextAction,
   orbNode,
@@ -38,7 +37,7 @@ export default function reactLoop(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const rt = routeOn.value;
       const r2 = run2On.value;
       const cl = closedOn.value;
@@ -140,7 +139,6 @@ export default function reactLoop(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('loop-open', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('loop-open').start, 0.25) }));

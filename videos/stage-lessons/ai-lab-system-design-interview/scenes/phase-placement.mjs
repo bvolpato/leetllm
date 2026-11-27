@@ -9,8 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   sysNode,
   trimSeg,
@@ -18,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function phasePlacement(s, c) {
-  const phase = s.value(0);
   const chunkOn = s.value(0);
   const disaggOn = s.value(0);
   const specOn = s.value(0);
@@ -41,7 +38,6 @@ export default function phasePlacement(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ch = chunkOn.value;
       const ds = disaggOn.value;
       const sp = specOn.value;
@@ -132,9 +128,8 @@ export default function phasePlacement(s, c) {
       });
       const [kA, kB] = trimSeg(pfPt, dcPt, nPf.r + 16, nDc.r + 16);
       nodes.push(
-        beamWithPhotons([kA, kB], ROLE.focus, p * 1.1, {
+        beamWithPhotons([kA, kB], ROLE.focus, 0, {
           width: 4,
-          photonCount: 2,
           alpha: dsAlpha,
         }),
         txt(
@@ -194,12 +189,6 @@ export default function phasePlacement(s, c) {
         ).opacity(spAlpha),
         txt('PHASE INTERFERENCE', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Chunk · Disaggregate · Speculate', 480, -378, 26, COSMOS.ink, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.req,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -207,8 +196,6 @@ export default function phasePlacement(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('sd-phase-placement-0-result', () => {
     s.play(
       chunkOn.to(1, { duration: clampDur(c, c.cue('sd-phase-placement-0-result').start, 0.4) }),

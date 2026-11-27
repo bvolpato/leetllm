@@ -13,7 +13,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fsmNode,
@@ -24,7 +23,6 @@ import {
 } from '../parts.mjs';
 
 export default function parserBytes(s, c) {
-  const pulse = s.value(0);
   const act = s.value(0); // 0 = duplicate keys, 1 = NaN/overflow/[], 2 = incomplete bypass
   const provHi = s.value(0);
   const pairsOn = s.value(0);
@@ -47,7 +45,6 @@ export default function parserBytes(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(Math.min(1, act.value)),
     (a) => {
-      const p = pulse.value;
       const pv = provHi.value;
       const pr = pairsOn.value;
       const dr = dupReject.value;
@@ -91,7 +88,7 @@ export default function parserBytes(s, c) {
         beamWithPhotons(
           quadArcPts([-310, -55], [60, -75], -22),
           dr > 0.3 ? ROLE.prune : ROLE.fsm,
-          p * 1.1,
+          0,
           {
             alpha: a * (0.35 + 0.65 * Math.max(pr, dr)),
             width: 3.4,
@@ -174,7 +171,6 @@ export default function parserBytes(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(Math.min(1, act.value)) * fadeOutHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
       const cr = constReject.value;
       const ov = overflowOn.value;
       const fr = finiteReject.value;
@@ -248,7 +244,7 @@ export default function parserBytes(s, c) {
         beamWithPhotons(
           quadArcPts([-605, 240], [-290, 240], -20),
           ar > 0.3 ? ROLE.prune : ROLE.fsm,
-          p * 1.1,
+          0,
           {
             alpha: a,
             width: 3.2,
@@ -343,7 +339,6 @@ export default function parserBytes(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-parser-bytes-0', () => {
     s.play(provHi.to(0.5, { duration: clampDur(c, c.cue('sg-parser-bytes-0').start, 0.3) }));

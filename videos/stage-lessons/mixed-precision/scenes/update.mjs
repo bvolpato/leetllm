@@ -14,12 +14,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function update(s, c) {
-  const phase = s.value(0);
   const stepVal = s.value(0); // 0 -> 2 -> 3 -> 6
 
   const bgAura = aura(120, 0, 660, '#5ce1e622', '#ffd16614');
@@ -45,8 +43,6 @@ export default function update(s, c) {
     const sv = stepVal.value;
     const step = Math.min(6, Math.max(0, Math.floor(sv + 1e-6)));
     const frac = Math.max(0, Math.min(1, sv - step));
-    const ph = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(ph * 3.6);
     const cur = WEIGHT_HIST[step];
 
     const nodes = [
@@ -64,7 +60,7 @@ export default function update(s, c) {
         stroke: COSMOS.rose,
         width: 3,
         dash: [10, 7],
-      }).glow(6 * pulse, COSMOS.rose),
+      }).glow(6, COSMOS.rose),
       line([xStep(0), yBelow], [xStep(6), yBelow], { stroke: '#35486e', width: 2.5 }),
 
       // Left axis labels
@@ -172,7 +168,6 @@ export default function update(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('two-updates', () => s.play(stepVal.to(2, { duration: 1.4 })));
   c.on('third-update', () =>

@@ -9,12 +9,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function tokenOffsets(s, c) {
-  const phase = s.value(0);
   const showModel = s.value(0);
   const showTotal = s.value(0);
   const showShort = s.value(0);
@@ -32,13 +30,11 @@ export default function tokenOffsets(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sm = showModel.value;
     const st = showTotal.value;
     const ss = showShort.value;
     const sp = showPrepend.value;
     const sr = showParser.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const liveTotal = ss > 0.4 ? 16 : 17;
     const bodyToks = ss > 0.4 ? 11 : 12;
@@ -78,7 +74,7 @@ export default function tokenOffsets(s, c) {
         ss > 0.4 ? COSMOS.emerald : st > 0.4 ? COSMOS.rose : COSMOS.gold,
         {
           fill: ss > 0.4 ? '#0e2824' : st > 0.4 ? '#28111a' : '#181e34',
-          glow: st > 0.4 ? 9 * pulse : 3,
+          glow: st > 0.4 ? 9 : 3,
         },
       ),
       txt(
@@ -124,7 +120,7 @@ export default function tokenOffsets(s, c) {
       ),
       glassCell(495, -92, 760, 152, sp > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: '#0e2624',
-        glow: sp > 0.3 ? 8 * pulse : 2,
+        glow: sp > 0.3 ? 8 : 2,
       }),
       txt(
         'Embedded copy: [source + heading] + body',
@@ -157,7 +153,7 @@ export default function tokenOffsets(s, c) {
       txt('4. STRUCTURE PARSER & RECURSIVE FALLBACK', 110, 32, 26, COSMOS.amber, 'mono', 'left'),
       glassCell(495, 152, 760, 168, sr > 0.3 ? COSMOS.amber : COSMOS.muted, {
         fill: '#231b10',
-        glow: sr > 0.3 ? 8 * pulse : 2,
+        glow: sr > 0.3 ? 8 : 2,
       }),
       txt('Markdown ## -> keep PDF page + coordinates', 145, 108, 26, COSMOS.gold, 'mono', 'left'),
       txt(
@@ -195,7 +191,6 @@ export default function tokenOffsets(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('measure-full-input', () => s.play(showModel.to(0.4, { duration: 0.35 })));
   c.on('token-offsets-0', () => s.play(showModel.to(0.7, { duration: 0.35 })));

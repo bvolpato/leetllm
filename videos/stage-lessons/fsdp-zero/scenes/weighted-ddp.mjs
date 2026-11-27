@@ -4,7 +4,6 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
@@ -75,9 +74,7 @@ export default function weightedDdp(s, c) {
       txt('Empty rank sends 0 & joins sync', 355, 166, 26, COSMOS.muted, 'sans'),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 274, { radius: 6, color: sf > 0.5 ? ROLE.good : ROLE.comm }),
       txt(
         'Count valid targets across all accumulated microbatches; coordinate skip if global count = 0',
         0,

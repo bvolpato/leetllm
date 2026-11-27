@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function fragmentation(s, c) {
-  const phase = s.value(0);
   // step: 0=reserved 12, 1=internal 12-7=5, 2=external 2+3<4, 3=paged 4-pos blocks, 4=div/mod address formula
   const step = s.value(0);
 
@@ -31,7 +28,6 @@ export default function fragmentation(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 2) {
@@ -242,9 +238,7 @@ export default function fragmentation(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 315, { radius: 6, color: ROLE.kv }),
       txt(
         st <= 2
           ? 'Contiguous reservation leaks both internal and external capacity'
@@ -262,7 +256,6 @@ export default function fragmentation(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['vv-fragmentation-op-0', 0],
     ['vv-fragmentation-internal', 1],

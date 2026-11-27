@@ -8,7 +8,6 @@ import {
   aura,
   delay,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -17,12 +16,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function targetBuild(s, c) {
-  const phase = s.value(0);
   const showTarget = s.value(1);
   const showResources = s.value(0);
   const showShapes = s.value(0);
@@ -52,18 +49,15 @@ export default function targetBuild(s, c) {
 
   // Beat 0: Source hashes -> Compiler -> RTX 5070 Ti hardware node
   const targetView = guardedDynamic(showTarget, (a) => {
-    const p = phase.value;
     const sg = srcGlow.value;
     const gg = gpuGlow.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.5);
-    const u = (p * 0.5) % 1;
 
     const nodes = [
       // Source identity panel
       txt('SOURCE + CHECKER HASHES', -525, -210, 26, ROLE.input, 'mono').opacity(a),
       glassCell(-525, 15, 600, 350, sg > 0.3 ? ROLE.gold : ROLE.input, {
         fill: '#0f1a32',
-        glow: sg > 0.3 ? 11 * pulse : 5,
+        glow: sg > 0.3 ? 11 : 5,
         opacity: a,
       }),
       txt('transpose_lab.cu', -790, -80, 34, ROLE.input, 'mono', 'left').opacity(a),
@@ -77,11 +71,6 @@ export default function targetBuild(s, c) {
         width: 3.8,
         opacity: 0.85 * a,
       }),
-      glowDot(-210 + u * 420, 15 - Math.sin(u * Math.PI) * 22, {
-        radius: 7,
-        color: ROLE.gold,
-        opacity: a,
-      }),
       txt('-O3 -std=c++17', 0, -90, 26, ROLE.gold, 'mono').opacity(a),
       txt('-lineinfo', 0, 82, 26, COSMOS.muted, 'mono').opacity(a),
       txt('-Xptxas=-v', 0, 126, 26, COSMOS.muted, 'mono').opacity(a),
@@ -90,7 +79,7 @@ export default function targetBuild(s, c) {
       txt('NATIVE GPU TARGET', 525, -210, 26, ROLE.output, 'mono').opacity(a),
       glassCell(525, 15, 600, 350, gg > 0.3 ? ROLE.output : COSMOS.rule, {
         fill: '#0d2233',
-        glow: gg > 0.3 ? 12 * pulse : 5,
+        glow: gg > 0.3 ? 12 : 5,
         opacity: a,
       }),
       txt('RTX 5070 Ti · CC 12.0', 525, -82, 34, ROLE.output, 'mono')
@@ -268,7 +257,6 @@ export default function targetBuild(s, c) {
   });
 
   s.add(bgAura, title, targetView, resourceView, shapesView);
-  runPhase(s, c, phase, 16);
 
   c.on('gpu-target-build-source', () =>
     s.play(srcGlow.to(1, { duration: remainDuration(c, 'gpu-target-build-source', 0.45) })),

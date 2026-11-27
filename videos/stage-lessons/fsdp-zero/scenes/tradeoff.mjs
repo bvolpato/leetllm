@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   perRank,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function tradeoff(s, c) {
-  const phase = s.value(0);
   const showComm = s.value(0);
   const showPrefetch = s.value(0);
   const showMeasure = s.value(0);
@@ -37,7 +34,6 @@ export default function tradeoff(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sc = showComm.value;
     const sp = showPrefetch.value;
     const sm = showMeasure.value;
@@ -92,9 +88,7 @@ export default function tradeoff(s, c) {
       txt(sp > 0.5 ? 'Prefetch U2' : 'Reduce-Scat', 560, 45, 26, ROLE.grads, 'mono'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(130 + u * 560, 128, { radius: 6.5, color: COSMOS.gold }),
       txt(
         sm > 0.5
           ? 'Measure peak memory, step time & GPU utilization together as wrap size changes'
@@ -111,7 +105,6 @@ export default function tradeoff(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('tradeoff-b1-1', () =>
     s.play(showComm.to(1, { duration: remainDuration(c, 'tradeoff-b1-1', 0.45) })),

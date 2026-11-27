@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fsmNode,
   guardedDynamic,
   opticalRail,
@@ -22,7 +21,6 @@ import {
 const FINAL_RECORD = JSON.stringify({ run_id: CI_RUN.run_id, status: CI_RUN.status });
 
 export default function toolProtocol(s, c) {
-  const pulse = s.value(0);
   const callOut = s.value(0);
   const hostReceive = s.value(0);
   const gateCheck = s.value(0);
@@ -42,7 +40,6 @@ export default function toolProtocol(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const co = callOut.value;
       const hr = hostReceive.value;
       const gc = gateCheck.value;
@@ -68,7 +65,7 @@ export default function toolProtocol(s, c) {
 
       nodes.push(
         // Request beam (top)
-        beamWithPhotons(reqArc, ROLE.fsm, p * 1.1, {
+        beamWithPhotons(reqArc, ROLE.fsm, 0, {
           alpha: 0.45 + 0.55 * Math.max(co, hr),
           width: 3.8,
         }),
@@ -139,7 +136,7 @@ export default function toolProtocol(s, c) {
       // Return observation beam (bottom)
       if (rb > 0.05) {
         nodes.push(
-          beamWithPhotons(resArc, ROLE.legal, p * 1.2 + 0.5, { alpha: rb, width: 3.8 }),
+          beamWithPhotons(resArc, ROLE.legal, 0, { alpha: rb, width: 3.8 }),
           txt('OBSERVATION:  RUN-842 -> "failed"', -35, 204, 32, ROLE.legal, 'mono', 'center')
             .glow(9, ROLE.legal)
             .opacity(rb),
@@ -203,7 +200,6 @@ export default function toolProtocol(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-tool-protocol-0', () => {
     s.play(callOut.to(1, { duration: clampDur(c, c.cue('sg-tool-protocol-0').start, 0.4) }));

@@ -11,15 +11,12 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   orbitScene,
   txt,
 } from '../parts.mjs';
 
 export default function memory(s, c) {
-  const phase = s.value(0);
   const mhaOn = s.value(0);
   const gqaOn = s.value(0);
 
@@ -56,7 +53,6 @@ export default function memory(s, c) {
   const overlay = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const mh = mhaOn.value;
       const gq = gqaOn.value;
       const nodes = [];
@@ -127,12 +123,6 @@ export default function memory(s, c) {
           'center',
         ),
         txt('4x FEWER KV HEADS = 4x SMALLER KV CACHE', 330, -405, 26, ROLE.ok, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -141,8 +131,6 @@ export default function memory(s, c) {
 
   s.add(bgAura, header, view3d, overlay);
   orbitScene(s, c, view3d, { azimuthDelta: 0.34, elevationDelta: -0.05 });
-  driftValue(s, c, phase, 4.2);
-
   c.on('memory-mha-comparison', () => {
     s.play(mhaOn.to(1, { duration: clampDur(c, c.cue('memory-mha-comparison').start, 0.35) }));
   });

@@ -9,10 +9,8 @@ import {
   SCHEDULE_BLOCKED,
   SCHEDULE_RETRY,
   actorOrb,
-  ambientClock,
   cinemaAtmosphere,
   glowArrow,
-  glowDot,
   glowPill,
   guardedDynamic,
   lowerFooter,
@@ -24,7 +22,6 @@ import {
 export default function scheduler(s, c) {
   const title = sceneHeading(['Does deploy get a turn?'], { accent: ROLE.ok });
 
-  const amb = ambientClock(s, c);
   // Discrete step 0..10:
   // Run A (cap = 2): 0=init, 1=docs done, 2=test false (retry avail), 3=question,
   //   4=test back in heap, 5=test succeeds (attempt 2), 6=deploy remaining->0 ready, 7=deploy done
@@ -34,7 +31,6 @@ export default function scheduler(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(step.value);
       const isCap1 = st >= 8;
       const cap = isCap1 ? 1 : 2;
@@ -185,7 +181,7 @@ export default function scheduler(s, c) {
             'center',
           )
             .glow(7, ROLE.focus)
-            .opacity(alpha * (0.82 + 0.18 * pulse)),
+            .opacity(alpha),
         );
       } else if (st >= 11) {
         nodes.push(
@@ -226,12 +222,6 @@ export default function scheduler(s, c) {
       }
 
       nodes.push(
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5,
-          color: isCap1 ? ROLE.fail : ROLE.ok,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'PRIORITY MIN-HEAP + DEPENDENCY COUNT',
           st >= 11

@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   exactApprovalDecision,
   guardedDynamic,
@@ -117,7 +116,7 @@ export default function approvalBindings(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const idx = Math.max(0, Math.min(PROBE_SEQUENCE.length - 1, Math.round(stepIdx.value)));
       const probe = PROBE_SEQUENCE[idx];
       const consumed = idx === 9;
@@ -243,7 +242,6 @@ export default function approvalBindings(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   const jump = (cueId, targetStep) => {
     c.on(cueId, () => {

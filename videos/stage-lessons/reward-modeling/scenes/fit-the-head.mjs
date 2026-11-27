@@ -16,13 +16,11 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   tokenCell,
   txt,
 } from '../parts.mjs';
 
 export default function fitTheHead(s, c) {
-  const phase = s.value(0);
   const swapped = s.value(0);
   const stepFrac = s.value(0.05); // 0 -> 1 over 300 gradient steps
   const showTestD = s.value(0);
@@ -58,7 +56,6 @@ export default function fitTheHead(s, c) {
   const balScoreD = headScore(balW, featD); // 0.000
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sw = swapped.value;
     const sf = stepFrac.value;
     const td = showTestD.value;
@@ -221,17 +218,10 @@ export default function fitTheHead(s, c) {
       nodes.push(txt(cap, 0, 345, 28, capCol, 'sans'));
     }
 
-    // Subtle moving energy dot along active trajectories
-    const u = (p * 0.4) % 1;
-    const ui = Math.min(maxIdx, Math.floor(u * maxIdx));
-    const uc = CONFOUNDED_FIT.trajectory[ui];
-    nodes.push(glowDot(mapWc(uc[0]), mapWl(uc[1]), { radius: 5, color: '#ffffff', opacity: 0.7 }));
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('fit-swap', () => s.play(swapped.to(1, { duration: 0.45 })));
   c.on('fit-updates', () => s.play(stepFrac.to(1, { duration: 1.4 })));

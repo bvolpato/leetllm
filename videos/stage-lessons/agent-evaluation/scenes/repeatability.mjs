@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
   glowDot,
   glowMeter,
   guardedDynamic,
@@ -215,7 +214,6 @@ export default function repeatability(s, c) {
 
   s.add(stageAura, header, view3d, leftView);
   orbitScene(s, c, view3d, { theta: -0.26, phi: 0.94 });
-  driftValue(s, c, pulse, 3.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('repeated-runs', () => {
     s.play(catOn.to(0.6, { duration: clampDur(c, c.cue('repeated-runs').start, 0.35) }));

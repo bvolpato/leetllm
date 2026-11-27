@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -40,7 +39,7 @@ export default function swapContract(s, c) {
   const routerView = guardedDynamic(
     () => fadeOutHalf(mode2.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const g = gateOn.value;
       const mx = mixedOn.value;
       const ti = tieOn.value;
@@ -135,7 +134,7 @@ export default function swapContract(s, c) {
   const mistakeView = guardedDynamic(
     () => fadeInHalf(mode2.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const v = verOn.value;
       const nodes = [];
 
@@ -220,7 +219,6 @@ export default function swapContract(s, c) {
   );
 
   s.add(stageAura, header, routerView, mistakeView);
-  driftValue(s, c, pulse, 4.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('same-case-contract', () => {
     s.play(gateOn.to(1, { duration: clampDur(c, c.cue('same-case-contract').start, 0.35) }));

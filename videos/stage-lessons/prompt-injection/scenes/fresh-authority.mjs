@@ -21,7 +21,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -57,7 +56,7 @@ export default function freshAuthority(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(finaleMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const nh = noteHi.value;
       const gh = grantHi.value;
       const qh = questionHi.value;
@@ -400,7 +399,6 @@ export default function freshAuthority(s, c) {
   );
 
   s.add(stageAura, header, act0, act1);
-  driftValue(s, c, pulse, 5.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('fresh-input', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('fresh-input').start, 0.25) }));

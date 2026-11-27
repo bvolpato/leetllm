@@ -18,7 +18,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   fmt,
   glowBar,
   guardedDynamic,
@@ -31,7 +30,6 @@ import {
 export default function prefix(s, c) {
   const act1Vis = s.value(1);
   const act2Vis = s.value(0);
-  const phase = s.value(0);
 
   // Act 1 state
   const pStep = s.value(0); // 1=branches, 2=separate, 3=same-text, 4=prefix-name, 5=keeps, 6=looks-up, 7=points
@@ -56,7 +54,6 @@ export default function prefix(s, c) {
   const act1Dyn = guardedDynamic(act1Vis, (a) => {
     const ps = pStep.value;
     const hs = hStep.value;
-    const ph = phase.value;
     const nodes = [];
 
     // Left: Incoming separate requests converging on retained gold prefix blocks
@@ -80,7 +77,7 @@ export default function prefix(s, c) {
       if (ps >= 6.5) {
         const pts = quadArcPts([-444, reqY[i]], [-175, 25], (i - 1) * -35, 22);
         nodes.push(
-          beamWithPhotons(pts, ROLE.shared, (ph * 0.7 + i * 0.33) % 1, {
+          beamWithPhotons(pts, ROLE.shared, 0, {
             width: 3.4,
             glow: 9,
             photonCount: 2,
@@ -164,7 +161,6 @@ export default function prefix(s, c) {
   const act2Dyn = guardedDynamic(act2Vis, (a) => {
     const sc = scaleStep.value;
     const ht = hitStep.value;
-    const ph = phase.value;
     const nodes = [];
 
     // Left-to-right glowing fan-in constellation: 200 requests -> 31 shared full blocks -> 200 private tails
@@ -199,7 +195,7 @@ export default function prefix(s, c) {
       if (sc >= 2.5) {
         const pts = quadArcPts([-495, ry], [-235, 0], ry * -0.18, 20);
         nodes.push(
-          beamWithPhotons(pts, ROLE.shared, (ph * 0.75 + idx * 0.16) % 1, {
+          beamWithPhotons(pts, ROLE.shared, 0, {
             width: 3.0,
             glow: 9,
             photonCount: 1,
@@ -210,7 +206,7 @@ export default function prefix(s, c) {
       if (sc >= 3.5) {
         const outPts = quadArcPts([145, 0], [365, ry], ry * -0.15, 20);
         nodes.push(
-          beamWithPhotons(outPts, ROLE.reqC, (ph * 0.75 + idx * 0.16 + 0.5) % 1, {
+          beamWithPhotons(outPts, ROLE.reqC, 0, {
             width: 2.6,
             glow: 8,
             photonCount: 1,
@@ -303,7 +299,6 @@ export default function prefix(s, c) {
   });
 
   s.add(act1Aura, act1Header, act1Dyn, act2Dyn);
-  driftValue(s, c, phase, 10.5, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0 cues
   c.on('branches', () => {

@@ -8,7 +8,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   glowDot,
   guardedDynamic,
   tweenOn,
@@ -16,7 +15,6 @@ import {
 } from '../parts.mjs';
 
 export default function regionalRecovery(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=parity checklist, 2=in-flight contract, quota & tested RTO
 
   const header = cinemaHeader('REGIONAL FAILOVER & RTO', 'Verify ready parity', 'before failover', {
@@ -32,7 +30,6 @@ export default function regionalRecovery(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const yHub = -125;
       const nodes = [];
 
@@ -50,7 +47,7 @@ export default function regionalRecovery(s, c) {
             [-195, yHub],
           ],
           ROLE.focus,
-          p * 0.9,
+          0,
           { width: 3.6, glow: 9, photonCount: 1 },
         ),
 
@@ -66,7 +63,7 @@ export default function regionalRecovery(s, c) {
             [405, yHub],
           ],
           ROLE.warm,
-          p * 0.9,
+          0,
           { width: 3.6, glow: 9, photonCount: 1 },
         ),
 
@@ -134,7 +131,6 @@ export default function regionalRecovery(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 5.5, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-regional-recovery-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-regional-recovery-b1', step, 2, 0.35);

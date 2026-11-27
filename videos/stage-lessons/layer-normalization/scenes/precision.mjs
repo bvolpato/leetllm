@@ -22,7 +22,6 @@ import {
   lumBar,
   playBeat,
   playCue,
-  scenePulse,
   swapVis,
 } from '../parts.mjs';
 
@@ -51,7 +50,6 @@ export default function precision(s, c) {
   // Act 2
   const snapT = s.value(0); // 0 -> 1 snaps all 4 onto 10000 strictly AFTER store-half!
   const refReveal = s.value(0); // 0 -> 1 reveals [0,0,0,0] strictly AFTER rounded-reference!
-  const pulse = s.value(0);
 
   // ACT 1: FP16 squaring overflow vs FP32 upcast before squaring
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
@@ -59,7 +57,6 @@ export default function precision(s, c) {
     const nd = narrowDone.value;
     const ws = wideSqDone.value;
     const wr = wideRmsDone.value;
-    const p = pulse.value;
 
     nodes.push(
       txt('Stored FP16 input:  [ 300,  -300 ]', 0, -245, 36, COSMOS.ink, 'mono', 'center').opacity(
@@ -149,10 +146,7 @@ export default function precision(s, c) {
       );
     });
 
-    // Subtle flowing indicator
-    const px = -200 + ((p * 2.5) % 1) * 900;
     nodes.push(
-      glowDot(px, 285, { radius: 5, color: ROLE.norm, glow: 10, opacity: 0.7 * alpha }),
       txt(
         'Always upcast FP16 inputs to FP32 before squaring inside norm reductions',
         0,
@@ -172,7 +166,6 @@ export default function precision(s, c) {
     const nodes = [];
     const snap = snapT.value;
     const refR = refReveal.value;
-    const p = pulse.value;
 
     const toX = (v) => 170 + (v - 10000) * 68; // 9992 -> -374, 10000 -> +170, 10008 -> +714
     const ticks = [9992, 10000, 10008];
@@ -253,7 +246,7 @@ export default function precision(s, c) {
       }
       nodes.push(
         glowDot(curX, ry, {
-          radius: 10 + (snap > 0.8 ? Math.sin(p * Math.PI * 8) * 1.5 : 0),
+          radius: 10,
           color: col,
           glow: 13,
           opacity: alpha,
@@ -319,7 +312,6 @@ export default function precision(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.alert, ROLE.norm), title, act1Layer, act2Layer);
-  scenePulse(s, c, pulse);
 
   // Beat 0: Overflow in FP16 vs safe cast-then-square in FP32
   playCue(s, c, 'narrow-square', (d) => s.play(narrowDone.to(1, { duration: d })), { dur: 0.55 });

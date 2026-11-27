@@ -16,11 +16,9 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
-  glowDot,
   guardedDynamic,
   hexGate,
   quadArcPts,
@@ -52,7 +50,7 @@ export default function readerQuarantine(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const rh = readerHi.value;
       const eh = execHi.value;
       const fc = fieldCross.value;
@@ -243,20 +241,11 @@ export default function readerQuarantine(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-820 + ((p * 0.25) % 1) * 520, -96, {
-          radius: 4.5,
-          color: ROLE.untrusted,
-          glow: 8,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('reader-text', () => {
     s.play(readerHi.to(1, { duration: clampDur(c, c.cue('reader-text').start, 0.35) }));

@@ -14,7 +14,6 @@ import {
   lumBar,
   playCue,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -29,7 +28,6 @@ export default function wideArithmetic(s, c) {
   const wrapped = exact.map(wrap8);
   const bound = 1536 * 127 * 127; // 24,774,144
 
-  const phase = s.value(0);
   const showCorrect = s.value(0);
   const wrapDrop = s.value(0);
   const showWrapScore = s.value(0);
@@ -48,8 +46,6 @@ export default function wideArithmetic(s, c) {
 
   // Top input operands + 4-stage pipeline columns (NO boxy tables!)
   const mainLayer = dynamic(() => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const cOp = showCorrect.value;
     const wDrop = wrapDrop.value;
     const wScore = showWrapScore.value;
@@ -165,7 +161,7 @@ export default function wideArithmetic(s, c) {
             color: ROLE.danger,
             fillAlpha: isFlippedWinner ? 0.28 : 0.16,
             strokeWidth: isFlippedWinner ? 3 : 2,
-            glow: isFlippedWinner ? 10 * pulse : 5,
+            glow: isFlippedWinner ? 10 : 5,
             opacity: wScore,
           }),
           txt(`${wrapped[i]}  (${loHex})`, -170, ry, 34, ROLE.danger, 'mono').opacity(wScore),
@@ -201,7 +197,7 @@ export default function wideArithmetic(s, c) {
             color: col,
             fillAlpha: isWinner ? 0.3 : 0.2,
             strokeWidth: isWinner ? 3 : 2.2,
-            glow: isWinner ? 11 * pulse : 6,
+            glow: isWinner ? 11 : 6,
             opacity: widOp,
           }),
           txt(val.toLocaleString('en-US'), 665, ry, 38, col, 'mono')
@@ -251,8 +247,6 @@ export default function wideArithmetic(s, c) {
   );
 
   s.add(cinemaAtmosphere(ROLE.warn, ROLE.A), title, mainLayer, boundLayer);
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'correct', (d) => s.play(showCorrect.to(1, { duration: d })), {
     after: true,

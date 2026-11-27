@@ -12,12 +12,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function optimizerCounter(s, c) {
-  const phase = s.value(0);
   const showMoments = s.value(1);
   const mStep = s.value(0); // 1=m, 2=v, 3=t=1, 4=m_hat=0.5, 5=v_hat=0.25, 6=dir~1, 7=w->0.99
   const showRates = s.value(0);
@@ -40,7 +38,6 @@ export default function optimizerCounter(s, c) {
 
   const momentsView = guardedDynamic(showMoments, (a) => {
     const ms = mStep.value;
-    const p = phase.value;
 
     const nodes = [
       txt(
@@ -144,7 +141,6 @@ export default function optimizerCounter(s, c) {
         'mono',
       ).opacity(a),
 
-      glowDot(-760 + ((p * 0.65) % 1) * 1520, 255, { radius: 6, color: COSMOS.gold, opacity: a }),
       txt(
         'Zero-initialized moments shrink early averages toward 0; bias correction divides by (1 - beta^t)',
         0,
@@ -160,7 +156,6 @@ export default function optimizerCounter(s, c) {
 
   const ratesView = guardedDynamic(showRates, (a) => {
     const rs = rateStep.value;
-    const p = phase.value;
 
     // Weight scale: [1.985 .. 2.002] -> x in [-540, 620]
     const wMin = 1.985;
@@ -228,11 +223,6 @@ export default function optimizerCounter(s, c) {
     }
 
     nodes.push(
-      glowDot(-740 + ((p * 0.65) % 1) * 1480, 238, {
-        radius: 6,
-        color: rs >= 3 ? ROLE.bad : ROLE.good,
-        opacity: a,
-      }),
       txt(
         rs >= 3
           ? 'Weights matched BEFORE the step; a forward check misses a reset scheduler · verify LR at step 1!'
@@ -249,7 +239,6 @@ export default function optimizerCounter(s, c) {
   });
 
   s.add(bgAura, title, formula, momentsView, ratesView);
-  runPhase(s, c, phase, 14);
 
   c.on('adam-mean', () => s.play(mStep.to(1, { duration: remainDuration(c, 'adam-mean', 0.35) })));
   c.on('adam-square', () =>

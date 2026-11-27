@@ -11,13 +11,11 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function algorithmContract(s, c) {
-  const phase = s.value(0);
   const vShape = s.value(1);
   const vGrad = s.value(0);
 
@@ -196,7 +194,6 @@ export default function algorithmContract(s, c) {
   });
 
   s.add(bgAura, title, viewShape, viewGrad);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'width', showWidth, 1, { duration: 0.45 });
   tweenCue(s, c, 'reject', showReject, 1, { duration: 0.45 });

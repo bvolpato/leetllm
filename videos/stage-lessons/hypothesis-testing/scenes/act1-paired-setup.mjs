@@ -18,7 +18,6 @@ import {
   guardedDynamic,
   heroTitle,
   joinTaskResults,
-  livingDrift,
   mix,
   neonCurve,
   paired,
@@ -42,7 +41,6 @@ export function intro(s, c) {
   const passP = s.value(0);
   const denyP = s.value(0);
   const recP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.lift, seed: 1 }));
   s.add(decorAura(-380, -40, 460, '#60a5fa22', '#07091000'));
@@ -65,12 +63,10 @@ export function intro(s, c) {
     const ps = passP.value;
     const dn = denyP.value;
     const rc = recP.value;
-    const ph = drift.value;
 
     const nodes = [];
     const revealed = ps > 0.5;
     const bScore = revealed ? 4 : 3;
-    const pulse = 1 + 0.08 * Math.sin(ph * Math.PI * 8);
 
     // Top scoreboard (right half, cleanly clear of heroTitle)
     const axX = 140;
@@ -135,7 +131,7 @@ export function intro(s, c) {
           : bPass
             ? ROLE.modelB
             : COSMOS.dim;
-      const bScale = isPerm ? (bPending ? pulse : 1 + 0.04 * pm) : 1;
+      const bScale = isPerm ? (bPending ? 1 : 1 + 0.04 * pm) : 1;
       nodes.push(
         rect((isPerm ? 148 : 132) * bScale, (isPerm ? 62 : 54) * bScale, {
           fill: isPerm ? (bPending ? '#251e10' : '#0f2820') : '#10182b',
@@ -209,7 +205,6 @@ export function intro(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'opening-current', curP, 1, { dur: 0.65 });
   cueTo(s, c, 'opening-pairs', pairP, 1, { dur: 0.7 });
   cueTo(s, c, 'opening-predict', predP, 1, { dur: 0.6 });
@@ -233,7 +228,6 @@ export function pairedDesign(s, c) {
   const diffP = s.value(0);
   const tiesP = s.value(0);
   const permP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.modelB, seed: 2 }));
   s.add(decorAura(-420, 40, 460, '#60a5fa1c', '#07091000'));
@@ -254,15 +248,13 @@ export function pairedDesign(s, c) {
     (vis) => {
       const pr = promptP.value;
       const rs = smooth(resP.value);
-      const ph = drift.value;
       const nodes = [];
 
       // Left source prompt (sleek pill wide enough for 'permission')
       const srcX = -635;
       const srcY = 20;
-      const pulse = 1 + 0.03 * Math.sin(ph * Math.PI * 8);
       nodes.push(
-        rect(228 * pulse, 114 * pulse, {
+        rect(228, 114, {
           fill: '#191d34',
           stroke: ROLE.threshold,
           width: 3.2,
@@ -455,7 +447,6 @@ export function pairedDesign(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'pair-prompt', promptP, 1, { dur: 0.7 });
   cueTo(s, c, 'pair-results', resP, 1, { dur: 0.85 });
   beatTo(s, c, 1, view2P, 1, { dur: 0.72 });
@@ -481,7 +472,6 @@ export function protocolIdentity(s, c) {
   const costP = s.value(0);
   const v3P = s.value(0);
   const clustP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.lift, seed: 3 }));
   s.add(decorAura(0, 20, 520, '#5ce1e61a', '#ffd16610'));
@@ -700,7 +690,6 @@ export function protocolIdentity(s, c) {
     () => fadeIn(v3P.value),
     (vis) => {
       const cl = clustP.value;
-      const ph = drift.value;
       const count = Math.max(2, Math.round(20 * cl));
       const nodes = [
         rect(1440, 410, { fill: '#0c1528', stroke: ROLE.lift, width: 2.8, radius: 22 })
@@ -715,9 +704,8 @@ export function protocolIdentity(s, c) {
         const cx = -585 + col * 130;
         const cy = -18 + row * 138;
         const active = i < count;
-        const pulse = active ? 1 + 0.06 * Math.sin(ph * Math.PI * 8 + i * 0.4) : 1;
         nodes.push(
-          circle(36 * pulse, {
+          circle(36, {
             fill: active ? '#132645' : '#0d1424',
             stroke: active ? ROLE.modelA : '#2c3a5c',
             width: active ? 2.6 : 1.5,
@@ -743,7 +731,6 @@ export function protocolIdentity(s, c) {
   );
 
   s.add(headline, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'protocol-identity-0', id0P, 1, { dur: 0.5 });
   cueTo(s, c, 'identity-order', orderP, 1, { dur: 0.6 });
   cueTo(s, c, 'hyp-identity-join', joinP, 1, { after: true, dur: 0.9 });
@@ -765,7 +752,6 @@ export function fortyTasks(s, c) {
   const sortP = s.value(0);
   const liftP = s.value(0);
   const dirP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.modelB, seed: 4 }));
   s.add(decorAura(-380, 40, 480, '#60a5fa1a', '#07091000'));
@@ -806,7 +792,6 @@ export function fortyTasks(s, c) {
     const sr = sortP.value;
     const lf = liftP.value;
     const dr = dirP.value;
-    const ph = drift.value;
     const visibleCount = Math.min(40, Math.floor(6 + 34 * ar));
     const nodes = [];
 
@@ -814,10 +799,9 @@ export function fortyTasks(s, c) {
       const isPerm = row.id === 'T02';
       const col =
         row.difference > 0 ? ROLE.modelB : row.difference < 0 ? ROLE.danger : COSMOS.muted;
-      const pulse = isPerm ? 1 + 0.04 * Math.sin(ph * Math.PI * 8) : 1;
       if (shown) {
         return group(
-          rect(104 * pulse, 48 * pulse, {
+          rect(104, 48, {
             fill: row.difference > 0 ? '#0e271f' : row.difference < 0 ? '#27121e' : '#121a2f',
             stroke: isPerm ? ROLE.threshold : col,
             width: isPerm ? 2.8 : 1.8,
@@ -903,7 +887,6 @@ export function fortyTasks(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'forty-arrive', arrP, 1, { dur: 1.0 });
   cueTo(s, c, 'forty-sort', sortP, 1, { dur: 1.1 });
   cueTo(s, c, 'forty-lift', liftP, 1, { after: true, dur: 0.65 });
@@ -924,7 +907,6 @@ export function nullModel(s, c) {
   const v3P = s.value(0);
   const enumP = s.value(0);
   const shareP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.modelA, seed: 5 }));
   s.add(decorAura(0, 60, 560, '#60a5fa1e', '#ffd16610'));
@@ -1164,7 +1146,6 @@ export function nullModel(s, c) {
   );
 
   s.add(headline, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'null-single', singleP, 1, { dur: 0.9 });
   cueTo(s, c, 'null-half', halfP, 1, { after: true, dur: 0.2 });
   beatTo(s, c, 1, v2P, 1, { dur: 0.72 });

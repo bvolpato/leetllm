@@ -10,12 +10,10 @@ import {
   rect,
   remainDuration,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function allocatorLedger(s, c) {
-  const phase = s.value(0);
   const showCounts = s.value(0);
   const releaseProg = s.value(0);
   const idleProg = s.value(0);
@@ -150,7 +148,6 @@ export default function allocatorLedger(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('allocator-counts', () => s.play(showCounts.to(1, { duration: 0.45 })));
   c.on('allocator-return', () => s.play(releaseProg.to(1, { duration: 1.0 })));

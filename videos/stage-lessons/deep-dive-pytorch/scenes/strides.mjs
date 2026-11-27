@@ -8,16 +8,13 @@ import {
   address,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function strides(s, c) {
-  const phase = s.value(0);
   const locate3 = s.value(0);
   const showBytes = s.value(0);
   const showCopy = s.value(0);
@@ -44,7 +41,6 @@ export default function strides(s, c) {
     const w30 = write30.value;
     const ra = readAlias.value;
     const rc = readCopy.value;
-    const p = phase.value;
 
     const cellW = 190;
     const gap = 22;
@@ -132,9 +128,7 @@ export default function strides(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-630 + u * 1260, 260, { radius: 6, color: w30 > 0.5 ? ROLE.bad : ROLE.copy }),
       txt(
         rc > 0.5
           ? 'Alias write updates x[1,0] to 30; independent reshape copy stays 3'
@@ -155,7 +149,6 @@ export default function strides(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('locate-three', () =>
     s.play(locate3.to(1, { duration: remainDuration(c, 'locate-three', 0.4) })),

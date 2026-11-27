@@ -11,12 +11,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function rankScaling(s, c) {
-  const phase = s.value(0);
   const startOrd = s.value(0);
   const ord0 = s.value(0);
   const ord1 = s.value(0);
@@ -140,7 +138,6 @@ export default function rankScaling(s, c) {
   });
 
   s.add(bgAura, title, eqOrd, eqRs, live);
-  runPhase(s, c, phase, 14);
 
   c.on('rank-scaling-1', () => s.play(startOrd.to(1, { duration: 0.35 })));
   c.on('scale-ordinary-two', () => s.play(ord0.to(1, { duration: 0.4 })));

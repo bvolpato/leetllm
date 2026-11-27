@@ -7,7 +7,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   glowDot,
   guardedDynamic,
   tweenOn,
@@ -15,7 +14,6 @@ import {
 } from '../parts.mjs';
 
 export default function requestBenchmark(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=60/25/15 mix, 2=warmup+bounded client queue, 3=revision & correctness lock
 
   const header = cinemaHeader(
@@ -36,7 +34,6 @@ export default function requestBenchmark(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const nodes = [];
 
       // Full-bleed luminous segmented workload bar: 60% Interactive / 25% Long Review / 15% Background
@@ -95,7 +92,7 @@ export default function requestBenchmark(s, c) {
                 [stages[i + 1].x - 150, flowY],
               ],
               sg.col,
-              sg.on ? p * 0.9 : null,
+              0,
               { width: 3.2, glow: sg.on ? 8 : 0, photonCount: 1, alpha: op },
             ),
           );
@@ -156,7 +153,6 @@ export default function requestBenchmark(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-request-benchmark-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-request-benchmark-b1', step, 2, 0.35);

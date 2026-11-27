@@ -7,7 +7,6 @@ import {
   cinemaAtmosphere,
   conduitPts,
   glowArrow,
-  glowDot,
   glowRing,
   glowingArc,
   glowingTrail,
@@ -126,9 +125,6 @@ export default function dependencyGraph(s, c) {
           core: false,
         }),
       );
-      // Animated readiness pulse moving strictly left-to-right
-      const [px, py] = samplePolyline(pts, (ph * 0.25 + idx * 0.14) % 1);
-      nodes.push(glowDot(px, py, { radius: 5, color: col, glow: 10 }));
     });
 
     // Optional Reviewer Rejection -> Cancel path (Beat 2)

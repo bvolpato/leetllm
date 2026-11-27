@@ -11,7 +11,6 @@ import {
   clampDur,
   comparisonTokenTimes,
   dashedRule,
-  driftValue,
   fixedPlayback,
   glowDot,
   glowingTrail,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function playbackDeadlines(s, c) {
-  const phase = s.value(0);
   const tickProg = s.value(0.2); // T1..T5 gold reader ticks
   const clockMs = s.value(220); // 220 -> 540 (STOP!) -> 620
   const showGap = s.value(0); // strictly AFTER reader-gap
@@ -65,7 +63,6 @@ export default function playbackDeadlines(s, c) {
       const sm = showMean.value;
       const fg = fixedGlow.value;
       const rp = resetProg.value;
-      const pulse = 0.72 + 0.28 * Math.sin(phase.value * 4.8);
 
       const xLeft = -540;
       const xRight = 780;
@@ -243,9 +240,7 @@ export default function playbackDeadlines(s, c) {
             28,
             ROLE.focus,
             'mono',
-          )
-            .glow(7, ROLE.focus)
-            .opacity(pulse),
+          ).glow(7, ROLE.focus),
         );
       } else {
         nodes.push(
@@ -260,7 +255,6 @@ export default function playbackDeadlines(s, c) {
   );
 
   s.add(stageAura, header, oscView);
-  driftValue(s, c, phase, 9, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('reader-cadence', () => {
     const t = c.cue('reader-cadence').start;

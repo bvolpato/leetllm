@@ -9,7 +9,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function cacheScene(s, c) {
-  const pulse = s.value(0);
   const pinnedOn = s.value(0);
   const evictBlockOn = s.value(0);
   const b1On = s.value(0);
@@ -34,7 +32,6 @@ export default function cacheScene(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const pin = pinnedOn.value > 0.5;
       const evBlk = evictBlockOn.value > 0.5;
       const b1 = b1On.value > 0.5;
@@ -75,8 +72,8 @@ export default function cacheScene(s, c) {
                 [165, -155],
               ],
               ROLE.held,
-              p,
-              { width: 4.5, glow: 10, photonCount: 2 },
+              0,
+              { width: 4.5, glow: 10 },
             ),
             txt('PINNED · refs = 1', 0, -258, 26, ROLE.held, 'mono', 'center'),
           );
@@ -178,8 +175,8 @@ export default function cacheScene(s, c) {
                 [165, 58],
               ],
               ROLE.ok,
-              p,
-              { width: 4.2, glow: 9, photonCount: 2 },
+              0,
+              { width: 4.2, glow: 9 },
             ),
             rect(1660, 128, { fill: '#0b201b', stroke: ROLE.ok, width: 2.8, radius: 16 }).at(
               0,
@@ -224,8 +221,6 @@ export default function cacheScene(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'cache-beat-1-focus-2', pinnedOn, 1);
   stepOn(s, c, 'cache-beat-1-focus-1', evictBlockOn, 1);
   stepOn(s, c, 'cache-beat-2-focus-1', b1On, 1);

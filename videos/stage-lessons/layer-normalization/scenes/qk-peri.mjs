@@ -5,14 +5,7 @@
 //   Act 2 (Beat 1): Attention score shift-invariance (1000 -> 1800 on equal-shift, 50%/50% frozen).
 //   Act 3 (Beat 2): QK-Norm unit-RMS dot bound (d_k=4 -> +2 vs -2 -> 98.2% / 1.8% AFTER qk-peaked).
 import { arrow } from 'vizmatic/stage';
-import {
-  COSMOS,
-  glowDot,
-  glowingTrail,
-  guardedDynamic,
-  heroTitle,
-  txt,
-} from '../../cinematic-kit.mjs';
+import { COSMOS, glowingTrail, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
 import {
   F,
   ROLE,
@@ -23,7 +16,6 @@ import {
   pct,
   playBeat,
   playCue,
-  scenePulse,
   shareRibbon,
   start,
   swapVis,
@@ -57,13 +49,11 @@ export default function qkPeri(s, c) {
   const alignedDotT = s.value(0); // 0 -> 1 fills aligned 1*1 -> +2
   const oppositeDotT = s.value(0); // 0 -> 1 fills opposite 1*(-1) -> -2
   const peakedVis = s.value(0); // 0 -> 1 reveals 98.2% / 1.8% AFTER qk-peaked!
-  const pulse = s.value(0);
 
   // ACT 1: Peri-LN / Sandwich dual-norm branch
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
     const nodes = [];
     const nw = normWriteT.value;
-    const p = pulse.value;
     const isPeri = nw > 0.35;
 
     const stageXs = [-680, -340, 0, 340, 680];
@@ -81,12 +71,6 @@ export default function qkPeri(s, c) {
         ],
         { color: ROLE.stream, width: 4.5, glow: 11, opacity: alpha },
       ),
-      glowDot(stageXs[0] + ((p * 2.4) % 1) * (stageXs[4] - stageXs[0]), wireY, {
-        radius: 6.5,
-        color: ROLE.stream,
-        glow: 14,
-        opacity: alpha,
-      }),
       txt('Direct identity skip (original token)', 0, wireY - 36, 30, ROLE.stream, 'mono', 'center')
         .glow(6, ROLE.stream)
         .opacity(alpha),
@@ -165,7 +149,6 @@ export default function qkPeri(s, c) {
   const act2Layer = guardedDynamic(act2Vis, (alpha) => {
     const nodes = [];
     const curScore = 1000 + scoreShift.value;
-    const p = pulse.value;
     const barH = 95 + (scoreShift.value / 800) * 115;
     const baseY = 95;
 
@@ -226,12 +209,6 @@ export default function qkPeri(s, c) {
         labels: ['Key A: 50%', 'Key B: 50%'],
         opacity: alpha,
       }),
-      glowDot(-480 + ((p * 2.5) % 1) * 960, 322, {
-        radius: 5,
-        color: ROLE.gold,
-        glow: 10,
-        opacity: 0.7 * alpha,
-      }),
       txt(
         'Equal shifts cancel in softmax  ·  score gaps drive attention',
         0,
@@ -252,7 +229,6 @@ export default function qkPeri(s, c) {
     const aT = alignedDotT.value;
     const oT = oppositeDotT.value;
     const pk = peakedVis.value;
-    const p = pulse.value;
 
     nodes.push(
       txt(
@@ -363,12 +339,6 @@ export default function qkPeri(s, c) {
       );
     } else {
       nodes.push(
-        glowDot(-300 + ((p * 2.5) % 1) * 600, 265, {
-          radius: 5,
-          color: ROLE.write,
-          glow: 10,
-          opacity: 0.7 * alpha,
-        }),
         txt('Cauchy-Schwarz bound:  |q · k| <= 4', 0, 325, 32, ROLE.gold, 'mono', 'center')
           .glow(6, ROLE.gold)
           .opacity(alpha),
@@ -379,7 +349,6 @@ export default function qkPeri(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.norm, ROLE.write), title, act1Layer, act2Layer, act3Layer);
-  scenePulse(s, c, pulse);
 
   // Beat 0: Activate Norm out on norm-write
   playCue(s, c, 'norm-write', (d) => s.play(normWriteT.to(1, { duration: d })), { dur: 0.65 });

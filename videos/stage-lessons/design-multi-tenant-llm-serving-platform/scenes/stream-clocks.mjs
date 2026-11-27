@@ -9,7 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   playAfter,
   playOn,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function streamClocks(s, c) {
-  const pulse = s.value(0);
   const clockMs = s.value(0);
   const firstOn = s.value(0);
   const bundleOn = s.value(0);
@@ -45,7 +43,6 @@ export default function streamClocks(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const ms = clockMs.value;
       const fOn = firstOn.value > 0.5 || b1On.value > 0.5;
       const bnOn = bundleOn.value > 0.5 || b1On.value > 0.5;
@@ -107,8 +104,8 @@ export default function streamClocks(s, c) {
               [xOf(Math.min(240, ms)), axisY],
             ],
             ROLE.stream,
-            p,
-            { width: 4.5, glow: 9, photonCount: 2 },
+            0,
+            { width: 4.5, glow: 9 },
           ),
         );
       }
@@ -277,8 +274,6 @@ export default function streamClocks(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8);
-
   c.on('mt-stream-clocks-b0', () => {
     s.play(clockMs.to(40, { duration: clampDur(c, c.cue('mt-stream-clocks-b0').start, 0.5) }));
   });

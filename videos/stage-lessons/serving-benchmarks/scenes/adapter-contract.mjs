@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   glowDot,
   glowingTrail,
   guardedDynamic,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function adapterContract(s, c) {
-  const phase = s.value(0);
   const protoLit = s.value(0.35);
   const vllmRules = s.value(0);
   const choicesHi = s.value(0);
@@ -200,7 +198,6 @@ export default function adapterContract(s, c) {
   );
 
   s.add(stageAura, header, waterfallView);
-  driftValue(s, c, phase, 7, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('adapter-contract-beat-0', () => {
     const t = c.cue('adapter-contract-beat-0').start;

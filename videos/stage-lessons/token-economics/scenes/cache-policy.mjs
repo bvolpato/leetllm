@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowBar,
@@ -45,7 +44,7 @@ export default function cachePolicy(s, c) {
     () => fadeOutHalf(mode.value),
     (a) => {
       const broken = breakProg.value > 0.5;
-      const p = pulseT.value;
+      const p = 0;
       const segs = ['Instructions', 'Tool schema', 'Policy v3', 'Order 42'];
       const nodes = [
         txt('EARLIER REQUEST', -840, -188, 26, COSMOS.muted, 'mono', 'left').opacity(a),
@@ -236,7 +235,6 @@ export default function cachePolicy(s, c) {
   );
 
   s.add(sceneAura, header, mode0, mode1, mode2);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('te-cache-policy-0', () => {
     const t = c.cue('te-cache-policy-0').start;

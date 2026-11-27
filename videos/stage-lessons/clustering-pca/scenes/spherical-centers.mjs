@@ -12,13 +12,11 @@ import {
   glowRing,
   guardedDynamic,
   heroTitle,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function sphericalCenters(s, c) {
-  const phase = s.value(0);
   const vMean = s.value(1);
   const vConflict = s.value(0);
   const vSpherical = s.value(0);
@@ -262,7 +260,6 @@ export default function sphericalCenters(s, c) {
   });
 
   s.add(bgAura, title, viewMean, viewConflict, viewSpherical);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'mean', showMean, 1, { duration: 0.45 });
   tweenCue(s, c, 'norm', showNorm, 1, { duration: 0.45 });

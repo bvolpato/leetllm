@@ -7,18 +7,15 @@ import {
   afterDuration,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function coalescing(s, c) {
-  const phase = s.value(0);
   const adjProg = s.value(0);
   const askPred = s.value(0);
   const mode = s.value(0); // 0=adjacent, 1=strided, 2=restored
@@ -39,12 +36,10 @@ export default function coalescing(s, c) {
 
   const live = guardedDynamic(1, () => {
     const m = Math.round(mode.value);
-    const p = phase.value;
     const isStrided = m === 1;
     const isRestored = m === 2;
     const activeProg = isStrided ? fanProg.value : isRestored ? restoreProg.value : adjProg.value;
     const req = isStrided ? STRIDED_REQ : COALESCED_REQ;
-    const u = (p * 0.55) % 1;
 
     const subtitle = isStrided
       ? 'Stride 32 words (128 bytes apart) · same 8 logical values'
@@ -104,11 +99,6 @@ export default function coalescing(s, c) {
               width: 3.2,
               opacity: 0.88,
             }),
-            glowDot(sx, laneY + 54 + u * (segY - laneY - 108), {
-              radius: 6,
-              color: COSMOS.rose,
-              glow: 10,
-            }),
           );
         }
       });
@@ -138,11 +128,6 @@ export default function coalescing(s, c) {
               color: COSMOS.cyan,
               width: 3.0,
               opacity: 0.82,
-            }),
-            glowDot(lx + (tx - lx) * u, laneY + 50 + (segY - 58 - (laneY + 50)) * u, {
-              radius: 5.5,
-              color: COSMOS.cyan,
-              glow: 9,
             }),
           );
         }
@@ -183,7 +168,6 @@ export default function coalescing(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('collect-adjacent', () => s.play(adjProg.to(1, { duration: 0.8 })));
   c.on('predict-segments', () => s.play(askPred.to(1, { duration: 0.35 })));

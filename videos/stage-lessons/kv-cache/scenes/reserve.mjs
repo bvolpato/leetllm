@@ -17,7 +17,6 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
   fadeInNodes,
   fmt,
   glowBar,
@@ -29,7 +28,6 @@ import {
 export default function reserve(s, c) {
   const act1Vis = s.value(1);
   const act2Vis = s.value(0);
-  const phase = s.value(0);
 
   // Act 1 state
   const copyVis = s.value(0);
@@ -182,11 +180,10 @@ export default function reserve(s, c) {
       );
     }
     if (thirdVis.value > 0.05) {
-      const pulse = blankPulse.value > 0.2 ? 0.7 + 0.3 * Math.sin(phase.value * 6) : 1;
       nodes.push(
         txt('REQ C ARRIVES -> BLOCKED', -855, 184, 34, ROLE.waste, 'mono', 'left')
           .glow(8, ROLE.waste)
-          .opacity(a * thirdVis.value * pulse),
+          .opacity(a * thirdVis.value),
         txt(
           blankPulse.value > 0.2
             ? 'Every blank block already belongs to A or B'
@@ -258,7 +255,7 @@ export default function reserve(s, c) {
 
     // 2. Reservation waste (skeleton visible from start of Act 2, lights up on `idle`)
     const rA = a * (rSt > 0.05 ? Math.min(1, rSt) : 0.48);
-    const growW = rSt > 0.05 ? 0.14 + 0.14 * ((Math.sin(phase.value * 2.2) + 1) * 0.5) : 0.08;
+    const growW = rSt > 0.05 ? 0.22 : 0.08;
     nodes.push(
       txt(
         '2. RESERVATION WASTE',
@@ -381,7 +378,6 @@ export default function reserve(s, c) {
 
   // Initial picture (Act 1)
   s.add(fragAura, fragView, act1Header, act1Dyn, act2Dyn);
-  driftValue(s, c, phase, 8.0, { startOffset: 0.1, endMargin: 0.5 });
 
   // Orbit 3D fragmented slabs through Act 1
   const kindsT = c.cue('kinds').start;

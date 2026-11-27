@@ -27,7 +27,6 @@ import {
   glowingTrail,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   mix,
   mse,
   orbitScene,
@@ -47,7 +46,6 @@ export function intro(s, c) {
   const gapP = s.value(0);
   const incP = s.value(0);
   const tmP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.line, seed: 1 }));
   s.add(decorAura(-320, 20, 480, '#ffd1661c', '#07091000'));
@@ -144,7 +142,6 @@ export function intro(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'clock-stops', clkP, 1, { dur: 0.7 });
   cueTo(s, c, 'last-gap', gapP, 1, { dur: 0.65 });
   cueTo(s, c, 'next-increase', incP, 1, { after: true, dur: 0.55 });
@@ -160,7 +157,6 @@ export function lineScene(s, c) {
   const mP = s.value(0);
   const readP = s.value(0);
   const zeroP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.line, seed: 2 }));
   s.add(decorAura(0, 20, 560, '#5ce1e61c', '#ffd16612'));
@@ -263,7 +259,6 @@ export function lineScene(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'intercept-update', bP, 1, { dur: 0.9 });
   cueTo(s, c, 'slope-update', mP, 1, { dur: 0.9 });
   cueTo(s, c, 'prediction-read', readP, 1, { dur: 0.65 });
@@ -279,7 +274,6 @@ export function residuals(s, c) {
   const othP = s.value(0);
   const shP = s.value(0);
   const retP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.curve, seed: 3 }));
   s.add(decorAura(0, 20, 560, '#ff6b8b1c', '#5ce1e614'));
@@ -368,7 +362,6 @@ export function residuals(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'residual-transfer', trP, 1, { dur: 0.75 });
   cueTo(s, c, 'residual-others', othP, 1, { dur: 0.85 });
   cueTo(s, c, 'residual-shift', shP, 1, { dur: 0.9 });
@@ -385,7 +378,6 @@ export function loss(s, c) {
   const rootP = s.value(0);
   const baseP = s.value(0);
   const scP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.curve, seed: 4 }));
   s.add(decorAura(0, 30, 560, '#ff6b8b1c', '#ffd16614'));
@@ -505,7 +497,6 @@ export function loss(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'loss-collect', colP, 1, { dur: 0.8 });
   cueTo(s, c, 'loss-average', avgP, 1, { dur: 0.7 });
   cueTo(s, c, 'loss-root', rootP, 1, { dur: 0.7 });
@@ -521,7 +512,6 @@ export function fit(s, c) {
   const firstP = s.value(0);
   const descP = s.value(0);
   const overP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.line, seed: 5 }));
   s.add(decorAura(340, 20, 520, '#5ce1e622', '#ff6b8b14'));
@@ -654,7 +644,6 @@ export function fit(s, c) {
 
   s.add(view3d, headline, leftPanel);
   orbitScene(s, c, view3d, { theta: -0.26, phi: 0.94 });
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'gradient-first', firstP, 1, { dur: 0.75 });
   cueTo(s, c, 'gradient-descent', descP, 1, { dur: 1.4 });
   cueTo(s, c, 'gradient-oversized', overP, 1, { dur: 1.3 });
@@ -669,7 +658,6 @@ export function solve(s, c) {
   const projP = s.value(0);
   const balP = s.value(0);
   const dupP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.good, seed: 6 }));
   s.add(decorAura(0, 20, 560, '#6ee7b71e', '#a78bfa16'));
@@ -688,7 +676,6 @@ export function solve(s, c) {
     const pr = projP.value;
     const bl = balP.value;
     const dp = dupP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Left: Orthogonal projection geometry (y -> y_hat + perpendicular r)
@@ -787,7 +774,6 @@ export function solve(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'solve-rows', rowP, 1, { dur: 0.7 });
   cueTo(s, c, 'solve-project', projP, 1, { dur: 0.85 });
   cueTo(s, c, 'solve-balances', balP, 1, { dur: 0.85 });

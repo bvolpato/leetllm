@@ -16,12 +16,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function pqCode(s, c) {
-  const phase = s.value(0);
   const showSplit = s.value(0);
   const showRecon = s.value(0);
   const showErr = s.value(0);
@@ -38,12 +36,10 @@ export default function pqCode(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const ss = showSplit.value;
     const sr = showRecon.value;
     const se = showErr.value;
     const sp = showPayload.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: Concrete 2-subspace example [1.1, 0.9 | -0.8, -1.2] -> [1, 1 | -1, -1]
@@ -82,7 +78,7 @@ export default function pqCode(s, c) {
       // Squared reconstruction error breakdown
       glassCell(-420, 64, 850, 144, se > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: se > 0.3 ? '#29111a' : '#12182b',
-        glow: se > 0.3 ? 9 * pulse : 2,
+        glow: se > 0.3 ? 9 : 2,
       }),
       txt('SQUARED RECONSTRUCTION ERROR', -815, 22, 26, COSMOS.rose, 'mono', 'left'),
       txt(
@@ -132,7 +128,7 @@ export default function pqCode(s, c) {
 
       glassCell(495, 86, 750, 138, sp > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: sp > 0.3 ? '#0e2824' : '#12182b',
-        glow: sp > 0.3 ? 10 * pulse : 2,
+        glow: sp > 0.3 ? 10 : 2,
       }),
       txt('PQ CODE (96 SUBVECTORS x 16 DIMS x 1 B)', 150, 48, 26, COSMOS.emerald, 'mono', 'left'),
       txt(
@@ -172,7 +168,6 @@ export default function pqCode(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pq-split', () => s.play(showSplit.to(0.4, { duration: 0.35 })));
   c.on('pq-index', () => s.play(showSplit.to(0.7, { duration: 0.35 })));

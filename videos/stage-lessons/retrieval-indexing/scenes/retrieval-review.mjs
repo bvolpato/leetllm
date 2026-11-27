@@ -9,12 +9,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function retrievalReview(s, c) {
-  const phase = s.value(0);
   const showLanes = s.value(0);
   const showAsk = s.value(0);
   const showCut = s.value(0);
@@ -33,14 +31,12 @@ export default function retrievalReview(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sl = showLanes.value;
     const sa = showAsk.value;
     const sc = showCut.value;
     const s3 = showThree.value;
     const sb = showBack.value;
     const ss = showSave.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const fixed = s3 > 0.4;
     const revealed = sc > 0.4 || fixed;
@@ -53,7 +49,7 @@ export default function retrievalReview(s, c) {
 
       glassCell(-645, 58, 410, 104, COSMOS.emerald, {
         fill: '#0e2824',
-        glow: sl > 0.3 ? 9 * pulse : 5,
+        glow: sl > 0.3 ? 9 : 5,
       }),
       txt('DENSE LANE (FOUND d2!)', -645, 36, 26, COSMOS.emerald, 'mono'),
       txt('[ d2, d1, d4 ]', -645, 80, 28, COSMOS.emerald, 'mono'),
@@ -70,7 +66,7 @@ export default function retrievalReview(s, c) {
         fixed ? COSMOS.emerald : revealed ? COSMOS.amber : COSMOS.gold,
         {
           fill: fixed ? '#0e2824' : revealed ? '#281c10' : '#181e34',
-          glow: revealed ? 11 * pulse : 6,
+          glow: revealed ? 11 : 6,
         },
       ),
       txt('FUSION CUTOFF', -30, -72, 26, fixed ? COSMOS.emerald : COSMOS.gold, 'mono'),
@@ -99,7 +95,7 @@ export default function retrievalReview(s, c) {
       // Stage 3: Cross-Encoder Reranker
       glassCell(580, -18, 520, 188, sb > 0.4 ? COSMOS.emerald : COSMOS.muted, {
         fill: sb > 0.4 ? '#0e2824' : '#12182b',
-        glow: sb > 0.4 ? 10 * pulse : 3,
+        glow: sb > 0.4 ? 10 : 3,
       }),
       txt('RERANKER -> MODEL', 580, -72, 26, sb > 0.4 ? COSMOS.emerald : COSMOS.cyan, 'mono'),
       txt(
@@ -122,7 +118,7 @@ export default function retrievalReview(s, c) {
       // Bottom: Replay manifest box
       glassCell(0, 214, 1680, 128, ss > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10182d',
-        glow: ss > 0.3 ? 8 * pulse : 2,
+        glow: ss > 0.3 ? 8 : 2,
       }),
       txt('REPLAYABLE EVALUATION RECORD', -810, 182, 26, COSMOS.cyan, 'mono', 'left'),
       txt(
@@ -157,7 +153,6 @@ export default function retrievalReview(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('review-lanes', () => s.play(showLanes.to(1, { duration: 0.45 })));
   c.on('review-ask', () => s.play(showAsk.to(1, { duration: 0.4 })));

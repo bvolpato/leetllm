@@ -6,12 +6,10 @@ import {
   COSMOS,
   EXITSTACK_LINES,
   ROLE,
-  ambientClock,
   buildLockChamber3d,
   cinemaAtmosphere,
   codeSpotlight,
   glowCross,
-  glowDot,
   glowPill,
   guardedDynamic,
   lowerFooter,
@@ -26,7 +24,6 @@ export default function lockOrder(s, c) {
     accent: ROLE.ok,
   });
 
-  const amb = ambientClock(s, c);
   const lockActive = s.value(0);
   // Step 0=raw [B, A, A], 1=sorted [A, A, B], 2=deduped [A, B],
   // 3=try [A, unknown], 4=A locked & registered in ExitStack, 5=KeyError on unknown!,
@@ -38,7 +35,6 @@ export default function lockOrder(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(step.value);
       const activeCode =
         st === 1 || st === 2 ? [1] : st === 4 ? [0, 3] : st === 5 ? [2] : st >= 6 ? [0] : [];
@@ -156,12 +152,6 @@ export default function lockOrder(s, c) {
           'sans',
           'center',
         ).opacity(alpha),
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5 + 1.5 * pulse,
-          color: st >= 6 ? ROLE.ok : ROLE.focus,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'GLOBAL LOCK ORDER + DEDUP + EXITSTACK CLEANUP',
           st >= 6 ? 'KEYERROR -> EXITSTACK RELEASES A' : 'sorted(set(ids)) PREVENTS DEADLOCK',

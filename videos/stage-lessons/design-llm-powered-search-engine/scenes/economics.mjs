@@ -11,13 +11,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function economics(s, c) {
-  const pulse = s.value(0);
   const cohortOn = s.value(0);
   const baseMeanOn = s.value(0);
   const staleOn = s.value(0);
@@ -183,8 +181,6 @@ export default function economics(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('cost-requests', () => {
     s.play(cohortOn.to(1, { duration: clampDur(c, c.cue('cost-requests').start, 0.35) }));
   });

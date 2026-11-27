@@ -8,19 +8,16 @@ import {
   delay,
   dot,
   glassCell,
-  glowDot,
   glowingTrail,
   group,
   guardedDynamic,
   heroTitle,
   par,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function timingWindow(s, c) {
-  const phase = s.value(0);
   const showTimeline = s.value(1);
   const showRounds = s.value(0);
 
@@ -50,7 +47,6 @@ export default function timingWindow(s, c) {
 
   // Beats 0 & 1: 4-stage launch pipeline + CUDA event bracket
   const timelineView = guardedDynamic(showTimeline, (a) => {
-    const p = phase.value;
     const c1 = check1.value;
     const wm = warm.value;
     const bt = batch.value;
@@ -179,10 +175,6 @@ export default function timingWindow(s, c) {
     }
     nodes.push(txt(bottom, 0, 355, 28, bottomCol, 'sans').opacity(a));
 
-    // Ambient pulse moving along timed bracket
-    const u = (p * 0.45) % 1;
-    nodes.push(glowDot(-145 + u * 640, 182, { radius: 6, color: ROLE.gold, opacity: bt * a }));
-
     return group(...nodes);
   });
 
@@ -250,7 +242,6 @@ export default function timingWindow(s, c) {
   });
 
   s.add(bgAura, title, timelineView, roundsView);
-  runPhase(s, c, phase, 16);
 
   c.on('gpu-timing-window-check', () =>
     s.play(check1.to(1, { duration: remainDuration(c, 'gpu-timing-window-check', 0.45) })),

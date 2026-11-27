@@ -6,19 +6,16 @@ import {
   W,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function column(s, c) {
-  const phase = s.value(0);
   const pSplit = s.value(0);
   const pSlices = s.value(0);
   const pHalf0 = s.value(0);
@@ -154,14 +151,11 @@ export default function column(s, c) {
       );
     }
 
-    nodes.push(
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, { radius: 6, color: ROLE.gpu1 }),
-    );
+    nodes.push();
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('column-split', () =>
     s.play(pSplit.to(1, { duration: remainDuration(c, 'column-split', 0.45) })),

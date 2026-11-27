@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   cinematic3d,
-  driftValue,
   guardedDynamic,
   orbitScene,
   stepAfter,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function runtimeTrust(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const procOn = s.value(0);
   const b1On = s.value(0);
@@ -338,8 +336,6 @@ export default function runtimeTrust(s, c) {
 
   s.add(stageAura, hw3d, header, view);
   orbitScene(s, c, hw3d, { theta: -0.22, phi: 0.85 });
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-runtime-trust-b0', b0On, 1);
   stepAfter(s, c, 'mt-runtime-trust-s0-2', procOn, 1);
   stepOn(s, c, 'mt-runtime-trust-b1', b1On, 1);

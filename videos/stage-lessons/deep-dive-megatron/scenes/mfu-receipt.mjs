@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function mfuReceipt(s, c) {
-  const phase = s.value(0);
   // step: 0=MFU vs HFU, 1=40% vs 50%, 2=H100 study 1152 seqs, 3=96 GPUs 47%, 4=4608 GPUs 42%
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function mfuReceipt(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 1) {
@@ -109,9 +105,7 @@ export default function mfuReceipt(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: ROLE.dp }),
       txt(
         'Compare ratios only under the same FLOP convention and peak; track validation loss for learning',
         0,
@@ -125,7 +119,6 @@ export default function mfuReceipt(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['mg-mfu-receipt-b0', 0],
     ['mg-mfu-forty-fifty', 1],

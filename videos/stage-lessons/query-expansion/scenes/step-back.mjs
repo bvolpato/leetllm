@@ -12,12 +12,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function stepBack(s, c) {
-  const phase = s.value(0);
   const showQuestion = s.value(0);
   const showPolicy = s.value(0);
   const showJoin = s.value(0);
@@ -35,13 +33,11 @@ export default function stepBack(s, c) {
   const excess = STEP_BACK_REQUEST.perWindow - STEP_BACK_POLICY.limit;
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sq = showQuestion.value;
     const sp = showPolicy.value;
     const sj = showJoin.value;
     const hasPolicy = sp > 0.5;
     const joined = sj > 0.5;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     // Ruler coordinate mapping: 0 .. 140 req -> x from -780 to +780
     const rx = (val) => -780 + (val / 140) * 1560;
@@ -89,7 +85,7 @@ export default function stepBack(s, c) {
         hasPolicy ? COSMOS.gold : sq > 0.3 ? COSMOS.amber : COSMOS.muted,
         {
           fill: hasPolicy ? '#262010' : '#12182b',
-          glow: hasPolicy ? 9 * pulse : 3,
+          glow: hasPolicy ? 9 : 3,
         },
       ),
       txt(
@@ -166,7 +162,7 @@ export default function stepBack(s, c) {
     if (joined) {
       nodes.push(
         rect(x120 - x100, 42, { fill: COSMOS.rose, radius: 6 })
-          .glow(12 * pulse, COSMOS.rose)
+          .glow(12, COSMOS.rose)
           .at((x100 + x120) / 2, ry),
         txt(`+${excess} OVER`, x100 + 18, ry - 78, 30, COSMOS.rose, 'mono', 'left'),
       );
@@ -188,7 +184,6 @@ export default function stepBack(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('stepback-question', () => s.play(showQuestion.to(1, { duration: 0.45 })));
   c.on('stepback-policy', () => s.play(showPolicy.to(1, { duration: 0.5 })));

@@ -12,7 +12,6 @@ import {
   rect,
   remainDuration,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -27,7 +26,6 @@ const RESCALE_RATIO =
 const BAD_RATIO = (OLD_N + NEW_V) / (OLD_L + 1);
 
 export default function blackwellReference(s, c) {
-  const phase = s.value(0);
   const showDesign = s.value(0.5);
   const showCond = s.value(0);
   const showBad = s.value(0);
@@ -55,13 +53,11 @@ export default function blackwellReference(s, c) {
   );
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const ds = showDesign.value;
     const cd = showCond.value;
     const bd = showBad.value;
     const ct = showCute.value;
     const sw = showSweep.value;
-    const u = (p * 0.45) % 1;
 
     // Visual 3-branch flow from left state (m=2, ℓ=2, N=10 + new s=2.2, v=-3) -> right ratio ruler!
     const xStart = -470;
@@ -89,11 +85,6 @@ export default function blackwellReference(s, c) {
         width: 3.6,
         opacity: Math.max(0.45, cd),
       }),
-      glowDot(xStart + u * (xEnd - xStart), yB + (yA - yB) * u - 75 * 2 * u * (1 - u), {
-        radius: 5.5,
-        color: COSMOS.emerald,
-        opacity: Math.max(0.45, cd),
-      }),
       txt('A. Keep m = 2 · new wt = e⁺⁰·²', 20, yA - 36, 26, COSMOS.emerald, 'mono').opacity(
         Math.max(0.45, cd),
       ),
@@ -106,11 +97,6 @@ export default function blackwellReference(s, c) {
       glowingArc([xStart, yB], [xEnd, yB], 0, {
         color: COSMOS.gold,
         width: 3.6,
-        opacity: Math.max(0.45, cd),
-      }),
-      glowDot(xStart + ((u + 0.33) % 1) * (xEnd - xStart), yB, {
-        radius: 5.5,
-        color: COSMOS.gold,
         opacity: Math.max(0.45, cd),
       }),
       txt('B. Move m → 2.2 · rescale old × e⁻⁰·²', 50, yB - 38, 26, COSMOS.gold, 'mono').opacity(
@@ -194,7 +180,6 @@ export default function blackwellReference(s, c) {
   });
 
   s.add(bgAura, title, eqKeep, live);
-  runPhase(s, c, phase, 12);
 
   c.on('blackwell-reference-beat-1', () => s.play(showDesign.to(1, { duration: 0.4 })));
   c.on('blackwell-reference-beat-2', () => s.play(showCond.to(0.6, { duration: 0.35 })));

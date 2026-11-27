@@ -12,13 +12,11 @@ import {
   guardedDynamic,
   heroTitle,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function objectiveTies(s, c) {
-  const phase = s.value(0);
   const showLeft = s.value(0);
   const showBottom = s.value(0);
   const showMeaning = s.value(0);
@@ -140,7 +138,6 @@ export default function objectiveTies(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'left', showLeft, 1, { duration: 0.45 });
   tweenCue(s, c, 'bottom', showBottom, 1, { duration: 0.55 });

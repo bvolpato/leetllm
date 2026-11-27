@@ -9,12 +9,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function filteredDistributed(s, c) {
-  const phase = s.value(0);
   const showWindow = s.value(0);
   const showProb = s.value(0);
   const showShards = s.value(0);
@@ -32,13 +30,11 @@ export default function filteredDistributed(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sw = showWindow.value;
     const sp = showProb.value;
     const ss = showShards.value;
     const st = showTail.value;
     const sb = showBridge.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left top: EU post-filter buffer 3 -> 5 inside trusted service
@@ -74,7 +70,7 @@ export default function filteredDistributed(s, c) {
 
       glassCell(-465, 146, 780, 212, sp > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: '#26111a',
-        glow: sp > 0.3 ? 9 * pulse : 2,
+        glow: sp > 0.3 ? 9 : 2,
       }),
       txt('Independent: 0.995^100 = 60.6% empty!', -825, 76, 26, COSMOS.amber, 'mono', 'left'),
       meterBar(-825, 108, 690, 18, 0.606, COSMOS.amber),
@@ -95,7 +91,7 @@ export default function filteredDistributed(s, c) {
 
       glassCell(495, -72, 750, 198, ss > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#231c10',
-        glow: st > 0.3 ? 9 * pulse : 2,
+        glow: st > 0.3 ? 9 : 2,
       }),
       txt('10 shards x exact top-5 -> global top-5', 145, -134, 26, COSMOS.emerald, 'mono', 'left'),
       txt('Lose 1 shard -> PARTIAL result (no guard)', 145, -88, 26, COSMOS.rose, 'mono', 'left'),
@@ -107,7 +103,7 @@ export default function filteredDistributed(s, c) {
 
       glassCell(495, 174, 750, 152, sb > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: '#0e2824',
-        glow: sb > 0.3 ? 9 * pulse : 2,
+        glow: sb > 0.3 ? 9 : 2,
       }),
       txt(
         'Cross ineligible bridge node inside trusted graph',
@@ -153,7 +149,6 @@ export default function filteredDistributed(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('filtered-distributed-b1', () => s.play(showWindow.to(0.4, { duration: 0.35 })));
   c.on('expand-filter-window', () => s.play(showWindow.to(1, { duration: 0.4 })));

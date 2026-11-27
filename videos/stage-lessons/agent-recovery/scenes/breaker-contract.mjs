@@ -12,7 +12,6 @@ import {
   ambientClock,
   cinemaAtmosphere,
   glowArrow,
-  glowDot,
   glowPill,
   glowRing,
   guardedDynamic,
@@ -123,10 +122,6 @@ export default function breakerContract(s, c) {
             'center',
           ).opacity(alpha),
           glowRing(hubX, hubY, 105, ROLE.mark, { width: 4.5, glow: 14 }).opacity(alpha),
-          circle(16, { fill: ROLE.mark, stroke: null }).at(
-            hubX + Math.cos(amb.value * Math.PI * 8) * 105,
-            hubY + Math.sin(amb.value * Math.PI * 8) * 105,
-          ),
           txt('PROBE', hubX, hubY - 16, 30, ROLE.mark, 'mono', 'center').opacity(alpha),
           txt('SLOT: 1', hubX, hubY + 24, 26, COSMOS.ink, 'mono', 'center').opacity(alpha),
         );

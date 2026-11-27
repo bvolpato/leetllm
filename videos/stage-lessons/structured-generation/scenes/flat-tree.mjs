@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fsmNode,
@@ -35,7 +34,6 @@ const VALID_RES = treeRelationships(VALID_NODES);
 const CYCLIC_RES = treeRelationships(CYCLIC_NODES);
 
 export default function flatTree(s, c) {
-  const pulse = s.value(0);
   const b0Hi = s.value(0);
   const validHi = s.value(0);
   const b1Hi = s.value(0);
@@ -56,7 +54,6 @@ export default function flatTree(s, c) {
   const validView = guardedDynamic(
     () => fadeOutHalf(cycleMode.value),
     (a) => {
-      const p = pulse.value;
       const vh = validHi.value;
       const b0 = b0Hi.value;
       const nodes = [];
@@ -89,7 +86,7 @@ export default function flatTree(s, c) {
         beamWithPhotons(
           quadArcPts([rPos[0] - 42, rPos[1] + 54], [n1Pos[0] + 24, n1Pos[1] - 62], -12),
           ROLE.legal,
-          p * 1.1,
+          0,
           {
             alpha: a * (0.5 + 0.5 * Math.max(b0, vh)),
             width: 3.6,
@@ -98,7 +95,7 @@ export default function flatTree(s, c) {
         beamWithPhotons(
           quadArcPts([rPos[0] + 42, rPos[1] + 54], [n2Pos[0] - 24, n2Pos[1] - 62], -12),
           ROLE.legal,
-          p * 1.1 + 0.5,
+          0,
           {
             alpha: a * (0.5 + 0.5 * Math.max(b0, vh)),
             width: 3.6,
@@ -140,7 +137,6 @@ export default function flatTree(s, c) {
   const cycleView = guardedDynamic(
     () => fadeInHalf(cycleMode.value),
     (a) => {
-      const p = pulse.value;
       const rj = rejectHi.value;
       const b2 = b2Hi.value;
       const b1 = b1Hi.value;
@@ -185,8 +181,8 @@ export default function flatTree(s, c) {
         line([235, -160], [235, 200], { stroke: ROLE.prune, width: 3, dash: [8, 8] }).opacity(
           a * 0.75,
         ),
-        beamWithPhotons(abTop, ROLE.prune, p * 1.3, { alpha: a, width: 3.6 }),
-        beamWithPhotons(abBot, ROLE.prune, p * 1.3 + 0.5, { alpha: a, width: 3.6 }),
+        beamWithPhotons(abTop, ROLE.prune, 0, { alpha: a, width: 3.6 }),
+        beamWithPhotons(abBot, ROLE.prune, 0, { alpha: a, width: 3.6 }),
         fsmNode(aPos[0], aPos[1], 56, 'a', { color: ROLE.prune, size: 32, opacity: a }),
         fsmNode(bPos[0], bPos[1], 56, 'b', { color: ROLE.prune, size: 32, opacity: a }),
         txt('UNREACHABLE CYCLE', 550, 225, 26, ROLE.prune, 'mono', 'center').opacity(a),
@@ -219,7 +215,6 @@ export default function flatTree(s, c) {
   );
 
   s.add(stageAura, header, validView, cycleView);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-flat-tree-0', () => {
     s.play(b0Hi.to(1, { duration: clampDur(c, c.cue('sg-flat-tree-0').start, 0.35) }));

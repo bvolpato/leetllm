@@ -10,13 +10,11 @@ import {
   heroTitle,
   orbitScene,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function backward(s, c) {
   const tileCursor = s.value(0);
-  const phase = s.value(0);
   const showLseEq = s.value(0);
   const showRecomp = s.value(0);
   const showScale = s.value(0);
@@ -102,7 +100,6 @@ export default function backward(s, c) {
   });
 
   s.add(bgAura, terrain3d, title, live, eqLse, eqRecon);
-  runPhase(s, c, phase, 12);
   orbitScene(s, c, terrain3d, { theta: -0.2, phi: 0.92 });
   c.at(0.1, () => s.play(tileCursor.to(11.5, { duration: Math.max(1, c.end - c.start - 0.65) })));
 

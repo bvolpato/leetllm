@@ -13,7 +13,6 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
   verifyInvariant,
@@ -31,7 +30,6 @@ export default function preparedDependencies(s, c) {
   verifyInvariant(wrongHash !== EXPECTED_HASH, 'schema v3 mismatches lockfile pin');
   verifyInvariant(pinnedHash === EXPECTED_HASH, 'schema v2 matches lockfile pin');
 
-  const phase = s.value(0);
   const fetchPos = s.value(0);
   const showEgress = s.value(0);
   const showWrong = s.value(0);
@@ -303,7 +301,6 @@ export default function preparedDependencies(s, c) {
   });
 
   s.add(bgAtmo, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'pd-fetch', fetchPos, 1, { duration: 1.0 });
   tweenCue(s, c, 'pd-egress', showEgress, 1, { duration: 0.35 });

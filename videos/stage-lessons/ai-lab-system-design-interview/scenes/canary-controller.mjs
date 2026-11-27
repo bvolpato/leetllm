@@ -2,20 +2,9 @@
 // 3 canary rollout_decision rows: (1) confirmed leak=1 even with missing latency -> ROLLBACK NOW!
 // (2) missing/invalid metrics or err > 1% or p95 > 900ms -> HOLD, (3) leaks=0 & <= 1% & <= 900ms -> EXPAND!
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function canaryController(s, c) {
-  const phase = s.value(0);
   const rollOn = s.value(0);
   const expandOn = s.value(0);
   const boolTrapOn = s.value(0);
@@ -32,7 +21,6 @@ export default function canaryController(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const rl = rollOn.value;
       const ex = expandOn.value;
       const bt = boolTrapOn.value;
@@ -115,12 +103,6 @@ export default function canaryController(s, c) {
         ).opacity(bAlpha),
         txt('CONTAINMENT FIRST', 480, -425, 26, ROLE.fail, 'mono', 'center'),
         txt('Revoke leaked access & keep evidence', 480, -378, 26, COSMOS.muted, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.fail,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -128,8 +110,6 @@ export default function canaryController(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('sd-canary-controller-0-result', () => {
     s.play(
       rollOn.to(1, { duration: clampDur(c, c.cue('sd-canary-controller-0-result').start, 0.35) }),

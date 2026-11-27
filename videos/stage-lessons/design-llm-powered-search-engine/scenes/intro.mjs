@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   buildMigrationRulerNodes,
   clampDur,
-  driftValue,
   generalWindow,
   guardedDynamic,
   migrationDecision,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const pulse = s.value(0);
   const queryOn = s.value(0);
   const baseFrac = s.value(0);
   const offerFrac = s.value(0);
@@ -35,7 +33,6 @@ export default function intro(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const b = baseFrac.value;
       const o = offerFrac.value;
       const pend = pendingOn.value;
@@ -62,16 +59,14 @@ export default function intro(s, c) {
 
       // Luminous retrieval beams connecting query bar to the two returned policy passages
       nodes.push(
-        beamWithPhotons(quadArcPts([-320, -368], [-440, -252], -12), ROLE.policy, p, {
+        beamWithPhotons(quadArcPts([-320, -368], [-440, -252], -12), ROLE.policy, 0, {
           width: 3,
           glow: 8,
-          photonCount: 1,
           alpha: 0.4 + 0.6 * b,
         }),
-        beamWithPhotons(quadArcPts([320, -368], [440, -252], -12), ROLE.exception, p + 0.45, {
+        beamWithPhotons(quadArcPts([320, -368], [440, -252], -12), ROLE.exception, 0, {
           width: 3,
           glow: 8,
-          photonCount: 1,
           alpha: 0.4 + 0.6 * o,
         }),
       );
@@ -146,8 +141,6 @@ export default function intro(s, c) {
   );
 
   s.add(stageAura, view);
-  driftValue(s, c, pulse, 4.5, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('intro-start', () => {
     s.play(queryOn.to(1, { duration: clampDur(c, c.cue('intro-start').start, 0.35) }));
   });

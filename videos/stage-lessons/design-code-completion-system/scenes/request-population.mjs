@@ -2,20 +2,9 @@
 // Nested clock intervals (edit -> submit -> first token [TTFT] -> usable span -> paint) so
 // TTFT is NEVER double-counted with transport/queue, plus reporting full population (drops/timeouts!).
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function requestPopulation(s, c) {
-  const phase = s.value(0);
   const popOn = s.value(0);
 
   const header = cinemaHeader(
@@ -35,7 +24,6 @@ export default function requestPopulation(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const pp = popOn.value;
       const nodes = [];
 
@@ -134,12 +122,6 @@ export default function requestPopulation(s, c) {
         ).opacity(pAlpha),
         txt('1 TOKEN != USABLE', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Often need multi-token span to paint', 480, -378, 26, COSMOS.muted, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ed,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -147,8 +129,6 @@ export default function requestPopulation(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('cc-request-population-1', () => {
     s.play(popOn.to(1, { duration: clampDur(c, c.cue('cc-request-population-1').start, 0.4) }));
   });

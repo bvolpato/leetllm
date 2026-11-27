@@ -5,18 +5,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function pipeline(s, c) {
-  const phase = s.value(0);
   const pOrd = s.value(0);
   const pPrior = s.value(0);
   const pOver = s.value(0);
@@ -117,13 +114,11 @@ export default function pipeline(s, c) {
         glow: 7,
       }),
       txt(foot, 0, 315, 26, ser ? COSMOS.gold : lim ? ROLE.warn : COSMOS.ink, 'sans'),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 405, { radius: 6, color: ROLE.expert }),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('ordered-stages', () =>
     s.play(pOrd.to(1, { duration: remainDuration(c, 'ordered-stages', 0.7) })),

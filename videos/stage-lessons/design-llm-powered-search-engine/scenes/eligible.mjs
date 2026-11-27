@@ -9,14 +9,12 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   quadArcPts,
   txt,
 } from '../parts.mjs';
 
 export default function eligible(s, c) {
-  const pulse = s.value(0);
   const orderOn = s.value(0);
   const takeProg = s.value(0);
   const askOn = s.value(0);
@@ -46,7 +44,6 @@ export default function eligible(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const tk = takeProg.value;
       const ask = askOn.value > 0.5;
       const ds = discardProg.value;
@@ -134,28 +131,24 @@ export default function eligible(s, c) {
       // Flowing beams connecting selected candidates to slots
       if (rf > 0.15) {
         nodes.push(
-          beamWithPhotons(quadArcPts([-35, 63], [165, -115], -30), ROLE.policy, p, {
+          beamWithPhotons(quadArcPts([-35, 63], [165, -115], -30), ROLE.policy, 0, {
             width: 3.4,
             glow: 9,
-            photonCount: 1,
           }),
-          beamWithPhotons(quadArcPts([-35, 177], [165, 65], 25), ROLE.exception, p + 0.5, {
+          beamWithPhotons(quadArcPts([-35, 177], [165, 65], 25), ROLE.exception, 0, {
             width: 3.4,
             glow: 9,
-            photonCount: 1,
           }),
         );
       } else if (tk > 0.15 && ds < 0.5) {
         nodes.push(
-          beamWithPhotons(quadArcPts([-35, -165], [165, -115], -18), ROLE.deny, p, {
+          beamWithPhotons(quadArcPts([-35, -165], [165, -115], -18), ROLE.deny, 0, {
             width: 3.2,
             glow: 7,
-            photonCount: 1,
           }),
-          beamWithPhotons(quadArcPts([-35, -51], [165, 65], 18), ROLE.deny, p + 0.4, {
+          beamWithPhotons(quadArcPts([-35, -51], [165, 65], 18), ROLE.deny, 0, {
             width: 3.2,
             glow: 7,
-            photonCount: 1,
           }),
         );
       }
@@ -205,8 +198,6 @@ export default function eligible(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('eligible-order', () => {
     s.play(orderOn.to(1, { duration: clampDur(c, c.cue('eligible-order').start, 0.35) }));
   });

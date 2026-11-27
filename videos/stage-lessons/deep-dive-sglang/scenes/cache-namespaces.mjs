@@ -7,18 +7,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function cacheNamespaces(s, c) {
-  const phase = s.value(0);
   // step: 0=compare A..E (ns A), 1=returns KV 12..15 (E starts next page),
   // 2=switch adapter A -> B, 3=PREDICT HOLD (how many of 4?), 4=0 returned!, 5=RadixKey.match raises ValueError
   const step = s.value(0);
@@ -35,7 +32,6 @@ export default function cacheNamespaces(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const switched = st >= 2;
     const revealed = st >= 4;
     const nodes = [];
@@ -142,9 +138,7 @@ export default function cacheNamespaces(s, c) {
       txt(badgeText, startX + 4 * pitch, 196, 34, badgeCol, 'mono'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(brLeft + u * (brRight - brLeft), 66, { radius: 6, color: badgeCol }),
       txt(
         st >= 5
           ? 'Lookup helper returns 0; direct RadixKey.match on mismatched keys raises ValueError.'
@@ -166,7 +160,6 @@ export default function cacheNamespaces(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['key-compare', 0],
     ['key-page', 1, true],

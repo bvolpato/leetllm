@@ -5,19 +5,16 @@ import {
   aura,
   glassCell,
   glowBar,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   photonStream,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function proseGates(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const wordsGate = s.value(0);
   const symbolsGate = s.value(0);
@@ -35,7 +32,6 @@ export default function proseGates(s, c) {
   const part1Live = guardedDynamic(showPart1, (a) => {
     const wg = wordsGate.value;
     const sg = symbolsGate.value;
-    const ph = phase.value;
 
     const gates = [
       { label: 'Word count', range: '50 .. 100,000 words', color: COSMOS.cyan, on: wg, y: -120 },
@@ -53,7 +49,7 @@ export default function proseGates(s, c) {
         accent: COSMOS.cyan,
         eyebrow: 'GOPHER MASSIVEWEB SUBSET · STAGE 1 GATES',
       }).opacity(a),
-      ...photonStream([-850, 75], [-660, 75], 0, ph, {
+      ...photonStream([-850, 75], [-660, 75], 0, 0, {
         color: COSMOS.cyan,
         count: 4,
         opacity: a * 0.7,
@@ -92,7 +88,6 @@ export default function proseGates(s, c) {
   const part2Live = guardedDynamic(showPart2, (a) => {
     const sw = stopwordsOn.value;
     const vd = verdictsOn.value;
-    const ph = phase.value;
 
     const cases = [
       {
@@ -151,7 +146,7 @@ export default function proseGates(s, c) {
           a,
         ),
         txt(row.check, -460, y + 2, 28, COSMOS.ink, 'sans', 'left').opacity((0.3 + 0.7 * sw) * a),
-        ...photonStream([530, y], [665, y], 0, ph + i * 0.5, {
+        ...photonStream([530, y], [665, y], 0, 0, {
           color: stroke,
           count: 2,
           opacity: vd * a,
@@ -240,7 +235,6 @@ export default function proseGates(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live, part3Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-prose-gates-words', () =>
     s.play(wordsGate.to(1, { duration: remainDuration(c, 'pt-prose-gates-words', 0.6) })),

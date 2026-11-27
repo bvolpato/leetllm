@@ -9,7 +9,6 @@ import {
   correctionCounterexample,
   crossPhase,
   decomposition,
-  glowDot,
   glowTex,
   glowingArc,
   guardedDynamic,
@@ -18,7 +17,6 @@ import {
   onCue,
   prefixStates,
   probBarH,
-  startAmbient,
   tokenPill,
   transformedLaw,
   txt,
@@ -32,7 +30,6 @@ import {
  * against exact residual replacement (40%/50%/10% -> repaired!).
  */
 export function wrongCorrection(s, c) {
-  const amb = startAmbient(s, c);
   const cx = correctionCounterexample(); // p=[0.4,0.5,0.1], q=[0.6,0.3,0.1], z=0.2
 
   const showOverlap = s.value(0);
@@ -55,7 +52,6 @@ export function wrongCorrection(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const ov = showOverlap.value;
       const ask = askQuestion.value;
       const wNoon = showWrongNoon.value;
@@ -154,12 +150,6 @@ export function wrongCorrection(s, c) {
         nodes.push(txt(`${pct}%`, 855, y, 38, readoutCol, 'mono', 'right'));
       }
 
-      // Ambient flow dot on dawn row
-      const fx = rowX + ((t * 1.5) % 1) * (0.5 * scaleW);
-      nodes.push(
-        glowDot(fx, rowYs[1] + 42, { radius: 4.5, color: modeCol, glow: 8, opacity: 0.7 }),
-      );
-
       // Bottom status line
       let foot = 'Noon already has its full 40%; dawn is missing 20 percentage points';
       let footCol = COSMOS.muted;
@@ -199,7 +189,6 @@ export function wrongCorrection(s, c) {
  * flips dawn acceptance from ~0.86 to 1.00 and dusk acceptance from 0.60 to 0.00!
  */
 export function servingLaws(s, c) {
-  const amb = startAmbient(s, c);
   const law = transformedLaw(); // raw=[0.55,0.30,0.15], target=[11/17,6/17,0], proposal=[0.40,0.35,0.25]
 
   const showTopK = s.value(0);
@@ -221,7 +210,6 @@ export function servingLaws(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const dd = dropDusk.value;
       const np = normalizeP.value;
       const iDawn = inspectDawn.value;
@@ -318,16 +306,6 @@ export function servingLaws(s, c) {
         );
       }
 
-      // Ambient pulse dot
-      nodes.push(
-        glowDot(barX + ((t * 1.2) % 1) * barW, rowYs[1] + 50, {
-          radius: 4.5,
-          color: COSMOS.cyan,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       nodes.push(
         txt(
           'Apply temperature, top-k / top-p filters, and penalties BEFORE computing p(x) / q(x)',
@@ -358,7 +336,6 @@ export function servingLaws(s, c) {
  * Visualizes ID 4012 collision ("cat" vs "house") and Token-Level Intersection translation (cat -> ID 17).
  */
 export function eventMapping(s, c) {
-  const amb = startAmbient(s, c);
   const showCollision = s.value(0);
   const showIntersect = s.value(0);
 
@@ -374,7 +351,6 @@ export function eventMapping(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const sc = showCollision.value;
       const si = showIntersect.value;
 
@@ -423,7 +399,6 @@ export function eventMapping(s, c) {
       // Lower lane: Token-Level Intersection translation bridge
       if (si > 0.04) {
         const botY = 145;
-        const travelX = -215 + ((t * 1.8) % 1) * 430;
         nodes.push(
           tokenPill('shared: "cat" (4012)', -470, botY, {
             w: 470,
@@ -442,7 +417,6 @@ export function eventMapping(s, c) {
           line([-225, botY], [225, botY], { stroke: COSMOS.emerald, width: 3.8 })
             .glow(10, COSMOS.emerald)
             .opacity(si),
-          glowDot(travelX, botY, { radius: 7, color: '#ffffff', glow: 14, opacity: si }),
           txt(
             'NORMALIZE -> SHARED SET -> TRANSLATE ID',
             0,
@@ -487,7 +461,6 @@ export function eventMapping(s, c) {
  * today (computed after softly -> SKIP!), residual correction -> nearby!
  */
 export function chain(s, c) {
-  const amb = startAmbient(s, c);
   const res = verifyChain();
 
   const showDrafts = s.value(0);
@@ -512,7 +485,6 @@ export function chain(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const sd = showDrafts.value;
       const sc = scanTarget.value;
       const a1 = acceptSang.value;
@@ -688,16 +660,6 @@ export function chain(s, c) {
         );
       });
 
-      // Ambient flow dot
-      nodes.push(
-        glowDot(-460 + ((t * 1.4) % 1) * 760, outY + 56, {
-          radius: 4.5,
-          color: COSMOS.emerald,
-          glow: 8,
-          opacity: 0.65,
-        }),
-      );
-
       nodes.push(
         txt(
           hist > 0.25
@@ -738,7 +700,6 @@ export function chain(s, c) {
  * Phase 2: Decimal KV cache ledger 1 -> 12 -> 123, rollback to 12, forward 4 -> 124!
  */
 export function rowAlignment(s, c) {
-  const amb = startAmbient(s, c);
   const phase1 = s.value(1);
   const phase2 = s.value(0);
 
@@ -765,7 +726,6 @@ export function rowAlignment(s, c) {
 
   // Phase 1: Causal rows u, x1, x2, x3 -> p1..p4
   const p1View = guardedDynamic(phase1, (a) => {
-    const t = amb.value;
     const hU = hlU.value;
     const hX1 = hlX1.value;
     const hB = hlBonus.value;
@@ -850,16 +810,6 @@ export function rowAlignment(s, c) {
       );
     }
 
-    // Ambient pulse dot
-    nodes.push(
-      glowDot(xs[1] + ((t * 1.4) % 1) * 900, inY + 62, {
-        radius: 4.5,
-        color: COSMOS.cyan,
-        glow: 8,
-        opacity: 0.65 * a,
-      }),
-    );
-
     nodes.push(
       txt(
         pend > 0.25
@@ -878,7 +828,6 @@ export function rowAlignment(s, c) {
 
   // Phase 2: Decimal cache analogy (1 -> 12 -> 123, rollback to 12, process 4 -> 124)
   const p2View = guardedDynamic(phase2, (a) => {
-    const t = amb.value;
     const s124 = show124.value;
     const nodes = [];
 
@@ -945,12 +894,6 @@ export function rowAlignment(s, c) {
     }
 
     nodes.push(
-      glowDot(-160 + ((t * 1.5) % 1) * 540, botY + 62, {
-        radius: 5,
-        color: COSMOS.gold,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         s124 > 0.25
           ? 'Rollback 123 -> 12, then forward correction 4 to compute clean state 124'

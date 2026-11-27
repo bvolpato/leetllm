@@ -9,14 +9,12 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   tweenOn,
   txt,
 } from '../parts.mjs';
 
 export default function speculativeContract(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=provisional draft, 2=greedy mismatch verify, 3=compatibility & full-cycle cost
 
   const header = cinemaHeader(
@@ -37,7 +35,6 @@ export default function speculativeContract(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const draft = DATA.specDraft;
       const target = DATA.specTarget;
       const res = DATA.specResult; // accepted=2, correction='was'
@@ -82,7 +79,7 @@ export default function speculativeContract(s, c) {
                 [cx, 108],
               ],
               bCol,
-              p * 1.1,
+              0,
               { width: 3.4, glow: 9, photonCount: 1 },
             ),
             txt(isAccepted ? 'MATCH' : 'MISMATCH', cx + 82, 24, 26, bCol, 'mono'),
@@ -162,7 +159,6 @@ export default function speculativeContract(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 5.5, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-speculative-contract-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-greedy-mismatch', step, 2, 0.35);

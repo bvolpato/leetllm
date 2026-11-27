@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function systemShapes(s, c) {
-  const phase = s.value(0);
   const step = s.value(0);
 
   const bgAura = aura(0, 20, 620, '#5ce1e61e', '#a78bfa18');
@@ -29,7 +26,6 @@ export default function systemShapes(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
 
     const shapes = [
       {
@@ -81,9 +77,7 @@ export default function systemShapes(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: ROLE.comm }),
       txt(
         'Count operations at EVERY message size in your trace before picking bandwidth vs latency tuning',
         0,
@@ -97,7 +91,6 @@ export default function systemShapes(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-system-shapes-b0-s0', 0],
     ['nc-system-shapes-b0-s1', 1],

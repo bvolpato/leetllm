@@ -9,7 +9,6 @@ import {
   ROLE,
   aura,
   cinemaHeader,
-  driftValue,
   glowTex,
   guardedDynamic,
   tweenOn,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function weightState(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=weights+KV factors, 2=4 GiB = 4.295 GB, 3=23.3 GB total, 4=GQA/MQA & multi-GPU
 
   const header = cinemaHeader('HBM MEMORY BUDGETING', 'Weights, growing KV', '& overhead apart', {
@@ -181,7 +179,6 @@ export default function weightState(s, c) {
   );
 
   s.add(bgAura, header, kvEq, dyn);
-  driftValue(s, c, phase, 5.5, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-weight-state-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-weight-state-b1', step, 2, 0.3);

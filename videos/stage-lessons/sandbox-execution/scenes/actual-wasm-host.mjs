@@ -14,7 +14,6 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
   verifyInvariant,
@@ -38,7 +37,6 @@ export default function actualWasmHost(s, c) {
   verifyInvariant(addI32(-1) === 0, 'addI32(-1) = 0');
   verifyInvariant(addI32(MAX_I32) === MIN_I32, 'MAX_I32 wraps to MIN_I32');
 
-  const phase = s.value(0);
   const mode0 = s.value(1); // 3 resource budgets
   const mode1 = s.value(0); // i32 ring
   const mode2 = s.value(0); // fuel before instantiate order
@@ -443,7 +441,6 @@ export default function actualWasmHost(s, c) {
   });
 
   s.add(bgAtmo, title, live);
-  runAmbientPhase(s, c, phase, 2.4);
 
   // Beat 0: Signature + budgets
   tweenCue(s, c, 'wh-signature', sigHot, 1, { duration: 0.4 });

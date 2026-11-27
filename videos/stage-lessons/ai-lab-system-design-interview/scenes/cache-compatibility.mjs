@@ -2,20 +2,9 @@
 // Composite KV cache identity (token IDs + positions + model/adapter rev + cache config + tenant ACL),
 // showing adapter mismatch breaks numerical compatibility while cross-tenant breaks authorization!
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function cacheCompatibility(s, c) {
-  const phase = s.value(0);
   const adapterBreak = s.value(0);
   const tenantBreak = s.value(0);
   const fallbackMiss = s.value(0);
@@ -37,7 +26,6 @@ export default function cacheCompatibility(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ad = adapterBreak.value;
       const tn = tenantBreak.value;
       const fb = fallbackMiss.value;
@@ -138,12 +126,6 @@ export default function cacheCompatibility(s, c) {
         ).opacity(fAlpha),
         txt('TWO INDEPENDENT CHECKS', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Math Match  AND  Current Access', 480, -378, 26, ROLE.ok, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.policy,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -151,8 +133,6 @@ export default function cacheCompatibility(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('sd-cache-compatibility-0-result', () => {
     s.play(
       adapterBreak.to(1, {

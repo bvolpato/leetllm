@@ -1,20 +1,9 @@
 // Scene 05: position-units - Convert the caret before constructing the suffix
 // Aligning "a😀b" across 3 coordinate systems: Python code points (2), UTF-16 units (3), UTF-8 bytes (5)!
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function positionUnits(s, c) {
-  const phase = s.value(0);
   const unitsOn = s.value(0);
   const convertOn = s.value(0);
 
@@ -35,7 +24,6 @@ export default function positionUnits(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const un = unitsOn.value;
       const cv = convertOn.value;
       const nodes = [];
@@ -132,12 +120,6 @@ export default function positionUnits(s, c) {
           'sans',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.warn,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -145,8 +127,6 @@ export default function positionUnits(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('cc-position-three-five', () => {
     s.play(unitsOn.to(1, { duration: clampDur(c, c.cue('cc-position-three-five').start, 0.35) }));
   });

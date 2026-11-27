@@ -10,12 +10,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function dynamicSelection(s, c) {
-  const phase = s.value(0);
   const showPass1 = s.value(0);
   const showDrop = s.value(0);
   const showNone = s.value(0);
@@ -35,12 +33,10 @@ export default function dynamicSelection(s, c) {
   const runB = dynamicTree(0.2);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const p1 = showPass1.value;
     const dr = showDrop.value;
     const sn = showNone.value;
     const st = showStudy.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const low = dr > 0.3;
 
@@ -157,7 +153,7 @@ export default function dynamicSelection(s, c) {
 
       glassCell(495, 114, 750, 198, st > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#231c10',
-        glow: st > 0.3 ? 9 * pulse : 2,
+        glow: st > 0.3 ? 9 : 2,
       }),
       txt('MICROSOFT AP NEWS STUDY (50 GLOBAL Qs)', 145, 52, 26, COSMOS.gold, 'mono', 'left'),
       txt('· Dynamic vs static L1: -77% avg tokens', 145, 98, 28, COSMOS.emerald, 'mono', 'left'),
@@ -196,7 +192,6 @@ export default function dynamicSelection(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('dynamic-selection-batches', () => s.play(showPass1.to(0.3, { duration: 0.3 })));
   c.on('dynamic-selection-rate-serving', () => s.play(showPass1.to(0.5, { duration: 0.3 })));

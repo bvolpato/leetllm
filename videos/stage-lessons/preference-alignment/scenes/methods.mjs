@@ -50,14 +50,12 @@ export default function methods(s, c) {
       txt('P-7: Ticket > Grant', -655, -58, 26, COSMOS.ink, 'sans'),
 
       line([-460, -82], [-290, -82], { stroke: COSMOS.cyan, width: 3.2 }),
-      glowDot(-460 + ((p * 85) % 170), -82, { radius: 6, color: COSMOS.cyan }),
 
       glassCell(-70, -82, 430, 128, COSMOS.gold, { fill: '#221c0e', glow: 6, opacity: pr }),
       txt('SCORE FIXED PAIR', -70, -108, 26, COSMOS.gold, 'mono'),
       txt('Policy pi_theta + Ref pi_ref', -70, -58, 26, COSMOS.ink, 'sans'),
 
       line([150, -82], [320, -82], { stroke: COSMOS.emerald, width: 3.2 }),
-      glowDot(150 + ((p * 85) % 170), -82, { radius: 6, color: COSMOS.emerald }),
 
       glassCell(580, -82, 510, 128, COSMOS.emerald, {
         fill: '#0e2824',
@@ -111,7 +109,6 @@ export default function methods(s, c) {
       txt('Writes fresh P-7 reply', -655, 230, 26, COSMOS.ink, 'sans'),
 
       line([-460, 206], [-290, 206], { stroke: COSMOS.violet, width: 3.2 }),
-      glowDot(-460 + ((p * 85 + 60) % 170), 206, { radius: 6, color: COSMOS.violet }),
 
       glassCell(-70, 206, 430, 128, sc > 0.2 ? COSMOS.amber : COSMOS.dim, {
         fill: '#261a10',
@@ -122,7 +119,6 @@ export default function methods(s, c) {
       txt('Score new text + ref drift', -70, 230, 26, COSMOS.ink, 'sans'),
 
       line([150, 206], [320, 206], { stroke: COSMOS.amber, width: 3.2 }),
-      glowDot(150 + ((p * 85 + 60) % 170), 206, { radius: 6, color: COSMOS.amber }),
 
       glassCell(580, 206, 510, 128, sc > 0.2 ? COSMOS.gold : COSMOS.dim, {
         fill: '#221c0e',

@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   dashedRule,
-  driftValue,
   glowDot,
   glowTex,
   guardedDynamic,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function tokenClocks(s, c) {
-  const phase = s.value(0);
   const stageStep = s.value(0); // 1=first-delivery, 2=later-deliveries, 3=mean-gap
 
   const header = cinemaHeader('SERVER-SIDE LATENCY SLIs', 'What an admitted', 'caller waits for', {
@@ -47,7 +45,6 @@ export default function tokenClocks(s, c) {
     () => 1,
     () => {
       const st = stageStep.value;
-      const p = phase.value;
       const nodes = [];
 
       // Millisecond axis & tick marks
@@ -58,7 +55,7 @@ export default function tokenClocks(s, c) {
             [msX(520), lineY],
           ],
           '#3a5382',
-          p * 0.5,
+          0,
           { width: 3.0, glow: 5, photonCount: 2 },
         ),
       );
@@ -94,7 +91,7 @@ export default function tokenClocks(s, c) {
               [msX(300), lineY - 135],
             ],
             ROLE.active,
-            p * 0.7,
+            0,
             { width: 4.0, glow: 10, photonCount: 2, alpha: qA },
           ),
           txt(`TTFT = ${DATA.tokenTrace.ttft} ms`, msX(150), lineY - 178, 30, ROLE.active, 'mono')
@@ -124,7 +121,7 @@ export default function tokenClocks(s, c) {
                 [x2, lineY],
               ],
               tk.col,
-              p * 0.9,
+              0,
               { width: tk.gap === 120 ? 5.2 : 3.8, glow: 10, photonCount: 1, alpha: dA },
             ),
             glowDot(x2, lineY, { radius: 11, color: tk.col, glow: 14, opacity: dA }),
@@ -186,7 +183,6 @@ export default function tokenClocks(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'first-delivery', stageStep, 1, 0.35);
   tweenOn(s, c, 'later-deliveries', stageStep, 2, 0.35);

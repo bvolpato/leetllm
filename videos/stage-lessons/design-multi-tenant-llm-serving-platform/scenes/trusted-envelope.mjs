@@ -8,7 +8,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -25,7 +24,6 @@ const ENVELOPE_FIELDS = [
 ];
 
 export default function trustedEnvelope(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const idFieldsOn = s.value(0);
   const revFieldsOn = s.value(0);
@@ -46,7 +44,6 @@ export default function trustedEnvelope(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const idOk = idFieldsOn.value > 0.5 || b0On.value > 0.5;
       const revOk = revFieldsOn.value > 0.5;
       const b1 = b1On.value > 0.5;
@@ -127,8 +124,8 @@ export default function trustedEnvelope(s, c) {
                   [hops[idx + 1][1] - 154, 235],
                 ],
                 col,
-                p + idx * 0.4,
-                { width: 3.4, glow: 7, photonCount: 1 },
+                0,
+                { width: 3.4, glow: 7 },
               ),
             );
           }
@@ -176,8 +173,8 @@ export default function trustedEnvelope(s, c) {
               [-124, 262],
             ],
             ROLE.fail,
-            p,
-            { width: 4, glow: 8, photonCount: 1 },
+            0,
+            { width: 4, glow: 8 },
           ),
 
           // Right: Retained trusted context
@@ -232,8 +229,6 @@ export default function trustedEnvelope(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-trusted-envelope-b0', b0On, 1);
   stepAfter(s, c, 'mt-trusted-envelope-s0-0', idFieldsOn, 1);
   stepAfter(s, c, 'mt-trusted-envelope-s0-1', revFieldsOn, 1);

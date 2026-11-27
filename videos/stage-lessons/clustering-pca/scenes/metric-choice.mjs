@@ -12,7 +12,6 @@ import {
   heroTitle,
   lumBar,
   makePlot,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -25,7 +24,6 @@ const UNIT_BILL = [DOC_BILL[0] / NORM_BILL, DOC_BILL[1] / NORM_BILL];
 const UNIT_REL = [DOC_REL[0] / NORM_REL, DOC_REL[1] / NORM_REL];
 
 export default function metricChoice(s, c) {
-  const phase = s.value(0);
   const showDot = s.value(0);
   const showInvalid = s.value(0);
   const normAmt = s.value(0); // 0 = raw dot view, 1 = unit circle cosine view
@@ -220,7 +218,6 @@ export default function metricChoice(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'dot', showDot, 1, { duration: 0.45 });
   tweenCue(s, c, 'invalid', showInvalid, 1, { duration: 0.45 });

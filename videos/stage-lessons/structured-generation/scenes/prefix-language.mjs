@@ -13,7 +13,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fsmNode,
   guardedDynamic,
   quadArcPts,
@@ -21,7 +20,6 @@ import {
 } from '../parts.mjs';
 
 export default function prefixLanguage(s, c) {
-  const pulse = s.value(0);
   const keyProg = s.value(0);
   const faProg = s.value(0);
 
@@ -35,7 +33,6 @@ export default function prefixLanguage(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const kp = keyProg.value;
       const fp = faProg.value;
       const nodes = [];
@@ -74,7 +71,7 @@ export default function prefixLanguage(s, c) {
         beamWithPhotons(
           quadArcPts([s0[0] + 34, s0[1]], [sKey[0] - 34, sKey[1]], 0),
           ROLE.prefix,
-          p * 1.1,
+          0,
           {
             alpha: 0.4 + 0.6 * kp,
             width: 3,
@@ -84,7 +81,7 @@ export default function prefixLanguage(s, c) {
         beamWithPhotons(
           quadArcPts([sKey[0] + 34, sKey[1]], [sPass[0] - 34, sPass[1]], -12),
           passAlive ? ROLE.fsm : '#2b344d',
-          p * 1.1,
+          0,
           {
             alpha: passAlive ? 0.9 : 0.25,
             width: 2.8,
@@ -94,7 +91,7 @@ export default function prefixLanguage(s, c) {
         beamWithPhotons(
           quadArcPts([sKey[0] + 34, sKey[1]], [sFail[0] - 34, sFail[1]], 12),
           failAlive ? ROLE.legal : '#2b344d',
-          p * 1.1 + 0.4,
+          0,
           {
             alpha: failAlive ? 0.95 : 0.25,
             width: 3.2,
@@ -203,7 +200,6 @@ export default function prefixLanguage(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('prefix-key', () => {
     s.play(keyProg.to(1, { duration: clampDur(c, c.cue('prefix-key').start, 1.35) }));

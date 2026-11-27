@@ -11,14 +11,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function freshInterruption(s, c) {
-  const phase = s.value(0);
   const cutOn = s.value(0);
   const keep1Reveal = s.value(0); // STRICT after va-fresh-interruption-1-0!
   const reply8On = s.value(0);
@@ -40,7 +37,6 @@ export default function freshInterruption(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ct = cutOn.value;
       const k1 = keep1Reveal.value;
       const r8 = reply8On.value;
@@ -222,22 +218,11 @@ export default function freshInterruption(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.6);
-
   c.on('fresh-cut', () => {
     s.play(cutOn.to(1, { duration: clampDur(c, c.cue('fresh-cut').start, 0.35) }));
   });

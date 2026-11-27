@@ -20,7 +20,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -74,7 +73,7 @@ export default function evaluationFormats(s, c) {
     (a) => {
       const lv = ordLevel.value;
       const w = ordWarn.value;
-      const p = pulse.value;
+      const p = 0;
       const nodes = [];
 
       const railY = 30;
@@ -144,9 +143,9 @@ export default function evaluationFormats(s, c) {
         );
       }
 
-      // Orbiting marker dot on current level
+      // Marker dot on current level
       nodes.push(
-        glowDot(markerX, railY - 46 + Math.sin(p * Math.PI * 3) * 6, {
+        glowDot(markerX, railY - 46, {
           radius: 7,
           color: ROLE.verdict,
           glow: 12,
@@ -178,7 +177,7 @@ export default function evaluationFormats(s, c) {
     () => fadeInHalf(Math.min(1, actMode.value)) * fadeOutHalf(Math.max(0, actMode.value - 1)),
     (a) => {
       const st = pairStage.value;
-      const p = pulse.value;
+      const p = 0;
       const nodes = [];
 
       const isBaseline = st >= 3;
@@ -356,7 +355,7 @@ export default function evaluationFormats(s, c) {
     () => fadeInHalf(Math.max(0, actMode.value - 1)),
     (a) => {
       const rs = refStage.value;
-      const p = pulse.value;
+      const p = 0;
       const nodes = [];
 
       const srcPos = [-520, 40];
@@ -419,7 +418,6 @@ export default function evaluationFormats(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0 cues (Pointwise)
   c.on('pointwise-anchors', () => {

@@ -6,7 +6,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
@@ -34,9 +33,6 @@ export function buildUploadBoundary(s, c) {
   const collideT = s.value(0);
   const returnT = s.value(0);
   const auditT = s.value(0);
-  const pulse = s.value(0);
-  driftValue(s, c, pulse, 2.2);
-
   c.on('cc-redacted-before-upload', () =>
     s.play(
       redactT.to(1, { duration: clampDur(c, c.cue('cc-redacted-before-upload').start, 0.55) }),
@@ -65,7 +61,6 @@ export function buildUploadBoundary(s, c) {
         const col = collideT.value;
         const ret = returnT.value;
         const aud = auditT.value;
-        const p = pulse.value;
         const nodes = [];
 
         // Row 1: Secret -> local placeholder map -> redacted prompt crosses
@@ -100,7 +95,7 @@ export function buildUploadBoundary(s, c) {
                 [230, y1],
               ],
               ROLE.ok,
-              p,
+              0,
               { alpha: rd },
             ),
           );
@@ -163,7 +158,7 @@ export function buildUploadBoundary(s, c) {
                 [-130, y3],
               ],
               ROLE.focus,
-              p * 1.1,
+              0,
               { alpha: ret },
             ),
           );
@@ -196,7 +191,7 @@ export function buildUploadBoundary(s, c) {
                 [230, y4],
               ],
               ROLE.ed,
-              p * 0.9,
+              0,
               { alpha: aud },
             ),
           );

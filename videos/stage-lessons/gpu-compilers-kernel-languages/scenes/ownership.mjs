@@ -5,18 +5,15 @@ import {
   aura,
   coverage,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function ownership(s, c) {
-  const phase = s.value(0);
   const showThread = s.value(0);
   const revNine = s.value(0);
   const showProg = s.value(0);
@@ -37,14 +34,12 @@ export default function ownership(s, c) {
   const blocks = coverage(10, 4).flat(); // 12 items: 0..9 valid, 10..11 masked
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const st = showThread.value;
     const r9 = revNine.value;
     const sp = showProg.value;
     const rt = revTail.value;
     const ts = traceStores.value;
     const sm = showMask.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('12 CANDIDATE INDICES (3 BLOCKS × 4)  →  10 OUTPUT SLOTS', 0, -215, 28, ROLE.ir, 'mono'),
@@ -91,7 +86,7 @@ export default function ownership(s, c) {
       nodes.push(
         glassCell(cx, -52, 108, 92, stroke, {
           fill: isTailBlock && tailKnown && !item.valid ? '#2b101b' : '#0f1e36',
-          glow: (isNine && st > 0.5) || (isTailBlock && tailKnown) ? 9 * pulse : 3,
+          glow: (isNine && st > 0.5) || (isTailBlock && tailKnown) ? 9 : 3,
         }),
         txt(String(idx), cx, -66, 32, stroke, 'mono'),
         txt(
@@ -143,16 +138,10 @@ export default function ownership(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
-    nodes.push(
-      glowDot(-740 + u * 1480, 245, { radius: 6, color: rt > 0.5 ? ROLE.cubin : ROLE.triton }),
-    );
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('thread-index', () =>
     s.play(showThread.to(1, { duration: remainDuration(c, 'thread-index', 0.4) })),

@@ -13,13 +13,11 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function weightedReduction(s, c) {
-  const phase = s.value(0);
   const showIntRule = s.value(0);
   const showFloatRule = s.value(0);
   const showUniform = s.value(0);
@@ -186,7 +184,6 @@ export default function weightedReduction(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   c.on('weighted-reduction-0', () => {
     s.play(showIntRule.to(0.4, { duration: 0.3 }));

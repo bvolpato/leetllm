@@ -18,12 +18,10 @@ import {
   policyEvaluation,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function freshPolicy(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const showX = s.value(0);
   const showBaseRow = s.value(0);
@@ -350,7 +348,6 @@ export default function freshPolicy(s, c) {
   });
 
   s.add(bgAura, title, part1, part2);
-  runPhase(s, c, phase, 16);
 
   // Part 1 cues
   c.on('policy-operands-ready', () => s.play(showX.to(1, { duration: 0.35 })));

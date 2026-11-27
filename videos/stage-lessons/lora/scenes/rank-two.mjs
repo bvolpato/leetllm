@@ -14,12 +14,10 @@ import {
   points3d,
   remainDuration,
   rotatedPlane,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function rankTwo(s, c) {
-  const phase = s.value(0);
   const showBasis = s.value(0);
   const sweepProg = s.value(0);
   const showTip = s.value(0);
@@ -196,7 +194,6 @@ export default function rankTwo(s, c) {
   });
 
   s.add(bgAura, view3d, title, eq, live);
-  runPhase(s, c, phase, 14);
   orbitScene(s, c, view3d, { theta: -0.24, phi: 0.94 });
 
   c.on('rank-two-b1-1', () => s.play(showBasis.to(1, { duration: 0.45 })));

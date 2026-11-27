@@ -9,14 +9,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function latency(s, c) {
-  const pulse = s.value(0);
   const depOn = s.value(0);
   const clockMs = s.value(0);
   const distOn = s.value(0);
@@ -163,8 +161,6 @@ export default function latency(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('latency-beat-1-focus-2', () => {
     s.play(depOn.to(1, { duration: clampDur(c, c.cue('latency-beat-1-focus-2').start, 0.3) }));
   });

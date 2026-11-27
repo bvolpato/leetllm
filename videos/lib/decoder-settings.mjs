@@ -2,6 +2,7 @@
 // the file. VLC and FFmpeg adapt when a later clip changes them, but QuickTime and Quick Look stop
 // decoding, so an FFmpeg decode alone cannot find this problem.
 import { spawn } from 'node:child_process';
+import { createInterface } from 'node:readline';
 
 const FIELDS = new Set([
   'profile_idc',
@@ -36,7 +37,7 @@ export function parseDecoderSettings(log) {
   return settings;
 }
 
-function readTrace(file) {
+function readTraceSettings(file) {
   return new Promise((resolve, reject) => {
     const child = spawn(
       'ffmpeg',
@@ -56,15 +57,23 @@ function readTrace(file) {
       ],
       { stdio: ['ignore', 'ignore', 'pipe'] },
     );
-    let log = '';
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (chunk) => {
-      log += chunk;
+    const settings = new Map();
+    const lines = createInterface({ input: child.stderr, crlfDelay: Infinity });
+    lines.on('line', (row) => {
+      if (!row.includes('=')) return;
+      const match = row.match(ROW);
+      if (!match || !FIELDS.has(match[1])) return;
+      let values = settings.get(match[1]);
+      if (!values) {
+        values = new Set();
+        settings.set(match[1], values);
+      }
+      values.add(Number(match[2]));
     });
     child.on('error', reject);
     child.on('close', (code) =>
       code === 0
-        ? resolve(log)
+        ? resolve(settings)
         : reject(new Error(`ffmpeg exited with ${code} while reading ${file}`)),
     );
   });
@@ -72,7 +81,7 @@ function readTrace(file) {
 
 /** Throw if a video changes its decoder settings, or uses a level that Apple does not document. */
 export async function assertDecoderSettings(file, { maxLevel = MAX_LEVEL } = {}) {
-  const settings = parseDecoderSettings(await readTrace(file));
+  const settings = await readTraceSettings(file);
   if (!settings.has('level_idc')) throw new Error(`${file}: no H.264 decoder settings found`);
   const changing = [...settings]
     .filter(([, values]) => values.size > 1)

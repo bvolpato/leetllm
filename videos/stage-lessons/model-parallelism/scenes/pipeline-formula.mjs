@@ -7,7 +7,6 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
@@ -15,12 +14,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function pipelineFormula(s, c) {
-  const phase = s.value(0);
   const pFollow = s.value(0);
   const pCount = s.value(0);
   const pIdle = s.value(0);
@@ -168,9 +165,7 @@ export default function pipelineFormula(s, c) {
       );
     }
 
-    nodes.push(
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 420, { radius: 6, color: COSMOS.gold }),
-    );
+    nodes.push();
 
     if (pGen.value > 0.5 && !mode1 && !mode12) {
       nodes.push(
@@ -182,7 +177,6 @@ export default function pipelineFormula(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('follow-last', () =>
     s.play(pFollow.to(1, { duration: remainDuration(c, 'follow-last', 0.85) })),

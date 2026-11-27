@@ -12,7 +12,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowTex,
   guardedDynamic,
   txt,
@@ -235,7 +234,6 @@ export default function retrievalRanking(s, c) {
   );
 
   s.add(stageAura, header, scoreEq, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('rank-sim', () => {
     s.play(simOn.to(1, { duration: clampDur(c, c.cue('rank-sim').start, 0.4) }));

@@ -14,7 +14,6 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   srm,
   srmChiSquare,
   tweenCue,
@@ -22,7 +21,6 @@ import {
 } from '../parts.mjs';
 
 export default function srmScene(s, c) {
-  const phase = s.value(0);
   const showObs = s.value(0);
   const showSq = s.value(0);
   const showStat = s.value(0);
@@ -193,7 +191,6 @@ export default function srmScene(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'observed', showObs, 1, { duration: 0.5 });
   c.show('square', eqChi);

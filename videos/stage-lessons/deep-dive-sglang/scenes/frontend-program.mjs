@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function frontendProgram(s, c) {
-  const phase = s.value(0);
   // step: 0=roles, 1=select choices pending, 2=feature returned, 3=appended to Label:, 4=gen explanation submitted
   const step = s.value(0);
 
@@ -31,7 +28,6 @@ export default function frontendProgram(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     // Left panel: select("label") call
@@ -117,9 +113,7 @@ export default function frontendProgram(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-120 + u * 150, 15, { radius: 6, color: appended ? ROLE.decode : COSMOS.gold }),
       txt(
         submitted
           ? 'Inspect the assembled prompt first before tracing GPU execution.'
@@ -139,7 +133,6 @@ export default function frontendProgram(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['program-roles', 0],
     ['program-choices', 1],

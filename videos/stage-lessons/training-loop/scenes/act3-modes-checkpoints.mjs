@@ -15,7 +15,6 @@ import {
   glowDot,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   loopMomentum,
   measuredValidation,
   mix,
@@ -36,7 +35,6 @@ export function layerModes(s, c) {
   const dropEvalP = s.value(0);
   const b1P = s.value(0);
   const b2P = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.momentum, seed: 11 }));
   s.add(decorAura(-420, 0, 480, '#ff6b8b1a', '#07091000'));
@@ -58,7 +56,6 @@ export function layerModes(s, c) {
       const b0 = b0P.value;
       const dt = dropTrainP.value;
       const de = dropEvalP.value;
-      const ph = drift.value;
       const nodes = [];
 
       const isEval = de > 0.5;
@@ -118,7 +115,7 @@ export function layerModes(s, c) {
         const h = Math.max(8, curV * unitH);
         const zeroed = !isEval && trV === 0;
         const barCol = zeroed ? COSMOS.dim : outCol;
-        const pulse = !zeroed ? 8 + 3 * Math.sin(ph * Math.PI * 8 + i) : 0;
+        const pulse = !zeroed ? 9 : 0;
         nodes.push(
           rect(76, h, {
             fill: zeroed ? '#111626' : '#181e36',
@@ -203,7 +200,6 @@ export function layerModes(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'layer-modes-beat-0', b0P, 1, { dur: 0.7 });
   cueTo(s, c, 'loop-dropout-train', dropTrainP, 1, { dur: 0.7 });
   cueTo(s, c, 'loop-dropout-eval', dropEvalP, 1, { dur: 0.75 });
@@ -222,7 +218,6 @@ export function validation(s, c) {
   const bestEpochP = s.value(0);
   const copyP = s.value(0);
   const aliasP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.escalate, seed: 12 }));
   s.add(decorAura(-440, -10, 480, '#5ce1e61a', '#07091000'));
@@ -243,7 +238,6 @@ export function validation(s, c) {
     const ep = bestEpochP.value;
     const cp = copyP.value;
     const al = aliasP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Top two separated lanes: Training lane vs Validation lane
@@ -296,7 +290,7 @@ export function validation(s, c) {
 
     // 3 tensor state blocks: Live W, Plain state_dict() alias, deepcopy(state_dict())
     const yMat = 290;
-    const pulseBad = al > 0.2 ? 10 + 4 * Math.sin(ph * Math.PI * 10) : 4;
+    const pulseBad = al > 0.2 ? 12 : 4;
     nodes.push(
       txt('Live model.weight', -615, yMat - 64, 26, ROLE.forward, 'mono'),
       tensorCell(-615, yMat, 330, 74, `[${liveVal}, ${liveVal}]`, ROLE.forward, {
@@ -352,7 +346,6 @@ export function validation(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'validation-beat-1-focus-2', modesP, 1, { dur: 0.7 });
   cueTo(s, c, 'validation-beat-1-focus-1', measureP, 1, { dur: 0.7 });
   cueTo(s, c, 'validation-beat-2-focus-1', bestEpochP, 1, { dur: 0.65 });
@@ -374,7 +367,6 @@ export function resumptionState(s, c) {
   const logitsP = s.value(0);
   const refP = s.value(0);
   const otherP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.forward, seed: 13 }));
   s.add(decorAura(-420, 0, 500, '#5ce1e61a', '#07091000'));
@@ -610,7 +602,6 @@ export function resumptionState(s, c) {
   );
 
   s.add(headline, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'resume-model', modelP, 1, { after: true, dur: 0.65 });
   cueTo(s, c, 'resume-window', windowP, 1, { after: true, dur: 0.7 });
   cueTo(s, c, 'resume-fork', forkP, 1, { after: true, dur: 0.85 });
@@ -633,7 +624,6 @@ export function atomicCheckpoint(s, c) {
   const dirSyncP = s.value(0);
   const failP = s.value(0);
   const intactP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.forward, seed: 14 }));
   s.add(decorAura(-400, 0, 500, '#5ce1e61a', '#07091000'));
@@ -655,7 +645,6 @@ export function atomicCheckpoint(s, c) {
     const ds = dirSyncP.value;
     const fl = failP.value;
     const ok = intactP.value;
-    const ph = drift.value;
     const nodes = [];
 
     const isFailPhase = fl > 0.2;
@@ -738,7 +727,7 @@ export function atomicCheckpoint(s, c) {
       nodes.push(
         tensorCell(cx, yStage, bw, 76, lbl, col, {
           size: 28,
-          glow: failedCell ? 10 + 3 * Math.sin(ph * Math.PI * 10) : filled ? 7 : 1,
+          glow: failedCell ? 11 : filled ? 7 : 1,
           opacity: liveIsNew && !isFailPhase ? 0.35 : 1,
         }),
       );
@@ -799,7 +788,6 @@ export function atomicCheckpoint(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'atomic-checkpoint-beat-0', stageP, 1, { dur: 0.9 });
   cueTo(s, c, 'loop-file-replace', replaceP, 1, { dur: 0.7 });
   cueTo(s, c, 'atomic-checkpoint-beat-1', b1P, 1, { dur: 0.7 });

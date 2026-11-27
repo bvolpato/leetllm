@@ -8,7 +8,6 @@ import {
   ROLE,
   aura,
   cinemaHeader,
-  driftValue,
   glowMeter,
   guardedDynamic,
   stepAfter,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function goodputContract(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const r1On = s.value(0);
   const r2On = s.value(0);
@@ -177,8 +175,6 @@ export default function goodputContract(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.0);
-
   stepOn(s, c, 'mt-goodput-contract-b0', b0On, 1);
   stepAfter(s, c, 'mt-goodput-contract-s0-2', r1On, 1);
   stepAfter(s, c, 'mt-goodput-contract-s0-3', r2On, 1);

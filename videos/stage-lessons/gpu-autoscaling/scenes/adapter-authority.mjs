@@ -10,7 +10,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   glowDot,
   guardedDynamic,
   tweenOn,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function adapterAuthority(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=Alice auth, 2=adapter 101 selected, 3=revoke Alice, 4=DENIED, 5=engine + cache_salt isolation
 
   const header = cinemaHeader(
@@ -39,7 +37,6 @@ export default function adapterAuthority(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const revoked = st >= 2.5 && st < 4.5;
       const denied = st >= 3.5 && st < 4.5;
       const yPipe = -110;
@@ -73,7 +70,7 @@ export default function adapterAuthority(s, c) {
                 [pipe[i + 1].x - 215, yPipe],
               ],
               bCol,
-              p * 0.9,
+              0,
               { width: 3.6, glow: 9, photonCount: 1 },
             ),
           );
@@ -96,7 +93,7 @@ export default function adapterAuthority(s, c) {
               [0, 118],
             ],
             ROLE.warm,
-            p * 1.0,
+            0,
             { width: 3.8, glow: 10, photonCount: 2 },
           ),
           txt('200 APPROVED:  ADAPTER #101  ·  BASE v7', 0, 168, 34, ROLE.warm, 'mono').glow(
@@ -187,7 +184,6 @@ export default function adapterAuthority(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-adapter-authority-b0', step, 1, 0.3);
   tweenOn(s, c, 'ga-adapter-selected', step, 2, 0.3);

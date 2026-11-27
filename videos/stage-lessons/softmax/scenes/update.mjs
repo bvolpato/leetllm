@@ -20,7 +20,6 @@ import {
   lumBar,
   orbitScene,
   rule,
-  runAmbientPhase,
   stableSoftmax,
   tweenCue,
   txt,
@@ -28,7 +27,6 @@ import {
 } from '../parts.mjs';
 
 export default function update(s, c) {
-  const phase = s.value(0);
   const progress = s.value(0);
   const showRule = s.value(0);
   const showLossRead = s.value(0);
@@ -154,7 +152,6 @@ export default function update(s, c) {
   });
 
   s.add(bgAura, surf3d, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
   orbitScene(s, c, surf3d, { theta: 0.42, phi: 0.94 });
 
   c.show('update-step', eqStep);

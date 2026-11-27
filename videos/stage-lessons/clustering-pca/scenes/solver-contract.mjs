@@ -15,13 +15,11 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function solverContract(s, c) {
-  const phase = s.value(0);
   const vStrips = s.value(1);
   const vMatrix = s.value(0);
 
@@ -338,7 +336,6 @@ export default function solverContract(s, c) {
   });
 
   s.add(bgAura, title, viewStrips, viewMatrix);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'energy', showEnergy, 1, { duration: 0.45 });
   tweenCue(s, c, 'svd', showSvd, 1, { duration: 0.4 });

@@ -17,7 +17,6 @@ import {
   glassPlate,
   glowDot,
   glowTex,
-  livingDrift,
   markDecor,
   mean,
   numberRuler,
@@ -38,7 +37,6 @@ export function truncate(s, c) {
   const projP = s.value(0);
   const routeAskP = s.value(0);
   const errP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: LA.contrast, opacity: 0.48, seed: 12 }));
   s.add(aura(-230, 30, 560, '#60a5fa22', '#ff6b8b16'));
@@ -55,7 +53,6 @@ export function truncate(s, c) {
     const p = projP.value;
     const ask = routeAskP.value;
     const err = errP.value;
-    const pulse = 1 + 0.08 * Math.sin(drift.value * Math.PI * 8);
 
     const plane = vectorPlane2d({
       originX: -390,
@@ -149,10 +146,10 @@ export function truncate(s, c) {
         txt('HAND TO THE ROUTER', rx, 95, 26, COSMOS.gold, 'mono').opacity(ask),
         txt('Can it still separate', rx, 155, 36, COSMOS.gold, 'serif')
           .glow(8, COSMOS.gold)
-          .opacity(ask * Math.min(1, pulse)),
+          .opacity(ask),
         txt('slow pages from rollback?', rx, 208, 36, COSMOS.gold, 'serif')
           .glow(8, COSMOS.gold)
-          .opacity(ask * Math.min(1, pulse)),
+          .opacity(ask),
       );
     } else {
       nodes.push(
@@ -165,7 +162,6 @@ export function truncate(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'discard-contrast', projP, 1, { dur: 1.4 });
   pulseCue(s, c, 'collapsed-route', routeAskP, 1, { dur: 0.45 });
@@ -181,7 +177,6 @@ export function truncate(s, c) {
 export function retrievalCheck(s, c) {
   const tieP = s.value(0);
   const rankP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.cyan, opacity: 0.48, seed: 13 }));
   s.add(aura(-230, 30, 560, '#5ce1e622', '#ffd16614'));
@@ -281,13 +276,10 @@ export function retrievalCheck(s, c) {
         txt('Recall@2 = 2 / 2 = 1.00', rx, 305, 36, LA.fit, 'mono').glow(8, LA.fit),
       );
     } else if (rP < 0.05) {
-      const pulse = 0.72 + 0.28 * Math.sin(drift.value * Math.PI * 8);
       nodes.push(
         txt('All three tie at cos = 1.00!', rx, 148, 30, COSMOS.gold, 'mono'),
         txt('Tie-break in ticket order:', rx, 208, 28, COSMOS.muted, 'sans'),
-        txt('Which two get returned?', rx, 282, 38, COSMOS.gold, 'serif')
-          .glow(10, COSMOS.gold)
-          .opacity(pulse),
+        txt('Which two get returned?', rx, 282, 38, COSMOS.gold, 'serif').glow(10, COSMOS.gold),
       );
     } else {
       nodes.push(
@@ -305,7 +297,6 @@ export function retrievalCheck(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'retrieval-ties', tieP, 1, { dur: 1.5 });
   // Strict prediction withholding: reveal slot #2 & Recall@2=0.5 only after break-tie
@@ -318,7 +309,6 @@ export function retrievalCheck(s, c) {
 // ---------------------------------------------------------------------------
 export function pcaCenter(s, c) {
   const shiftP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.gold, opacity: 0.48, seed: 14 }));
   s.add(aura(-120, 20, 560, '#ffd16620', '#5ce1e614'));
@@ -400,9 +390,8 @@ export function pcaCenter(s, c) {
 
     ptsS.forEach((pt, i) => {
       const col = LA.tickets[i];
-      const pulse = 1 + 0.06 * Math.sin(drift.value * Math.PI * 8 + i * 2);
       nodes.push(
-        glowDot(pt[0], pt[1], { radius: 13 * pulse, color: col, glow: 14 }),
+        glowDot(pt[0], pt[1], { radius: 13, color: col, glow: 14 }),
         dot(5, '#ffffff').at(pt[0], pt[1]),
       );
     });
@@ -440,7 +429,6 @@ export function pcaCenter(s, c) {
   });
 
   s.add(live, eqCenter);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'centering-rule', shiftP, 1, { dur: 1.8 });
 }
@@ -455,7 +443,6 @@ export function pcaSpread(s, c) {
   const pairP = s.value(0);
   const zeroP = s.value(0);
   const leadP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: LA.contrast, opacity: 0.48, seed: 15 }));
   s.add(aura(-280, 20, 540, '#ff6b8b22', '#60a5fa18'));
@@ -553,15 +540,10 @@ export function pcaSpread(s, c) {
     );
 
     if (pPair < 0.05) {
-      const pulse = 0.72 + 0.28 * Math.sin(drift.value * Math.PI * 8);
       if (pCon > 0.6) {
         nodes.push(
-          txt('Could an angle in between', rx, 95, 36, COSMOS.gold, 'serif')
-            .glow(8, COSMOS.gold)
-            .opacity(pulse),
-          txt('give even more spread?', rx, 150, 36, COSMOS.gold, 'serif')
-            .glow(8, COSMOS.gold)
-            .opacity(pulse),
+          txt('Could an angle in between', rx, 95, 36, COSMOS.gold, 'serif').glow(8, COSMOS.gold),
+          txt('give even more spread?', rx, 150, 36, COSMOS.gold, 'serif').glow(8, COSMOS.gold),
         );
       } else {
         nodes.push(
@@ -607,7 +589,6 @@ export function pcaSpread(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'common-spread', comP, 1, { dur: 1.0 });
   cueTo(s, c, 'contrast-spread', conP, 1, { dur: 1.2 });
@@ -625,7 +606,6 @@ export function pcaNew(s, c) {
   const newP = s.value(0);
   const centerP = s.value(0);
   const readP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: LA.contrast, opacity: 0.48, seed: 16 }));
   s.add(aura(-200, 30, 560, '#ffd16622', '#ff6b8b16'));
@@ -703,7 +683,6 @@ export function pcaNew(s, c) {
 
     // Right panel (holds exact live coordinates cleanly with zero overlap!)
     const rx = 530;
-    const pulse = 0.72 + 0.28 * Math.sin(drift.value * Math.PI * 8);
     nodes.push(
       glassPlate(rx, 25, 620, 720, { stroke: LA.contrast, glow: 6 }),
       txt('FROZEN TRAINING STATS  (μ = [⅔, ⅔])', rx, -280, 26, COSMOS.cyan, 'mono'),
@@ -735,9 +714,10 @@ export function pcaNew(s, c) {
         txt('New row: [2, 1] = [1, 0] + [1, 1]', rx, -16, 26, COSMOS.ink, 'mono'),
         txt('Both counts rose by +1', rx, 44, 28, COSMOS.muted, 'sans'),
         pC > 0.4
-          ? txt('Where does it land on pink?', rx, 155, 36, COSMOS.gold, 'serif')
-              .glow(8, COSMOS.gold)
-              .opacity(pulse)
+          ? txt('Where does it land on pink?', rx, 155, 36, COSMOS.gold, 'serif').glow(
+              8,
+              COSMOS.gold,
+            )
           : txt('Subtract training mean μ first', rx, 155, 28, COSMOS.gold, 'sans'),
       );
     } else {
@@ -753,7 +733,6 @@ export function pcaNew(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'new-mentions', newP, 1, { dur: 0.8 });
   cueTo(s, c, 'center-new-row', centerP, 1, { dur: 1.2 });
@@ -767,7 +746,6 @@ export function pcaNew(s, c) {
 // ---------------------------------------------------------------------------
 export function pcaSparse(s, c) {
   const fillP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: LA.contrast, opacity: 0.48, seed: 17 }));
   s.add(aura(-420, 0, 480, '#5ce1e61e', '#07091000'));
@@ -841,7 +819,7 @@ export function pcaSparse(s, c) {
           [-180, 25],
           [180, 25],
         ],
-        drift.value * 3,
+        0,
         { color: LA.contrast, width: 3.4, glow: 10 },
       ),
       txt('− μ', 0, -24, 36, COSMOS.gold, 'mono').glow(8, COSMOS.gold),
@@ -857,7 +835,6 @@ export function pcaSparse(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'sparse-center', fillP, 1, { dur: 1.8 });
 }

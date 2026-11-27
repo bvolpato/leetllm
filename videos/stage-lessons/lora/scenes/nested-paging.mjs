@@ -13,12 +13,10 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function nestedPaging(s, c) {
-  const phase = s.value(0);
   const showDoubleQ = s.value(1);
   const showNestedFormula = s.value(0);
   const showStage2 = s.value(0);
@@ -204,7 +202,6 @@ export default function nestedPaging(s, c) {
   });
 
   s.add(bgAura, title, eq, partDoubleQ, partPaging);
-  runPhase(s, c, phase, 14);
 
   c.on('nested-paging-1', () => s.play(showDoubleQ.to(1, { duration: 0.2 })));
   c.on('nested-formula', () => s.play(showNestedFormula.to(1, { duration: 0.5 })));

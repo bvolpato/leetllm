@@ -11,7 +11,6 @@ import {
   afterDuration,
   aura,
   circle,
-  glowDot,
   glowTex,
   glowingArc,
   group,
@@ -19,13 +18,11 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   tokenCell,
   txt,
 } from '../parts.mjs';
 
 export default function transformerScoreHead(s, c) {
-  const phase = s.value(0);
   const ctxGrow = s.value(0.25);
   const finalSel = s.value(0);
   const aFirst = s.value(0);
@@ -55,7 +52,6 @@ export default function transformerScoreHead(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const cg = ctxGrow.value;
     const fs = finalSel.value;
     const isB = bMode.value > 0.5;
@@ -227,24 +223,10 @@ export default function transformerScoreHead(s, c) {
       ),
     );
 
-    // Animated pulse strictly between w circle and product box (never crossing w or × text)
-    const u = (p * 0.6) % 1;
-    const pulseStart = wX + 66;
-    const pulseSpan = prodX - 112 - pulseStart;
-    nodes.push(
-      glowDot(pulseStart + u * pulseSpan, y1 - 8, { radius: 5, color: COSMOS.gold, opacity: 0.8 }),
-      glowDot(pulseStart + ((u + 0.5) % 1) * pulseSpan, y2 + 8, {
-        radius: 5,
-        color: COSMOS.violet,
-        opacity: 0.8,
-      }),
-    );
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('head-context', () => s.play(ctxGrow.to(1, { duration: 0.55 })));
   c.on('head-final', () => s.play(finalSel.to(1, { duration: 0.45 })));

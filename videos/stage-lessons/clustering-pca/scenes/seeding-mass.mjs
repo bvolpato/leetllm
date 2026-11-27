@@ -17,7 +17,6 @@ import {
   makePlot,
   massRibbon,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
   xy,
@@ -33,7 +32,6 @@ const COLORS_6 = [
 ];
 
 export default function seedingMass(s, c) {
-  const phase = s.value(0);
   const showFirst = s.value(0);
   const showSmall = s.value(0);
   const showLarge = s.value(0);
@@ -257,7 +255,6 @@ export default function seedingMass(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'first', showFirst, 1, { duration: 0.4 });
   tweenCue(s, c, 'small', showSmall, 1, { duration: 0.45 });

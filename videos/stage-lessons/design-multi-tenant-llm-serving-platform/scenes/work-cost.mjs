@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   deficit,
-  driftValue,
   glowMeter,
   guardedDynamic,
   stepAfter,
@@ -20,7 +19,6 @@ import {
 const DRR3 = deficit(3);
 
 export default function workCost(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const workOn = s.value(0);
   const chunksOn = s.value(0);
@@ -248,8 +246,6 @@ export default function workCost(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.0);
-
   stepOn(s, c, 'mt-work-cost-b0', b0On, 1);
   stepAfter(s, c, 'mt-work-cost-s0-1', workOn, 1);
   stepAfter(s, c, 'mt-work-cost-s0-2', chunksOn, 1);

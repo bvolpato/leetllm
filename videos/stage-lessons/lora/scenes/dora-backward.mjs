@@ -18,12 +18,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function doraBackward(s, c) {
-  const phase = s.value(0);
   const showFwd = s.value(1);
   const showStartOut = s.value(0);
   const stretchProg = s.value(0);
@@ -287,7 +285,6 @@ export default function doraBackward(s, c) {
   });
 
   s.add(bgAura, title, partFwd, partBwd);
-  runPhase(s, c, phase, 14);
 
   c.on('dora-start', () => s.play(showStartOut.to(1, { duration: 0.35 })));
   c.on('dora-stretch', () => s.play(stretchProg.to(1, { duration: 0.7 })));

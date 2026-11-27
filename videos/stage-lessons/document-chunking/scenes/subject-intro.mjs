@@ -33,12 +33,10 @@ export default function subjectIntro(s, c) {
   const { view: stage3d, orbit: orbit3d } = makeChunkStrata3D(535, -15, phase, 'intro');
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sh = showHit.value;
     const sp = showPage.value;
     const st = showTrigger.value;
     const sw = showWiden.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('3D PARENT-CHILD CHUNK STRATA', 535, -330, 26, COSMOS.cyan, 'mono'),
@@ -57,7 +55,7 @@ export default function subjectIntro(s, c) {
       txt('RETURNED SEARCH HIT (BROKEN BOUNDARY)', -855, -205, 26, COSMOS.rose, 'mono', 'left'),
       glassCell(-440, -110, 830, 114, sh > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: '#28111a',
-        glow: sh > 0.3 ? 9 * pulse : 3,
+        glow: sh > 0.3 ? 9 : 3,
       }),
       txt('"...15 minutes with deploy ID."', -820, -134, 29, COSMOS.amber, 'mono', 'left'),
       txt(
@@ -80,7 +78,7 @@ export default function subjectIntro(s, c) {
         sw > 0.4 ? COSMOS.emerald : st > 0.4 ? COSMOS.cyan : COSMOS.muted,
         {
           fill: sw > 0.4 ? '#0e2824' : '#10182d',
-          glow: sw > 0.4 ? 10 * pulse : sp > 0.4 ? 6 : 3,
+          glow: sw > 0.4 ? 10 : sp > 0.4 ? 6 : 3,
         },
       ),
       txt(

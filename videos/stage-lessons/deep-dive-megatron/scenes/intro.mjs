@@ -6,17 +6,14 @@ import {
   TRACKED_COL,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   // step: 0=saved 4x2, 1=find col 6, 2=new 2x4 layout, 3=ask owner (hold!), 4=Rank 1!, 5=slot 2 (6-4), 6=probe x6=2, 7=both give 3!
   const step = s.value(0);
 
@@ -32,7 +29,6 @@ export default function intro(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const cellW = 162;
     const gap = 16;
     const startX = -705;
@@ -123,16 +119,11 @@ export default function intro(s, c) {
                 ? 'Predict: counting from 0, which new rank & local slot receive column 6?'
                 : 'Weight 1.5 leaves Old Rank 3, slot 0 (global column 6)';
 
-    const u = (p * 0.65) % 1;
-    nodes.push(
-      glowDot(-740 + u * 1480, 260, { radius: 6, color: st >= 4 ? ROLE.good : COSMOS.gold }),
-      txt(foot, 0, 340, 28, st >= 4 ? ROLE.good : COSMOS.gold, 'sans'),
-    );
+    nodes.push(txt(foot, 0, 340, 28, st >= 4 ? ROLE.good : COSMOS.gold, 'sans'));
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['intro-saved-pairs', 0, true],
     ['intro-find-six', 1, true],

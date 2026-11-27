@@ -10,7 +10,6 @@ import {
   buildSuperstepBarrier3d,
   cinemaAtmosphere,
   crossSwap,
-  glowDot,
   glowRing,
   guardedDynamic,
   heroTitle,

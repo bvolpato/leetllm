@@ -3,7 +3,6 @@ import {
   COSMOS,
   aura,
   circle,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -90,11 +89,6 @@ export default function humanComparisons(s, c) {
         color: COSMOS.rose,
         width: 3.4,
         opacity: 0.85 * Math.max(0.35, v2),
-      }),
-      glowDot(-135 + Math.cos(p * 1.4) * 158, 75 + Math.sin(p * 1.4) * 158, {
-        radius: 6,
-        color: COSMOS.gold,
-        opacity: 0.8 * pulse,
       }),
 
       // Right branch 1: Strict Rubric Label

@@ -9,7 +9,6 @@ import {
   aura,
   buildStorageStrip3d,
   glassCell,
-  glowDot,
   glowingArc,
   guardedDynamic,
   heroTitle,
@@ -44,7 +43,6 @@ export default function intro(s, c) {
     const bw = blueWalk.value;
     const rb = revBlue.value;
     const rg = revGold.value;
-    const p = phase.value;
 
     const cellW = 144;
     const gap = 14;
@@ -90,11 +88,6 @@ export default function intro(s, c) {
       nodes.push(
         glowingArc(cxOf(3), bankY + 52, cxOf(1), bankY + 52, 86, COSMOS.amber, { width: 3.0 }),
       );
-    }
-    if (bw >= 0.5) {
-      const u = (p * 0.65) % 1;
-      const bx = cxOf(0) + u * (cxOf(5) - cxOf(0));
-      nodes.push(glowDot(bx, bankY - 102, { radius: 8, color: ROLE.orig }));
     }
 
     // Two matrix comparison tiles below (no answers leaked before revBlue / revGold!)

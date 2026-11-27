@@ -9,12 +9,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function indexStrategies(s, c) {
-  const phase = s.value(0);
   const showArch = s.value(0);
   const showLazy = s.value(0);
   const showLight = s.value(0);
@@ -31,12 +29,10 @@ export default function indexStrategies(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sa = showArch.value;
     const sl = showLazy.value;
     const lg = showLight.value;
     const wd = showWithdraw.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: 3 indexing pipelines compared (Build-time vs Query-time LLM work)
@@ -90,7 +86,7 @@ export default function indexStrategies(s, c) {
 
       glassCell(-465, 152, 780, 124, sl > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: '#0e2824',
-        glow: sl > 0.3 ? 9 * pulse : 3,
+        glow: sl > 0.3 ? 9 : 3,
       }),
       txt('LAZY: phrase stats; LLM at query time', -825, 118, 26, COSMOS.emerald, 'mono', 'left'),
       txt(
@@ -139,7 +135,7 @@ export default function indexStrategies(s, c) {
         wd > 0.3 ? COSMOS.rose : lg > 0.6 ? COSMOS.emerald : COSMOS.muted,
         {
           fill: wd > 0.3 ? '#26111a' : '#0e2624',
-          glow: wd > 0.3 ? 9 * pulse : 3,
+          glow: wd > 0.3 ? 9 : 3,
         },
       ),
       txt(
@@ -199,7 +195,6 @@ export default function indexStrategies(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('index-strategies-b1', () => s.play(showArch.to(0.4, { duration: 0.3 })));
   c.on('index-strategies-fast', () => s.play(showArch.to(0.75, { duration: 0.3 })));

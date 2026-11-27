@@ -5,16 +5,13 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function projectSource(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=foundation/BSD-3, 1=source pin vs wheel vs docs, 2=source reading map
 
   const bgAura = aura(0, 20, 620, '#60a5fa1c', '#a78bfa18');
@@ -29,7 +26,6 @@ export default function projectSource(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = stage.value;
-    const p = phase.value;
 
     const nodes = [];
     if (st >= 1.5) {
@@ -108,9 +104,7 @@ export default function projectSource(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: ROLE.orig }),
       txt(
         'Trace every bug from Python API down to TensorImpl, Dispatcher, Autograd, Inductor, or c10d',
         0,
@@ -125,7 +119,6 @@ export default function projectSource(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-project-source-0', () => s.play(stage.to(0, { duration: 0.25 })));
   c.on('pt-project-source-1', () =>

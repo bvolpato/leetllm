@@ -5,16 +5,13 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function residency(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=2/8 shard at rest, 1=gather 8 compute copy (2+8=10 live), 2=reshard to 2 vs retain 8
   const focus = s.value(0);
 
@@ -31,7 +28,6 @@ export default function residency(s, c) {
   const live = guardedDynamic(1, () => {
     const st = stage.value;
     const fc = focus.value;
-    const p = phase.value;
     const gathered = st >= 0.5 && st < 1.5;
     const resharded = st >= 1.5;
 
@@ -110,9 +106,7 @@ export default function residency(s, c) {
       txt('Spends VRAM to skip the backward all-gather', 410, 198, 26, COSMOS.muted, 'sans'),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 290, { radius: 6, color: gathered ? ROLE.bad : ROLE.good }),
       txt(
         'Dividing total weights by rank count misses the full compute copy, activations, and prefetch buffers',
         0,
@@ -127,7 +121,6 @@ export default function residency(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('residency-beat-1-focus-1', () => s.play(focus.to(1, { duration: 0.3 })));
   c.on('pt-residency-0', () => s.play(stage.to(0, { duration: 0.25 })));

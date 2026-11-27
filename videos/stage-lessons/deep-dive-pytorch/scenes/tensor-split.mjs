@@ -6,17 +6,14 @@ import {
   TP_FIXTURE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function tensorSplit(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=MLP Colwise->Rowwise composition, 1=[8,4] stored weight -> [4,4] slice, 2=TP vs FSDP2 dim-0 contrast
 
   const bgAura = aura(0, 20, 620, '#60a5fa1c', '#a78bfa18');
@@ -31,7 +28,6 @@ export default function tensorSplit(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = stage.value;
-    const p = phase.value;
 
     const nodes = [
       // Left: nn.Linear stored [out, in] = [8, 4] split on dim 0
@@ -86,9 +82,7 @@ export default function tensorSplit(s, c) {
       ),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 315, { radius: 6, color: ROLE.orig }),
       txt(
         'Same dim-0 storage sharding does NOT make TP and FSDP2 equivalent; align mesh axes & order',
         0,
@@ -103,7 +97,6 @@ export default function tensorSplit(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-tensor-split-0', () => s.play(stage.to(0, { duration: 0.25 })));
   c.on('pt-tensor-split-1', () =>

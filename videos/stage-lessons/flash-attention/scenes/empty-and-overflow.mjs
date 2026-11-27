@@ -13,12 +13,10 @@ import {
   rect,
   remainDuration,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function emptyAndOverflow(s, c) {
-  const phase = s.value(0);
   const showInit = s.value(0.5);
   const showEmpty = s.value(0);
   const showZero = s.value(0);
@@ -46,7 +44,6 @@ export default function emptyAndOverflow(s, c) {
   );
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const init = showInit.value;
     const emp = showEmpty.value;
     const zro = showZero.value;
@@ -70,11 +67,6 @@ export default function emptyAndOverflow(s, c) {
       glowingArc([-140, -135], [140, -135], 0, {
         color: COSMOS.cyan,
         width: 3.6,
-        opacity: Math.max(0.45, emp),
-      }),
-      glowDot(-140 + ((p * 0.5) % 1) * 280, -135, {
-        radius: 6,
-        color: COSMOS.cyan,
         opacity: Math.max(0.45, emp),
       }),
       txt('temp ref = 0', 0, -178, 26, COSMOS.muted, 'mono').opacity(Math.max(0.45, init)),
@@ -185,7 +177,6 @@ export default function emptyAndOverflow(s, c) {
   });
 
   s.add(bgAura, title, eqInit, live);
-  runPhase(s, c, phase, 12);
 
   c.on('empty-and-overflow-beat-1', () => s.play(showInit.to(1, { duration: 0.4 })));
   c.on('empty-and-overflow-beat-2', () => s.play(showEmpty.to(1, { duration: 0.45 })));

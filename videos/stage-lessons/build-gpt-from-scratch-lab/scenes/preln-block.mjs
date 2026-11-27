@@ -7,7 +7,6 @@ import {
   box3d,
   cinematic3d,
   glassCell,
-  glowDot,
   glowTex,
   glowingArc,
   glowingTrail,
@@ -17,7 +16,6 @@ import {
   line,
   orbitScene,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -144,13 +142,11 @@ export default function prelnBlock(s, c) {
   });
 
   const part2 = guardedDynamic(showPart2, (a) => {
-    const p = phase.value;
     const aa = showAttnAdd.value;
     const ex = showExpand.value;
     const ge = showGelu.value;
     const pr = showProject.value;
     const ma = showMlpAdd.value;
-    const frac = (p * 0.35) % 1;
 
     const skipY = -140;
     const branchY = 90;
@@ -180,7 +176,6 @@ export default function prelnBlock(s, c) {
         ],
         { color: COSMOS.blue, width: 5.5, opacity: a },
       ),
-      glowDot(-820 + 1560 * frac, skipY, { radius: 7, color: COSMOS.cyan, opacity: a }),
       txt('IDENTITY RESIDUAL PATH  h', -820, skipY - 46, 26, COSMOS.blue, 'mono', 'left').opacity(
         a,
       ),
@@ -364,7 +359,6 @@ export default function prelnBlock(s, c) {
   });
 
   s.add(bgAura, heads3d, part1, part2, part3);
-  runPhase(s, c, phase, 16);
   const part1End = Math.max(0.6, c.end - c.cue('preln-block-2').start + 0.35);
   orbitScene(s, c, heads3d, { theta: -0.22, phi: 0.9 }, { startOffset: 0.1, endMargin: part1End });
 

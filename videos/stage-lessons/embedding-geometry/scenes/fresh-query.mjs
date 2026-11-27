@@ -15,7 +15,6 @@ import {
   playCue,
   quantize,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -33,7 +32,6 @@ export default function freshQuery(s, c) {
     };
   });
 
-  const phase = s.value(0);
   const showRef = s.value(0);
   const showCodes = s.value(0);
   const showTie = s.value(0);
@@ -62,9 +60,6 @@ export default function freshQuery(s, c) {
   const rowYs = [-60, 145];
 
   const stageLayer = dynamic(() => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
-
     const nodes = [
       // Top-right query & tie rule badge
       txt(
@@ -183,7 +178,7 @@ export default function freshQuery(s, c) {
             color: admitP > 0.85 ? r.color : ROLE.gold,
             fillAlpha: admitP > 0.85 ? 0.22 : 0.1,
             strokeWidth: 3,
-            glow: admitP > 0.85 ? 10 * pulse : 7,
+            glow: admitP > 0.85 ? 10 : 7,
             opacity: slotP,
           }),
           txt(`slot ${i + 1}`, colXs[2], ry - 76, 26, COSMOS.dim, 'mono').opacity(slotP),
@@ -206,7 +201,7 @@ export default function freshQuery(s, c) {
             glowDot(px, ry, {
               radius: 10,
               color: r.color,
-              glow: 13 * pulse,
+              glow: 13,
               opacity: Math.max(0, 1 - Math.max(0, admitP - 0.65) / 0.2),
             }),
           );
@@ -225,7 +220,7 @@ export default function freshQuery(s, c) {
           line([sx, ry], [ex, ry], { stroke: r.color, width: 3.4, dash: [8, 6] })
             .glow(6, r.color)
             .opacity(Math.min(1, fetchP * 2)),
-          glowDot(px, ry, { radius: 9, color: r.color, glow: 13 * pulse }),
+          glowDot(px, ry, { radius: 9, color: r.color, glow: 13 }),
         );
       }
 
@@ -236,7 +231,7 @@ export default function freshQuery(s, c) {
             color: isWinner ? ROLE.gold : r.color,
             fillAlpha: isWinner ? 0.28 : 0.18,
             strokeWidth: isWinner ? 3.4 : 2.4,
-            glow: isWinner ? 13 * pulse : 8,
+            glow: isWinner ? 13 : 8,
             opacity: scoreP,
           }),
           txt(r.exact.toFixed(4), colXs[3], ry, 44, isWinner ? ROLE.gold : r.color, 'mono')
@@ -339,8 +334,6 @@ export default function freshQuery(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.B, ROLE.A), title, stageLayer);
-
-  runPhase(s, c, phase, 12);
 
   playCue(s, c, 'reference', (d) => s.play(showRef.to(1, { duration: d })), {
     after: true,

@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fsmNode,
   guardedDynamic,
   quadArcPts,
@@ -21,7 +20,6 @@ import {
 } from '../parts.mjs';
 
 export default function freshNesting(s, c) {
-  const pulse = s.value(0);
   const b0Hi = s.value(0);
   const b1Hi = s.value(0);
   const aProg = s.value(0);
@@ -42,7 +40,6 @@ export default function freshNesting(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const b0 = b0Hi.value;
       const b1 = b1Hi.value;
       const ap = aProg.value;
@@ -176,7 +173,7 @@ export default function freshNesting(s, c) {
               ? `${trial.frames.length} left`
               : '?';
         nodes.push(
-          beamWithPhotons(quadArcPts([250, y], [365, y], 0), col, p * 1.1 + (isB ? 0.5 : 0), {
+          beamWithPhotons(quadArcPts([250, y], [365, y], 0), col, 0, {
             alpha: prog > 0.05 ? 0.92 : 0.35,
             width: 3,
             photonCount: prog > 0.1 ? 1 : 0,
@@ -250,7 +247,6 @@ export default function freshNesting(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-fresh-nesting-0', () => {
     s.play(b0Hi.to(1, { duration: clampDur(c, c.cue('sg-fresh-nesting-0').start, 0.35) }));

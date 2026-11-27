@@ -5,17 +5,14 @@ import {
   TAIL_769,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function firstFailingBoundary(s, c) {
-  const phase = s.value(0);
   // boundaryStep: 0=api, 1=frontend, 2=assembler, 3=loader, 4=runtime
   const boundaryStep = s.value(0);
   // freshStage: 0=hidden, 1=768 full, 2=769 new block @ 768 (HOLD prediction!), 3=769 OOB leak, 4=768 legal + 7 blocks(896), 5=strict < fix (127 masked), 6=verified
@@ -32,10 +29,8 @@ export default function firstFailingBoundary(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const bs = Math.round(boundaryStep.value);
     const fs = Math.round(freshStage.value);
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [];
 
@@ -53,7 +48,7 @@ export default function firstFailingBoundary(s, c) {
       nodes.push(
         glassCell(st.x, -175, 290, 108, active ? st.col : done ? ROLE.ir : COSMOS.dim, {
           fill: active ? '#152238' : '#0b101d',
-          glow: active ? 10 * pulse : 0,
+          glow: active ? 10 : 0,
         }),
         txt(st.id, st.x, -200, 26, active ? st.col : COSMOS.muted, 'mono'),
         txt(st.note, st.x, -150, 26, active ? COSMOS.ink : COSMOS.dim, 'sans'),
@@ -118,7 +113,7 @@ export default function firstFailingBoundary(s, c) {
         glassCell(cx, 78, 236, 124, stroke, {
           fill: isBad769 ? '#31101d' : valid && fs > 0 ? '#0d2623' : '#0b101d',
           dash: !inGrid || isMasked ? [8, 6] : undefined,
-          glow: isBad769 ? 13 * pulse : valid && fs > 0 ? 6 : 0,
+          glow: isBad769 ? 13 : valid && fs > 0 ? 6 : 0,
         }),
         txt(`idx ${idx}`, cx, 50, 32, stroke, 'mono'),
         txt(
@@ -150,14 +145,10 @@ export default function firstFailingBoundary(s, c) {
     const footCol = fs === 3 ? ROLE.fail : fs >= 5 ? ROLE.cubin : fs === 2 ? COSMOS.gold : ROLE.ir;
     nodes.push(txt(foot, 0, 278, 32, footCol, 'mono').glow(6, footCol));
 
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-780 + u * 1560, 355, { radius: 6.5, color: footCol }));
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('api-rejection', () => s.play(boundaryStep.to(0, { duration: 0.3 })));
   c.on('frontend-stop', () => s.play(boundaryStep.to(1, { duration: 0.3 })));

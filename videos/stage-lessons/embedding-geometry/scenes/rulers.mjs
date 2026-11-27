@@ -16,7 +16,6 @@ import {
   norm,
   playCue,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -32,7 +31,6 @@ export default function rulers(s, c) {
     extent: () => 4.6,
   });
 
-  const phase = s.value(0);
   const vCos = s.value(1);
   const vGap = s.value(0);
   const angleSweep = s.value(0);
@@ -209,8 +207,6 @@ export default function rulers(s, c) {
     cosLayer,
     gapLayer,
   );
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'angle', (d) => s.play(angleSweep.to(1, { duration: d })), { dur: 0.75 });
   playCue(s, c, 'a', (d) => s.play(showCosA.to(1, { duration: d })), { after: true, dur: 0.4 });

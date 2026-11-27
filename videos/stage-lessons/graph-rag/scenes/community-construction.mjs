@@ -11,12 +11,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function communityConstruction(s, c) {
-  const phase = s.value(0);
   const showDeg = s.value(0);
   const showSplit = s.value(0);
   const showMerge = s.value(0);
@@ -36,12 +34,10 @@ export default function communityConstruction(s, c) {
   const qMerged = MOD_MERGED[0].contribution;
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sd = showDeg.value;
     const sp = showSplit.value;
     const sm = showMerge.value;
     const sf = showForest.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     // Left: 6 fixed undirected edges: Cache clique (A,B,C,D: 5 edges, deg sum 10) + Eval pair (E,F: 1 edge, deg sum 2)
     const A = [-735, -75];
@@ -116,7 +112,7 @@ export default function communityConstruction(s, c) {
 
       glassCell(445, 58, 850, 126, sm > 0.4 ? COSMOS.amber : COSMOS.gold, {
         fill: sm > 0.4 ? '#231c10' : '#181e34',
-        glow: sm > 0.4 ? 9 * pulse : 3,
+        glow: sm > 0.4 ? 9 : 3,
       }),
       txt(
         sm > 0.4
@@ -141,7 +137,7 @@ export default function communityConstruction(s, c) {
 
       glassCell(445, 212, 850, 134, sf > 0.3 ? COSMOS.violet : COSMOS.muted, {
         fill: '#181430',
-        glow: sf > 0.3 ? 8 * pulse : 2,
+        glow: sf > 0.3 ? 8 : 2,
       }),
       txt('LEIDEN HIERARCHY & COMMUNITY REPORTS', 50, 178, 26, COSMOS.violet, 'mono', 'left'),
       txt(
@@ -179,7 +175,6 @@ export default function communityConstruction(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('community-construction-projection', () => s.play(showDeg.to(0.2, { duration: 0.3 })));
   c.on('community-construction-degrees', () => s.play(showDeg.to(1, { duration: 0.35 })));

@@ -5,19 +5,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function granularity(s, c) {
-  const phase = s.value(0);
   const showGather = s.value(1);
   // gatherMode: 0=root(14 GB), 1=one-block(3.5 GB), 2=reuse
   const gatherMode = s.value(0);
@@ -39,7 +36,6 @@ export default function granularity(s, c) {
 
   const gatherView = guardedDynamic(showGather, (a) => {
     const gm = Math.round(gatherMode.value);
-    const p = phase.value;
     const isPerBlock = gm >= 1;
     const liveGb = isPerBlock ? 3.5 : 14.0;
 
@@ -91,11 +87,6 @@ export default function granularity(s, c) {
         isPerBlock ? ROLE.good : ROLE.bad,
         'mono',
       ).opacity(a),
-      glowDot(-740 + ((p * 0.65) % 1) * 1480, 274, {
-        radius: 6,
-        color: isPerBlock ? ROLE.good : ROLE.bad,
-        opacity: a,
-      }),
       txt(
         'Smaller groups cut scratch 4×, but launch more collectives · watch prefetch timing!',
         0,
@@ -200,18 +191,12 @@ export default function granularity(s, c) {
         COSMOS.muted,
         'sans',
       ).opacity(a),
-      glowDot(mx(0) + ((phase.value * 0.65) % 1) * (mx(10) - mx(0)), -175, {
-        radius: 7,
-        color: COSMOS.gold,
-        opacity: a,
-      }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, gatherView, prefetchView);
-  runPhase(s, c, phase, 14);
 
   c.on('root-gather', () => s.play(gatherMode.to(0, { duration: 0.35 })));
   c.after('one-block', () => s.play(gatherMode.to(1, { duration: 0.45 })));

@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function rankBootstrap(s, c) {
-  const phase = s.value(0);
   // step: 0..4=setup & root=2 question (hold!), 5=GPU 3 answer!, 6..7=rank identity, 8..11=initAll vs grouped multi-rank init
   const step = s.value(0);
 
@@ -31,7 +28,6 @@ export default function rankBootstrap(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const mapGpu = [2, 0, 3, 1];
     const xs = [-540, -180, 180, 540];
     const rankCols = [ROLE.r0, ROLE.r1, ROLE.r2, ROLE.r3];
@@ -94,9 +90,7 @@ export default function rankBootstrap(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-740 + u * 1480, 238, { radius: 6, color: st >= 5 ? ROLE.good : COSMOS.gold }),
       txt(
         st >= 10
           ? 'Wrap multi-rank init on 1 host thread in ncclGroupStart/End so every GPU initializes'
@@ -116,7 +110,6 @@ export default function rankBootstrap(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-rank-bootstrap-b0-s0', 0],
     ['nc-rank-bootstrap-b0-s1', 1],

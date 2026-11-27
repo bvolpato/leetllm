@@ -6,18 +6,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function payloadBuild(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = 4096 x 128 x 2 bytes (1 head K)
   // 1 = 1 MiB for K
@@ -42,7 +39,6 @@ export default function payloadBuild(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 4) {
@@ -174,9 +170,7 @@ export default function payloadBuild(s, c) {
       }
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 292, { radius: 6, color: st >= 8 ? ROLE.fail : ROLE.radix }),
       txt(
         st >= 8
           ? 'Wire bytes alone exceed 2x the 10 ms budget before setup, queues, or contention.'
@@ -194,7 +188,6 @@ export default function payloadBuild(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-payload-build-beat-0', 0],
     ['sg-payload-one', 1, true],

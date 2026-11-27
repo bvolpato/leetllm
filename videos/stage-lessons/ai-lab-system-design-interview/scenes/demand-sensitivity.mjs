@@ -10,14 +10,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function demandSensitivity(s, c) {
-  const phase = s.value(0);
   const doubleOn = s.value(0); // 0 = 450 out (110k), 1 = 900 out (140k!)
   const benchOn = s.value(0);
 
@@ -33,7 +30,6 @@ export default function demandSensitivity(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const db = doubleOn.value;
       const bn = benchOn.value;
       const nodes = [];
@@ -120,12 +116,6 @@ export default function demandSensitivity(s, c) {
           'mono',
           'center',
         ).opacity(bAlpha),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: barCol,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -133,8 +123,6 @@ export default function demandSensitivity(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('sd-demand-sensitivity-1-operation', () => {
     s.play(
       doubleOn.to(1, {

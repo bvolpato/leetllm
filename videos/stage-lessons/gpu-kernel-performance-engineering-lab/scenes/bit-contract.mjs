@@ -10,19 +10,16 @@ import {
   copyPass,
   delay,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   par,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function bitContract(s, c) {
-  const phase = s.value(0);
   const showCopy = s.value(1);
   const showZeros = s.value(0);
 
@@ -46,8 +43,6 @@ export default function bitContract(s, c) {
   });
 
   const copyView = guardedDynamic(showCopy, (a) => {
-    const p = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.5);
     const isRepair = repairedReset.value > 0.5;
     const isPoison = poisoned.value > 0.5;
     const pv = poisonVerdict.value;
@@ -94,7 +89,7 @@ export default function bitContract(s, c) {
         nodes.push(
           glassCell(cx, cy, cellW, cellH, isSix ? ROLE.gold : ROLE.input, {
             fill: isSix ? '#2c2210' : '#0f1c34',
-            glow: isSix ? 10 * pulse : 3,
+            glow: isSix ? 10 : 3,
             opacity: a,
           }),
           txt(String(entry.value), cx, cy, 36, isSix ? ROLE.gold : COSMOS.ink, 'mono').opacity(a),
@@ -145,7 +140,7 @@ export default function bitContract(s, c) {
         nodes.push(
           glassCell(cx, cy, cellW, cellH, border, {
             fill,
-            glow: isTarget ? 10 * pulse : fresh ? 4 : 0,
+            glow: isTarget ? 10 : fresh ? 4 : 0,
             opacity: a,
           }),
           txt(
@@ -193,9 +188,7 @@ export default function bitContract(s, c) {
 
   // Beat 3: Signed zeros (+0.0 vs -0.0) 32-bit sign-bit comparison
   const zeroView = guardedDynamic(showZeros, (a) => {
-    const p = phase.value;
     const diff = zeroBits.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('WHY BITWISE EQUALITY BEATS ABSOLUTE ERROR', 0, -210, 30, ROLE.output, 'mono').opacity(a),
@@ -221,7 +214,7 @@ export default function bitContract(s, c) {
         nodes.push(
           glassCell(gx, row.y, 286, 86, highlight ? ROLE.bad : row.col, {
             fill: highlight ? '#331120' : '#0f1b33',
-            glow: highlight ? 11 * pulse : 4,
+            glow: highlight ? 11 : 4,
             opacity: a,
           }),
           txt(
@@ -267,14 +260,10 @@ export default function bitContract(s, c) {
       ).opacity(a),
     );
 
-    const u = (p * 0.45) % 1;
-    nodes.push(glowDot(-460 + u * 1240, 165, { radius: 6, color: ROLE.output, opacity: 0.7 * a }));
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, copyView, zeroView);
-  runPhase(s, c, phase, 16);
 
   c.on('fresh-poison', () =>
     s.play(poisoned.to(1, { duration: remainDuration(c, 'fresh-poison', 0.4) })),

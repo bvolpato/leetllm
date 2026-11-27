@@ -13,7 +13,6 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   transferDocuments,
   transferQuery,
   tweenCue,
@@ -23,7 +22,6 @@ import {
 const DOC_COLS = [COSMOS.dim, COSMOS.cyan, COSMOS.emerald, COSMOS.dim, COSMOS.violet];
 
 export default function takeaway(s, c) {
-  const phase = s.value(0);
   const showPolicies = s.value(0);
   const showMiddle = s.value(0);
   const showHeight = s.value(0);
@@ -50,7 +48,6 @@ export default function takeaway(s, c) {
   const live = guardedDynamic(s.value(1), () => {
     const dy = dropY.value;
     const isFlat = dy > 0.5;
-    const pulse = 0.72 + 0.28 * Math.sin(phase.value * 3.0);
 
     // Top storage-order ribbon: P, B, L, D, R
     const nodes = [
@@ -148,10 +145,10 @@ export default function takeaway(s, c) {
         txt(it.label, it.x, laneBot + 36, 26, COSMOS.muted, 'sans'),
       );
       if (it.id === 'B' && showWrong.value > 0.5 && isFlat) {
-        nodes.push(glowRing(it.x, py, 24 + 4 * pulse, DANGER_COLOR, { width: 3.5, glow: 12 }));
+        nodes.push(glowRing(it.x, py, 28, DANGER_COLOR, { width: 3.5, glow: 12 }));
       }
       if (it.id === 'L' && (showBaseline.value > 0.5 || showAnswer.value > 0.5) && !isFlat) {
-        nodes.push(glowRing(it.x, py, 24 + 4 * pulse, COSMOS.emerald, { width: 3.5, glow: 12 }));
+        nodes.push(glowRing(it.x, py, 28, COSMOS.emerald, { width: 3.5, glow: 12 }));
       }
     });
 
@@ -233,7 +230,6 @@ export default function takeaway(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'policies', showPolicies, 1, { duration: 0.45 });
   tweenCue(s, c, 'middle', showMiddle, 1, { duration: 0.45 });

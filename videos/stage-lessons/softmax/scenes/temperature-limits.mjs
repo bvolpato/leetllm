@@ -19,14 +19,12 @@ import {
   orbitScene,
   positiveTemperature,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
   unitRibbon,
 } from '../parts.mjs';
 
 export default function temperatureLimits(s, c) {
-  const phase = s.value(0);
   const vLimits = s.value(1);
   const vOverflow = s.value(0);
   const vDistill = s.value(0);
@@ -487,7 +485,6 @@ export default function temperatureLimits(s, c) {
   });
 
   s.add(bgAura, simplex, title, view1, view2, view3);
-  runAmbientPhase(s, c, phase, 2.2);
   orbitScene(s, c, simplex, { theta: 0.45, phi: 0.96 });
 
   // Beat 0 cues

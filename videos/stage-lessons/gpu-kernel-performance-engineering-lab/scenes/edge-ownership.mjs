@@ -12,7 +12,6 @@ import {
   delay,
   dot,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -20,12 +19,10 @@ import {
   par,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function edgeOwnership(s, c) {
-  const phase = s.value(0);
   const showColumn = s.value(1);
   const showHandoff = s.value(0);
   const showPairing = s.value(0);
@@ -148,13 +145,11 @@ export default function edgeOwnership(s, c) {
 
   // Beat 1: Zoomed handoff of value 65: A[1,32] -> Warp 1 -> shared[1,0] -> Warp 0 -> B[32,1]
   const handoffView = guardedDynamic(showHandoff, (a) => {
-    const p = phase.value;
     const v65 = val65.value;
     const w1 = warp1.value;
     const pw = prodWrite.value;
     const cr = consRead.value;
     const os = outStore.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('INTER-WARP HANDOFF FOR ROW 1, COLUMN 32', 0, -215, 28, ROLE.gold, 'mono').opacity(a),
@@ -163,7 +158,7 @@ export default function edgeOwnership(s, c) {
       txt('GLOBAL INPUT', -620, -125, 26, ROLE.input, 'mono').opacity(a),
       glassCell(-620, 15, 340, 210, v65 > 0.3 ? ROLE.input : COSMOS.rule, {
         fill: '#0f1e3a',
-        glow: v65 > 0.3 ? 10 * pulse : 3,
+        glow: v65 > 0.3 ? 10 : 3,
         opacity: a,
       }),
       txt(
@@ -180,7 +175,7 @@ export default function edgeOwnership(s, c) {
       txt('SHARED MEMORY', 0, -125, 26, ROLE.shared, 'mono').opacity(a),
       glassCell(0, 15, 340, 210, pw > 0.3 ? ROLE.shared : COSMOS.rule, {
         fill: '#281f10',
-        glow: pw > 0.3 ? 10 * pulse : 3,
+        glow: pw > 0.3 ? 10 : 3,
         opacity: a,
       }),
       txt(
@@ -197,7 +192,7 @@ export default function edgeOwnership(s, c) {
       txt('GLOBAL OUTPUT', 620, -125, 26, ROLE.output, 'mono').opacity(a),
       glassCell(620, 15, 340, 210, os > 0.3 ? ROLE.output : COSMOS.rule, {
         fill: '#0d2638',
-        glow: os > 0.3 ? 10 * pulse : 3,
+        glow: os > 0.3 ? 10 : 3,
         opacity: a,
       }),
       txt(
@@ -228,26 +223,6 @@ export default function edgeOwnership(s, c) {
       txt('Warp 0 reads', 310, -76, 26, ROLE.good, 'mono').opacity(a),
       txt('thread (1, 0)', 310, 82, 26, COSMOS.muted, 'mono').opacity(a),
     ];
-
-    const u = (p * 0.6) % 1;
-    if (pw > 0.2) {
-      nodes.push(
-        glowDot(-445 + u * 270, 15 - Math.sin(u * Math.PI) * 28, {
-          radius: 7,
-          color: ROLE.gold,
-          opacity: a,
-        }),
-      );
-    }
-    if (os > 0.2) {
-      nodes.push(
-        glowDot(175 + u * 270, 15 - Math.sin(u * Math.PI) * 28, {
-          radius: 7,
-          color: ROLE.good,
-          opacity: a,
-        }),
-      );
-    }
 
     const msg =
       os > 0.3
@@ -332,7 +307,6 @@ export default function edgeOwnership(s, c) {
   });
 
   s.add(bgAura, title, columnView, handoffView, pairingView);
-  runPhase(s, c, phase, 16);
 
   c.on('gpu-edge-ownership-block', () =>
     s.play(blockShow.to(1, { duration: remainDuration(c, 'gpu-edge-ownership-block', 0.45) })),

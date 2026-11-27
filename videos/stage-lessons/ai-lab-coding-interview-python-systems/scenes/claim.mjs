@@ -6,7 +6,6 @@ import {
   CLAIM_LINES,
   COSMOS,
   ROLE,
-  ambientClock,
   buildLockChamber3d,
   cinemaAtmosphere,
   codeSpotlight,
@@ -24,7 +23,6 @@ import {
 export default function claim(s, c) {
   const title = sceneHeading(['Where can a second', 'worker enter?'], { accent: ROLE.focus });
 
-  const amb = ambientClock(s, c);
   const lockActive = s.value(0);
   const activeLines = s.value(0); // 0=none, 1=enter(1,2), 2=insert(4), 3=fetch(6), 4=skip(2,3), 5=verdict(1..4)
   const seenClaimed = s.value(0);
@@ -38,7 +36,6 @@ export default function claim(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const mode = Math.round(activeLines.value);
       const lineSet =
         mode === 1
@@ -197,13 +194,13 @@ export default function claim(s, c) {
             glow: 11,
           }),
           glowDot(245, 210, {
-            radius: 7 + 3 * pulse,
+            radius: 8,
             color: ROLE.workerA,
             glow: 10,
             opacity: ba,
           }),
           glowDot(615, 210, {
-            radius: 7 + 3 * pulse,
+            radius: 8,
             color: ROLE.workerB,
             glow: 10,
             opacity: ba,

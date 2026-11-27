@@ -18,7 +18,6 @@ import {
   orbitScene,
   playCue,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -27,7 +26,6 @@ import { cinemaVectorPlane, guideVectors } from '../guide-plot.mjs';
 export default function normalize(s, c) {
   const progress = s.value(0);
   const extent = s.value(10.6);
-  const phase = s.value(0);
   const showChords = s.value(0);
   const vAssume = s.value(1);
   const vFormula = s.value(0);
@@ -197,7 +195,6 @@ export default function normalize(s, c) {
     assumeLayer,
   );
 
-  runPhase(s, c, phase, 8);
   orbitScene(s, c, sphere3d, { theta: 0.48, phi: 0.96 });
 
   playCue(s, c, 'divide', (d) => s.play(progress.to(1, { duration: d })), { dur: 2.2 });

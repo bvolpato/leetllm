@@ -10,16 +10,7 @@ import {
   heroTitle,
   txt,
 } from '../../cinematic-kit.mjs';
-import {
-  ROLE,
-  cinemaAtmosphere,
-  fmt,
-  loss,
-  playCue,
-  plotPlane,
-  sampleCurve,
-  scenePulse,
-} from '../parts.mjs';
+import { ROLE, cinemaAtmosphere, fmt, loss, playCue, plotPlane, sampleCurve } from '../parts.mjs';
 
 export default function lossScene(s, c) {
   const title = heroTitle(['What does the height', 'of a loss curve mean?'], {
@@ -36,7 +27,6 @@ export default function lossScene(s, c) {
   const dataSweep = s.value(0); // loss-data
   const slideT = s.value(0); // sl-loss-2: N slides 5 -> 10, D falls 20 -> 10
   const showBeads = s.value(0);
-  const pulse = s.value(0);
 
   const stageLayer = guardedDynamic(s.value(1), (alpha) => {
     const nodes = [];
@@ -171,7 +161,6 @@ export default function lossScene(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.tokens), title, stageLayer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'sl-loss-0', (d) => s.play(introGlow.to(1, { duration: d })), { dur: 0.7 });
   c.show('sl-loss-1', formulaEq);

@@ -11,12 +11,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function diagnosePolicy(s, c) {
-  const phase = s.value(0);
   const showTable = s.value(1);
   const showDiag = s.value(0);
   const hlPath = s.value(0);
@@ -182,7 +180,6 @@ export default function diagnosePolicy(s, c) {
   });
 
   s.add(bgAura, title, partTable, partDiag);
-  runPhase(s, c, phase, 14);
 
   c.on('diagnose-policy-1', () => s.play(showTable.to(1, { duration: 0.2 })));
   c.on('diagnose-policy-2', () => {

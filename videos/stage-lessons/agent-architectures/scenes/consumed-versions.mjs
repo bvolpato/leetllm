@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   txt,
@@ -35,7 +34,7 @@ export default function consumedVersions(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const v2 = v2On.value;
       const mm = mismatchOn.value;
       const lg = ledgerOn.value;
@@ -127,7 +126,6 @@ export default function consumedVersions(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-consumed-versions-0', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('aa-consumed-versions-0').start, 0.25) }));

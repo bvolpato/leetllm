@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowBar,
   glowTex,
   guardedDynamic,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function bandwidthCeiling(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=54GB ms, 2=62 tok/s, 3=27GB prompt(PREDICT!), 4=8ms(AFTER), 5=124 tok/s(AFTER), 6=16GB 4.8ms(AFTER), 7=209 tok/s(AFTER), 8=beat 3 reality
 
   const header = cinemaHeader(
@@ -52,8 +50,6 @@ export default function bandwidthCeiling(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
-      const blink = 0.68 + 0.32 * Math.sin(p * 5.0);
 
       const barLeft = -420;
       const barW = 800;
@@ -68,7 +64,7 @@ export default function bandwidthCeiling(s, c) {
             [barLeft + barW, 240],
           ],
           '#3a5382',
-          p * 0.6,
+          0,
           { width: 2.8, glow: 5, photonCount: 2 },
         ),
       );
@@ -115,7 +111,7 @@ export default function bandwidthCeiling(s, c) {
           nodes.push(
             txt('PREDICT: How long does 27 GB take?', barLeft, -8, 30, ROLE.predict, 'sans', 'left')
               .glow(8, ROLE.predict)
-              .opacity(blink),
+              .opacity(1),
           );
         } else {
           nodes.push(
@@ -172,7 +168,6 @@ export default function bandwidthCeiling(s, c) {
   );
 
   s.add(bgAura, header, bwEq, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'full-read', step, 1, 0.3);
   tweenOn(s, c, 'full-rate', step, 2, 0.3);

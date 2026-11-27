@@ -6,11 +6,9 @@ import {
   COSMOS,
   LEDGER,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   glowArrow,
   glowCross,
-  glowDot,
   glowPill,
   guardedDynamic,
   lowerFooter,
@@ -24,7 +22,6 @@ export default function ledger(s, c) {
     accent: ROLE.ok,
   });
 
-  const amb = ambientClock(s, c);
   // Step 0=empty, 1=deposit-1 (+100), 2=withdraw-1 (-30 -> 70), 3=focus balance 70,
   // 4=replay deposit-1 returns 100 (balance stays 70!), 5=preserved balance spotlight, 6=conflict (+200 rejected!)
   const step = s.value(0);
@@ -32,7 +29,6 @@ export default function ledger(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(step.value);
       const hasDep = st >= 1;
       const hasWd = st >= 2;
@@ -153,12 +149,6 @@ export default function ledger(s, c) {
           'sans',
           'center',
         ).opacity(alpha),
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5 + 1.5 * pulse,
-          color: isConflict ? ROLE.fail : ROLE.ok,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'IDEMPOTENCY KEY -> ONE STORED EFFECT',
           `BALANCE: ${bal}  ·  EVENTS: ${evCount}  ·  RECEIPT(deposit-1): ${hasDep ? 100 : '?'}`,

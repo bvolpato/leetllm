@@ -14,12 +14,10 @@ import {
   photonStream,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function restartConsistency(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const shuffleOn = s.value(0);
 
@@ -36,7 +34,6 @@ export default function restartConsistency(s, c) {
   // Part 1: Parallel workers -> shuffle same band bucket to common comparison owner
   const part1Live = guardedDynamic(showPart1, (a) => {
     const sh = shuffleOn.value;
-    const ph = phase.value;
     const workers = [
       { label: 'Worker 1 · A (band 1)', x: -575, color: COSMOS.blue, targetX: -340 },
       { label: 'Worker 2 · B (band 1)', x: 0, color: COSMOS.cyan, targetX: -340 },
@@ -58,7 +55,7 @@ export default function restartConsistency(s, c) {
       nodes.push(
         glassCell(w.x, -125, 490, 118, w.color, { fill: '#0f182c', glow: 7, opacity: a }),
         txt(w.label, w.x, -123, 30, w.color, 'mono').opacity(a),
-        ...photonStream([w.x, -62], [w.targetX, 112], 25, ph + i * 0.6, {
+        ...photonStream([w.x, -62], [w.targetX, 112], 25, 0, {
           color: w.color,
           count: 3,
           opacity: (0.35 + 0.65 * sh) * a,
@@ -282,7 +279,6 @@ export default function restartConsistency(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-restart-consistency-shuffle', () =>
     s.play(shuffleOn.to(1, { duration: remainDuration(c, 'pt-restart-consistency-shuffle', 0.6) })),

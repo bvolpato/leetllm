@@ -13,13 +13,10 @@ import {
   memoryInventory,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function memory(s, c) {
-  const phase = s.value(0);
-
   // Act 1 values
   const showAct1 = s.value(1);
   const highlightStatic = s.value(0);
@@ -281,7 +278,6 @@ export default function memory(s, c) {
   });
 
   s.add(bgAura, title1, title2, act1Live, act2Live);
-  runPhase(s, c, phase, 16);
 
   // Act 1 cues
   c.on('memory-b1-1', () => s.play(highlightStatic.to(1, { duration: 0.6 })));

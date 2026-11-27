@@ -14,7 +14,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -54,7 +53,7 @@ export default function retryIdentity(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(Math.min(1, act.value)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const fl = fileOn.value;
       const ls = lostOn.value;
       const to = timeoutOn.value;
@@ -137,7 +136,7 @@ export default function retryIdentity(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(Math.min(1, act.value)) * fadeOutHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const sk = sameKeyOn.value;
       const nk = newKeyOn.value;
       const aq = askForkOn.value;
@@ -284,7 +283,7 @@ export default function retryIdentity(s, c) {
     () =>
       fadeInHalf(Math.max(0, Math.min(1, act.value - 1))) * fadeOutHalf(Math.max(0, act.value - 2)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const ci = conflictInOn.value;
       const cr = conflictResOn.value;
       const at = atomicOn.value;
@@ -376,7 +375,7 @@ export default function retryIdentity(s, c) {
   const act3 = guardedDynamic(
     () => fadeInHalf(Math.max(0, act.value - 2)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const sr = statusReadOn.value;
       const sf = statusFoundOn.value;
       const nodes = [];
@@ -455,7 +454,6 @@ export default function retryIdentity(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2, act3);
-  driftValue(s, c, pulse, 5.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('hold-file', () => {
     s.play(fileOn.to(1, { duration: clampDur(c, c.cue('hold-file').start, 0.3) }));

@@ -13,12 +13,10 @@ import {
   remainDuration,
   roofline,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function synthesis(s, c) {
-  const phase = s.value(0);
   const bytesVal = s.value(4000);
   const showPoint = s.value(0);
   const showTrail1 = s.value(0);
@@ -182,7 +180,6 @@ export default function synthesis(s, c) {
   });
 
   s.add(bgAura, title, live, eqRoof);
-  runPhase(s, c, phase, 14);
 
   c.on('build-intensity', () => s.play(showPoint.to(1, { duration: 0.65 })));
   c.on('reuse-bytes', () => {

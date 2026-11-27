@@ -13,7 +13,6 @@ import {
   cinemaHeader,
   clampDur,
   decode,
-  driftValue,
   fsmNode,
   guardedDynamic,
   quadArcPts,
@@ -24,7 +23,6 @@ import {
 const RESULT_4 = decode(DECODER_STEPS_4);
 
 export default function completeRecord(s, c) {
-  const pulse = s.value(0);
   const threeProg = s.value(0);
   const budgetErr = s.value(0);
   const extraSlot = s.value(0);
@@ -42,7 +40,6 @@ export default function completeRecord(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const tp = threeProg.value;
       const be = budgetErr.value;
       const ex = extraSlot.value;
@@ -102,15 +99,10 @@ export default function completeRecord(s, c) {
           const prevRight = xs[i - 1] + ws[i - 1] * 0.5 + 8;
           const curLeft = xs[i] - ws[i] * 0.5 - 8;
           nodes.push(
-            beamWithPhotons(
-              quadArcPts([prevRight, slotY], [curLeft, slotY], 0),
-              col,
-              p * 1.2 + i * 0.3,
-              {
-                width: 3,
-                photonCount: 1,
-              },
-            ),
+            beamWithPhotons(quadArcPts([prevRight, slotY], [curLeft, slotY], 0), col, 0, {
+              width: 3,
+              photonCount: 1,
+            }),
           );
         }
       }
@@ -187,7 +179,6 @@ export default function completeRecord(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('stop-three', () => {
     s.play(threeProg.to(1, { duration: clampDur(c, c.cue('stop-three').start, 1.1) }));

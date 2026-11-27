@@ -9,15 +9,12 @@ import {
   chunks,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   interrupt,
   txt,
 } from '../parts.mjs';
 
 export default function bargeIn(s, c) {
-  const phase = s.value(0);
   const ack1 = s.value(0); // 240 ms
   const ack2 = s.value(0); // 520 ms
   const cutOn = s.value(0); // 650 ms
@@ -36,7 +33,6 @@ export default function bargeIn(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const a1 = ack1.value;
       const a2 = ack2.value;
       const cut = cutOn.value;
@@ -199,22 +195,11 @@ export default function bargeIn(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.cut,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('barge-first-ack', () => {
     s.play(ack1.to(1, { duration: clampDur(c, c.cue('barge-first-ack').start, 0.35) }));
   });

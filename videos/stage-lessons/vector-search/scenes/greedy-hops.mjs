@@ -9,12 +9,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function greedyHops(s, c) {
-  const phase = s.value(0);
   const showEntry = s.value(0);
   const showHopC = s.value(0);
   const showHopA = s.value(0);
@@ -31,12 +29,10 @@ export default function greedyHops(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const se = showEntry.value;
     const hc = showHopC.value;
     const ha = showHopA.value;
     const st = showTrap.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     // Left: 6-node greedy walk diagram
     const ePos = [-745, 165];
@@ -109,7 +105,7 @@ export default function greedyHops(s, c) {
       // Right panel: Local minimum trap E(1.0) -- M(2.0) -- H(0.1)
       glassCell(495, 22, 810, 446, st > 0.3 ? COSMOS.rose : COSMOS.gold, {
         fill: st > 0.3 ? '#24121c' : '#12182d',
-        glow: st > 0.3 ? 9 * pulse : 3,
+        glow: st > 0.3 ? 9 : 3,
       }),
       txt('LOCAL MINIMUM TRAP (UPHILL BRIDGE)', 120, -166, 26, COSMOS.rose, 'mono', 'left'),
 
@@ -145,7 +141,6 @@ export default function greedyHops(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('greedy-hops-b1-1', () => s.play(showEntry.to(1, { duration: 0.4 })));
   c.on('hop-to-c', () => s.play(showHopC.to(1, { duration: 0.4 })));

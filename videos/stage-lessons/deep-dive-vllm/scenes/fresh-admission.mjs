@@ -5,12 +5,10 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   reuse,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
@@ -24,7 +22,6 @@ const CLOCK_PHASES = [
 const FRESH_TOTAL = 102;
 
 export default function freshAdmission(s, c) {
-  const phase = s.value(0);
   // Major stage transitions (spaced across beats -> zero film.text_brief):
   // 0 = Beat 0 setup + HOLD 1 (Q asks Adapter B -> Can entire prompt run?)
   // 1 = Beat 1 miss (Adapter B skips 0, computes all 13)
@@ -55,7 +52,6 @@ export default function freshAdmission(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(stage.value);
-    const p = phase.value;
     const nodes = [];
 
     // ACT II of Scene 29 (Beats 4-5): Independent 102 ms Timed Request for Adapter A
@@ -152,9 +148,7 @@ export default function freshAdmission(s, c) {
         );
       }
 
-      const u = (p * 0.65) % 1;
       nodes.push(
-        glowDot(-780 + u * 1560, 325, { radius: 6, color: st >= 7 ? ROLE.r1 : COSMOS.gold }),
         txt(
           st >= 7
             ? 'Trace admission records, KV pool counts & scheduler dispatch before changing kernels'
@@ -298,9 +292,7 @@ export default function freshAdmission(s, c) {
       txt(line2, 0, 250, 26, COSMOS.ink, 'sans'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 325, { radius: 6, color: boxCol }),
       txt(
         st === 0 || st === 3
           ? 'Verify cache compatibility, KV block count & step token cap before predicting'
@@ -316,7 +308,6 @@ export default function freshAdmission(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 16);
 
   // Beat 0 (HOLD 1)
   c.on('vv-fresh-admission-matches', () => s.play(showMatch.to(1, { duration: 0.2 })));

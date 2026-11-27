@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   clampDur,
   cleanRelease,
-  driftValue,
   guardedDynamic,
   orbNode,
   orbRadius,
@@ -53,7 +52,7 @@ export default function policyDecisionRecord(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const loc = located.value;
       const flp = flipped.value;
       const mch = matched.value;
@@ -224,7 +223,6 @@ export default function policyDecisionRecord(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('record-compare', () => {
     s.play(pulse.to(0.35, { duration: clampDur(c, c.cue('record-compare').start, 0.25) }));

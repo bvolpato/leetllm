@@ -17,7 +17,6 @@ import {
   renderGauge,
   resourceFixture,
   rule,
-  runAmbientPhase,
   runtimeProbe,
   tweenCue,
   txt,
@@ -36,8 +35,6 @@ export default function controlsByFailure(s, c) {
     1e-12,
     '50ms / 100ms = 0.5 CPU',
   );
-
-  const phase = s.value(0);
 
   // Top worker-to-supervisor leak channel
   const tokenVis = s.value(1);
@@ -403,7 +400,6 @@ export default function controlsByFailure(s, c) {
   });
 
   s.add(bgAtmo, title, live);
-  runAmbientPhase(s, c, phase, 2.4);
 
   // Beat 0: closed network still leaks stdout token
   tweenCue(s, c, 'cf-credentials', tokenHot, 1, { duration: 0.45 });

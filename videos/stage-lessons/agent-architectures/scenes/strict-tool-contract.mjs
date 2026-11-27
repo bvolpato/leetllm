@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   txt,
@@ -39,7 +38,7 @@ export default function strictToolContract(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const sh = shapeRej.value;
       const sc = scopeDen.value;
       const or = oneRead.value;
@@ -148,7 +147,6 @@ export default function strictToolContract(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-strict-tool-contract-0', () => {
     s.play(

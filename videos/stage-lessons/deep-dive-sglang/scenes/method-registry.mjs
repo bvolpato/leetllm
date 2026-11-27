@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function methodRegistry(s, c) {
-  const phase = s.value(0);
   // step: 0=pinned built-ins vs UNO guide, 1=UNO rules (CUDA/FA3/TP1/PP1/no grammar),
   // 2=n-gram disables overlap & mixed chunk, 3=EAGLE/standalone V2 overlap requires topk=1, 4=controlled replay
   const step = s.value(0);
@@ -31,7 +28,6 @@ export default function methodRegistry(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st === 0) {
@@ -105,9 +101,7 @@ export default function methodRegistry(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 292, { radius: 6, color: ROLE.spec }),
       txt(
         st >= 4
           ? 'Guide tables (Llama 3.1 8B on H100) do not replace replaying your own ticket workload.'
@@ -125,7 +119,6 @@ export default function methodRegistry(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-method-registry-beat-0', 0],
     ['sg-method-registry-beat-1', 1],

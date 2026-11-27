@@ -17,7 +17,6 @@ import {
   passAtK,
   rule,
   runtimeProbe,
-  runAmbientPhase,
   tweenCue,
   txt,
   verifyApprox,
@@ -35,7 +34,6 @@ export default function evaluateTwoAxes(s, c) {
   verifyApprox(passAtK(n, passes, 2), 0.7, 1e-12, 'pass@2 = 0.70');
   verifyApprox(1 - ((n - passes) / n) ** 2, 0.64, 1e-12, 'with-replacement = 0.64');
 
-  const phase = s.value(0);
   const funcHot = s.value(0);
   const contHot = s.value(0);
   const poolLit = s.value(0);
@@ -373,7 +371,6 @@ export default function evaluateTwoAxes(s, c) {
   });
 
   s.add(bgAtmo, title, live, formulaLayer);
-  runAmbientPhase(s, c, phase, 2.4);
 
   // Beat 0
   tweenCue(s, c, 'ev2-functional', funcHot, 1, { duration: 0.4 });

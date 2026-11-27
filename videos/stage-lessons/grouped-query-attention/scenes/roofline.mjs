@@ -5,7 +5,6 @@ import {
   ROLE,
   chapterModel,
   cinemaAtmosphere,
-  circle,
   glowDot,
   glowTex,
   glowingTrail,
@@ -15,7 +14,6 @@ import {
   line,
   playCue,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -42,7 +40,6 @@ const ROOF_PTS = Array.from({ length: ROOF_SAMPLES }, (_, i) => {
 
 export default function roofline(s, c) {
   const model = chapterModel(c.id);
-  const phase = s.value(0);
 
   // Left derivation progression
   const sQk = s.value(0);
@@ -78,7 +75,6 @@ export default function roofline(s, c) {
   const peakY = mapTF(H100.denseTflops);
 
   const live = guardedDynamic(1, () => {
-    const ph = phase.value;
     const qk = sQk.value;
     const av = sAv.value;
     const both = sBoth.value;
@@ -233,7 +229,6 @@ export default function roofline(s, c) {
     }
 
     // Operating points on the bandwidth slope: MHA (1), GQA-8 (8), MQA (64 -> 32)
-    const pulse = (ph * 0.65) % 1;
     if (pm > 0.02) {
       const mx = mapAI(1);
       const my = mapTF(roofPerf(1));
@@ -257,10 +252,6 @@ export default function roofline(s, c) {
       const qy = mapTF(roofPerf(curMqa));
       const col = dr > 0.5 ? ROLE.amber : ROLE.value;
       nodes.push(
-        circle(10 + pulse * 16, { fill: null, stroke: col, width: 2.4 })
-          .at(qx, qy)
-          .opacity((1 - pulse) * 0.8 * pq)
-          .set('blend', 'screen'),
         glowDot(qx, qy, { radius: 9, color: col, glow: 13, opacity: pq }),
         txt(
           dr > 0.5 ? `MQA (2 reads): ${Math.round(curMqa)}` : 'MQA: 64',
@@ -290,7 +281,6 @@ export default function roofline(s, c) {
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.query), title, live);
   c.show('cancel', cancelEq, { after: true, fade: 0.45 });
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'qk', (d) => s.play(sQk.to(1, { duration: d })), { after: true, dur: 0.45 });
   playCue(s, c, 'av', (d) => s.play(sAv.to(1, { duration: d })), { dur: 0.45 });

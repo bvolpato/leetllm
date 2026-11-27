@@ -12,12 +12,10 @@ import {
   photonStream,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function lineage(s, c) {
-  const phase = s.value(0);
   const manifestLit = s.value(0);
   const cursorPos = s.value(0); // Advances 0 -> 2
   const cursorLit = s.value(0);
@@ -40,7 +38,6 @@ export default function lineage(s, c) {
     const cl = cursorLit.value;
     const nr = nextReveal.value;
     const pl = policyLit.value;
-    const ph = phase.value;
 
     const leftX = -625;
     const pitch = 250;
@@ -58,7 +55,7 @@ export default function lineage(s, c) {
       txt('Immutable shard bytes + deterministic permutation', 410, -334, 26, COSMOS.ink, 'sans'),
 
       // Glowing shard sequence track
-      ...photonStream([leftX - 80, rowY], [leftX + 5 * pitch + 80, rowY], 0, ph, {
+      ...photonStream([leftX - 80, rowY], [leftX + 5 * pitch + 80, rowY], 0, 0, {
         color: COSMOS.blue,
         count: 5,
         opacity: 0.55,
@@ -144,7 +141,6 @@ export default function lineage(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('lineage-b1-1', () => {
     const dur = remainDuration(c, 'lineage-b1-1', 1.2);

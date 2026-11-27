@@ -5,7 +5,6 @@ import {
   aura,
   buildCluster3d,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -137,10 +136,6 @@ export default function replicaLayouts(s, c) {
         glow: 8,
       }),
       txt(foot, -340, 325, 26, ep ? ROLE.warn : COSMOS.ink, 'sans'),
-      glowDot(-820 + ((phase.value * 0.55) % 1) * 960, 415, {
-        radius: 6,
-        color: ep ? ROLE.warn : COSMOS.gold,
-      }),
     );
 
     return group(...nodes);

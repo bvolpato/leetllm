@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -36,7 +35,7 @@ export default function promptComparison(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const s2 = stage2.value;
       const s3 = stage3.value;
       const a1 = fadeOutHalf(s2);
@@ -217,7 +216,6 @@ export default function promptComparison(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('prompt-comparison-b1', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('prompt-comparison-b1').start, 0.25) }));

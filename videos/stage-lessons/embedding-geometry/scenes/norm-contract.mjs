@@ -15,7 +15,6 @@ import {
   playCue,
   robustUnit,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -23,7 +22,6 @@ export default function normContract(s, c) {
   const unit = robustUnit([1e300, 1e300]);
   const unitStr = `${unit[0].toFixed(3)}, ${unit[1].toFixed(3)}`;
 
-  const phase = s.value(0);
   const showInvalid = s.value(0);
   const showScale = s.value(0);
   const showResult = s.value(0);
@@ -55,8 +53,6 @@ export default function normContract(s, c) {
   ];
 
   const pipelineLayer = dynamic(() => {
-    const p = phase.value;
-    const pulse = 0.78 + 0.22 * Math.sin(p * 3.0);
     const inv = showInvalid.value;
     const sc = showScale.value;
     const res = showResult.value;
@@ -93,7 +89,7 @@ export default function normContract(s, c) {
               color: ROLE.gold,
               fillAlpha: 0.16,
               strokeWidth: 2.2,
-              glow: 7 * pulse,
+              glow: 7,
               opacity: sc,
             }),
             txt('1, 1', -115, lane.y, 32, ROLE.gold, 'mono').opacity(sc),
@@ -109,7 +105,7 @@ export default function normContract(s, c) {
               color: lane.color,
               fillAlpha: 0.2,
               strokeWidth: 2.5,
-              glow: 9 * pulse,
+              glow: 9,
               opacity: res,
             }),
             txt(unitStr, 505, lane.y, 32, lane.color, 'mono').glow(5, lane.color).opacity(res),
@@ -189,8 +185,6 @@ export default function normContract(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.code, ROLE.warn), title, pipelineLayer, queryScaleLayer);
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'invalid', (d) => s.play(showInvalid.to(1, { duration: d })), {
     after: true,

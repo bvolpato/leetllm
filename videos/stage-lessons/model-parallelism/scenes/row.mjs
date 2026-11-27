@@ -7,7 +7,6 @@ import {
   X,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   glowingArc,
   group,
@@ -16,13 +15,11 @@ import {
   rect,
   remainBeatDuration,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
 
 export default function row(s, c) {
-  const phase = s.value(0);
   const showPartials = s.value(1);
   const showRelu = s.value(0);
   const pSplit = s.value(0);
@@ -117,14 +114,7 @@ export default function row(s, c) {
     const foot = ar
       ? 'All-reduce delivers the full sum to both GPUs · reduce-scatter shards it'
       : 'Each local row product is partial until peer contributions arrive';
-    nodes.push(
-      txt(foot, 0, 355, 28, ar ? ROLE.good : COSMOS.muted, 'sans').opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: ROLE.expert,
-        opacity: a,
-      }),
-    );
+    nodes.push(txt(foot, 0, 355, 28, ar ? ROLE.good : COSMOS.muted, 'sans').opacity(a));
 
     return group(...nodes);
   });
@@ -171,17 +161,11 @@ export default function row(s, c) {
         b > 0.5 ? ROLE.bad : ROLE.good,
         'sans',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: b > 0.5 ? ROLE.bad : ROLE.good,
-        opacity: a,
-      }),
     ];
     return group(...nodes);
   });
 
   s.add(bgAura, title, partialsView, reluView);
-  runPhase(s, c, phase, 14);
 
   c.on('row-split', () => s.play(pSplit.to(1, { duration: remainDuration(c, 'row-split', 0.4) })));
   c.on('incomplete-output', () =>

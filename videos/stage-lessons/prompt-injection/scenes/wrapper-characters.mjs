@@ -13,9 +13,7 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
-  glowDot,
   guardedDynamic,
   hexGate,
   quadArcPts,
@@ -39,7 +37,7 @@ export default function wrapperCharacters(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const em = escapeMorph.value;
       const np = noncePhase.value;
       const nodes = [];
@@ -164,11 +162,6 @@ export default function wrapperCharacters(s, c) {
           'mono',
           'center',
         ).glow(np > 0.3 ? 6 : 0, ROLE.denied),
-        glowDot(150 + ((p * 0.3) % 1) * 650, tokY + 42, {
-          radius: 4.5,
-          color: ROLE.host,
-          glow: 9,
-        }),
       );
 
       return group(...nodes);
@@ -176,7 +169,6 @@ export default function wrapperCharacters(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('pi-wrapper-characters-0', () => {
     s.play(

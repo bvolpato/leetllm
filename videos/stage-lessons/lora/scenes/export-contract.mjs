@@ -12,12 +12,10 @@ import {
   heroTitle,
   matrixGrid,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function exportContract(s, c) {
-  const phase = s.value(0);
   const step1 = s.value(0);
   const savedFirst = s.value(0);
   const mutatedBase = s.value(0);
@@ -129,7 +127,6 @@ export default function exportContract(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('export-contract-1', () => s.play(step1.to(1, { duration: 0.35 })));
   c.on('export-save', () => s.play(savedFirst.to(1, { duration: 0.4 })));

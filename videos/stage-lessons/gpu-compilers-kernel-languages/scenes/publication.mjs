@@ -5,19 +5,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   publishable,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function publication(s, c) {
-  const phase = s.value(0);
   const builtBytes = s.value(3); // animates 3 -> 8
   const published = s.value(0);
   const showLock = s.value(0);
@@ -34,7 +31,6 @@ export default function publication(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const count = Math.round(builtBytes.value);
     const pub = published.value > 0.5 && publishable(ARTIFACT.slice(0, count));
     const lk = showLock.value;
@@ -118,14 +114,10 @@ export default function publication(s, c) {
       txt('Preserve bad bytes + provenance before retrying', 440, 196, 26, ROLE.warn, 'sans'),
     );
 
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-780 + u * 1560, 326, { radius: 6, color: pub ? ROLE.cubin : ROLE.ptx }));
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('publication-beat-1-focus-1', () => {
     s.play(builtBytes.to(8, { duration: remainDuration(c, 'publication-beat-1-focus-1', 0.45) }));

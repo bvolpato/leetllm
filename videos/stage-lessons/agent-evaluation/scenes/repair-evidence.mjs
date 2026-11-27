@@ -14,7 +14,6 @@ import {
   autoNode,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -51,7 +50,7 @@ export default function repairEvidence(s, c) {
   const mode0 = guardedDynamic(
     () => fadeOutHalf(trialMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const ra = repairAct.value;
       const rp = regPass.value;
       const cp = costPass.value;
@@ -210,7 +209,7 @@ export default function repairEvidence(s, c) {
   const mode1 = guardedDynamic(
     () => fadeInHalf(trialMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const zt = zeroTrials.value;
       const ho = holdoutOn.value;
       const nodes = [];
@@ -335,7 +334,6 @@ export default function repairEvidence(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('repair-action', () => {
     s.play(repairAct.to(1, { duration: clampDur(c, c.cue('repair-action').start, 0.35) }));

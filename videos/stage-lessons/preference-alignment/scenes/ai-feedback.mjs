@@ -3,7 +3,6 @@ import {
   COSMOS,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -72,7 +71,6 @@ export default function aiFeedback(s, c) {
       txt('Open ticket + cite P-7', 215, -88, 26, COSMOS.ink, 'sans'),
 
       line([410, -110], [460, -110], { stroke: COSMOS.cyan, width: 3 }),
-      glowDot(-460 + ((p * 180) % 920), -26, { radius: 6, color: COSMOS.gold }),
 
       glassCell(655, -110, 380, 126, COSMOS.cyan, {
         fill: '#0f2138',

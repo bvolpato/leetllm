@@ -9,14 +9,12 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   tweenOn,
   txt,
 } from '../parts.mjs';
 
 export default function staticRefill(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=pair1(8,2), 2=static-wait, 3=static-last-pair, 4=cont-refill, 5=static-count, 6=cont-count, 7=orca
 
   const header = cinemaHeader('ITERATION-LEVEL SCHEDULING', 'Who gets the short', 'replys slot?', {
@@ -77,7 +75,6 @@ export default function staticRefill(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const xStart = -660;
       const cellW = 84;
       const nodes = [
@@ -146,7 +143,7 @@ export default function staticRefill(s, c) {
               [xStart + 7 * (cellW + 8), 305],
             ],
             ROLE.focus,
-            p * 1.1,
+            0,
             { width: 3.6, glow: 10, photonCount: 2, alpha: cA },
           ),
         );
@@ -204,7 +201,6 @@ export default function staticRefill(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-static-refill-b0', step, 1, 0.3);
   tweenOn(s, c, 'static-wait', step, 2, 0.3);

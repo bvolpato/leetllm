@@ -7,7 +7,6 @@ import {
   aura,
   fmtFixed,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -15,13 +14,11 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
 
 export default function fitLatencyCost(s, c) {
-  const phase = s.value(0);
   const showLatency = s.value(1);
   const showCost = s.value(0);
 
@@ -187,11 +184,6 @@ export default function fitLatencyCost(s, c) {
         opacity: a,
       }),
       txt(foot, 0, 325, 26, gt ? ROLE.good : COSMOS.gold, 'sans').opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: ROLE.good,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
@@ -299,17 +291,11 @@ export default function fitLatencyCost(s, c) {
         rb ? ROLE.good : COSMOS.ink,
         'sans',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: ROLE.good,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, latencyView, costView);
-  runPhase(s, c, phase, 14);
 
   c.on('mp-fit-latency-cost-0', () =>
     s.play(p0.to(1, { duration: remainDuration(c, 'mp-fit-latency-cost-0', 0.35) })),

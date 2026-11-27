@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function runningPreemption(s, c) {
-  const phase = s.value(0);
   // step: 0=op-0 three independent limits, 1=running-cap blocks #65, 2=op-1 KV exhaustion, 3=preempt-reset (R3 blocks freed, record kept), 4=op-2 recompute cost trace
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function runningPreemption(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 1) {
@@ -163,16 +159,11 @@ export default function runningPreemption(s, c) {
           ? 'V1 default preemption frees KV blocks & recomputes later (eligible prefix hits still help)'
           : 'Inspect free blocks, KV usage, preemptions, queue wait & token latency together';
 
-    const u = (p * 0.65) % 1;
-    nodes.push(
-      glowDot(-780 + u * 1560, 315, { radius: 6, color: ROLE.bad }),
-      txt(caption, 0, 378, 26, COSMOS.ink, 'sans'),
-    );
+    nodes.push(txt(caption, 0, 378, 26, COSMOS.ink, 'sans'));
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['vv-running-preemption-op-0', 0],
     ['vv-running-preemption-running-cap', 1, true],

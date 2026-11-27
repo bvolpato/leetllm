@@ -10,20 +10,17 @@ import {
   aura,
   buildSystolicGemm3d,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   orbitScene,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function accumulate(s, c) {
   const kCursor = s.value(1);
-  const phase = s.value(0);
   const loadedLast = s.value(0);
   const located = s.value(0);
   const updated = s.value(0);
@@ -44,11 +41,9 @@ export default function accumulate(s, c) {
   const rowYs = [25, 205];
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const ll = loadedLast.value > 0.5;
     const loc = located.value > 0.5;
     const upd = updated.value > 0.5;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('FINAL SLICE k = 2', 435, -405, 26, COSMOS.gold, 'mono').glow(5, COSMOS.gold),
@@ -125,7 +120,7 @@ export default function accumulate(s, c) {
         nodes.push(
           glassCell(cx, cy, 212, 118, colStroke, {
             fill: isTarget && upd ? '#0d2925' : '#0d2030',
-            glow: isTarget && (loc || upd) ? 12 * pulse : 4,
+            glow: isTarget && (loc || upd) ? 12 : 4,
           }),
           txt(String(val), cx, cy - 12, 46, colStroke, 'mono').glow(6, colStroke),
           txt(
@@ -138,14 +133,6 @@ export default function accumulate(s, c) {
           ),
         );
       }
-    }
-
-    if (loc) {
-      const u = (p * 0.8) % 1;
-      nodes.push(
-        glowDot(-676 + u * 45, rowYs[1], { radius: 6.5, color: COSMOS.gold }),
-        glowDot(-640, -96 + u * 270, { radius: 6.5, color: COSMOS.gold }),
-      );
     }
 
     nodes.push(
@@ -168,7 +155,6 @@ export default function accumulate(s, c) {
   });
 
   s.add(bgAura, gemm3d, title, live);
-  runPhase(s, c, phase, 14);
   orbitScene(s, c, gemm3d, { theta: -0.18, phi: 0.9 });
 
   c.on('last-inputs', () => {

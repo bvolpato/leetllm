@@ -14,7 +14,6 @@ import {
   clampDur,
   coldNightExtraMicro,
   dashedRule,
-  driftValue,
   forecastWithColdNights,
   glowBar,
   guardedDynamic,
@@ -189,7 +188,6 @@ export default function twelfthNight(s, c) {
   );
 
   s.add(sceneAura, header, stageCanvas);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('eleven-nights', () => {
     const t = c.cue('eleven-nights').start;

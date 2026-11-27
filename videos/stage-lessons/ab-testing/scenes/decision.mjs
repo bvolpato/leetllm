@@ -10,13 +10,11 @@ import {
   guardedDynamic,
   heroTitle,
   lumBar,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function decisionScene(s, c) {
-  const phase = s.value(0);
   const latMs = s.value(1260); // -> 1490 -> 1260
   const showAskSpeed = s.value(0);
   const showSpeedFail = s.value(0);
@@ -201,7 +199,6 @@ export default function decisionScene(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'slow', latMs, 1490, { duration: 0.55 });
   tweenCue(s, c, 'ask-speed', showAskSpeed, 1, { duration: 0.4 });

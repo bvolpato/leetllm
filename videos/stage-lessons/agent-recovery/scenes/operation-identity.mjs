@@ -6,11 +6,9 @@ import {
   COSMOS,
   OP,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
   glowArrow,
   glowCross,
-  glowDot,
   glowPill,
   glowRing,
   guardedDynamic,
@@ -29,7 +27,6 @@ export default function operationIdentity(s, c) {
     accent: ROLE.op,
   });
 
-  const amb = ambientClock(s, c);
   const showKey = s.value(0);
   const showPayload = s.value(0);
   const showSend1 = s.value(0);
@@ -45,7 +42,6 @@ export default function operationIdentity(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const orbit = amb.value * Math.PI * 6;
       const nodes = [];
 
       // Left column: Three distinct identity beacons
@@ -90,12 +86,6 @@ export default function operationIdentity(s, c) {
           width: showKey.value > 0.3 ? 4.4 : 2.5,
           glow: showKey.value > 0.3 ? 14 : 5,
         }).opacity(alpha),
-        glowDot(idX + Math.cos(orbit) * 86, keyY + Math.sin(orbit) * 86, {
-          radius: 5.5,
-          color: keyCol,
-          glow: 9,
-          opacity: 0.75 * alpha,
-        }),
         txt('OP KEY', idX, keyY - 12, 26, keyCol, 'mono', 'center').opacity(alpha),
         txt(activeKeyStr, idX, keyY + 22, 26, COSMOS.ink, 'mono', 'center').opacity(alpha),
         txt(

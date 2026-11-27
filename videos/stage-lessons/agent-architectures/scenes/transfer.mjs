@@ -13,7 +13,6 @@ import {
   cinemaHeader,
   clampDur,
   clock,
-  driftValue,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
@@ -191,7 +190,6 @@ export default function transfer(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('transfer-b1-1', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('transfer-b1-1').start, 0.25) }));

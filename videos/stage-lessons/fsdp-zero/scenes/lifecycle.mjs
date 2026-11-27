@@ -4,7 +4,6 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -95,9 +94,6 @@ export default function lifecycle(s, c) {
         txt(m.note, -430 + barW + 24, m.y, 26, COSMOS.ink, 'mono', 'left'),
       );
     });
-
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-780 + u * 1560, 358, { radius: 6.5, color: stages[st].col }));
 
     return group(...nodes);
   });

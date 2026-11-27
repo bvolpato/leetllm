@@ -9,9 +9,7 @@ import {
   cinemaHeader,
   clampDur,
   commitToAudio,
-  driftValue,
   firstAudioLatency,
-  glowDot,
   guardedDynamic,
   trace,
   txt,
@@ -39,7 +37,6 @@ export default function clockContract(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const cm = commitOn.value;
       const pl = playOn.value;
       const ms = measureOn.value;
@@ -219,22 +216,11 @@ export default function clockContract(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 120) % 240), 435, {
-          radius: 4.5,
-          color: ROLE.audio,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.6);
-
   c.on('clock-speech', () => {
     s.play(phase.to(0.25, { duration: clampDur(c, c.cue('clock-speech').start, 0.25) }));
   });

@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function objectiveWeighting(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 0=token count 10/4, 1=2.5 vs 5, 2=equal weight col0 1->0.8, 3=all 4 slices [0.8,1.6,2.4,3.2]
 
   const bgAura = aura(0, 15, 620, '#34d3991c', '#f472b618');
@@ -30,7 +27,6 @@ export default function objectiveWeighting(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 1) {
@@ -98,9 +94,7 @@ export default function objectiveWeighting(s, c) {
       });
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 278, { radius: 6, color: ROLE.dp }),
       txt(
         st >= 2
           ? `Joined updated vector across owners: [${OWNED_SGD.updated.map((v) => v.toFixed(1)).join(', ')}]`
@@ -116,7 +110,6 @@ export default function objectiveWeighting(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
   wireStepCues(s, c, step, [
     ['mg-objective-weighting-b0', 0],
     ['mg-objective-normalize', 1],

@@ -14,7 +14,6 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -25,7 +24,6 @@ const BASE_SUM = MODEL.freshSum; // 2.079
 const BASE_MEAN = MODEL.freshMean; // 1.040
 
 export default function earnedTransfer(s, c) {
-  const phase = s.value(0);
   const showTargets = s.value(0);
   const showIgnored = s.value(0);
   const showLosses = s.value(0);
@@ -63,7 +61,6 @@ export default function earnedTransfer(s, c) {
     const aBroken = dA > 2.4;
     const bImproved = pB1 > 0.35;
     const rev = showAnswerB.value > 0.5;
-    const pulse = 0.72 + 0.28 * Math.sin(phase.value * 3.0);
 
     const nodes = [
       // Divider between Report A (left) and Report B (right) + quiet persistent footer balance
@@ -182,7 +179,7 @@ export default function earnedTransfer(s, c) {
     // Highlight winner B once answer is spoken (placed cleanly to the right of "Mean = 0.693 nats")
     if (showAnswerB.value > 0.02) {
       nodes.push(
-        glowRing(645, 148, 24 + 4 * pulse, TARGET_COLOR, {
+        glowRing(645, 148, 28, TARGET_COLOR, {
           width: 3.5,
           glow: 12,
           opacity: showAnswerB.value,
@@ -276,7 +273,6 @@ export default function earnedTransfer(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   // Beat 0
   tweenCue(s, c, 'fresh-targets', showTargets, 1, { duration: 0.45 });

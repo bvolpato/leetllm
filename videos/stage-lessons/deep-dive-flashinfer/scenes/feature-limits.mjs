@@ -11,12 +11,10 @@ import {
   par,
   remainAfter,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function featureLimits(s, c) {
-  const phase = s.value(0);
   const showComp = s.value(1);
   const compPayoff = s.value(0);
   const showCost = s.value(0);
@@ -178,7 +176,6 @@ export default function featureLimits(s, c) {
   });
 
   s.add(bgAura, title, compView, costView, scopeView);
-  runPhase(s, c, phase, 14);
 
   c.on('fi-feature-limits-0', () =>
     s.play(compPayoff.to(0.01, { duration: remainDuration(c, 'fi-feature-limits-0', 0.2) })),

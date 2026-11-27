@@ -15,9 +15,7 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
@@ -53,7 +51,7 @@ export default function freshComparison(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const aV = aOn.value;
       const b2 = bQ2On.value;
       const aq = askReadOn.value;
@@ -178,10 +176,6 @@ export default function freshComparison(s, c) {
             { alpha: 1, width: 3.8 },
           ),
         );
-        if (rp > 0.35) {
-          const sx = colA + (colB - colA) * ((p * 0.9) % 1);
-          nodes.push(glowDot(sx, rowQ1 + 78, { radius: 9, color: '#ffffff', glow: 14 }));
-        }
       }
 
       // Bottom-left Q1 arithmetic & status
@@ -306,7 +300,6 @@ export default function freshComparison(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('fresh-a', () => {
     s.play(aOn.to(1, { duration: clampDur(c, c.cue('fresh-a').start, 0.3) }));

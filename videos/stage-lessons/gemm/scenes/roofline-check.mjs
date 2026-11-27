@@ -12,12 +12,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function rooflineCheck(s, c) {
-  const phase = s.value(0);
   const demandFocus = s.value(0);
   const showPlot = s.value(0);
   const showKnee = s.value(0);
@@ -54,13 +52,11 @@ export default function rooflineCheck(s, c) {
   ];
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sp = showPlot.value;
     const sk = showKnee.value;
     const pt = showPoint.value;
     const sr = showResult.value;
     const st = showTiming.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 4.0);
 
     const nodes = [
       // Left side: Operand demand vs Missing HBM bytes (Beat 1 prediction setup!)
@@ -145,7 +141,7 @@ export default function rooflineCheck(s, c) {
           width: 2.2,
           dash: [8, 6],
         }).opacity(0.7 * sk),
-        glowDot(kneeX, kneeY, { radius: 9, color: COSMOS.gold, glow: 12 * pulse, opacity: sk }),
+        glowDot(kneeX, kneeY, { radius: 9, color: COSMOS.gold, glow: 12, opacity: sk }),
         txt('knee: 200', kneeX + 18, kneeY + 42, 26, COSMOS.gold, 'mono', 'left').opacity(sk),
       );
     }
@@ -153,7 +149,7 @@ export default function rooflineCheck(s, c) {
     if (pt > 0.02) {
       nodes.push(
         line([ptX, 220], [ptX, ptY], { stroke: ROLE.good, width: 2.5, dash: [8, 6] }).opacity(pt),
-        glowDot(ptX, ptY, { radius: 10, color: ROLE.good, glow: 14 * pulse, opacity: pt }),
+        glowDot(ptX, ptY, { radius: 10, color: ROLE.good, glow: 14, opacity: pt }),
         txt('AI = 10', ptX + 20, ptY + 40, 26, ROLE.good, 'mono', 'left').opacity(pt),
       );
     }
@@ -186,7 +182,6 @@ export default function rooflineCheck(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('thread-demand', () =>
     s.play(demandFocus.to(1, { duration: remainDuration(c, 'thread-demand', 0.45) })),

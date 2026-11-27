@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function optimizerStep(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 0=full grads, 1=reduce-scatter, 2=all-gather rebuilt, 3=6+12/D breakdown, 4=D=8 -> 7.5 B
 
   const bgAura = aura(0, 15, 620, '#34d3991c', '#5ce1e618');
@@ -30,7 +27,6 @@ export default function optimizerStep(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     const stages = [
@@ -79,9 +75,7 @@ export default function optimizerStep(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 275, { radius: 6, color: ROLE.dp }),
       txt(
         '1 decimal GB = 10^9 bytes; activations and temporary workspace peaks remain additional',
         0,
@@ -95,7 +89,6 @@ export default function optimizerStep(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
   wireStepCues(s, c, step, [
     ['mg-optimizer-step-b0', 0],
     ['mg-reduce-scatter', 1],

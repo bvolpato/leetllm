@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   quadArcPts,
@@ -42,7 +41,7 @@ export default function lostReply(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const cr = createdOn.value;
       const ls = lostOn.value;
       const rp = replayOn.value;
@@ -169,7 +168,6 @@ export default function lostReply(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-lost-reply-0', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('aa-lost-reply-0').start, 0.25) }));

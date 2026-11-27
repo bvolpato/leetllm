@@ -8,14 +8,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function speculationGate(s, c) {
-  const phase = s.value(0);
   const pyOn = s.value(0);
   const sqlOn = s.value(0);
   const selOn = s.value(0);
@@ -37,7 +35,6 @@ export default function speculationGate(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const py = pyOn.value;
       const sq = sqlOn.value;
       const sl = selOn.value;
@@ -141,12 +138,6 @@ export default function speculationGate(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -154,8 +145,6 @@ export default function speculationGate(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('cc-spec-python', () => {
     s.play(pyOn.to(1, { duration: clampDur(c, c.cue('cc-spec-python').start, 0.35) }));
   });

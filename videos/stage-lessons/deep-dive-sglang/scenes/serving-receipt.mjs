@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function servingReceipt(s, c) {
-  const phase = s.value(0);
   // step: 0=release receipt fields, 1=telemetry & cold/warm trials, 2=isolated 1-mechanism replay (schema fixed!),
   // 3=Nsight Systems (host gaps, queues, transfers, launches), 4=Nsight Compute (selected kernel occupancy & memory traffic)
   const step = s.value(0);
@@ -31,7 +28,6 @@ export default function servingReceipt(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st === 0) {
@@ -130,9 +126,7 @@ export default function servingReceipt(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 295, { radius: 6, color: ROLE.radix }),
       txt(
         st >= 3
           ? 'Report p50 and p99 latency, memory pressure, warmup time, and errors alongside throughput.'
@@ -150,7 +144,6 @@ export default function servingReceipt(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-serving-receipt-beat-0', 0],
     ['sg-serving-receipt-beat-1', 1],

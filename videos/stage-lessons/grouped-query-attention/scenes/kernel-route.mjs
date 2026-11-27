@@ -17,7 +17,6 @@ import {
   rect,
   renderGqaRack2d,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -25,8 +24,6 @@ import {
 export default function kernelRoute(s, c) {
   const keys = [1, 10];
   const scores = range(HEADS.queries).map((i) => (i + 1) * keys[kvGroupForQuery(i)]);
-
-  const phase = s.value(0);
   const vRoute = s.value(1); // View 1: 8-to-2 group score routing
   const vAlloc = s.value(0); // View 2: Retained 1 MiB + temporary 4 MiB copies = 5 MiB peak
 
@@ -64,7 +61,6 @@ export default function kernelRoute(s, c) {
         slots: 4,
         lit: lit.value,
         cursor: -1,
-        phase: phase.value,
         colNames: ['0', '1', '2', '3'],
         alpha: a,
       }),
@@ -282,7 +278,6 @@ export default function kernelRoute(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.key), title, view1, view2);
-  runPhase(s, c, phase, 16);
 
   playCue(s, c, 'group0', (d) => s.play(lit.to(3, { duration: d })), { dur: 0.45 });
   playCue(s, c, 'group1', (d) => s.play(lit.to(4, { duration: d })), { dur: 0.45 });

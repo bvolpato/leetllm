@@ -6,7 +6,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   metricReadout,
@@ -27,12 +26,10 @@ export function buildIntro(s, c) {
     }),
   );
 
-  const phase = s.value(0);
   const revMatch = s.value(0);
   const ageOn = s.value(0);
   const policyOn = s.value(0);
   const holdRev = s.value(0);
-  driftValue(s, c, phase, 4.0);
 
   // Strict prediction withholding: rev7 match revealed after intro-request, HOLD revealed after intro-hold!
   c.after('intro-request', () =>

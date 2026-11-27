@@ -12,7 +12,6 @@ import {
   lumBar,
   playCue,
   rule,
-  runPhase,
   signCode,
   txt,
 } from '../parts.mjs';
@@ -25,7 +24,6 @@ export default function binaryPack(s, c) {
   const codes = vectors.map(signCode); // [0x05, 0x0D]
   const xorVal = codes[0] ^ codes[1]; // 0x08 (bit 3)
 
-  const phase = s.value(0);
   const showSigns = s.value(0);
   const packProg = s.value(0); // 0..1 flying bits into byte registers
   const showPacked = s.value(0);
@@ -43,8 +41,6 @@ export default function binaryPack(s, c) {
   });
 
   const stageLayer = dynamic(() => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const sOp = showSigns.value;
     const pk = packProg.value;
     const pkDone = showPacked.value;
@@ -152,7 +148,7 @@ export default function binaryPack(s, c) {
             color: cellCol,
             fillAlpha: isHit ? 0.36 : filled && bitVal === 1 ? 0.24 : 0.1,
             strokeWidth: isHit ? 3.4 : 2,
-            glow: isHit ? 12 * pulse : filled && bitVal === 1 ? 7 : 2,
+            glow: isHit ? 12 : filled && bitVal === 1 ? 7 : 2,
           }),
         );
         if (filled) {
@@ -236,8 +232,6 @@ export default function binaryPack(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.code, ROLE.gold), title, stageLayer);
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'signs', (d) => s.play(showSigns.to(1, { duration: d })), {
     after: true,

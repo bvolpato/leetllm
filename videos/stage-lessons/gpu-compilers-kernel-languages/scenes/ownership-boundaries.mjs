@@ -7,17 +7,14 @@ import {
   WIDE_BLOCKS,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function ownershipBoundaries(s, c) {
-  const phase = s.value(0);
   // tailStage: 0=256 full, 1=256 pass, 2=257 predict!, 3=257 leak, 4=strict < fix, 5=257 valid + 255 masked
   const tailStage = s.value(0);
   const poison = s.value(0);
@@ -37,14 +34,12 @@ export default function ownershipBoundaries(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const st = Math.round(tailStage.value);
     const ps = poison.value;
     const ms = missed.value;
     const wr = wrapper.value;
     const wi = wide.value;
     const wc = wideCeil.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const is257 = st >= 2;
     const isStrict = st >= 4;
@@ -95,7 +90,7 @@ export default function ownershipBoundaries(s, c) {
         glassCell(cx, -100, 236, 118, stroke, {
           fill: isBad257 ? '#31101d' : exists ? '#0d2623' : '#0c1120',
           dash: !inGrid || isMasked ? [8, 6] : undefined,
-          glow: isBad257 ? 13 * pulse : exists ? 6 : 0,
+          glow: isBad257 ? 13 : exists ? 6 : 0,
         }),
         txt(`idx ${idx}`, cx, -126, 30, stroke, 'mono'),
         txt(tag, cx, -76, 26, isBad257 ? ROLE.fail : exists ? ROLE.cubin : COSMOS.gold, 'mono'),
@@ -183,14 +178,10 @@ export default function ownershipBoundaries(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
-    nodes.push(glowDot(-780 + u * 1560, 342, { radius: 6, color: midCol }));
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('full-shape', () => s.play(tailStage.to(0, { duration: 0.3 })));
   c.after('full-pass', () => s.play(tailStage.to(1, { duration: 0.35 })));

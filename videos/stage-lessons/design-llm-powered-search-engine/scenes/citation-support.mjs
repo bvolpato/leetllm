@@ -10,14 +10,12 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   quadArcPts,
   txt,
 } from '../parts.mjs';
 
 export default function citationSupport(s, c) {
-  const pulse = s.value(0);
   const beat0On = s.value(0);
   const covOn = s.value(0);
   const beat1On = s.value(0);
@@ -42,7 +40,6 @@ export default function citationSupport(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const cv = covOn.value > 0.5;
       const b1 = beat1On.value > 0.5;
       const ng = negOn.value > 0.5;
@@ -79,10 +76,9 @@ export default function citationSupport(s, c) {
             ),
             txt(left, -500, y, 28, COSMOS.ink, 'sans', 'center'),
 
-            beamWithPhotons(quadArcPts([-155, y], [155, y], 0, 14), col, p + i * 0.3, {
+            beamWithPhotons(quadArcPts([-155, y], [155, y], 0, 14), col, 0, {
               width: 3.2,
               glow: cl ? 9 : 4,
-              photonCount: 1,
             }),
 
             rect(680, 102, { fill: '#0d1526', stroke: col, width: cl ? 3.2 : 2.2, radius: 12 })
@@ -234,8 +230,6 @@ export default function citationSupport(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-citation-support-0', () => {
     s.play(beat0On.to(1, { duration: clampDur(c, c.cue('se-citation-support-0').start, 0.35) }));
   });

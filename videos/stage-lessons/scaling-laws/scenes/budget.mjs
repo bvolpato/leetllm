@@ -22,7 +22,6 @@ import {
   playCue,
   plotPlane,
   sampleCurve,
-  scenePulse,
   swapVis,
 } from '../parts.mjs';
 
@@ -43,7 +42,6 @@ export default function budget(s, c) {
   const wgtFill = s.value(0);
   const totalVis = s.value(0);
   const resizeT = s.value(0); // 0 -> 1 drives N: 10 -> 20, D: 10 -> 5
-  const pulse = s.value(0);
 
   // Act 1: Three glowing dense contraction beams
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
@@ -239,7 +237,6 @@ export default function budget(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.compute), title, act1Layer, act2Layer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'budget-forward', (d) => s.play(fwdFill.to(1, { duration: d })), { dur: 0.85 });
   playCue(s, c, 'budget-input', (d) => s.play(inpFill.to(1, { duration: d })), { dur: 0.75 });

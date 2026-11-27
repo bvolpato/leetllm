@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function autocastBoundary(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=compile inner module / FSDP2 hooks, 1=fwd autocast vs bwd outside, 2=patch off -> exact match
 
   const bgAura = aura(0, 20, 620, '#a78bfa1e', '#6ee7b718');
@@ -30,7 +27,6 @@ export default function autocastBoundary(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = stage.value;
-    const p = phase.value;
 
     const nodes = [
       // Top: Forward inside autocast vs Backward outside autocast
@@ -90,9 +86,7 @@ export default function autocastBoundary(s, c) {
       ),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 290, { radius: 6, color: st >= 1.5 ? ROLE.good : ROLE.bad }),
       txt(
         'Keep backward_pass_autocast="off" active through compilation AND backward when backward exits autocast',
         0,
@@ -107,7 +101,6 @@ export default function autocastBoundary(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-autocast-boundary-0', () => s.play(stage.to(0, { duration: 0.25 })));
   c.on('pt-autocast-boundary-1', () =>

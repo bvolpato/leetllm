@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   nullableRecord,
   opticalRail,
@@ -24,7 +23,6 @@ const CANDS = [
 ];
 
 export default function nullableField(s, c) {
-  const pulse = s.value(0);
   const q1Hi = s.value(0);
   const omitVerdict = s.value(0);
   const nullVerdict = s.value(0);
@@ -188,7 +186,6 @@ export default function nullableField(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-job-question', () => {
     s.play(q1Hi.to(1, { duration: clampDur(c, c.cue('sg-job-question').start, 0.35) }));

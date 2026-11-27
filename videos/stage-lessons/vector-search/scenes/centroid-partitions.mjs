@@ -11,12 +11,10 @@ import {
   line,
   postingList,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function centroidPartitions(s, c) {
-  const phase = s.value(0);
   const showCenters = s.value(0);
   const showFile = s.value(0);
   const showBorder = s.value(0);
@@ -36,12 +34,10 @@ export default function centroidPartitions(s, c) {
   const rightList = postingList(1);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sc = showCenters.value;
     const sf = showFile.value;
     const sb = showBorder.value;
     const sr = showRank.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const mapX = (vx) => -820 + vx * 84;
     const mapY = (vy) => 225 - vy * 36;
@@ -137,7 +133,7 @@ export default function centroidPartitions(s, c) {
 
       glassCell(495, 224, 770, 114, sr > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#12182d',
-        glow: sr > 0.3 ? 8 * pulse : 2,
+        glow: sr > 0.3 ? 8 : 2,
       }),
       txt('IVF Flat reads raw coords inside open lists', 140, 200, 26, COSMOS.ink, 'sans', 'left'),
       txt(
@@ -166,7 +162,6 @@ export default function centroidPartitions(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('train-centers', () => s.play(showCenters.to(1, { duration: 0.4 })));
   c.on('file-passages', () => s.play(showFile.to(1, { duration: 0.4 })));

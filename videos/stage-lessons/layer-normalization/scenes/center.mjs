@@ -21,7 +21,6 @@ import {
   mean,
   playBeat,
   playCue,
-  scenePulse,
   x,
 } from '../parts.mjs';
 
@@ -40,7 +39,6 @@ export default function center(s, c) {
   const peerVis = s.value(0); // beat 1: neighboring token independent mean badge
   const addOffset = s.value(0); // 0 -> 3 (uniform +3 offset)
   const sub2 = s.value(0); // 0 -> 3 (subtract extra 3 so total subtracted = 5)
-  const pulse = s.value(0);
 
   const stageVis = s.value(1);
 
@@ -60,7 +58,6 @@ export default function center(s, c) {
     const current = input.map((v) => v - sub);
     const inMean = mean(input);
     const curMean = mean(current);
-    const p = pulse.value;
 
     // Shared vertical zero meridian (stops well below top labels)
     const axisY = 248;
@@ -105,7 +102,7 @@ export default function center(s, c) {
         dash: [8, 8],
       }).opacity(0.85 * alpha),
       glowDot(meanX, axisY, {
-        radius: 8 + Math.sin(p * Math.PI * 8) * 1.5,
+        radius: 8,
         color: ROLE.gold,
         glow: 14,
         opacity: alpha,
@@ -207,7 +204,6 @@ export default function center(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.write, ROLE.gold), title, centerEq, centerLayer);
-  scenePulse(s, c, pulse);
 
   // Beat 0: Subtract mean = 2 from every feature
   playCue(s, c, 'center-subtract', (d) => s.play(sub1.to(baseMean, { duration: d })), {

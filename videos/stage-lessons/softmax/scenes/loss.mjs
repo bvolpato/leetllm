@@ -16,7 +16,6 @@ import {
   heroTitle,
   lossTrace,
   orbitScene,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -24,7 +23,6 @@ import {
 const EXTREME = lossTrace([1000, 0, -1], 1);
 
 export default function loss(s, c) {
-  const phase = s.value(0);
   const pMarker = s.value(PROBS[0]);
   const showResult = s.value(0);
   const showGap = s.value(0);
@@ -176,7 +174,6 @@ export default function loss(s, c) {
   });
 
   s.add(bgAura, surf3d, title, eqCe, live);
-  runAmbientPhase(s, c, phase, 2.0);
   orbitScene(s, c, surf3d, { theta: 0.35, phi: 0.94 });
 
   c.on('loss-favorite', () => {

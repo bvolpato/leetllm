@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   memNode,
   quadArcPts,
@@ -37,7 +36,7 @@ export default function subjectIntro(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const sv = savedOn.value;
       const pf = profCopy.value;
       const rp = repCopy.value;
@@ -194,7 +193,6 @@ export default function subjectIntro(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('type-continue', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('type-continue').start, 0.25) }));

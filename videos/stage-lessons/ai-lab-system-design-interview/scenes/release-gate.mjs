@@ -9,14 +9,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function releaseGateScene(s, c) {
-  const phase = s.value(0);
   const gapReveal = s.value(0); // STRICT after release-gap!
   const holdReveal = s.value(0); // STRICT after release-hold!
   const ownerOn = s.value(0);
@@ -38,7 +35,6 @@ export default function releaseGateScene(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const gp = gapReveal.value;
       const hl = holdReveal.value;
       const ow = ownerOn.value;
@@ -172,17 +168,11 @@ export default function releaseGateScene(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, { radius: 4.5, color: fCol, glow: 8, opacity: 0.7 }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.after('release-gap', () => {
     s.play(gapReveal.to(1, { duration: clampDur(c, c.cue('release-gap').end, 0.35) }));
   });

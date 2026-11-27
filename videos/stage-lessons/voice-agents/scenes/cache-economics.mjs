@@ -9,15 +9,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   glowTex,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function cacheEconomics(s, c) {
-  const phase = s.value(0);
   const multOn = s.value(0);
   const numOn = s.value(0);
   const costOn = s.value(0);
@@ -48,7 +45,6 @@ export default function cacheEconomics(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const ml = multOn.value;
       const nm = numOn.value;
       const cs = costOn.value;
@@ -123,12 +119,6 @@ export default function cacheEconomics(s, c) {
           'sans',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.focus,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -136,8 +126,6 @@ export default function cacheEconomics(s, c) {
   );
 
   s.add(bgAura, header, eq, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('va-cache-economics-0-1', () => {
     s.play(multOn.to(1, { duration: clampDur(c, c.cue('va-cache-economics-0-1').start, 0.35) }));
   });

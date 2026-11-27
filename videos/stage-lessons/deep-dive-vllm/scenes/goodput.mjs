@@ -5,18 +5,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function goodput(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = beat-1-focus-1 / offered-receipts (offered visible)
   // 1 = successful-receipts (successful + failed/unfinished visible)
@@ -38,7 +35,6 @@ export default function goodput(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     GOODPUT_ROWS.forEach((row, idx) => {
@@ -151,16 +147,11 @@ export default function goodput(s, c) {
             ? 'Goodput = completions meeting BOTH TTFT & ITL limits divided by full 100 s window'
             : 'Keep offered requests, successful completions & SLO-compliant completions visible';
 
-    const u = (p * 0.65) % 1;
-    nodes.push(
-      glowDot(-780 + u * 1560, 342, { radius: 6, color: st >= 5 ? ROLE.bad : ROLE.good }),
-      txt(caption, 0, 392, 26, st >= 5 ? ROLE.bad : ROLE.good, 'sans'),
-    );
+    nodes.push(txt(caption, 0, 392, 26, st >= 5 ? ROLE.bad : ROLE.good, 'sans'));
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['goodput-beat-1-focus-1', 0],
     ['goodput-offered-receipts', 0],

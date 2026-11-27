@@ -13,7 +13,6 @@ import {
   belowOnePercent,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -77,7 +76,7 @@ export default function zeroErrorBound(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const o50 = obs50On.value;
       const pr = probOn.value;
       const u50 = up50Reveal.value;
@@ -290,22 +289,11 @@ export default function zeroErrorBound(s, c) {
         );
       }
 
-      // Quiet animated pulse on axis origin so early frames are alive
-      nodes.push(
-        glowDot(px0 + ((p * 0.25) % 1) * (px1 - px0), py0, {
-          radius: 4.5,
-          color: ROLE.stepwise,
-          glow: 8,
-          opacity: 0.65,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('zero-inputs', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('zero-inputs').start, 0.25) }));

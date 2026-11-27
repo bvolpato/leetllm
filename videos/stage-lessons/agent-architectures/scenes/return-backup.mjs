@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowTex,
   guardedDynamic,
   orbNode,
@@ -44,7 +43,7 @@ export default function returnBackup(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const ct = countReveal.value;
       const sm = sumReveal.value;
       const mn = meanReveal.value;
@@ -161,7 +160,6 @@ export default function returnBackup(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('backup-outcome', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('backup-outcome').start, 0.25) }));

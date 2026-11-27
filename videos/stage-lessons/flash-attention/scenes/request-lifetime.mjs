@@ -6,18 +6,15 @@ import {
   PROMPT_3,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function requestLifetime(s, c) {
-  const phase = s.value(0);
   const trackQ2 = s.value(0);
   const showCoord = s.value(0);
   const showLse = s.value(0);
@@ -35,7 +32,6 @@ export default function requestLifetime(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const q2 = trackQ2.value;
     const sc = showCoord.value;
     const lse = showLse.value;
@@ -92,12 +88,6 @@ export default function requestLifetime(s, c) {
           opacity: 0.72 + 0.25 * q2,
         }),
       );
-      const u = (p * 0.45 + i * 0.23) % 1;
-      const mx = (qx + kx) * 0.5;
-      const my = (queryY - 48 + keyY + 50) * 0.5 - 35 - i * 8;
-      const px = (1 - u) * (1 - u) * qx + 2 * (1 - u) * u * mx + u * u * kx;
-      const py = (1 - u) * (1 - u) * (queryY - 48) + 2 * (1 - u) * u * my + u * u * (keyY + 50);
-      nodes.push(glowDot(px, py, { radius: 5.5, color: qCol }));
     }
 
     // Output vector coordinate + saved training statistic (LSE)
@@ -131,7 +121,6 @@ export default function requestLifetime(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 10);
 
   c.on('track-test', () =>
     s.play(trackQ2.to(1, { duration: remainDuration(c, 'track-test', 0.5) })),

@@ -13,12 +13,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function freshCounter(s, c) {
-  const phase = s.value(0);
   const zeroGrad = s.value(0);
   const showCounts = s.value(0);
   const revGood = s.value(0);
@@ -45,7 +43,6 @@ export default function freshCounter(s, c) {
     const rw = rewound.value;
     const rc = recounted.value;
     const rs = restored.value;
-    const p = phase.value;
 
     // Weight scale: [0.978 .. 0.990] -> x in [-600, 660]
     const wMin = 0.978;
@@ -140,9 +137,7 @@ export default function freshCounter(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-740 + u * 1480, 250, { radius: 6, color: lane2Col }),
       txt(
         isRepaired
           ? 'Verify restart on the same next batch: if weights diverge, check LR, moments m/v, and step count!'
@@ -161,7 +156,6 @@ export default function freshCounter(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('fresh-zero', () =>
     s.play(zeroGrad.to(1, { duration: remainDuration(c, 'fresh-zero', 0.35) })),

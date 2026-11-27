@@ -1,4 +1,4 @@
-import { cinematicLesson, COSMOS, glowDot, guardedDynamic } from '../cinematic-kit.mjs';
+import { cinematicLesson, COSMOS } from '../cinematic-kit.mjs';
 import { clampDur, verifyTestTimeInvariants } from './parts.mjs';
 
 import { buildIntro } from './scenes/intro.mjs';
@@ -34,21 +34,6 @@ function withCadence(sceneFn, extraCues = []) {
   return (s, c) => {
     sceneFn(s, c);
     const beat = s.value(0);
-    s.add(
-      guardedDynamic(
-        () => 1,
-        () => {
-          const b = beat.value;
-          const pulse = 0.28 + 0.42 * Math.abs(Math.sin(b * Math.PI));
-          return glowDot(830, 468, {
-            radius: 4.5 + 1.5 * (pulse - 0.28),
-            color: COSMOS.cyan,
-            glow: 7,
-            opacity: pulse,
-          });
-        },
-      ),
-    );
     extraCues.forEach((id, idx) => {
       c.on(id, () => {
         s.play(beat.to(idx + 1, { duration: clampDur(c, c.cue(id).start, 0.35) }));

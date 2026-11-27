@@ -10,12 +10,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function overlapLimit(s, c) {
-  const phase = s.value(0);
   const showO0 = s.value(0);
   const showO2 = s.value(0);
   const showO4 = s.value(0);
@@ -32,12 +30,10 @@ export default function overlapLimit(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const s0 = showO0.value;
     const s2 = showO2.value;
     const s4 = showO4.value;
     const sr = showRule.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const rows = [
       {
@@ -78,7 +74,7 @@ export default function overlapLimit(s, c) {
       nodes.push(
         glassCell(-360, y, 1010, 108, r.hi ? r.col : COSMOS.muted, {
           fill: r.hi ? '#141f38' : '#101629',
-          glow: r.hi ? 9 * pulse : 3,
+          glow: r.hi ? 9 : 3,
         }),
         txt(
           `overlap = ${r.exp.overlap} (${r.exp.chunks} chunks)`,
@@ -99,7 +95,7 @@ export default function overlapLimit(s, c) {
     nodes.push(
       glassCell(535, 30, 680, 376, sr > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: sr > 0.3 ? '#29111a' : '#12182b',
-        glow: sr > 0.3 ? 10 * pulse : 3,
+        glow: sr > 0.3 ? 10 : 3,
       }),
       txt('FULL PAGING RULE = 10 WORDS', 535, -108, 27, COSMOS.gold, 'mono'),
       txt('MAX WINDOW WIDTH =  7 WORDS', 535, -56, 27, COSMOS.cyan, 'mono'),
@@ -131,7 +127,6 @@ export default function overlapLimit(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('zero-overlap', () => s.play(showO0.to(1, { duration: 0.45 })));
   c.on('two-overlap', () => s.play(showO2.to(1, { duration: 0.45 })));

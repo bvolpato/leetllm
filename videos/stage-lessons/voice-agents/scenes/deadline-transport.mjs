@@ -2,20 +2,9 @@
 // Side-by-side race: WebRTC UDP + NetEQ conceals lost frame 2 & plays frames 3-4 on time vs
 // TCP WebSocket Head-of-Line blocking stalling frames 3-4 behind missing frame 2!
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function deadlineTransport(s, c) {
-  const phase = s.value(0);
   const neteqOn = s.value(0);
   const tcpOn = s.value(0);
   const edgeOn = s.value(0);
@@ -37,7 +26,6 @@ export default function deadlineTransport(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const nq = neteqOn.value;
       const tc = tcpOn.value;
       const ed = edgeOn.value;
@@ -127,12 +115,6 @@ export default function deadlineTransport(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.media,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -140,8 +122,6 @@ export default function deadlineTransport(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('va-deadline-transport-0-2', () => {
     s.play(
       neteqOn.to(1, { duration: clampDur(c, c.cue('va-deadline-transport-0-2').start, 0.35) }),

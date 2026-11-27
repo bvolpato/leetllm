@@ -7,7 +7,6 @@ import {
   ROLE,
   aura,
   cinemaHeader,
-  driftValue,
   glowBar,
   guardedDynamic,
   tweenOn,
@@ -15,7 +14,6 @@ import {
 } from '../parts.mjs';
 
 export default function metricUnits(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=healthy busy 95% / 45% KV / short queue, 2=same 95% / 92% KV / old queue + stale guard
 
   const header = cinemaHeader(
@@ -123,7 +121,6 @@ export default function metricUnits(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 5.5, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-metric-units-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-metric-units-b1', step, 2, 0.4);

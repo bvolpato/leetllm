@@ -12,7 +12,6 @@ import {
   buildKvPageTile,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function remoteKv(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const readerOk = s.value(0);
   const shapeOk = s.value(0);
@@ -48,7 +46,6 @@ export default function remoteKv(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const rOk = readerOk.value > 0.5;
       const sOk = shapeOk.value > 0.5;
       const cOk = compatOk.value > 0.5;
@@ -299,8 +296,8 @@ export default function remoteKv(s, c) {
                 [265, 65],
               ],
               ROLE.kv,
-              p,
-              { width: 4.5, glow: 9, photonCount: 2 },
+              0,
+              { width: 4.5, glow: 9 },
             ),
           );
         }
@@ -343,8 +340,6 @@ export default function remoteKv(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-remote-kv-b0', b0On, 1);
   stepAfter(s, c, 'remote-reader', readerOk, 1);
   stepAfter(s, c, 'remote-shape', shapeOk, 1);

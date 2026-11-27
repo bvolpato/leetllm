@@ -9,12 +9,10 @@ import {
   heroTitle,
   postingList,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function probeBoundary(s, c) {
-  const phase = s.value(0);
   const showLeft = s.value(0);
   const showFirst = s.value(0);
   const showSlot2 = s.value(0);
@@ -36,14 +34,12 @@ export default function probeBoundary(s, c) {
   const rightRows = postingList(1);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sl = showLeft.value;
     const sf = showFirst.value;
     const s2 = showSlot2.value;
     const sr = showRight.value;
     const sw = showSwap.value;
     const wk = showWork.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const slot1 = sf > 0.3 ? 'A (0.08)' : '?';
     const slot2 = sw > 0.4 ? 'B (0.09)' : s2 > 0.4 ? 'C (1.25)' : '?';
@@ -79,7 +75,7 @@ export default function probeBoundary(s, c) {
 
       glassCell(-455, 92, 810, 146, sr > 0.3 ? COSMOS.emerald : COSMOS.rose, {
         fill: sr > 0.3 ? '#0e2824' : '#26111a',
-        glow: sr > 0.3 ? 9 * pulse : 2,
+        glow: sr > 0.3 ? 9 : 2,
       }),
       txt(
         sr > 0.3 ? 'RIGHT LIST (NOW OPEN -> nprobe = 2)' : 'RIGHT LIST (CLOSED -> NO SCORES!)',
@@ -113,7 +109,7 @@ export default function probeBoundary(s, c) {
         sw > 0.4 ? COSMOS.emerald : s2 > 0.4 ? COSMOS.amber : COSMOS.gold,
         {
           fill: sw > 0.4 ? '#0e2824' : '#181e34',
-          glow: 9 * pulse,
+          glow: 9,
         },
       ),
       txt(`#1  ${slot1}`, 150, -124, 34, COSMOS.emerald, 'mono', 'left'),
@@ -170,7 +166,6 @@ export default function probeBoundary(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('probe-left', () => s.play(showLeft.to(1, { duration: 0.4 })));
   c.on('first-slot', () => s.play(showFirst.to(1, { duration: 0.35 })));

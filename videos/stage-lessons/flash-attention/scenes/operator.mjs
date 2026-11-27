@@ -10,7 +10,6 @@ import {
   VALUES,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   glowingArc,
   group,
@@ -18,12 +17,10 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function operator(s, c) {
-  const phase = s.value(0);
   const kFix = s.value(0);
   const kThis = s.value(0);
   const kTest = s.value(0);
@@ -54,7 +51,6 @@ export default function operator(s, c) {
   const rawW = SCORES.map((sc) => Math.exp(sc - DENSE_ALL.m));
 
   const live = guardedDynamic(1, () => {
-    const ph = phase.value;
     const vis = [kFix.value, kThis.value, kTest.value];
     const sw = showW.value;
     const sp = showP.value;
@@ -131,10 +127,6 @@ export default function operator(s, c) {
             opacity: 0.85 * st,
           }),
         );
-        const u = (ph * 0.55 + i * 0.31) % 1;
-        const px = cx + (260 - cx) * u;
-        const py = 228 + (322 - 228) * u;
-        nodes.push(glowDot(px, py, { radius: 5, color: COSMOS.emerald, opacity: st }));
       }
     }
 
@@ -159,7 +151,6 @@ export default function operator(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 12);
 
   c.on('dense-input', () => s.play(kFix.to(0.5, { duration: 0.3 })));
   c.on('key-fix', () => s.play(kFix.to(1, { duration: 0.4 })));

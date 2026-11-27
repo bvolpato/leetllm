@@ -31,7 +31,6 @@ import {
   glowTex,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   loopMicrobatch,
   loopMomentum,
   mix,
@@ -59,7 +58,6 @@ export function noneAndMomentum(s, c) {
   const noneHoldP = s.value(0);
   const decayP = s.value(0);
   const zeroMoveP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.momentum, seed: 6 }));
   s.add(decorAura(-420, -20, 480, '#a78bfa20', '#07091000'));
@@ -86,7 +84,6 @@ export function noneAndMomentum(s, c) {
     const nh = noneHoldP.value;
     const dc = decayP.value;
     const zm = zeroMoveP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Top shared rail: Step 1 from w = 1.00 to w = 0.90 (grad = 1.0, momentum -> 1.0)
@@ -124,7 +121,7 @@ export function noneAndMomentum(s, c) {
       txt(`w = ${wStep1.toFixed(2)}`, xOfW(wStep1), yTop - 44, 28, ROLE.forward, 'mono'),
     );
     if (sv > 0.05) {
-      const pulse = 8 + 3 * Math.sin(ph * Math.PI * 8);
+      const pulse = 9;
       nodes.push(
         tensorCell(650, yTop - 52, 290, 56, 'momentum v = 1.00', ROLE.momentum, {
           size: 26,
@@ -220,7 +217,6 @@ export function noneAndMomentum(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'none-and-momentum-beat-0', b0P, 1, { dur: 0.65 });
   cueTo(s, c, 'momentum-first-step', step1P, 1, { dur: 0.75 });
   cueTo(s, c, 'momentum-saved', savedP, 1, { dur: 0.65 });
@@ -241,7 +237,6 @@ export function accumulation(s, c) {
   const clearP = s.value(0);
   const askP = s.value(0);
   const freshP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.grad, seed: 7 }));
   s.add(decorAura(-440, 20, 480, '#5ce1e61c', '#07091000'));
@@ -277,7 +272,6 @@ export function accumulation(s, c) {
     const cl = clearP.value;
     const ak = askP.value;
     const fr = freshP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Left: Parabola w^2 with fixed w = 1 and slope = 2 tangent
@@ -360,10 +354,8 @@ export function accumulation(s, c) {
     }
 
     // Center connector + readout
-    const pulseX = mix(-140, 220, (ph * 4) % 1);
     nodes.push(
       arrow([-155, 25], [220, 25], { stroke: ROLE.grad, width: 3.5 }).glow(6, ROLE.grad),
-      glowDot(pulseX, 25, { radius: 6, color: ROLE.grad, glow: 10 }),
       txt('backward()', 32, -18, 28, ROLE.grad, 'mono'),
     );
 
@@ -396,7 +388,6 @@ export function accumulation(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'buffer-first', firstP, 1, { after: true, dur: 0.65 });
   cueTo(s, c, 'buffer-second', secondP, 1, { after: true, dur: 0.65 });
   cueTo(s, c, 'buffer-clear', clearP, 1, { after: true, dur: 0.65 });
@@ -419,7 +410,6 @@ export function microbatchDenominators(s, c) {
   const lossP = s.value(0);
   const windowP = s.value(0);
   const scaleP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.forward, seed: 8 }));
   s.add(decorAura(-350, 0, 500, '#5ce1e61c', '#07091000'));
@@ -637,7 +627,6 @@ export function microbatchDenominators(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'micro-first-chunks', chunksP, 1, { dur: 0.65 });
   cueTo(s, c, 'micro-question', askP, 1, { dur: 0.55 });
   cueTo(s, c, 'micro-equal', equalP, 1, { after: true, dur: 0.65 });
@@ -659,7 +648,6 @@ export function batching(s, c) {
   const b2P = s.value(0);
   const rowMeanP = s.value(0);
   const eqMeanP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.forward, seed: 9 }));
   s.add(decorAura(-420, 0, 480, '#5ce1e61a', '#07091000'));
@@ -682,7 +670,6 @@ export function batching(s, c) {
     const p2 = b2P.value;
     const rm = rowMeanP.value;
     const em = eqMeanP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Top: Area-proportional row blocks (width = row count, height = batch mean loss)
@@ -703,7 +690,7 @@ export function batching(s, c) {
       const h = loss * hScale;
       const cx = x0 + (i + 0.5) * colW;
       const col = isA ? ROLE.forward : ROLE.grad;
-      const glowAmt = (isA ? p1 : p2) > 0.2 ? 9 + 2 * Math.sin(ph * Math.PI * 8 + i) : 4;
+      const glowAmt = (isA ? p1 : p2) > 0.2 ? 10 : 4;
       nodes.push(
         rect(colW - 22, h, { fill: '#101d34', stroke: col, width: 2.5, radius: 10 })
           .at(cx, baseY - h / 2)
@@ -768,7 +755,6 @@ export function batching(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'batching-beat-1-focus-1', b1P, 1, { dur: 0.7 });
   cueTo(s, c, 'batching-beat-1-focus-2', b2P, 1, { dur: 0.7 });
   cueTo(s, c, 'batching-beat-2-focus-1', rowMeanP, 1, { dur: 0.75 });
@@ -785,7 +771,6 @@ export function fitBatch(s, c) {
   const trainP = s.value(0);
   const rightP = s.value(0);
   const freezeP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.escalate, seed: 10 }));
   s.add(decorAura(-420, -20, 480, '#5ce1e61c', '#07091000'));
@@ -860,7 +845,6 @@ export function fitBatch(s, c) {
     const tr = trainP.value;
     const rt = rightP.value;
     const fr = freezeP.value;
-    const ph = drift.value;
     const nodes = [];
 
     const stepIdx = Math.round(tr * 120);
@@ -933,9 +917,8 @@ export function fitBatch(s, c) {
       const cy = 266;
       const ok = pred.correct;
       const col = ok ? ROLE.escalate : ROLE.stale;
-      const pulse = ok && rt > 0.2 ? 1 + 0.05 * Math.sin(ph * Math.PI * 8 + i) : 1;
       nodes.push(
-        circle(44 * pulse, { fill: '#10182d', stroke: col, width: 3 })
+        circle(44, { fill: '#10182d', stroke: col, width: 3 })
           .at(cx, cy)
           .glow(ok ? 9 : 5, col),
         txt(`T${i + 1}`, cx, cy - 15, 26, COSMOS.ink, 'mono'),
@@ -962,7 +945,6 @@ export function fitBatch(s, c) {
   });
 
   s.add(headline, view3d, leftDash);
-  livingDrift(s, c, drift, 1);
   orbitScene(s, c, view3d, { theta: -0.36, phi: 0.96 });
   cueTo(s, c, 'fit-batch-beat-1-focus-2', initP, 1, { dur: 0.6 });
   cueTo(s, c, 'fit-batch-beat-1-focus-1', trainP, 1, { dur: 1.6 });

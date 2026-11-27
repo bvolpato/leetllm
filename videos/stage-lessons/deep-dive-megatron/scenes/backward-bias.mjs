@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function backwardBias(s, c) {
-  const phase = s.value(0);
   const step = s.value(0);
 
   const bgAura = aura(0, 20, 620, '#6ee7b718', '#fb71851c');
@@ -29,7 +26,6 @@ export default function backwardBias(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
 
     const nodes = [
       // Top: Backward input gradient combination
@@ -80,9 +76,7 @@ export default function backwardBias(s, c) {
       txt('Check Q heads & KV groups divide across TP', 420, 180, 26, COSMOS.muted, 'sans'),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 290, { radius: 6, color: st >= 4 ? ROLE.bad : ROLE.good }),
       txt(
         'Forward row-parallel adds partials (bias once after sum); backward column-parallel combines dL/dx',
         0,
@@ -96,7 +90,6 @@ export default function backwardBias(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['mg-backward-bias-b0', 0],
     ['mg-backward-sum', 1],

@@ -11,13 +11,11 @@ import {
   guardedDynamic,
   heroTitle,
   lumBar,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function takeawayScene(s, c) {
-  const phase = s.value(0);
   const showFollow = s.value(0);
   const showWindow = s.value(0);
   const showReceipt = s.value(0);
@@ -137,7 +135,6 @@ export default function takeawayScene(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'follow', showFollow, 1, { duration: 0.45 });
   tweenCue(s, c, 'window', showWindow, 1, { duration: 0.45 });

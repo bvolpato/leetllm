@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
   fadeInNodes,
   fadeOutNodes,
   glowBar,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function workload(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=short 4k (0.5 GiB x5 = 2.5 GiB), 2=4x history prompt (predict!), 3=reveal 4 fit + 5th overflows (AFTER!)
 
   const header = cinemaHeader('KV CACHE PRESSURE', 'Can the fifth request', 'still fit?', {
@@ -120,8 +118,6 @@ export default function workload(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
-      const blink = 0.68 + 0.32 * Math.sin(p * 5.0);
       const nodes = [
         txt('FIXED 8 GiB KV CACHE CHAMBER', 285, -402, 26, ROLE.deadline, 'mono').glow(
           5,
@@ -163,7 +159,7 @@ export default function workload(s, c) {
           txt('Same 5 callers  ·  Same 8 GiB pool', -860, 130, 28, COSMOS.ink, 'sans', 'left'),
           txt('PREDICT: How many of the 5 fit?', -860, 210, 32, ROLE.predict, 'sans', 'left')
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
         );
       }
 
@@ -209,7 +205,6 @@ export default function workload(s, c) {
 
   s.add(bgAura, poolView, header, dyn);
   orbitScene(s, c, poolView, { theta: -0.2, phi: 0.9 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('kv-bytes', () => {
     s.play(step.to(1, { duration: clampDur(c, c.cue('kv-bytes').start, 0.3) }));

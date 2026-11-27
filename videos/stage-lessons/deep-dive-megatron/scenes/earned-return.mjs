@@ -12,13 +12,11 @@ import {
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function earnedReturn(s, c) {
-  const phase = s.value(0);
   // step:
   // 0=saved example x=2,t=2
   // 1=pred=3
@@ -47,7 +45,6 @@ export default function earnedReturn(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     // Common weight scale ruler: [1.20, 1.56]
@@ -178,16 +175,13 @@ export default function earnedReturn(s, c) {
                     ? 'Advance cursor to saved example (x = 2, target = 2)'
                     : 'Comparing the next update verifies weight, optimizer history, and data cursor together';
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 295, { radius: 6, color: COSMOS.gold }),
       txt(bottomCaption, 0, 355, 26, st === 4 || st === 9 ? COSMOS.gold : COSMOS.ink, 'sans'),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 16);
   wireStepCues(s, c, step, [
     ['end-saved-example', 0],
     ['end-probe-result', 1],

@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function phaseHandoff(s, c) {
-  const phase = s.value(0);
   const p0 = s.value(0);
   const pPhases = s.value(0);
   const p1 = s.value(0);
@@ -125,14 +122,12 @@ export default function phaseHandoff(s, c) {
         COSMOS.ink,
         'sans',
       ),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, { radius: 6, color: ROLE.gpu1 }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('mp-phase-handoff-0', () =>
     s.play(p0.to(1, { duration: remainDuration(c, 'mp-phase-handoff-0', 0.35) })),

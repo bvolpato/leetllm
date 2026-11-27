@@ -21,7 +21,12 @@ import { mixCourseBed } from './lib/course-bed.mjs';
 import { courseNarrator, prepareTakes } from './lib/course-speech.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { checkFilm } from 'vizmatic/stage';
-import { filmEncoderSettings, renderFilmVideo } from 'vizmatic/stage/export';
+import {
+  filmEncoderSettings,
+  posterTime,
+  renderFilmFrame,
+  renderFilmVideo,
+} from 'vizmatic/stage/export';
 import { verifiedClockReceipt } from './lib/frame-clock.mjs';
 import { assertDecoderSettings } from './lib/decoder-settings.mjs';
 import { checkLessonCoverage } from './check-coverage.mjs';
@@ -87,13 +92,13 @@ const requestedEncoder = value('--h264-encoder', 'libx264');
 let encoderOptions = { h264Encoder: 'libx264', requireH264Encoder: true };
 
 export async function selectCourseEncoder(requested, vizmatic, format) {
-  if (requested !== 'libx264' && requested !== 'videotoolbox')
-    throw new Error('--h264-encoder must be libx264 or videotoolbox');
+  if (requested !== 'libx264' && requested !== 'videotoolbox' && requested !== 'nvenc')
+    throw new Error('--h264-encoder must be libx264, videotoolbox, or nvenc');
   const h264Encoder =
-    requested === 'videotoolbox' && vizmatic.resolveH264Encoder
+    (requested === 'videotoolbox' || requested === 'nvenc') && vizmatic.resolveH264Encoder
       ? await vizmatic.resolveH264Encoder(requested, undefined, format)
       : 'libx264';
-  if (h264Encoder !== 'videotoolbox' && h264Encoder !== 'libx264')
+  if (h264Encoder !== 'videotoolbox' && h264Encoder !== 'nvenc' && h264Encoder !== 'libx264')
     throw new Error(`Vizmatic returned an unknown H.264 encoder: ${h264Encoder}`);
   return { h264Encoder, requireH264Encoder: true };
 }
@@ -353,10 +358,16 @@ async function encodeSceneAudio(timeline, file, clips, directory) {
 async function renderIntro(encoder = {}) {
   const cache = join(outputRoot, '.scene-cache', 'brand');
   await mkdir(cache, { recursive: true });
+  const effectiveEncoder =
+    encoderOptions.h264Encoder === 'libx264'
+      ? encoder
+      : Object.fromEntries(Object.entries(encoder).filter(([k]) => k !== 'tune'));
   const family =
-    encoderOptions.h264Encoder === 'videotoolbox' ? 'leetllm-intro-videotoolbox' : 'leetllm-intro';
-  const name = encoder.tune
-    ? `${family}-${encoder.preset}-crf${encoder.crf}-${encoder.tune}`
+    encoderOptions.h264Encoder === 'libx264'
+      ? 'leetllm-intro'
+      : `leetllm-intro-${encoderOptions.h264Encoder}`;
+  const name = effectiveEncoder.preset
+    ? `${family}-${effectiveEncoder.preset}-crf${effectiveEncoder.crf}${effectiveEncoder.tune ? `-${effectiveEncoder.tune}` : ''}`
     : family;
   const file = join(cache, `00-${name}.mp4`);
   const audioFile = file.replace(/\.mp4$/, '.flac');
@@ -372,7 +383,13 @@ async function renderIntro(encoder = {}) {
     Buffer.concat([
       ...sources,
       Buffer.from(
-        JSON.stringify({ width, height, fps, encoder, h264Encoder: encoderOptions.h264Encoder }),
+        JSON.stringify({
+          width,
+          height,
+          fps,
+          encoder: effectiveEncoder,
+          h264Encoder: encoderOptions.h264Encoder,
+        }),
       ),
     ]),
   );
@@ -409,7 +426,7 @@ async function renderIntro(encoder = {}) {
       duration: BRAND_INTRO_SECONDS * 1000,
       outputPath: file,
       threads,
-      ...encoder,
+      ...effectiveEncoder,
       ...encoderOptions,
     },
   );
@@ -1021,25 +1038,35 @@ async function assemble(
   } finally {
     await rm(mixScratch, { recursive: true, force: true });
   }
-  const audioHash = await run('ffmpeg', [
-    '-v',
-    'error',
-    '-i',
-    partial,
-    '-map',
-    '0:a:0',
-    '-c',
-    'copy',
-    '-f',
-    'hash',
-    '-hash',
-    'sha256',
-    '-',
+  const [audioHash, media, , , audits] = await Promise.all([
+    run('ffmpeg', [
+      '-v',
+      'error',
+      '-i',
+      partial,
+      '-map',
+      '0:a:0',
+      '-c',
+      'copy',
+      '-f',
+      'hash',
+      '-hash',
+      'sha256',
+      '-',
+    ]),
+    probe(partial),
+    run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', partial, '-f', 'null', '-']),
+    assertDecoderSettings(partial),
+    Promise.all(
+      files.map(
+        async (file) =>
+          JSON.parse(await readFile(file.replace(/\.mp4$/, '.render.json'), 'utf8')).audit,
+      ),
+    ),
   ]);
   const encodedAudio = /^SHA256=([0-9a-f]{64})$/m.exec(audioHash);
   if (!encodedAudio) throw new Error('Cannot verify the encoded score');
   audioBed.encodedAudioSha256 = encodedAudio[1];
-  const media = await probe(partial);
   const video = media.streams.find((s) => s.codec_type === 'video'),
     audio = media.streams.find((s) => s.codec_type === 'audio');
   if (
@@ -1051,14 +1078,6 @@ async function assemble(
     Math.abs(Number(video.duration) - Number(audio.duration)) > 0.15
   )
     throw new Error(`Final media contract failed: ${final}`);
-  await run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', partial, '-f', 'null', '-']);
-  await assertDecoderSettings(partial);
-  const audits = await Promise.all(
-    files.map(
-      async (file) =>
-        JSON.parse(await readFile(file.replace(/\.mp4$/, '.render.json'), 'utf8')).audit,
-    ),
-  );
   const expectedFrames =
     timeline.intro.frames + timeline.scenes.reduce((sum, scene) => sum + scene.frames, 0);
   const auditedFrames = audits.reduce((sum, audit) => sum + audit.frames, 0);
@@ -1144,6 +1163,12 @@ async function assemble(
 
 const stageQuality = value('--quality', 'high');
 const stageWorkers = Number(value('--workers', Math.max(2, threads)));
+const stageBackend = value('--backend', 'cpu');
+const stageMotionBlurRaw = value('--motion-blur', undefined);
+const stageMotionBlur =
+  stageMotionBlurRaw === undefined ? undefined : Number(stageMotionBlurRaw);
+const stageDither = has('--dither') ? true : undefined;
+const posterOnly = has('--poster-only');
 
 // Paint a film frame on the review canvas. Bloom is a final-render effect, so previews omit it.
 function stageFramePainter(compiled, timeline) {
@@ -1217,6 +1242,8 @@ async function renderStageScene(
       height,
       fps,
       stageQuality,
+      ...(stageMotionBlur !== undefined ? { stageMotionBlur } : {}),
+      ...(stageDither !== undefined ? { stageDither } : {}),
       encoder: filmEncoderSettings(stageQuality),
       frames: timing.frames,
       duration: timing.duration,
@@ -1255,17 +1282,22 @@ async function renderStageScene(
       return file;
     }
   }
-  await sceneAudio(timing, audioFile, holdSounds);
   const started = performance.now();
-  const output = await renderFilmVideo(compiled, file, {
-    from: window.from,
-    to: window.to,
-    width,
-    quality: stageQuality,
-    workers: stageWorkers,
-    threads,
-    ...encoderOptions,
-  });
+  const [, output] = await Promise.all([
+    sceneAudio(timing, audioFile, holdSounds),
+    renderFilmVideo(compiled, file, {
+      from: window.from,
+      to: window.to,
+      width,
+      quality: stageQuality,
+      backend: stageBackend,
+      ...(stageMotionBlur !== undefined ? { motionBlur: stageMotionBlur } : {}),
+      ...(stageDither !== undefined ? { dither: stageDither } : {}),
+      workers: stageWorkers,
+      threads,
+      ...encoderOptions,
+    }),
+  ]);
   if (output.frameCount !== timing.frames)
     throw new Error(
       `${lesson.id}/${scene.id}: rendered ${output.frameCount} of ${timing.frames} frames`,
@@ -1394,7 +1426,16 @@ async function runStageLessons() {
         if (!stageOpeningHasPicture(compiled))
           throw new Error(`${lesson.id}: the first teaching frame after the brand animation is blank`);
         report = await checkStageLesson(lesson, compiled, timeline);
-        await previews(lesson, timeline, null, stage, stageFramePainter(compiled, timeline));
+        if (posterOnly) {
+          const posterAt = await posterTime(compiled);
+          await renderFilmFrame(compiled, posterAt, join(stage, 'poster.png'), {
+            width,
+            dither: true,
+            workers: stageWorkers,
+          });
+        } else {
+          await previews(lesson, timeline, null, stage, stageFramePainter(compiled, timeline));
+        }
         const intro = await renderIntro(filmEncoderSettings(stageQuality));
         const sceneFiles = [intro.file],
           windows = sceneWindows(timeline);
@@ -1522,10 +1563,17 @@ async function main() {
       'node videos/render.mjs --all | --lesson ID | --intro-only [--validate | --audit | --storyboard | --preview | --audio-only] [--width 1920] [--fps 30] [--output build/videos] [--voice VOICE] [--rate=RATE] [--provider PROVIDER] [--tts-script FILE] [--threads 4] [--h264-encoder libx264|videotoolbox] [--no-manifest] [--preserve-failed-stage] [--retained-audio-only]',
     );
     console.log(
-      'node videos/render.mjs --stage [--lesson ID] [--editor-submission] [--validate | --storyboard | --preview | --audio-only] [--quality draft|standard|high|master] [--workers 4] [--fps 60]',
+      'node videos/render.mjs --stage [--lesson ID] [--editor-submission] [--validate | --storyboard | --preview | --audio-only] [--quality draft|standard|high|master] [--backend auto|cpu|gpu] [--motion-blur N] [--poster-only] [--workers 4] [--fps 60]',
     );
     return;
   }
+  if (!['auto', 'cpu', 'gpu'].includes(stageBackend))
+    throw new Error('--backend must be auto, cpu, or gpu');
+  if (
+    stageMotionBlur !== undefined &&
+    (!Number.isInteger(stageMotionBlur) || stageMotionBlur < 1 || stageMotionBlur > 16)
+  )
+    throw new Error('--motion-blur must be an integer between 1 and 16');
   const diagnostic = ['--audio-only', '--audit', '--storyboard', '--validate'].some(has);
   if (
     !diagnostic &&

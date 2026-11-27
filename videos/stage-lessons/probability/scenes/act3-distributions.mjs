@@ -18,7 +18,6 @@ import {
   glowTex,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   mix,
   neonCurve,
   nextLogits,
@@ -38,7 +37,6 @@ export function calibrationCheck(s, c) {
   const labelsP = s.value(0);
   const countP = s.value(0);
   const gapP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.posterior, seed: 12 }));
   s.add(decorAura(120, 40, 520, '#ffd1661c', '#ff6b8b14'));
@@ -56,7 +54,6 @@ export function calibrationCheck(s, c) {
     const lb = labelsP.value;
     const cn = countP.value;
     const gp = gapP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Six glowing score orbs near 0.80
@@ -66,11 +63,8 @@ export function calibrationCheck(s, c) {
       const cy = -95;
       const reveal = Math.max(0, Math.min(1, lb * 1.4 - i * 0.08));
       const col = reveal > 0.5 ? (item.abusive ? ROLE.abuse : ROLE.clean) : ROLE.posterior;
-      const pulse = 1 + 0.08 * Math.sin(ph * Math.PI * 8 + i);
       nodes.push(
-        circle(54 * pulse, { fill: '#121a30', stroke: col, width: 3.2 })
-          .at(cx, cy)
-          .glow(9, col),
+        circle(54, { fill: '#121a30', stroke: col, width: 3.2 }).at(cx, cy).glow(9, col),
         txt(item.score.toFixed(2), cx, cy, 28, col, 'mono'),
         txt(
           reveal > 0.5 ? (item.abusive ? 'Abuse' : 'Clean') : '?',
@@ -143,7 +137,6 @@ export function calibrationCheck(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'bucket-labels', labelsP, 1, { dur: 0.9 });
   cueTo(s, c, 'bucket-count', countP, 1, { after: true, dur: 0.65 });
   cueTo(s, c, 'bucket-gap', gapP, 1, { after: true, dur: 0.7 });
@@ -161,7 +154,6 @@ export function distributionChoice(s, c) {
   const varP = s.value(0);
   const poisP = s.value(0);
   const normP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.clean, seed: 13 }));
   s.add(decorAura(0, 20, 560, '#5ce1e61c', '#a78bfa16'));
@@ -183,7 +175,6 @@ export function distributionChoice(s, c) {
       const pc = piecesP.value;
       const ex = expP.value;
       const vr = varP.value;
-      const ph = drift.value;
       const nodes = [];
 
       nodes.push(
@@ -195,11 +186,8 @@ export function distributionChoice(s, c) {
         const cy = -105;
         const isOne = i === 3;
         const col = isOne ? ROLE.abuse : ROLE.clean;
-        const pulse = 1 + 0.09 * Math.sin(ph * Math.PI * 8 + i * 0.5);
         nodes.push(
-          circle(30 * pulse, { fill: '#11192e', stroke: col, width: 2.6 })
-            .at(cx, cy)
-            .glow(7, col),
+          circle(30, { fill: '#11192e', stroke: col, width: 2.6 }).at(cx, cy).glow(7, col),
           txt(isOne ? '1' : '0', cx, cy, 30, col, 'mono'),
         );
       }
@@ -299,7 +287,6 @@ export function distributionChoice(s, c) {
     () => fadeIn(poisP.value),
     (vis) => {
       const nm = normP.value;
-      const ph = drift.value;
       const nodes = [];
 
       // Left: Poisson(lambda = 2) PMF bars k = 0..7
@@ -346,17 +333,12 @@ export function distributionChoice(s, c) {
         const pdf = Math.exp(-0.5 * z * z);
         pts.push([mix(nx0, nx1, i / 80), ny0 - pdf * 310]);
       }
-      const beadT = 0.5 + 0.35 * Math.sin(ph * Math.PI * 6);
-      const beadZ = -3.2 + beadT * 6.4;
-      const beadX = mix(nx0, nx1, beadT);
-      const beadY = ny0 - Math.exp(-0.5 * beadZ * beadZ) * 310;
       nodes.push(
         group(
           txt('CONTINUOUS NORMAL  (TIMING ERROR)', nx0, -205, 28, ROLE.likelihood, 'mono', 'left'),
           txt('Continuous support  (−∞, +∞)', nx0, -162, 26, COSMOS.muted, 'mono', 'left'),
           line([nx0, ny0], [nx1, ny0], { stroke: '#425582', width: 2.6 }),
           neonCurve(pts, [ROLE.clean, ROLE.likelihood, ROLE.clean], { width: 4.5, glow: 11 }),
-          glowDot(beadX, beadY, { radius: 9, color: ROLE.posterior, glow: 12 }),
           txt('μ = 0 ms', (nx0 + nx1) / 2, ny0 + 38, 28, ROLE.likelihood, 'mono'),
           txt('Area over interval = probability', nx0, ny0 + 96, 26, COSMOS.muted, 'sans', 'left'),
         ).opacity(mix(0.45, 1, nm)),
@@ -367,7 +349,6 @@ export function distributionChoice(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'binomial-observation', obsP, 1, { dur: 0.7 });
   cueTo(s, c, 'binomial-pieces', piecesP, 1, { dur: 0.7 });
   cueTo(s, c, 'binomial-expectation', expP, 1, { dur: 0.95 });
@@ -386,7 +367,6 @@ export function softmaxSampling(s, c) {
   const draw1P = s.value(0);
   const draw2P = s.value(0);
   const drawsP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.token, seed: 14 }));
   s.add(decorAura(0, 40, 560, '#60a5fa20', '#ffd16614'));
@@ -408,7 +388,6 @@ export function softmaxSampling(s, c) {
     const d1 = draw1P.value;
     const d2 = draw2P.value;
     const dr = drawsP.value;
-    const ph = drift.value;
     const nodes = [];
 
     // Top row: 4 raw logits (shift down by max = 2.0 on softmax-shift)
@@ -556,7 +535,6 @@ export function softmaxSampling(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'softmax-mass', massP, 1, { dur: 0.85 });
   cueTo(s, c, 'softmax-shift', shiftP, 1, { dur: 0.85 });
   cueTo(s, c, 'first-draw', draw1P, 1, { dur: 0.6 });
@@ -574,7 +552,6 @@ export function tokenChain(s, c) {
   const underP = s.value(0);
   const lossP = s.value(0);
   const pplP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.likelihood, seed: 15 }));
   s.add(decorAura(0, 30, 560, '#a78bfa22', '#ff6b8b14'));
@@ -685,7 +662,6 @@ export function tokenChain(s, c) {
   const view2 = guardedDynamic(
     () => fadeIn(underP.value) * fadeOut(lossP.value),
     (vis) => {
-      const ph = drift.value;
       const prog = Math.min(1, underP.value * 1.1);
       const gx0 = -760;
       const gx1 = 760;
@@ -747,7 +723,6 @@ export function tokenChain(s, c) {
   );
 
   s.add(headline, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'chain-factors', factP, 1, { dur: 0.7 });
   cueTo(s, c, 'chain-answer', ansP, 1, { after: true, dur: 0.6 });
   cueTo(s, c, 'underflow-chain', underP, 1, { dur: 1.25 });
@@ -767,7 +742,6 @@ export function logLoss(s, c) {
   const missP = s.value(0);
   const meanP = s.value(0);
   const libP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.abuse, seed: 16 }));
   s.add(decorAura(-380, 30, 480, '#ff6b8b1e', '#ffd16610'));
@@ -920,7 +894,6 @@ export function logLoss(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'surprise-curve', curveP, 1, { dur: 0.7 });
   cueTo(s, c, 'moderate-loss', modP, 1, { dur: 0.65 });
   cueTo(s, c, 'unsure-loss', unsP, 1, { dur: 0.65 });

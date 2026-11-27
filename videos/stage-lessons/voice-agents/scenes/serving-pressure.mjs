@@ -8,15 +8,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   glowMeter,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function servingPressure(s, c) {
-  const phase = s.value(0);
   const growOn = s.value(0);
   const dropOn = s.value(0);
   const pagedOn = s.value(0);
@@ -39,7 +36,6 @@ export default function servingPressure(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const gr = growOn.value;
       const dr = dropOn.value;
       const pg = pagedOn.value;
@@ -146,12 +142,6 @@ export default function servingPressure(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.warn,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -159,8 +149,6 @@ export default function servingPressure(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('va-serving-pressure-0-1', () => {
     s.play(growOn.to(1, { duration: clampDur(c, c.cue('va-serving-pressure-0-1').start, 0.4) }));
   });

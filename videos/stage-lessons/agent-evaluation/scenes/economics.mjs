@@ -15,7 +15,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -290,7 +289,6 @@ export default function economics(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('add-costs', () => {
     s.play(costsOn.to(1, { duration: clampDur(c, c.cue('add-costs').start, 0.4) }));

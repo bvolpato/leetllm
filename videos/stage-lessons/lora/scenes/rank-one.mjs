@@ -16,7 +16,6 @@ import {
   points3d,
   rankOneConstruction,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -25,7 +24,6 @@ const A_ROW = [1, -1, 0.5];
 const OUTER_BA = B_DIR.map((bi) => A_ROW.map((aj) => bi * aj));
 
 export default function rankOne(s, c) {
-  const phase = s.value(0);
   const slideProg = s.value(0);
   const showScalar = s.value(0);
   const showOuter = s.value(0);
@@ -142,7 +140,6 @@ export default function rankOne(s, c) {
   });
 
   s.add(bgAura, view3d, title, eq, live);
-  runPhase(s, c, phase, 12);
   orbitScene(s, c, view3d, { theta: -0.18, phi: 0.94 });
 
   c.on('rank-one-b1-1', () => s.play(showScalar.to(1, { duration: 0.45 })));

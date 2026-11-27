@@ -11,13 +11,11 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   tokenCell,
   txt,
 } from '../parts.mjs';
 
 export default function formatLengthBoundary(s, c) {
-  const phase = s.value(0);
   const showHistory = s.value(0.35);
   const showInputs = s.value(0);
   const showEqual = s.value(0);
@@ -41,7 +39,6 @@ export default function formatLengthBoundary(s, c) {
   );
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sh = showHistory.value;
     const si = showInputs.value;
     const se = showEqual.value;
@@ -186,15 +183,10 @@ export default function formatLengthBoundary(s, c) {
       );
     }
 
-    // Subtle moving token scanner
-    const u = (p * 0.45) % 1;
-    nodes.push(glowDot(x0 + u * (gateX - x0), 38, { radius: 5.5, color: COSMOS.amber }));
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, eqCancel, live);
-  runPhase(s, c, phase, 14);
 
   c.on('format-history', () => s.play(showHistory.to(1, { duration: 0.45 })));
   c.on('format-length-boundary-step-1', () => s.play(showInputs.to(1, { duration: 0.45 })));

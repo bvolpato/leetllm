@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   freshServingRows,
@@ -26,7 +25,6 @@ import {
 } from '../parts.mjs';
 
 export default function freshReceipt(s, c) {
-  const phase = s.value(0);
   const drainProg = s.value(0); // 2500 -> 4000 ms
   // Strictly revealed AFTER each Beat 1 cue:
   const showAtt = s.value(0);
@@ -58,7 +56,6 @@ export default function freshReceipt(s, c) {
       const dp = drainProg.value;
       const bm = botMode.value;
       const sh = Math.round(n2Shift.value);
-      const pulse = 0.72 + 0.28 * Math.sin(phase.value * 4.8);
 
       const rows = freshServingRows();
       rows[1].sent += sh;
@@ -129,7 +126,7 @@ export default function freshReceipt(s, c) {
             txt(lbl, x, 286, 26, COSMOS.muted, 'mono').opacity(a0),
             txt(show ? val : '?', x, 352, show ? 34 : 42, show ? col : ROLE.focus, 'mono')
               .glow(show ? 7 : 5, show ? col : ROLE.focus)
-              .opacity(a0 * (show ? 1 : pulse)),
+              .opacity(a0),
           );
         });
         if (showAtt.value < 0.2) {
@@ -143,7 +140,7 @@ export default function freshReceipt(s, c) {
               'mono',
             )
               .glow(5, ROLE.focus)
-              .opacity(a0 * pulse),
+              .opacity(a0),
           );
         }
       }
@@ -209,7 +206,7 @@ export default function freshReceipt(s, c) {
               'mono',
             )
               .glow(6, ROLE.focus)
-              .opacity(a1 * pulse),
+              .opacity(a1),
           );
         }
       }
@@ -263,7 +260,6 @@ export default function freshReceipt(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, phase, 10, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0: drain sweep
   c.on('fresh-window', () => {

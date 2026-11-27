@@ -1,7 +1,7 @@
 // Scene 19: lifetime: "Before the first request"
 // Aligned glowing training bills at Q = 0 served tokens (70B/1.4T at 5.88e23 vs 30B/4.0T at 7.20e23)
 // paired with per-token inference cost meters (140B vs 60B FLOPs/tok -> 80B/tok saving).
-import { COSMOS, glowDot, glowTex, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
+import { COSMOS, glowTex, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
 import {
   LIFETIME_MODELS,
   ROLE,
@@ -9,7 +9,6 @@ import {
   fmt,
   lumBar,
   playCue,
-  scenePulse,
   trainFlops,
 } from '../parts.mjs';
 
@@ -25,14 +24,12 @@ export default function lifetime(s, c) {
   const largeGrow = s.value(0); // life-training
   const compactVis = s.value(0); // life-compact
   const ratesVis = s.value(0); // life-rates
-  const pulse = s.value(0);
 
   const stageLayer = guardedDynamic(s.value(1), (alpha) => {
     const nodes = [];
     const lg = Math.max(0.15, largeGrow.value);
     const cv = compactVis.value;
     const rv = ratesVis.value;
-    const p = pulse.value;
 
     const barLeft = -470;
     const scale = 102; // 7.20 * 102 = 734px
@@ -127,15 +124,6 @@ export default function lifetime(s, c) {
       );
     }
 
-    nodes.push(
-      glowDot(-420 + ((p * 1.9) % 1) * 840, 410, {
-        radius: 5,
-        color: ROLE.tokens,
-        glow: 10,
-        opacity: 0.75 * alpha,
-      }),
-    );
-
     return nodes;
   });
 
@@ -147,7 +135,6 @@ export default function lifetime(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.tokens), title, stageLayer, eq);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'life-training', (d) => s.play(largeGrow.to(1, { duration: d })), { dur: 0.9 });
   playCue(s, c, 'life-compact', (d) => s.play(compactVis.to(1, { duration: d })), { dur: 0.9 });

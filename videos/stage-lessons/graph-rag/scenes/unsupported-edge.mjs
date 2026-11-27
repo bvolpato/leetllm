@@ -11,12 +11,10 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function unsupportedEdge(s, c) {
-  const phase = s.value(0);
   const showCand = s.value(0);
   const showKeep = s.value(0);
   const showWithhold = s.value(0);
@@ -35,11 +33,9 @@ export default function unsupportedEdge(s, c) {
   const ownsOk = entails({ ...EDGES[0], relation: 'owns' });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sc = showCand.value;
     const sk = showKeep.value;
     const sw = showWithhold.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Top: Source record A shared by both proposed edges
@@ -58,7 +54,7 @@ export default function unsupportedEdge(s, c) {
       // Left candidate: Lena --wrote--> River Walk (strictly withheld verdict until unsupported-edge-authorship!)
       glassCell(-445, 76, 800, 224, sk > 0.4 ? COSMOS.emerald : COSMOS.gold, {
         fill: sk > 0.4 ? '#0e2824' : '#181e34',
-        glow: sk > 0.4 ? 10 * pulse : 3,
+        glow: sk > 0.4 ? 10 : 3,
       }),
       txt('CANDIDATE 1: Lena --[ wrote ]--> River Walk', -815, 8, 26, COSMOS.cyan, 'mono', 'left'),
       txt('Endpoints match: YES   |   Cites A v1: YES', -815, 58, 26, COSMOS.ink, 'mono', 'left'),
@@ -78,7 +74,7 @@ export default function unsupportedEdge(s, c) {
       // Right candidate: Lena --owns--> River Walk (strictly withheld verdict until unsupported-edge-ownership!)
       glassCell(465, 76, 790, 224, sw > 0.4 ? COSMOS.rose : sc > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: sw > 0.4 ? '#28111a' : '#181e34',
-        glow: sw > 0.4 ? 10 * pulse : 3,
+        glow: sw > 0.4 ? 10 : 3,
       }),
       txt('CANDIDATE 2: Lena --[ owns ]--> River Walk', 100, 8, 26, COSMOS.amber, 'mono', 'left'),
       txt('Endpoints match: YES   |   Cites A v1: YES', 100, 58, 26, COSMOS.ink, 'mono', 'left'),
@@ -119,7 +115,6 @@ export default function unsupportedEdge(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('unsupported-edge-source', () => s.play(showCand.to(0.4, { duration: 0.3 })));
   c.on('unsupported-edge-candidate', () => s.play(showCand.to(0.8, { duration: 0.3 })));

@@ -11,12 +11,10 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function parameterCount(s, c) {
-  const phase = s.value(0);
   const hlBase = s.value(0);
   const showBaseNum = s.value(0);
   const hlAdapter = s.value(0);
@@ -161,7 +159,6 @@ export default function parameterCount(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 12);
 
   c.on('parameter-count-b1-1', () => s.play(hlBase.to(1, { duration: 0.4 })));
   c.on('parameter-base-result', () => s.play(showBaseNum.to(1, { duration: 0.35 })));

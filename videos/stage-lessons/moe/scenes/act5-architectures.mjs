@@ -4,7 +4,6 @@
 import { arrow, line } from 'vizmatic/stage';
 import {
   COSMOS,
-  glowDot,
   glowTex,
   glowingTrail,
   guardedDynamic,

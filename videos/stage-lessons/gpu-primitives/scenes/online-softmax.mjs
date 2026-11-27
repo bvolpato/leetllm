@@ -6,7 +6,6 @@ import {
   SOFTMAX_RESCALE_FINAL,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
@@ -14,12 +13,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function onlineSoftmaxScene(s, c) {
-  const phase = s.value(0);
   const showChunk1 = s.value(1);
   const showChunk2 = s.value(0);
   const showNewMax = s.value(0);
@@ -89,14 +86,12 @@ export default function onlineSoftmaxScene(s, c) {
   );
 
   const live = guardedDynamic(showChunk1, () => {
-    const p = phase.value;
     const c2 = showChunk2.value;
     const nm = showNewMax.value;
     const rs = rescaleFrac.value;
     const inc = showIncomingExp.value;
     const cmb = showCombined.value;
     const sum = showSummary.value;
-    const u = (p * 0.7) % 1;
 
     const barLeft = -830;
     const maxW = 720;
@@ -195,11 +190,6 @@ export default function onlineSoftmaxScene(s, c) {
           .at(barLeft + Math.max(12, newPx) * 0.5, 217)
           .glow(8, COSMOS.gold)
           .opacity(0.92 * inc),
-        glowDot(barLeft + u * Math.max(12, newPx), 217, {
-          radius: 5,
-          color: '#ffffff',
-          opacity: inc,
-        }),
       );
     }
 
@@ -221,7 +211,6 @@ export default function onlineSoftmaxScene(s, c) {
   });
 
   s.add(bgAura, title, eqChunk1, live);
-  runPhase(s, c, phase, 14);
 
   c.on('online-softmax-beat-1-focus-1', () => s.play(showChunk1.to(1, { duration: 0.35 })));
   c.on('online-softmax-beat-2-focus-1', () => s.play(showChunk2.to(1, { duration: 0.45 })));

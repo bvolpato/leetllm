@@ -15,13 +15,11 @@ import {
   heroTitle,
   remainDuration,
   rule,
-  runPhase,
   sharedTrace,
   txt,
 } from '../parts.mjs';
 
 export default function barrier(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1); // Beats 0 & 1: race -> replay with barrier
   const barrierMode = s.value(0); // 0=unsynced race, 1=barrier replay
   const simTime = s.value(0);
@@ -259,7 +257,6 @@ export default function barrier(s, c) {
   });
 
   s.add(bgAura, title, part1, part2);
-  runPhase(s, c, phase, 14);
 
   c.on('early-writes', () => s.play(simTime.to(0.48, { duration: 0.7 })));
   c.on('early-reader', () => s.play(simTime.to(1.75, { duration: 0.75 })));

@@ -13,7 +13,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -56,7 +55,7 @@ export default function typedEvidence(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const ex = extraHi.value;
       const st = stopTripped.value;
       const cm = cleanMode.value;
@@ -254,7 +253,6 @@ export default function typedEvidence(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('evidence-keys', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('evidence-keys').start, 0.25) }));

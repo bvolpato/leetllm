@@ -13,12 +13,10 @@ import {
   meterBar,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function jointReranker(s, c) {
-  const phase = s.value(0);
   const showJoint = s.value(0);
   const showMatrix = s.value(0);
   const showTrim = s.value(0);
@@ -53,14 +51,12 @@ export default function jointReranker(s, c) {
   const top3Full = credReranked(3);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sj = showJoint.value;
     const sm = showMatrix.value;
     const st = showTrim.value;
     const s2 = showTwo.value;
     const sa = showAsk.value;
     const sw = showWiden.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const trimmed = st > 0.5 && s2 < 0.3;
     const activeIds = sw > 0.4 ? top3Full : top2Only;
@@ -109,7 +105,7 @@ export default function jointReranker(s, c) {
     nodes.push(
       glassCell(-465, 80, 760, 290, trimmed ? COSMOS.rose : sm > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10182d',
-        glow: trimmed ? 9 * pulse : 4,
+        glow: trimmed ? 9 : 4,
       }),
       txt('CROSS-ATTENTION COST & TRUNCATION', -820, -24, 26, COSMOS.gold, 'mono', 'left'),
       txt('· Full sequence: 12 x 12 = 144 pair cells', -820, 26, 26, COSMOS.ink, 'sans', 'left'),
@@ -156,7 +152,7 @@ export default function jointReranker(s, c) {
       nodes.push(
         glassCell(495, y, 750, 78, col, {
           fill: !present ? '#26111a' : id === 'd2' ? '#0e2824' : '#11182c',
-          glow: id === 'd2' && sw > 0.4 ? 10 * pulse : 3,
+          glow: id === 'd2' && sw > 0.4 ? 10 : 3,
         }),
         txt(
           present ? `#${i + 1} ${id} (${CRED_PASSAGE_NAMES[id]})` : `${id} (never sent!)`,
@@ -193,7 +189,6 @@ export default function jointReranker(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('joint-input', () => s.play(showJoint.to(0.4, { duration: 0.35 })));
   c.on('joint-attention', () => s.play(showJoint.to(0.75, { duration: 0.35 })));

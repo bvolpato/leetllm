@@ -2,20 +2,9 @@
 // Typing "r" (150ms canceled) -> "o" (150ms canceled) -> "." (0ms immediate send #3!),
 // late reply #2 -> STRICT prediction pause -> #3 stays -> caret move & policy clear ghost (send log still 1!).
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function debounceHistory(s, c) {
-  const phase = s.value(0);
   const sent3 = s.value(0);
   const late2 = s.value(0);
   const keep3 = s.value(0); // STRICT after deb-keep!
@@ -33,7 +22,6 @@ export default function debounceHistory(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const s3 = sent3.value;
       const l2 = late2.value;
       const k3 = keep3.value;
@@ -111,12 +99,6 @@ export default function debounceHistory(s, c) {
       nodes.push(
         txt('CLIENT DEBOUNCE', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Saves 2 of 3 redundant sends', 480, -378, 26, ROLE.ok, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.warn,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -124,8 +106,6 @@ export default function debounceHistory(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('deb-send', () => {
     s.play(sent3.to(1, { duration: clampDur(c, c.cue('deb-send').start, 0.35) }));
   });

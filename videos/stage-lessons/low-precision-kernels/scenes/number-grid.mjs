@@ -13,12 +13,10 @@ import {
   hexByte,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function numberGrid(s, c) {
-  const phase = s.value(0);
   const probe1 = s.value(1.0);
   const probe2 = s.value(2.125);
   const showLSB = s.value(0);
@@ -183,7 +181,6 @@ export default function numberGrid(s, c) {
   );
 
   s.add(bgAura, title, view1, view2);
-  runPhase(s, c, phase, 14);
 
   c.on('number-grid-beat-1-focus-1', () =>
     s.play(probe1.to(1.045, { duration: remainDuration(c, 'number-grid-beat-1-focus-1', 1.2) })),

@@ -3,7 +3,6 @@ import {
   COSMOS,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -11,12 +10,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function loopOrder(s, c) {
-  const phase = s.value(0);
   const showFa1 = s.value(0.5);
   const showFa2 = s.value(0);
   const showRes = s.value(0);
@@ -33,13 +30,10 @@ export default function loopOrder(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const f1 = showFa1.value;
     const f2 = showFa2.value;
     const res = showRes.value;
     const blk = showBlocks.value;
-
-    const u = (p * 0.42) % 1;
 
     const nodes = [
       line([0, -245], [0, 355], { stroke: '#253355', width: 2, dash: [8, 8] }).opacity(0.65),
@@ -65,8 +59,6 @@ export default function loopOrder(s, c) {
         width: 3.6,
         opacity: 0.85 * f1,
       }),
-      glowDot(-580, -24 + u * 142, { radius: 6, color: COSMOS.rose, opacity: f1 }),
-      glowDot(-300, 118 - u * 142, { radius: 6, color: COSMOS.amber, opacity: f1 }),
 
       // RIGHT: FlashAttention-2 (Outer Q, Inner K/V -> resident numerator on chip!)
       txt('FLASHATTENTION-2', 440, -245, 30, COSMOS.emerald, 'mono')
@@ -116,16 +108,6 @@ export default function loopOrder(s, c) {
         width: 3.4,
         opacity: 0.85 * Math.max(0.28, f2),
       }),
-      glowDot(275 + u * 105, 65 - u * 83, {
-        radius: 6,
-        color: COSMOS.cyan,
-        opacity: Math.max(0.28, f2),
-      }),
-      glowDot(605 - u * 105, 65 - u * 83, {
-        radius: 6,
-        color: COSMOS.cyan,
-        opacity: Math.max(0.28, f2),
-      }),
     ];
 
     // Parallel thread-block assignment strip on bottom
@@ -156,7 +138,6 @@ export default function loopOrder(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('loop-order-beat-1', () => s.play(showFa1.to(1, { duration: 0.4 })));
   c.on('loop-order-beat-2', () => s.play(showFa2.to(1, { duration: 0.45 })));

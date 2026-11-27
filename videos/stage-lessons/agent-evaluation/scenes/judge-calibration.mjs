@@ -17,7 +17,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowMeter,
@@ -55,7 +54,7 @@ export default function judgeCalibration(s, c) {
   const mode0 = guardedDynamic(
     () => fadeOutHalf(safeMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const hm = humOn.value;
       const fw = fwdOn.value;
       const fs = fwdScore.value;
@@ -233,7 +232,7 @@ export default function judgeCalibration(s, c) {
   const mode1 = guardedDynamic(
     () => fadeInHalf(safeMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const av = advOn.value;
       const cr = critOn.value;
       const ij = injOn.value;
@@ -363,7 +362,6 @@ export default function judgeCalibration(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('human-labels', () => {
     s.play(humOn.to(1, { duration: clampDur(c, c.cue('human-labels').start, 0.35) }));

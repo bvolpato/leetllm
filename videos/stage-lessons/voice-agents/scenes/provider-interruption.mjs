@@ -2,20 +2,9 @@
 // Contrasts Gemini Live (retains sent-to-client buffer) vs OpenAI Realtime (WebRTC/SIP auto
 // vs WebSocket explicit conversation.item.truncate with item_id, content_index:0, audio_end_ms).
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function providerInterruption(s, c) {
-  const phase = s.value(0);
   const geminiOn = s.value(0);
   const openaiOn = s.value(0);
   const errOn = s.value(0);
@@ -38,7 +27,6 @@ export default function providerInterruption(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const gm = geminiOn.value;
       const oa = openaiOn.value;
       const er = errOn.value;
@@ -141,12 +129,6 @@ export default function providerInterruption(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.cut,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -154,8 +136,6 @@ export default function providerInterruption(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('va-provider-interruption-0-1', () => {
     s.play(
       geminiOn.to(1, { duration: clampDur(c, c.cue('va-provider-interruption-0-1').start, 0.35) }),

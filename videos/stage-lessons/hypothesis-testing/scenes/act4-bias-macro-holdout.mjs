@@ -17,7 +17,6 @@ import {
   fadeIn,
   fadeOut,
   glowCol,
-  glowDot,
   glowTex,
   guardedDynamic,
   heroTitle,
@@ -25,7 +24,6 @@ import {
   holdoutRows,
   liftIntervalNodes,
   liftVerdictText,
-  livingDrift,
   macroTaskInterval,
   macroTaskResamples,
   macroTaskScores,
@@ -69,7 +67,6 @@ export function estimatorBias(s, c) {
   const forcedP = s.value(0);
   const prodStartP = s.value(0);
   const prodP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.lift, seed: 16 }));
   s.add(decorAura(-380, 30, 480, '#ff6b8b1a', '#07091000'));
@@ -414,7 +411,6 @@ export function estimatorBias(s, c) {
   );
 
   s.add(headline, view0, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'estimator-bias-0', c0P, 1, { dur: 0.4 });
   cueTo(s, c, 'hyp-estimator-subsets', subP, 1, { dur: 1.6 });
   cueTo(s, c, 'hyp-estimator-result', resP, 1, { after: true, dur: 0.6 });
@@ -461,7 +457,6 @@ export function macroConstruction(s, c) {
   const ivP = s.value(0);
   const v3P = s.value(0);
   const c3P = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.lift, seed: 17 }));
   s.add(decorAura(0, 20, 560, '#5ce1e61c', '#6ee7b712'));
@@ -740,7 +735,6 @@ export function macroConstruction(s, c) {
   );
 
   s.add(headline, view0, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'macro-construction-0', c0P, 1, { dur: 0.4 });
   cueTo(s, c, 'hyp-macro-score-zero', s0P, 1, { dur: 0.5 });
   cueTo(s, c, 'hyp-macro-score-half', s1P, 1, { dur: 0.65 });
@@ -778,7 +772,6 @@ export function protocolRepair(s, c) {
   const selP = s.value(0);
   const v3P = s.value(0);
   const c3P = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.warning, seed: 18 }));
   s.add(decorAura(0, 20, 560, '#fb923c1a', '#5ce1e614'));
@@ -1016,7 +1009,6 @@ export function protocolRepair(s, c) {
   );
 
   s.add(headline, view0, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'protocol-repair-0', c0P, 1, { dur: 0.4 });
   cueTo(s, c, 'protocol-remove', remP, 1, { after: true, dur: 0.85 });
   cueTo(s, c, 'hyp-protocol-dedup', dedupP, 1, { after: true, dur: 0.6 });
@@ -1048,7 +1040,6 @@ export function reportContract(s, c) {
   const eqP = s.value(0);
   const regP = s.value(0);
   const zeroP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.threshold, seed: 19 }));
   s.add(decorAura(0, 20, 560, '#5ce1e61a', '#ffd16612'));
@@ -1295,7 +1286,6 @@ export function reportContract(s, c) {
   );
 
   s.add(headline, view0, view1, view2);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'report-contract-0', c0P, 1, { dur: 0.4 });
   cueTo(s, c, 'report-matched', matchP, 1, { after: true, dur: 0.75 });
   beatTo(s, c, 1, v1P, 1, { dur: 0.72 });
@@ -1324,7 +1314,6 @@ export function holdout(s, c) {
   const predP = s.value(0);
   const clearP = s.value(0);
   const relP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.modelB, seed: 20 }));
   s.add(decorAura(-350, 20, 480, '#5ce1e61c', '#07091000'));
@@ -1508,7 +1497,6 @@ export function holdout(s, c) {
   );
 
   s.add(headline, view0, view1);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'holdout-rows', rowsP, 1, { dur: 1.5 });
   cueTo(s, c, 'holdout-count', cntP, 1, { after: true, dur: 0.65 });
   beatTo(s, c, 1, v1P, 1, { dur: 0.72 });

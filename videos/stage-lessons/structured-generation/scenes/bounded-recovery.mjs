@@ -14,7 +14,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fsmNode,
@@ -25,7 +24,6 @@ import {
 } from '../parts.mjs';
 
 export default function boundedRecovery(s, c) {
-  const pulse = s.value(0);
   const act = s.value(0); // 0 = 3-row retry matrix, 1 = wire stop reasons & repair paths
   const firstLim = s.value(0);
   const lengthRetry = s.value(0);
@@ -51,7 +49,6 @@ export default function boundedRecovery(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(act.value),
     (a) => {
-      const p = pulse.value;
       const fl = firstLim.value;
       const lr = lengthRetry.value;
       const cc = compCheck.value;
@@ -85,7 +82,7 @@ export default function boundedRecovery(s, c) {
           beamWithPhotons(
             quadArcPts([-370, y0], [-210, y0], -16),
             hitTwice ? ROLE.retry : ROLE.fsm,
-            p * 1.1,
+            0,
             {
               alpha: a * lr,
               width: 3.4,
@@ -111,7 +108,7 @@ export default function boundedRecovery(s, c) {
 
       if (failedTwice) {
         nodes.push(
-          beamWithPhotons(quadArcPts([215, y0], [335, y0], -16), ROLE.prune, p * 1.2, {
+          beamWithPhotons(quadArcPts([215, y0], [335, y0], -16), ROLE.prune, 0, {
             alpha: a * sf,
             width: 3.4,
             photonCount: 1,
@@ -122,7 +119,7 @@ export default function boundedRecovery(s, c) {
         );
       } else if (cc > 0.1 && !hitTwice) {
         nodes.push(
-          beamWithPhotons(quadArcPts([215, y0], [335, y0], -16), ROLE.legal, p * 1.2, {
+          beamWithPhotons(quadArcPts([215, y0], [335, y0], -16), ROLE.legal, 0, {
             alpha: a * cc,
             width: 3.4,
             photonCount: 1,
@@ -304,7 +301,6 @@ export default function boundedRecovery(s, c) {
   );
 
   s.add(stageAura, header, act0, act1);
-  driftValue(s, c, pulse, 5.4, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-first-limit', () => {
     s.play(firstLim.to(1, { duration: clampDur(c, c.cue('sg-first-limit').start, 0.35) }));

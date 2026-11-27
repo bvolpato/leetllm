@@ -11,12 +11,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function denseEncoding(s, c) {
-  const phase = s.value(0);
   const showEncoders = s.value(0);
   const showQuery = s.value(0);
   const showSources = s.value(0);
@@ -36,7 +34,6 @@ export default function denseEncoding(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const se = showEncoders.value;
     const sq = showQuery.value;
     const ss = showSources.value;
@@ -44,7 +41,6 @@ export default function denseEncoding(s, c) {
     const sw = showWinner.value;
     const sc = showScores.value;
     const sv = showVersion.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     // Left: Living 2D vector plane (z = 0 slice) showing Query, d1 (Rotation), d2 (Credential)
     const ox = -740;
@@ -65,16 +61,13 @@ export default function denseEncoding(s, c) {
       txt('y', ox - 24, oy - 385, 26, COSMOS.muted, 'mono', 'right'),
 
       // Query vector (gold)
-      line([ox, oy], qPt, { stroke: COSMOS.gold, width: 5.2 }).glow(
-        sq > 0.3 ? 10 * pulse : 5,
-        COSMOS.gold,
-      ),
+      line([ox, oy], qPt, { stroke: COSMOS.gold, width: 5.2 }).glow(sq > 0.3 ? 10 : 5, COSMOS.gold),
       glowDot(qPt[0], qPt[1], { radius: 9, color: COSMOS.gold }),
       txt('Query [1.0, 0.8, 0]', qPt[0] + 18, qPt[1] - 8, 26, COSMOS.gold, 'mono', 'left'),
 
       // d2 Credential guide (emerald - closer angle!)
       line([ox, oy], d2Pt, { stroke: COSMOS.emerald, width: sw > 0.4 ? 5.6 : 4.0 })
-        .glow(sw > 0.4 ? 12 * pulse : 5, COSMOS.emerald)
+        .glow(sw > 0.4 ? 12 : 5, COSMOS.emerald)
         .opacity(Math.max(0.7, ss)),
       glowDot(d2Pt[0], d2Pt[1], { radius: 9, color: COSMOS.emerald, opacity: Math.max(0.7, ss) }),
       txt(
@@ -128,7 +121,7 @@ export default function denseEncoding(s, c) {
       nodes.push(
         glassCell(495, y, 750, 62, reveal ? col : COSMOS.muted, {
           fill: reveal && row.id === 'd2' ? '#0e2824' : '#11182c',
-          glow: reveal && row.id === 'd2' ? 9 * pulse : 2,
+          glow: reveal && row.id === 'd2' ? 9 : 2,
         }),
         txt(`${row.id}  v=[${row.v.join(', ')}]`, 150, y + 2, 26, col, 'mono', 'left'),
         txt(
@@ -167,7 +160,6 @@ export default function denseEncoding(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('two-encoders', () => s.play(showEncoders.to(0.6, { duration: 0.4 })));
   c.on('encoder-parameters', () => s.play(showEncoders.to(1, { duration: 0.4 })));

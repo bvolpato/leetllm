@@ -7,7 +7,6 @@ import {
   cinemaRails,
   crossPhase,
   decomposition,
-  glowDot,
   glowingArc,
   guardedDynamic,
   heroAura,
@@ -16,7 +15,6 @@ import {
   onCue,
   probBarH,
   samplerBoundary,
-  startAmbient,
   tokenPill,
   txt,
   visibility,
@@ -28,7 +26,6 @@ import {
  * paired beside the glowing 4x4 ancestor visibility matrix!
  */
 export function treeMask(s, c) {
-  const amb = startAmbient(s, c);
   const parents = [null, null, 0, 1];
   const maskRows = [0, 1, 2, 3].map((q) => visibility(parents, q));
 
@@ -211,7 +208,6 @@ export function treeMask(s, c) {
  *   Flattened causal mask explodes from 97.598 -> 9,759.8!
  */
 export function treeLeak(s, c) {
-  const amb = startAmbient(s, c);
   const iso100 = isolationFixture(100);
   const iso10k = isolationFixture(10000);
 
@@ -235,7 +231,6 @@ export function treeLeak(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const pv = perturbVal.value;
       const curOff = Math.round(100 + (10000 - 100) * pv);
       const curIso = isolationFixture(curOff);
@@ -310,12 +305,6 @@ export function treeLeak(s, c) {
       // Ambient pulse beam showing isolation divider between left & right
       nodes.push(
         line([0, -135], [0, 235], { stroke: '#3a4b78', width: 2.2, dash: [6, 8] }),
-        glowDot(0, -120 + ((t * 1.4) % 1) * 340, {
-          radius: 5,
-          color: COSMOS.emerald,
-          glow: 10,
-          opacity: 0.75,
-        }),
         txt(
           `At v1=100: ${iso100.tree.result.toFixed(3)} vs ${iso100.flat.result.toFixed(3)}   |   At v1=10,000: ${iso10k.tree.result.toFixed(3)} vs ${iso10k.flat.result.toFixed(1)}`,
           0,
@@ -349,7 +338,6 @@ export function treeLeak(s, c) {
  * Phase 2: 2x2 preservation matrix: (Frozen W0 / Joint W1) x (Exact Verifier / Typical Acceptance).
  */
 export function medusaContract(s, c) {
-  const amb = startAmbient(s, c);
   const p1 = s.value(1);
   const p2 = s.value(0);
 
@@ -366,7 +354,6 @@ export function medusaContract(s, c) {
   });
 
   const v1 = guardedDynamic(p1, (a) => {
-    const t = amb.value;
     const sh = showHeads.value;
     const nodes = [
       tokenPill('Medusa-1: Frozen Backbone W0', -440, -145, {
@@ -402,12 +389,6 @@ export function medusaContract(s, c) {
       }
     }
     nodes.push(
-      glowDot(-650 + ((t * 1.4) % 1) * 1300, 235, {
-        radius: 5,
-        color: COSMOS.violet,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Future heads propose candidates on target hidden features; track whether backbone weights changed',
         0,
@@ -421,7 +402,6 @@ export function medusaContract(s, c) {
   });
 
   const v2 = guardedDynamic(p2, (a) => {
-    const t = amb.value;
     const typ = showTypical.value;
     const rows = [
       { label: 'Frozen W0', changed: false, y: -45, col: COSMOS.blue },
@@ -460,12 +440,6 @@ export function medusaContract(s, c) {
       );
     }
     nodes.push(
-      glowDot(-580 + ((t * 1.4) % 1) * 1140, 315, {
-        radius: 5,
-        color: COSMOS.emerald,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Exact sampling preserves whichever checkpoint verifies (W0 or W1); typical acceptance alters odds',
         0,
@@ -494,7 +468,6 @@ export function medusaContract(s, c) {
  * Phase 3: EAGLE-3 multi-layer fusion (low/mid/high) -> direct token objective + serving memory.
  */
 export function eagleFamily(s, c) {
-  const amb = startAmbient(s, c);
   const p1 = s.value(1);
   const p2 = s.value(0);
   const p3 = s.value(0);
@@ -514,7 +487,6 @@ export function eagleFamily(s, c) {
   });
 
   const v1 = guardedDynamic(p1, (a) => {
-    const t = amb.value;
     const nodes = [
       txt('ORIGINAL EAGLE: FEATURE EXTRAPOLATION', 0, -215, 28, COSMOS.cyan, 'mono').opacity(a),
       tokenPill('Target Pre-Head Feature', -470, -70, {
@@ -552,12 +524,6 @@ export function eagleFamily(s, c) {
         wordSize: 28,
         opacity: a * Math.max(0.3, showP1.value),
       }),
-      glowDot(-190 + ((t * 1.5) % 1) * 350, -70, {
-        radius: 7,
-        color: '#ffffff',
-        glow: 14,
-        opacity: a,
-      }),
       txt(
         'Draft predicts next pre-head features conditioned on the previously sampled token',
         0,
@@ -571,7 +537,6 @@ export function eagleFamily(s, c) {
   });
 
   const v2 = guardedDynamic(p2, (a) => {
-    const t = amb.value;
     const sc = showPathScore.value;
     const paths = [
       { x: -380, r: 0.8, ch: 0.5, prod: 0.4, win: false },
@@ -611,12 +576,6 @@ export function eagleFamily(s, c) {
       );
     }
     nodes.push(
-      glowDot(-380 + ((t * 1.4) % 1) * 760, 315, {
-        radius: 5,
-        color: COSMOS.emerald,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Multiply conditional draft confidence along ancestry: 0.42 beats 0.40 on reranking',
         0,
@@ -630,7 +589,6 @@ export function eagleFamily(s, c) {
   });
 
   const v3 = guardedDynamic(p3, (a) => {
-    const t = amb.value;
     const e3 = showE3.value;
     const mem = showMem.value;
     const layers = [
@@ -672,12 +630,6 @@ export function eagleFamily(s, c) {
         glow: 12,
         opacity: Math.max(0.3, e3) * a,
       }),
-      glowDot(-560 + ((t * 1.4) % 1) * 1120, 235, {
-        radius: 5,
-        color: COSMOS.gold,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         mem > 0.25
           ? 'Draft weights, fused features & tree buffers share GPU memory alongside the target'
@@ -709,7 +661,6 @@ export function eagleFamily(s, c) {
  * Phase 3: Method spectrum: Lookup, Native MTP, Trained Parallel Draft (PARD).
  */
 export function lookupMethods(s, c) {
-  const amb = startAmbient(s, c);
   const lk = decomposition([0.2, 0.3, 0.5], [0, 0, 1]);
 
   const p1 = s.value(1);
@@ -731,7 +682,6 @@ export function lookupMethods(s, c) {
   });
 
   const v1 = guardedDynamic(p1, (a) => {
-    const t = amb.value;
     const cp = showCopy.value;
     const words = ['The', 'train', 'arrives', 'at', 'noon', 'The', 'train'];
     const nodes = [
@@ -776,12 +726,6 @@ export function lookupMethods(s, c) {
       );
     }
     nodes.push(
-      glowDot(-720 + ((t * 1.4) % 1) * 1440, 325, {
-        radius: 5,
-        color: COSMOS.gold,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Point-mass proposal q(x) = 1 accepts with probability p(x); rejection zeros out x and renormalizes',
         0,
@@ -795,7 +739,6 @@ export function lookupMethods(s, c) {
   });
 
   const v2 = guardedDynamic(p2, (a) => {
-    const t = amb.value;
     const sr = showResidual.value;
     const pVec = [0.2, 0.3, 0.5];
     const rVec = lk.residual; // [0.4, 0.6, 0]
@@ -824,12 +767,6 @@ export function lookupMethods(s, c) {
       );
     }
     nodes.push(
-      glowDot(-590 + ((t * 1.4) % 1) * 1200, 330, {
-        radius: 5,
-        color: COSMOS.emerald,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Remove ID 2 mass (0.5), normalize [0.2, 0.3, 0] / 0.5 -> [0.4, 0.6, 0]',
         0,
@@ -843,7 +780,6 @@ export function lookupMethods(s, c) {
   });
 
   const v3 = guardedDynamic(p3, (a) => {
-    const t = amb.value;
     const rows = [
       {
         k: 'Prompt / Output Lookup',
@@ -884,12 +820,6 @@ export function lookupMethods(s, c) {
       );
     });
     nodes.push(
-      glowDot(-180 + ((t * 1.5) % 1) * 135, 215, {
-        radius: 5,
-        color: COSMOS.violet,
-        glow: 10,
-        opacity: 0.7 * a,
-      }),
       txt(
         'Always budget each proposer’s own weights, buffers, search work, and verification step',
         0,
@@ -918,8 +848,6 @@ export function lookupMethods(s, c) {
  * Block verification (A fails, pair A B passes, A B C fails -> Keep A B), then Greedy switch (both keep A).
  */
 export function blockContract(s, c) {
-  const amb = startAmbient(s, c);
-
   const passA = s.value(0);
   const rejB = s.value(0);
   const failA = s.value(0);
@@ -940,7 +868,6 @@ export function blockContract(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const t = amb.value;
       const g = isGreedy.value > 0.5;
       const nodes = [];
 
@@ -1032,12 +959,6 @@ export function blockContract(s, c) {
       }
 
       nodes.push(
-        glowDot(-415 + ((t * 1.4) % 1) * 900, 328, {
-          radius: 5,
-          color: COSMOS.gold,
-          glow: 10,
-          opacity: 0.7,
-        }),
         txt(
           g
             ? 'Under a greedy draft, both token-wise and block verification keep just A'

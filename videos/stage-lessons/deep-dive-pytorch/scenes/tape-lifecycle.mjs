@@ -6,7 +6,6 @@ import {
   aura,
   buildAutogradGraph3d,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,

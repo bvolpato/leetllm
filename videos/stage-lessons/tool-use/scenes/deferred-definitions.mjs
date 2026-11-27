@@ -9,7 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -39,7 +38,7 @@ export default function deferredDefinitions(s, c) {
   const act0 = guardedDynamic(
     () => fadeOutHalf(Math.min(1, act.value)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const nodes = [];
 
       nodes.push(
@@ -112,7 +111,7 @@ export default function deferredDefinitions(s, c) {
   const act1 = guardedDynamic(
     () => fadeInHalf(Math.min(1, act.value)) * fadeOutHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const sc = oaiSchemaOn.value;
       const nodes = [];
 
@@ -187,7 +186,7 @@ export default function deferredDefinitions(s, c) {
   const act2 = guardedDynamic(
     () => fadeInHalf(Math.max(0, act.value - 1)),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const cc = claudeCtxOn.value;
       const cp = claudePropOn.value;
       const nodes = [];
@@ -263,7 +262,6 @@ export default function deferredDefinitions(s, c) {
   );
 
   s.add(stageAura, header, act0, act1, act2);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-deferred-definitions-1', () => {
     s.play(

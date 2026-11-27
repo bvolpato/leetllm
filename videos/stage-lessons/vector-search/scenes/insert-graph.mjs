@@ -9,12 +9,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function insertGraph(s, c) {
-  const phase = s.value(0);
   const showSample = s.value(0);
   const showWire = s.value(0);
   const showHeuristic = s.value(0);
@@ -31,12 +29,10 @@ export default function insertGraph(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const ss = showSample.value;
     const sw = showWire.value;
     const sh = showHeuristic.value;
     const sc = showCap.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const raised = sc > 0.6;
 
@@ -90,7 +86,7 @@ export default function insertGraph(s, c) {
 
       glassCell(495, -98, 750, 154, sh > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#231c10',
-        glow: sh > 0.3 ? 8 * pulse : 2,
+        glow: sh > 0.3 ? 8 : 2,
       }),
       txt('DIVERSE NEIGHBOR RULE (UP TO M, BASE 2M)', 145, -138, 26, COSMOS.gold, 'mono', 'left'),
       txt(
@@ -120,7 +116,7 @@ export default function insertGraph(s, c) {
         raised ? COSMOS.emerald : sc > 0.2 ? COSMOS.rose : COSMOS.muted,
         {
           fill: raised ? '#0e2824' : sc > 0.2 ? '#29111a' : '#12182b',
-          glow: sc > 0.2 ? 9 * pulse : 2,
+          glow: sc > 0.2 ? 9 : 2,
         },
       ),
       txt(
@@ -161,7 +157,6 @@ export default function insertGraph(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('insert-graph-b1', () => s.play(showSample.to(1, { duration: 0.4 })));
   c.on('insert-graph-b2', () => s.play(showWire.to(1, { duration: 0.4 })));

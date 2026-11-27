@@ -15,7 +15,6 @@ import {
   playCue,
   prefixResults,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -25,7 +24,6 @@ export default function prefix(s, c) {
   const full = prefixResults(4);
   const short = prefixResults(2);
 
-  const phase = s.value(0);
   const showFull = s.value(0);
   const cutMix = s.value(0);
   const askVis = s.value(0);
@@ -45,8 +43,6 @@ export default function prefix(s, c) {
   // Left: 3 stored 4D coordinate rows + gold laser slice beam
   const matrixLayer = dynamic(() => {
     const cut = cutMix.value;
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const cellW = 104;
     const cellH = 74;
     const gap = 16;
@@ -77,7 +73,7 @@ export default function prefix(s, c) {
             color: v === 1 ? col : '#4b5d87',
             fillAlpha: v === 1 ? 0.26 : 0.1,
             strokeWidth: v === 1 ? 2.4 : 1.5,
-            glow: v === 1 && !dropped ? 8 * pulse : 2,
+            glow: v === 1 && !dropped ? 8 : 2,
             opacity: cellAlpha,
           }),
           txt(String(v), cx, ry, 36, v === 1 ? COSMOS.ink : COSMOS.muted, 'mono').opacity(
@@ -218,8 +214,6 @@ export default function prefix(s, c) {
   );
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.A), title, matrixLayer, evalLayer, askLayer);
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'full', (d) => s.play(showFull.to(1, { duration: d })), { after: true, dur: 0.55 });
   playCue(s, c, 'cut', (d) => s.play(cutMix.to(1, { duration: d })), { dur: 0.9 });

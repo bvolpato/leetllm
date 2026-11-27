@@ -4,18 +4,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   sampleModel,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function admission(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = admission-two (propose 2 inputs, 0 free blocks -> 2nd lacks block -> WAIT)
   // 1 = admission-release (release 1 block -> 2 inputs fit both step & KV -> ADMITTED)
@@ -35,7 +32,6 @@ export default function admission(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const modeIdx = st >= 2 ? 2 : st === 1 ? 1 : 0;
     const m = sampleModel('admission', { beat: modeIdx, beatP: 0 });
     const placed = st >= 3 ? 5 : st === 2 ? 0 : 2;
@@ -160,9 +156,7 @@ export default function admission(s, c) {
       txt(vText, 0, 264, 28, vCol, 'mono'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 336, { radius: 6, color: vCol }),
       txt(
         'Compare proposal demand against BOTH step budget & KV blocks at the exact same attempt',
         0,
@@ -176,7 +170,6 @@ export default function admission(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['admission-two', 0, true],
     ['admission-release', 1, true],

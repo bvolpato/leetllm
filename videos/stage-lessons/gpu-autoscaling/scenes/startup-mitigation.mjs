@@ -9,7 +9,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   phases,
   quadArcPts,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function startupMitigation(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=4 phases + mitigations, 2=207s total, 3=counterexample lazy pull -> 1st req + shared cache contention
 
   const header = cinemaHeader(
@@ -46,7 +44,6 @@ export default function startupMitigation(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const xLeft = -520;
       const scale = 4.6; // 207 * 4.6 = 952 px
       let acc = 0;
@@ -86,7 +83,7 @@ export default function startupMitigation(s, c) {
         const imgX = xLeft + (95 + 11) * scale;
         const arcPts = quadArcPts([imgX, -22], [120, 252], 65, 24);
         nodes.push(
-          beamWithPhotons(arcPts, ROLE.expired, p * 0.9, { width: 4.0, glow: 11, photonCount: 2 }),
+          beamWithPhotons(arcPts, ROLE.expired, 0, { width: 4.0, glow: 11, photonCount: 2 }),
           rect(620, 68, { fill: '#2a1220', stroke: ROLE.expired, width: 2.6, radius: 14 })
             .at(120, 295)
             .glow(8, ROLE.expired),
@@ -118,7 +115,6 @@ export default function startupMitigation(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 5.5, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-startup-mitigation-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-startup-total', step, 2, 0.3);

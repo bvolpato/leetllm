@@ -91,7 +91,6 @@ export default function sharingContract(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const b1 = b1On.value > 0.5;
       const wOk = weightOn.value > 0.5;
       const cOk = copiesOn.value > 0.5;
@@ -159,17 +158,11 @@ export default function sharingContract(s, c) {
             );
           });
           nodes.push(
-            beamWithPhotons(
-              quadArcPts([-850, lane.y + 52], [-15, lane.y + 52], 0),
-              lane.col,
-              p + li * 0.4,
-              {
-                width: 3,
-                glow: 8,
-                photonCount: 2,
-                alpha: 0.45 + 0.55 * laneOn.value,
-              },
-            ),
+            beamWithPhotons(quadArcPts([-850, lane.y + 52], [-15, lane.y + 52], 0), lane.col, 0, {
+              width: 3,
+              glow: 8,
+              alpha: 0.45 + 0.55 * laneOn.value,
+            }),
           );
         });
 

@@ -16,12 +16,10 @@ import {
   line,
   radialDial,
   rect,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function shortcutsAndCalibration(s, c) {
-  const phase = s.value(0);
   const showVotes = s.value(0.45);
   const showMiss = s.value(0);
   const showAllErrs = s.value(0);
@@ -189,7 +187,6 @@ export default function shortcutsAndCalibration(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('calibration-votes', () => s.play(showVotes.to(1, { duration: 0.45 })));
   c.on('calibration-miss', () => s.play(showMiss.to(1, { duration: 0.55 })));

@@ -18,7 +18,6 @@ import {
   rate,
   report,
   rule,
-  runAmbientPhase,
   seLift,
   tweenCue,
   txt,
@@ -29,7 +28,6 @@ const PT = rate(report.treatment); // 0.42
 const REL = lift / PC; // 0.10526
 
 export default function liftScene(s, c) {
-  const phase = s.value(0);
   const showCtrl = s.value(0);
   const showTrt = s.value(0);
   const showAbs = s.value(0);
@@ -183,7 +181,6 @@ export default function liftScene(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'control', showCtrl, 1, { duration: 0.45 });
   tweenCue(s, c, 'treatment', showTrt, 1, { duration: 0.45 });

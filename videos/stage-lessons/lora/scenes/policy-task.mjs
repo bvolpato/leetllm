@@ -4,7 +4,6 @@ import {
   aura,
   circle,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -190,7 +189,6 @@ export default function policyTask(s, c) {
           COSMOS.muted,
           'sans',
         ),
-        glowDot(dayToX(12 + ((p * 28) % 80)), axisY, { radius: 4.5, color: COSMOS.gold }),
       );
     }
 

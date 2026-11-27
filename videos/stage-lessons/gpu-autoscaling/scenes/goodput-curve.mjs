@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   dashedRule,
-  driftValue,
   glowBar,
   guardedDynamic,
   tweenOn,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function goodputCurve(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=trial1(92/100), 2=trial2(105/120 + question), 3=answer 10 RPS (AFTER!)
 
   const header = cinemaHeader(
@@ -38,8 +36,6 @@ export default function goodputCurve(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
-      const blink = 0.68 + 0.32 * Math.sin(p * 5.0);
 
       const barLeft = -420;
       const barW = 1040;
@@ -123,7 +119,7 @@ export default function goodputCurve(s, c) {
             'sans',
           )
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
         );
       }
 
@@ -165,7 +161,6 @@ export default function goodputCurve(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'first-trial', step, 1, 0.35);
   tweenOn(s, c, 'higher-load', step, 2, 0.35);

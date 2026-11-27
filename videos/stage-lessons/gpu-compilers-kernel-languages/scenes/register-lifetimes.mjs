@@ -7,19 +7,16 @@ import {
   SLOTS_SHORT,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function registerLifetimes(s, c) {
-  const phase = s.value(0);
   const showA = s.value(0);
   const showB = s.value(0);
   const showC = s.value(0);
@@ -42,7 +39,6 @@ export default function registerLifetimes(s, c) {
   const ox = (op) => -620 + op * 150;
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sa = showA.value;
     const sb = showB.value;
     const sc = showC.value;
@@ -50,7 +46,6 @@ export default function registerLifetimes(s, c) {
     const ea = extA.value;
     const s3 = showThird.value;
     const sr = showRound.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const aEnd = 3 + ea * 2; // 3 -> 5
     const needed = ea > 0.5 ? SLOTS_EXT.required : SLOTS_SHORT.required;
@@ -104,7 +99,7 @@ export default function registerLifetimes(s, c) {
     nodes.push(
       glassCell(670, -10, 340, 240, slotCol, {
         fill: s3 > 0.5 ? '#2b101c' : '#0e2424',
-        glow: 10 * pulse,
+        glow: 10,
       }),
       txt('PHYSICAL SLOTS', 670, -82, 26, COSMOS.muted, 'mono'),
       txt(String(needed), 670, 0, 82, slotCol, 'mono').glow(8, slotCol),
@@ -133,14 +128,10 @@ export default function registerLifetimes(s, c) {
       );
     }
 
-    const u = (p * 0.6) % 1;
-    nodes.push(glowDot(ox(0) + u * (ox(7) - ox(0)), -180, { radius: 7, color: COSMOS.gold }));
-
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('lifetime-a', () => s.play(showA.to(1, { duration: remainDuration(c, 'lifetime-a', 0.4) })));
   c.on('lifetime-b', () => s.play(showB.to(1, { duration: remainDuration(c, 'lifetime-b', 0.4) })));

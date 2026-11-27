@@ -13,12 +13,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function subnormalGrid(s, c) {
-  const phase = s.value(0);
   const toSubnormal = s.value(0);
   const showE5Floor = s.value(0);
   const showThreeQ = s.value(0);
@@ -201,7 +199,6 @@ export default function subnormalGrid(s, c) {
   });
 
   s.add(bgAura, title, subEq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('lp-subnormal-grid-build-0', () =>
     s.play(toSubnormal.to(1, { duration: remainDuration(c, 'lp-subnormal-grid-build-0', 0.55) })),

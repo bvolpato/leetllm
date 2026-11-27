@@ -10,7 +10,6 @@ import {
   aura,
   cinemaHeader,
   dashedRule,
-  driftValue,
   glowBar,
   guardedDynamic,
   tweenOn,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function spotDeadline(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=120-20=100s, 2=highlight 100s boundary, 3=provider notices, 4=30-20=10s short warning, 5=12s no longer fits
 
   const header = cinemaHeader(
@@ -127,7 +125,6 @@ export default function spotDeadline(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-spot-deadline-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-drain-budget', step, 2, 0.3);

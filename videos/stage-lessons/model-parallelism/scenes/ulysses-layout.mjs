@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function ulyssesLayout(s, c) {
-  const phase = s.value(0);
   const p0 = s.value(0);
   const pProj = s.value(0);
   const pTrans = s.value(0);
@@ -147,13 +144,11 @@ export default function ulyssesLayout(s, c) {
         glow: 8,
       }),
       txt(foot, 0, 330, 26, gqa ? ROLE.warn : COSMOS.ink, 'sans'),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, { radius: 6, color: ROLE.gpu1 }),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('mp-ulysses-layout-0', () =>
     s.play(p0.to(1, { duration: remainDuration(c, 'mp-ulysses-layout-0', 0.35) })),

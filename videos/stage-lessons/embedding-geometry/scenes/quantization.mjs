@@ -16,7 +16,6 @@ import {
   playCue,
   quantize,
   rule,
-  runPhase,
   txt,
   withAlpha,
 } from '../parts.mjs';
@@ -26,7 +25,6 @@ export default function quantization(s, c) {
   const names = ['C', 'D'];
   const colors = [ROLE.A, ROLE.B];
 
-  const phase = s.value(0);
   const showCell = s.value(0);
   const askVis = s.value(0);
   const roundMix = s.value(0);
@@ -53,8 +51,6 @@ export default function quantization(s, c) {
   const gridLayer = dynamic(() => {
     const t = roundMix.value;
     const cellOp = showCell.value;
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
 
     const nodes = [txt('MAGNIFIED ENDPOINTS  ·  STEP = 0.2', cx0, -290, 26, COSMOS.muted, 'mono')];
 
@@ -92,7 +88,7 @@ export default function quantization(s, c) {
           radius: 6,
         })
           .at(centerPt[0], centerPt[1])
-          .glow(10 * pulse, ROLE.gold)
+          .glow(10, ROLE.gold)
           .opacity(cellOp),
       );
     }
@@ -126,7 +122,7 @@ export default function quantization(s, c) {
         glowDot(pt[0], pt[1], {
           radius: i === 0 ? 15 : 10,
           color: colors[i],
-          glow: 11 * pulse,
+          glow: 11,
         }),
         txt(names[i], lx, ly, 36, colors[i], 'mono').glow(6, colors[i]),
       );
@@ -191,8 +187,6 @@ export default function quantization(s, c) {
   );
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.A), title, gridLayer, rightStatic, askLayer, tieLayer);
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'cell', (d) => s.play(showCell.to(1, { duration: d })), { dur: 0.6 });
   playCue(s, c, 'ask', (d) => s.play(askVis.to(1, { duration: d })), { dur: 0.4 });

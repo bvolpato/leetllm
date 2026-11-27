@@ -9,7 +9,6 @@ import {
   LIKE_B_PROD,
   afterDuration,
   aura,
-  glowDot,
   glowTex,
   glowingTrail,
   group,
@@ -18,13 +17,11 @@ import {
   line,
   radialDial,
   remainDuration,
-  runPhase,
   tokenCell,
   txt,
 } from '../parts.mjs';
 
 export default function likelihoodIsntPreference(s, c) {
-  const phase = s.value(0);
   const step1 = s.value(0.25);
   const step2 = s.value(0);
   const step3 = s.value(0);
@@ -53,7 +50,6 @@ export default function likelihoodIsntPreference(s, c) {
   const rowBY = 140;
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const s1 = step1.value;
     const s2 = step2.value;
     const s3 = step3.value;
@@ -114,14 +110,6 @@ export default function likelihoodIsntPreference(s, c) {
         ).opacity(vis),
       );
     }
-
-    // Flowing photon pulses cleanly above/below token cells (never crossing text)
-    const u = (p * 0.45) % 1;
-    const px = tokX[0] + u * (tokX[2] - tokX[0]);
-    nodes.push(
-      glowDot(px, rowAY - 76, { radius: 5.5, color: COSMOS.cyan, opacity: 0.85 }),
-      glowDot(px, rowBY + 76, { radius: 5.5, color: COSMOS.blue, opacity: 0.85 }),
-    );
 
     // Final product dials on right: STRICT WITHHOLDING until revealProd > 0.5!
     const dialX = 495;
@@ -232,7 +220,6 @@ export default function likelihoodIsntPreference(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('likelihood-first-piece', () => s.play(step1.to(1, { duration: 0.45 })));
   c.on('likelihood-second-piece', () => s.play(step2.to(1, { duration: 0.45 })));

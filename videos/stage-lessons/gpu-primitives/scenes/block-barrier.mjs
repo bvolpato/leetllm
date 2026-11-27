@@ -3,7 +3,6 @@ import {
   COSMOS,
   REDUCTION,
   aura,
-  evalArc2d,
   glassCell,
   glowDot,
   glowingArc,
@@ -12,7 +11,6 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -20,7 +18,6 @@ const PARTIALS = REDUCTION.at(-2); // [7, 4]
 const TOTAL = REDUCTION.at(-1)[0]; // 11
 
 export default function blockBarrier(s, c) {
-  const phase = s.value(0);
   const write0 = s.value(0);
   const askWait = s.value(0);
   const write1 = s.value(0);
@@ -33,7 +30,6 @@ export default function blockBarrier(s, c) {
   const bgAura = aura(0, 20, 580, '#5ce1e620', '#a78bfa18');
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const w0 = write0.value;
     const w1 = write1.value;
     const bar = barrierDone.value;
@@ -41,8 +37,6 @@ export default function blockBarrier(s, c) {
     const tot = showTotal.value;
     const grd = gridMode.value > 0.5;
     const gcb = gridCombine.value;
-
-    const u = (p * 0.85) % 1;
     const yRows = [-95, 130];
     const xProd = -620;
     const xMem = -55;
@@ -125,8 +119,6 @@ export default function blockBarrier(s, c) {
             core: false,
           }),
         );
-        const [rx, ry] = evalArc2d([xMem + 166, y], [xRead - 168, 18], i === 0 ? -18 : 18, u);
-        nodes.push(glowDot(rx, ry, { radius: 7, color: COSMOS.emerald, opacity: effectiveRead }));
       }
     });
 
@@ -188,7 +180,6 @@ export default function blockBarrier(s, c) {
   });
 
   s.add(bgAura, live);
-  runPhase(s, c, phase, 14);
 
   c.on('handoff-seven', () => s.play(write0.to(1, { duration: 0.65 })));
   c.on('handoff-wait', () => s.play(askWait.to(1, { duration: 0.35 })));

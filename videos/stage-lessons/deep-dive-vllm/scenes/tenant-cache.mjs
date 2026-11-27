@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function tenantCache(s, c) {
-  const phase = s.value(0);
   // step: 0=tenant-second (Orchard & Meadow send same 4 tokens under Adapter A with separate cache_salt), 1=tenant-enforce (gateway authenticates & assigns unguessable salt), 2=tenant-adapter (Orchard switches to Adapter B -> MISS -> compute under B)
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function tenantCache(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const orchardAdapter = st >= 2 ? 'B' : 'A';
     const nodes = [];
 
@@ -107,9 +103,7 @@ export default function tenantCache(s, c) {
       txt(panelBody, 0, 222, 26, COSMOS.ink, 'sans'),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 315, { radius: 6, color: panelCol }),
       txt(
         'Never let untrusted clients choose their own cache namespace string',
         0,
@@ -123,7 +117,6 @@ export default function tenantCache(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['tenant-second', 0],
     ['tenant-enforce', 1],

@@ -11,12 +11,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function strength(s, c) {
-  const phase = s.value(0);
   const stretchAlpha = s.value(0);
   const rankRise = s.value(0);
   const holdScale = s.value(0);
@@ -185,7 +183,6 @@ export default function strength(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 12);
 
   c.on('strength-b1-1', () => s.play(stretchAlpha.to(1, { duration: 0.65 })));
   c.on('strength-b2-1', () => s.play(rankRise.to(1, { duration: 0.65 })));

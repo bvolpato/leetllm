@@ -16,7 +16,6 @@ import {
   canonicalVote,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -221,7 +220,6 @@ export default function samplingCostLedger(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sampling-cost-ledger-b1', () => {
     s.play(sharedHi.to(1, { duration: clampDur(c, c.cue('sampling-cost-ledger-b1').start, 0.35) }));

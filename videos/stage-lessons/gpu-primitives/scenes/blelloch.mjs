@@ -4,16 +4,13 @@ import {
   BLELLOCH,
   COSMOS,
   aura,
-  evalArc2d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   number,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -23,7 +20,6 @@ const PREFIXES = BLELLOCH.states.at(-1).values; // [0, 3, 2, 6]
 const INCLUSIVE_4 = LEAVES.map((v, i) => PREFIXES[i] + v); // [3, 2, 6, 7]
 
 export default function blelloch(s, c) {
-  const phase = s.value(0);
   const upPairs = s.value(0);
   const upRoot = s.value(0);
   const saveTotal = s.value(0);
@@ -47,7 +43,6 @@ export default function blelloch(s, c) {
   const ys = [-210, -35, 140];
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const up1 = upPairs.value > 0.5;
     const up2 = upRoot.value > 0.5;
     const sv = saveTotal.value > 0.5;
@@ -56,7 +51,6 @@ export default function blelloch(s, c) {
     const dn2 = downLeaves.value > 0.5;
     const stg = highlightStorage.value > 0.5;
     const inc = showInclusive.value > 0.5;
-    const u = (p * 0.85) % 1;
 
     const stageIdx = [up1, up2, zr, dn1, dn2].filter(Boolean).length;
     const slotVals = BLELLOCH.states[stageIdx].values;
@@ -99,10 +93,6 @@ export default function blelloch(s, c) {
             core: false,
           }),
         );
-        if ((zr && !dn2 && lvl === (dn1 ? 2 : 1)) || (!zr && activeUp)) {
-          const [dx, dy] = evalArc2d(from, to, 0, (u + i * 0.17) % 1);
-          nodes.push(glowDot(dx, dy, { radius: 6, color: col }));
-        }
       });
     }
 
@@ -176,7 +166,6 @@ export default function blelloch(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('sweep-pairs', () => s.play(upPairs.to(1, { duration: 0.45 })));
   c.on('sweep-sum', () => s.play(upRoot.to(1, { duration: 0.45 })));

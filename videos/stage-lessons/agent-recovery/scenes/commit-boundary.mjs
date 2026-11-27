@@ -313,16 +313,6 @@ export default function commitBoundary(s, c) {
         ),
       );
 
-      // Subtle glowing beacon dots on commit line
-      nodes.push(
-        glowDot(185 + 670 * ((amb.value * 2) % 1), commitY, {
-          radius: 5,
-          color: ROLE.agent,
-          glow: 9,
-          opacity: 0.65 * alpha,
-        }),
-      );
-
       return nodes;
     },
   );

@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function projectEvidence(s, c) {
-  const phase = s.value(0);
   const step = s.value(0);
 
   const bgAura = aura(0, 20, 620, '#60a5fa1c', '#ffd16618');
@@ -29,7 +26,6 @@ export default function projectEvidence(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const inPerf = st >= 4;
 
     const nodes = [
@@ -66,9 +62,7 @@ export default function projectEvidence(s, c) {
       txt('3 CPU proofs (ring, offset, log) + supplied GPU', 420, 92, 26, COSMOS.muted, 'sans'),
     ];
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 255, { radius: 6, color: inPerf ? ROLE.good : ROLE.r0 }),
       txt(
         'Keep immutable source pins, license notices, analytical models, and live GPU measurements distinct',
         0,
@@ -82,7 +76,6 @@ export default function projectEvidence(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-project-evidence-b0-s0', 0],
     ['nc-project-evidence-b0-s1', 1],

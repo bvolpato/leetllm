@@ -9,8 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   trimSeg,
   txt,
@@ -18,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function operationLedger(s, c) {
-  const phase = s.value(0);
   const authOn = s.value(0);
   const timeoutOn = s.value(0);
   const reconcileOn = s.value(0); // STRICT after page-reconcile!
@@ -38,7 +35,6 @@ export default function operationLedger(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const au = authOn.value;
       const tm = timeoutOn.value;
       const rc = reconcileOn.value;
@@ -85,10 +81,10 @@ export default function operationLedger(s, c) {
       const [b1a, b1b] = trimSeg(reqPt, exePt, nReq.r + 18, nExe.r + 18);
       const [b2a, b2b] = trimSeg(exePt, svcPt, nExe.r + 18, nSvc.r + 18);
       nodes.push(
-        beamWithPhotons([b1a, b1b], ROLE.audio, p, { width: 4, photonCount: 2 }),
+        beamWithPhotons([b1a, b1b], ROLE.audio, 0, { width: 4 }),
         tm > 0.4 && rc < 0.4
           ? line(b2a, b2b, { stroke: ROLE.fail, width: 3.5, dash: [12, 10] }).glow(6, ROLE.fail)
-          : beamWithPhotons([b2a, b2b], svcCol, p + 0.4, { width: 4, photonCount: 2 }),
+          : beamWithPhotons([b2a, b2b], svcCol, 0, { width: 4 }),
         nReq.node,
         nExe.node,
         nSvc.node,
@@ -158,22 +154,11 @@ export default function operationLedger(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: svcCol,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('page-auth', () => {
     s.play(authOn.to(1, { duration: clampDur(c, c.cue('page-auth').start, 0.35) }));
   });

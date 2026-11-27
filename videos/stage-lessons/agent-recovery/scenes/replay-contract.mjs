@@ -12,7 +12,6 @@ import {
   cinemaAtmosphere,
   glowArrow,
   glowCross,
-  glowDot,
   glowPill,
   guardedDynamic,
   heroTitle,
@@ -80,9 +79,6 @@ export default function replayContract(s, c) {
             active: true,
           }),
         );
-
-        const pA = -480 + 820 * ((amb.value * 3) % 1);
-        nodes.push(glowDot(pA, -110, { radius: 9, color: ROLE.sure, glow: 12, opacity: alpha }));
 
         if (showLock.value > 0.2) {
           nodes.push(

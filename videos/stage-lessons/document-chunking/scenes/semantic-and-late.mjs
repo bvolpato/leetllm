@@ -11,12 +11,10 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function semanticAndLate(s, c) {
-  const phase = s.value(0);
   const showIsolated = s.value(0);
   const showFull = s.value(0);
   const showPooled = s.value(0);
@@ -33,12 +31,10 @@ export default function semanticAndLate(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const si = showIsolated.value;
     const sf = showFull.value;
     const sp = showPooled.value;
     const sr = showReturn.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const tokenNodes = [];
     const tokens = LATE_FIXTURE.tokens;
@@ -57,7 +53,7 @@ export default function semanticAndLate(s, c) {
       tokenNodes.push(
         glassCell(tx, 10, 192, 118, col, {
           fill: isMaya ? '#241c10' : inSpan && sp > 0.3 ? '#0e2824' : '#10182d',
-          glow: isMaya || (inSpan && sp > 0.3) ? 8 * pulse : 2,
+          glow: isMaya || (inSpan && sp > 0.3) ? 8 : 2,
         }),
         txt(tok.text, tx, -16, 27, col, 'mono'),
         txt(
@@ -109,7 +105,7 @@ export default function semanticAndLate(s, c) {
 
       glassCell(465, -172, 780, 140, sp > 0.3 ? COSMOS.emerald : COSMOS.cyan, {
         fill: sp > 0.3 ? '#0e2824' : '#101d35',
-        glow: sp > 0.3 ? 9 * pulse : 3,
+        glow: sp > 0.3 ? 9 : 3,
       }),
       txt('LATE CHUNKING (SHARED CONTEXT)', 105, -208, 26, COSMOS.emerald, 'mono', 'left'),
       txt('Pool contextual states [4..7] after encode', 105, -164, 26, COSMOS.ink, 'mono', 'left'),
@@ -144,7 +140,7 @@ export default function semanticAndLate(s, c) {
 
       glassCell(465, 206, 780, 134, sr > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#231c10',
-        glow: sr > 0.3 ? 9 * pulse : 2,
+        glow: sr > 0.3 ? 9 : 2,
       }),
       txt('STILL CHECK RETURNED TEXT!', 105, 174, 26, COSMOS.gold, 'mono', 'left'),
       txt(
@@ -173,7 +169,6 @@ export default function semanticAndLate(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('semantic-and-late-beat-1-focus-1', () => s.play(showIsolated.to(1, { duration: 0.4 })));
   c.on('semantic-and-late-beat-2-focus-2', () => s.play(showFull.to(1, { duration: 0.4 })));

@@ -10,8 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   sysNode,
   trimSeg,
@@ -19,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function concurrentClaim(s, c) {
-  const phase = s.value(0);
   const readOn = s.value(0);
   const claimFirst = s.value(0); // STRICT after claim-first!
   const reject202 = s.value(0); // STRICT after claim-reject!
@@ -42,7 +39,6 @@ export default function concurrentClaim(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const rd = readOn.value;
       const cf = claimFirst.value;
       const rj = reject202.value;
@@ -81,12 +77,11 @@ export default function concurrentClaim(s, c) {
       const [a2, b2] = trimSeg(r2Pt, poolPt, nR2.r + 16, nPool.r + 16);
 
       nodes.push(
-        beamWithPhotons([a1, b1], r1Col, p, { width: 4, photonCount: 2 }),
+        beamWithPhotons([a1, b1], r1Col, 0, { width: 4 }),
         rj > 0.4
           ? line(a2, b2, { stroke: ROLE.fail, width: 3.5, dash: [12, 10] }).glow(6, ROLE.fail)
-          : beamWithPhotons([a2, b2], r2Col, p + 0.5, {
+          : beamWithPhotons([a2, b2], r2Col, 0, {
               width: 3.6,
-              photonCount: 2,
               alpha: 0.45 + rd * 0.55,
             }),
         nR1.node,
@@ -178,22 +173,11 @@ export default function concurrentClaim(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: poolCol,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('claim-read', () => {
     s.play(readOn.to(1, { duration: clampDur(c, c.cue('claim-read').start, 0.35) }));
   });

@@ -15,13 +15,11 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function randomize(s, c) {
-  const phase = s.value(0);
   const showFirst = s.value(0);
   const showSecond = s.value(0);
   const showFollow = s.value(0);
@@ -196,7 +194,6 @@ export default function randomize(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   tweenCue(s, c, 'first', showFirst, 1, { duration: 0.45 });
   tweenCue(s, c, 'second', showSecond, 1, { duration: 0.45 });

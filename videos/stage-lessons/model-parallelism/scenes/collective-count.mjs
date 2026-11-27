@@ -4,20 +4,17 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
 
 export default function collectiveCount(s, c) {
-  const phase = s.value(0);
   const showStack = s.value(1);
   const showBatch = s.value(0);
 
@@ -135,11 +132,6 @@ export default function collectiveCount(s, c) {
         COSMOS.muted,
         'sans',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 410, {
-        radius: 6,
-        color: COSMOS.gold,
-        opacity: a,
-      }),
     );
 
     return group(...nodes);
@@ -196,17 +188,11 @@ export default function collectiveCount(s, c) {
         pr ? COSMOS.gold : COSMOS.muted,
         'sans',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: ROLE.gpu1,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, stackView, batchView);
-  runPhase(s, c, phase, 14);
 
   c.on('mp-collective-count-0', () =>
     s.play(pIntro.to(1, { duration: remainDuration(c, 'mp-collective-count-0', 0.4) })),

@@ -35,10 +35,8 @@ export default function vocabularyExpansion(s, c) {
   const accepted = expandQueries('peak demand handling', PROPOSALS, 3).slice(1);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const vs = vocabStage.value;
     const ss = slotStage.value;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const nodes = [
       txt('3D MULTI-QUERY FAN-OUT', 590, -345, 26, COSMOS.cyan, 'mono'),
@@ -108,7 +106,7 @@ export default function vocabularyExpansion(s, c) {
       nodes.push(
         glassCell(-46, y, 444, 102, admitted ? slot.col : previewed ? COSMOS.muted : COSMOS.dim, {
           fill: admitted ? '#0f2338' : '#11182c',
-          glow: admitted ? 8 * pulse : 2,
+          glow: admitted ? 8 : 2,
         }),
         txt(slot.title, -252, y - 24, 26, admitted ? slot.col : COSMOS.muted, 'mono', 'left'),
         txt(

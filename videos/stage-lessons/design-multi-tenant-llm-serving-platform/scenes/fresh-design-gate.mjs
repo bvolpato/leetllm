@@ -11,7 +11,6 @@ import {
   ROLE,
   aura,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function freshDesignGate(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const b1On = s.value(0);
   const hold600On = s.value(0);
@@ -258,8 +256,6 @@ export default function freshDesignGate(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-fresh-design-gate-b0', b0On, 1);
   stepOn(s, c, 'mt-fresh-design-gate-b1', b1On, 1);
   // Strict prediction withholding on Beat 1 answers!

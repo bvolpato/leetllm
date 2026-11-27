@@ -10,16 +10,7 @@ import {
   heroTitle,
   txt,
 } from '../../cinematic-kit.mjs';
-import {
-  ROLE,
-  cinemaAtmosphere,
-  fmt,
-  loss,
-  playCue,
-  plotPlane,
-  sampleCurve,
-  scenePulse,
-} from '../parts.mjs';
+import { ROLE, cinemaAtmosphere, fmt, loss, playCue, plotPlane, sampleCurve } from '../parts.mjs';
 
 const PROXY_RUNS = [2, 4, 6, 8, 10, 14, 20, 30, 40].map((n, i) => ({
   n,
@@ -45,7 +36,6 @@ export default function fitting(s, c) {
   const showObs = s.value(0); // AFTER fitting-observed
   const showResid = s.value(0); // AFTER fitting-residual
   const holdoutPulse = s.value(0); // fitting-b3-1
-  const pulse = s.value(0);
 
   const stageLayer = guardedDynamic(s.value(1), (alpha) => {
     const nodes = [];
@@ -163,7 +153,6 @@ export default function fitting(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.compute), title, stageLayer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'fitting-b1-1', (d) => s.play(dotsProg.to(1, { duration: d })), { dur: 1.4 });
   playCue(s, c, 'fitting-b2-1', (d) => s.play(fitSweep.to(1, { duration: d })), { dur: 1.2 });

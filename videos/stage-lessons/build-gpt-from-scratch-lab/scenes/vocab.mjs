@@ -3,7 +3,6 @@ import {
   COSMOS,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -76,15 +75,6 @@ export default function vocab(s, c) {
           width: 4,
           opacity: fwd,
         }),
-        glowDot(
-          -376 + 752 * Math.min(1, (p * 0.45) % 1),
-          -126 - Math.sin(((p * 0.45) % 1) * Math.PI) * 57,
-          {
-            radius: 6,
-            color: COSMOS.gold,
-            opacity: fwd,
-          },
-        ),
         txt('encode: ID 11 -> local row 2', 0, -244, 26, COSMOS.gold, 'mono').opacity(fwd),
       );
     }

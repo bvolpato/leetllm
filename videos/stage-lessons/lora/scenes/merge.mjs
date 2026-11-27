@@ -12,12 +12,10 @@ import {
   heroTitle,
   matrixGrid,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function merge(s, c) {
-  const phase = s.value(0);
   const hlUpdate = s.value(0);
   const hlBase = s.value(0);
   const showMerged = s.value(0);
@@ -143,7 +141,6 @@ export default function merge(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 12);
 
   c.on('merge-b1-1', () => s.play(hlUpdate.to(1, { duration: 0.4 })));
   c.on('merge-b1-2', () => s.play(hlBase.to(1, { duration: 0.4 })));

@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
   reuse,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function prefixLimit(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = op-0 formula rule
   // 1 = op-1 / match-six (shared=6, L=9 -> skip 4, compute 5)
@@ -39,7 +36,6 @@ export default function prefixLimit(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const isApcStep = st === 4;
     const isLen8 = st >= 5;
     const length = isLen8 ? 8 : 9;
@@ -177,9 +173,7 @@ export default function prefixLimit(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 326, { radius: 6, color: ROLE.kv }),
       txt(
         isLen8
           ? '1-token prompt skips 0; sliding-window, hybrid/SSM & offloaded paths use their own contracts'
@@ -195,7 +189,6 @@ export default function prefixLimit(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['vv-prefix-limit-op-0', 0],
     ['vv-prefix-limit-op-1', 1],

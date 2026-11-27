@@ -2,20 +2,9 @@
 // Stable 1,200-token header + 80-token delta: Cache Miss (72ms prefill + 24ms decode = 96ms)
 // vs Cache Hit (11ms prefill + 24ms decode = 35ms) showing decode stays fixed!
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function cache(s, c) {
-  const phase = s.value(0);
   const decodeOn = s.value(0);
 
   const header = cinemaHeader('PREFIX KV REUSE', 'Reuse prefill, still', 'decode the answer', {
@@ -30,7 +19,6 @@ export default function cache(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const dc = decodeOn.value;
       const nodes = [];
 
@@ -129,12 +117,6 @@ export default function cache(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -142,8 +124,6 @@ export default function cache(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('cache-beat-2-focus-1', () => {
     s.play(decodeOn.to(1, { duration: clampDur(c, c.cue('cache-beat-2-focus-1').start, 0.35) }));
   });

@@ -8,7 +8,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   glowDot,
   guardedDynamic,
   tweenOn,
@@ -16,7 +15,6 @@ import {
 } from '../parts.mjs';
 
 export default function kedaPhases(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=KEDA 0<->1 + HPA + Karpenter, 2=cooldown vs stabilization, 3=gateway/durable queue
 
   const header = cinemaHeader(
@@ -37,7 +35,6 @@ export default function kedaPhases(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const yMain = -45;
       const nodes = [];
 
@@ -65,7 +62,7 @@ export default function kedaPhases(s, c) {
                 [stages[i + 1].x - 175, yMain],
               ],
               sg.col,
-              p * 0.85,
+              0,
               { width: 3.4, glow: 8, photonCount: 1 },
             ),
           );
@@ -131,7 +128,6 @@ export default function kedaPhases(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-keda-phases-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-keda-phases-b1', step, 2, 0.35);

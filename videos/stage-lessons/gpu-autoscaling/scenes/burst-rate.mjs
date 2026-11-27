@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   dashedRule,
-  driftValue,
   glowDot,
   glowTex,
   guardedDynamic,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function burstRate(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=0.5 RPS & 20 reps = 10 RPS, 2=finite 100 drains, 3=last group@190s, 4=sustained 1.0 RPS diverges
 
   const header = cinemaHeader(
@@ -55,7 +53,6 @@ export default function burstRate(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const nodes = [];
 
       // Left readouts: Concurrency vs Rate
@@ -132,7 +129,7 @@ export default function burstRate(s, c) {
         [tx(190), qy(0)],
       ];
       nodes.push(
-        beamWithPhotons(finitePts, ROLE.warm, p * 0.65, { width: 4.2, glow: 10, photonCount: 2 }),
+        beamWithPhotons(finitePts, ROLE.warm, 0, { width: 4.2, glow: 10, photonCount: 2 }),
         txt('Finite 100 burst', tx(16), qy(116), 26, ROLE.warm, 'mono', 'left'),
       );
       if (st >= 2.5) {
@@ -152,7 +149,7 @@ export default function burstRate(s, c) {
           [tx(220), qy(120)],
         ];
         nodes.push(
-          beamWithPhotons(divPts, ROLE.expired, p * 0.9, { width: 4.4, glow: 11, photonCount: 2 }),
+          beamWithPhotons(divPts, ROLE.expired, 0, { width: 4.4, glow: 11, photonCount: 2 }),
           txt('1.0 RPS arrival -> diverges', tx(110), qy(102), 26, ROLE.expired, 'mono').glow(
             7,
             ROLE.expired,
@@ -165,7 +162,6 @@ export default function burstRate(s, c) {
   );
 
   s.add(bgAura, header, rateEq, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-burst-rate-b0', step, 1, 0.35);
   tweenOn(s, c, 'ga-burst-rate-b1', step, 2, 0.3);

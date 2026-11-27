@@ -4,17 +4,7 @@
 // outputs where 4 match emerald and 3 flare rose (false supports despite valid JSON!),
 // plus the collapsed 0.6B all-supported ring.
 import { circle, group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 const CLAIMS = [
   { id: 'C1', human: 'SUP', model: 'SUP', ok: true, note: 'permission = approval' },
@@ -50,7 +40,7 @@ export default function readerModelCheck(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const lb = labelsOn.value;
       const ms = missOn.value;
       const js = jsonOn.value;
@@ -104,16 +94,6 @@ export default function readerModelCheck(s, c) {
             .at(ox, oy)
             .glow(highlightMiss ? 10 : 5, spokeCol),
           txt(cl.id, ox, oy, 26, spokeCol, 'mono', 'center'),
-        );
-
-        // Orbiting pulse along each spoke (strictly between circles!)
-        const u = (p * 0.9 + i * 0.14) % 1;
-        nodes.push(
-          glowDot(sx0 + (sx1 - sx0) * u, sy0 + (sy1 - sy0) * u, {
-            radius: 4.5,
-            color: spokeCol,
-            glow: 8,
-          }),
         );
       });
 
@@ -201,7 +181,6 @@ export default function readerModelCheck(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 3.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('reader-snapshot', () => {
     s.play(pulse.to(0.4, { duration: clampDur(c, c.cue('reader-snapshot').start, 0.25) }));

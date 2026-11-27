@@ -11,12 +11,10 @@ import {
   meterBar,
   remainDuration,
   retrievalRun,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function mergeRankedLists(s, c) {
-  const phase = s.value(0);
   const showRanks = s.value(0);
   const showFirst = s.value(0);
   const showSecond = s.value(0);
@@ -48,13 +46,11 @@ export default function mergeRankedLists(s, c) {
   const colLabels = ['Burst quota', 'Queue overload', 'Capacity & backpr.'];
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sr = showRanks.value;
     const sf = showFirst.value;
     const ss = showSecond.value;
     const sw = showWinner.value;
     const revealed = sw > 0.5;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const colXs = [-275, -15, 245];
     const nodes = [
@@ -79,7 +75,7 @@ export default function mergeRankedLists(s, c) {
       nodes.push(
         glassCell(0, y, 1710, 114, isWin ? COSMOS.emerald : COSMOS.dim, {
           fill: isWin ? '#0d2723' : '#10182d',
-          glow: isWin ? 10 * pulse : 3,
+          glow: isWin ? 10 : 3,
         }),
         txt(id, -832, y + 2, 32, isWin ? COSMOS.emerald : COSMOS.ink, 'mono', 'left'),
       );
@@ -154,7 +150,6 @@ export default function mergeRankedLists(s, c) {
   });
 
   s.add(bgAura, title, formula, live);
-  runPhase(s, c, phase, 12);
 
   c.on('fusion-ranks', () => s.play(showRanks.to(1, { duration: 0.4 })));
   c.on('fusion-first', () => s.play(showFirst.to(1, { duration: 0.5 })));

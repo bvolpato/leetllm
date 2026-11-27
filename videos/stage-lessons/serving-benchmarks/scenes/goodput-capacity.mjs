@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   cinematic3d,
   clampDur,
-  driftValue,
   fadeInNodes,
   glowBar,
   glowTex,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function goodputCapacity(s, c) {
-  const phase = s.value(0);
   const run1Lit = s.value(0.25);
   const run2Lit = s.value(0);
   const drainLit = s.value(0);
@@ -221,7 +219,6 @@ export default function goodputCapacity(s, c) {
 
   s.add(stageAura, view3d, header, goodputEq, leftPanel);
   orbitScene(s, c, view3d, { theta: -0.22, phi: 0.9 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, phase, 7, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('goodput-capacity-beat-0', () => {
     const t = c.cue('goodput-capacity-beat-0').start;

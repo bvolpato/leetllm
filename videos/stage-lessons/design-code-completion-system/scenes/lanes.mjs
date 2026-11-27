@@ -2,20 +2,9 @@
 // Comparing 3 completion lanes: Local LSP member lookup ("graph."), Remote FIM expression infill
 // (when upload permitted), and Slower Coding Agent (multi-file edits + tests).
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function lanes(s, c) {
-  const phase = s.value(0);
   const assignOn = s.value(0);
   const sendOn = s.value(0);
   const stayOn = s.value(0);
@@ -32,7 +21,6 @@ export default function lanes(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const as = assignOn.value;
       const sn = sendOn.value;
       const st = stayOn.value;
@@ -90,12 +78,6 @@ export default function lanes(s, c) {
         ),
         txt('GATEWAY AUTHORITY', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Checks caller access + upload policy', 480, -378, 26, COSMOS.muted, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -103,8 +85,6 @@ export default function lanes(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('lanes-assignment', () => {
     s.play(assignOn.to(1, { duration: clampDur(c, c.cue('lanes-assignment').start, 0.35) }));
   });

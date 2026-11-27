@@ -7,19 +7,16 @@ import {
   afterDuration,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function banks(s, c) {
-  const phase = s.value(0);
   const mode = s.value(0); // 0=conflict (stride 32), 1=padded (stride 33), 2=broadcast (word 0)
   const routeProg = s.value(0);
   const padVerdict = s.value(0);
@@ -45,9 +42,7 @@ export default function banks(s, c) {
 
   const live = guardedDynamic(1, () => {
     const m = Math.round(mode.value);
-    const p = phase.value;
     const rp = routeProg.value;
-    const u = (p * 0.55) % 1;
     const req = m === 0 ? STRIDED_REQ : m === 1 ? PADDED_REQ : BROADCAST_REQ;
 
     const header =
@@ -107,11 +102,6 @@ export default function banks(s, c) {
               width: 3.2,
               opacity: 0.88,
             }),
-            glowDot(bx, laneY + 54 + u * (bankY - laneY - 108), {
-              radius: 6,
-              color: COSMOS.cyan,
-              glow: 10,
-            }),
           );
         }
       }
@@ -142,11 +132,6 @@ export default function banks(s, c) {
               color: bankCol,
               width: 3.0,
               opacity: 0.85,
-            }),
-            glowDot(lx + (tx - lx) * u, laneY + 50 + (bankY - 58 - (laneY + 50)) * u, {
-              radius: 5.5,
-              color: bankCol,
-              glow: 9,
             }),
           );
         }
@@ -183,7 +168,6 @@ export default function banks(s, c) {
   });
 
   s.add(bgAura, title, bankEq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('bank-conflict', () => s.play(routeProg.to(1, { duration: 0.85 })));
   c.on('pad-banks', () => {

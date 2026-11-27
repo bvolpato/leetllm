@@ -2,20 +2,9 @@
 // Common-prefix streaming recognizer ladder, read-only prefetch vs close-confirmation gate,
 // and strict Python bool(False) vs truthy "false" string validation.
 import { group, line } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function partialTranscripts(s, c) {
-  const phase = s.value(0);
   const prefixOn = s.value(0);
   const extendOn = s.value(0);
   const prefetchOn = s.value(0);
@@ -40,7 +29,6 @@ export default function partialTranscripts(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const prf = prefixOn.value;
       const ext = extendOn.value;
       const pf = prefetchOn.value;
@@ -164,12 +152,6 @@ export default function partialTranscripts(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.audio,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -177,8 +159,6 @@ export default function partialTranscripts(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('va-partial-transcripts-0-2', () => {
     s.play(
       prefixOn.to(1, { duration: clampDur(c, c.cue('va-partial-transcripts-0-2').start, 0.35) }),

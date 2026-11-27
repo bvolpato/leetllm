@@ -8,7 +8,6 @@ import {
   arrow,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,

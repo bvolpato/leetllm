@@ -9,7 +9,6 @@ import {
   beamWithPhotons,
   buildLedgerNodes,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   quadArcPts,
   stepAfter,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function admissionRace(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const staleReadOn = s.value(0);
   const excessOn = s.value(0);
@@ -39,7 +37,6 @@ export default function admissionRace(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const stale = staleReadOn.value > 0.5;
       const excess = excessOn.value > 0.5;
       const atomic = b1On.value > 0.5 || restartOn.value > 0.5;
@@ -86,15 +83,13 @@ export default function admissionRace(s, c) {
       if (!atomic) {
         // Beat 0: Both read 1,000 before either writes
         nodes.push(
-          beamWithPhotons(quadArcPts([-300, -165], [-165, 35], -22), g1Col, p, {
+          beamWithPhotons(quadArcPts([-300, -165], [-165, 35], -22), g1Col, 0, {
             width: 4,
             glow: 8,
-            photonCount: 2,
           }),
-          beamWithPhotons(quadArcPts([300, -165], [165, 35], 22), g2Col, p + 0.4, {
+          beamWithPhotons(quadArcPts([300, -165], [165, 35], 22), g2Col, 0, {
             width: 4,
             glow: 8,
-            photonCount: 2,
           }),
           rect(620, 148, { fill: '#19160c', stroke: ROLE.held, width: 3.0, radius: 16 })
             .at(0, 75)
@@ -199,8 +194,6 @@ export default function admissionRace(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-admission-race-b0', b0On, 1);
   stepAfter(s, c, 'mt-admission-race-s0-2', staleReadOn, 1);
   stepAfter(s, c, 'mt-admission-race-s0-3', excessOn, 1);

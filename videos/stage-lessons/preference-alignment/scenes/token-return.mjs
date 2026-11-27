@@ -5,7 +5,6 @@ import {
   GAE_HALF,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   glowingArc,
   group,
@@ -138,11 +137,6 @@ export default function tokenReturn(s, c) {
           width: 3.4,
           opacity: gb,
           glow: 9,
-        }),
-        glowDot(200 - ((p * 110) % 410), tokY + 190, {
-          radius: 6,
-          color: COSMOS.gold,
-          opacity: gb,
         }),
       );
     }

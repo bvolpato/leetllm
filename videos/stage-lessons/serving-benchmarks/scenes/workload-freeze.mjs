@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   glowBar,
   glowDot,
   glowingTrail,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function workloadFreeze(s, c) {
-  const phase = s.value(0);
   const lenProg = s.value(0.18); // bars visible from frame 0, grow to 1 at workload-lengths
   const revealPair = s.value(0); // strictly AFTER workload-neighbors
   const capFocus = s.value(0); // workload-cap
@@ -44,7 +42,6 @@ export default function workloadFreeze(s, c) {
       const pairRev = revealPair.value;
       const capF = capFocus.value;
       const fileF = fileFocus.value;
-      const pulse = 0.72 + 0.28 * Math.sin(phase.value * 4.5);
 
       const topY = -160;
       const rowStep = 82;
@@ -194,9 +191,7 @@ export default function workloadFreeze(s, c) {
             30,
             ROLE.focus,
             'mono',
-          )
-            .glow(6, ROLE.focus)
-            .opacity(pulse),
+          ).glow(6, ROLE.focus),
         );
       }
 
@@ -205,7 +200,6 @@ export default function workloadFreeze(s, c) {
   );
 
   s.add(stageAura, header, specView);
-  driftValue(s, c, phase, 8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('workload-lengths', () => {
     const t = c.cue('workload-lengths').start;

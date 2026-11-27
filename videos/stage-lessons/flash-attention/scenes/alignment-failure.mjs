@@ -11,7 +11,6 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -148,7 +147,6 @@ export default function alignmentFailure(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('cache-inputs', () => s.play(phase.to(2, { duration: 0.35 })));
   c.on('ten-returned', () => s.play(showTen.to(1, { duration: 0.4 })));

@@ -9,14 +9,12 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   quadArcPts,
   txt,
 } from '../parts.mjs';
 
 export default function contextCompression(s, c) {
-  const pulse = s.value(0);
   const budgetOn = s.value(0);
   const beat1On = s.value(0);
   const posSweep = s.value(0);
@@ -38,7 +36,6 @@ export default function contextCompression(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const b1 = beat1On.value > 0.5;
       const sw = posSweep.value;
       const b2 = beat2On.value > 0.5;
@@ -91,10 +88,9 @@ export default function contextCompression(s, c) {
           txt('60 days ONLY WITH', -805, 124, 34, COSMOS.ink, 'mono', 'left'),
           txt('SECURITY APPROVAL', -805, 174, 34, ROLE.exception, 'mono', 'left'),
 
-          beamWithPhotons(quadArcPts([-95, 125], [95, 125], -22), cc ? ROLE.ok : ROLE.focus, p, {
+          beamWithPhotons(quadArcPts([-95, 125], [95, 125], -22), cc ? ROLE.ok : ROLE.focus, 0, {
             width: 3.6,
             glow: 9,
-            photonCount: 1,
           }),
 
           rect(740, 210, {
@@ -206,8 +202,6 @@ export default function contextCompression(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-context-compression-0', () => {
     s.play(
       budgetOn.to(1, { duration: clampDur(c, c.cue('se-context-compression-0').start, 0.35) }),

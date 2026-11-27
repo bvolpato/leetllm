@@ -8,15 +8,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   route,
   txt,
 } from '../parts.mjs';
 
 export default function routePolicy(s, c) {
-  const phase = s.value(0);
   const permOn = s.value(0);
   const gwOn = s.value(0);
 
@@ -37,7 +34,6 @@ export default function routePolicy(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const pm = permOn.value;
       const gw = gwOn.value;
       const nodes = [];
@@ -112,12 +108,6 @@ export default function routePolicy(s, c) {
           'sans',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.focus,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -125,8 +115,6 @@ export default function routePolicy(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('cc-route-permission', () => {
     s.play(permOn.to(1, { duration: clampDur(c, c.cue('cc-route-permission').start, 0.35) }));
   });

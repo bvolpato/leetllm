@@ -17,13 +17,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function communication(s, c) {
-  const phase = s.value(0);
-
   // Act 1
   const showAct1 = s.value(1);
   const sepProgress = s.value(0);
@@ -70,8 +67,6 @@ export default function communication(s, c) {
   // Act 1: Three independent precision roles
   const act1Live = guardedDynamic(showAct1, (a) => {
     const sp = sepProgress.value;
-    const ph = phase.value;
-    const pulse = (ph * 0.6) % 1;
 
     const lanes = [
       { label: 'Matrix Multiply Operands', dtype: 'BF16 (16-bit)', y: -155, col: COSMOS.blue },
@@ -90,12 +85,6 @@ export default function communication(s, c) {
           ],
           { color: ln.col, width: 4.5, glow: 9, opacity: (0.35 + 0.65 * lit) * a },
         ),
-        glowDot(-110 + 340 * ((pulse + idx * 0.33) % 1), ln.y, {
-          radius: 8,
-          color: ln.col,
-          glow: 12,
-          opacity: lit * a,
-        }),
         glowDot(265, ln.y, { radius: 16, color: ln.col, glow: 14, opacity: a }),
         txt(ln.dtype, 325, ln.y, 36, ln.col, 'mono', 'left').glow(6, ln.col).opacity(a),
       );
@@ -318,7 +307,6 @@ export default function communication(s, c) {
   });
 
   s.add(bgAura, title1, title2, title3, act1Live, act2Live, act3Live);
-  runPhase(s, c, phase, 16);
 
   // Act 1
   c.on('communication-b1', () => s.play(sepProgress.to(1, { duration: 1.2 })));

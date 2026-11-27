@@ -12,7 +12,6 @@ import {
   clampDur,
   contextTierPrice,
   dashedRule,
-  driftValue,
   fadeInHalf,
   fadeInNodes,
   fadeOutHalf,
@@ -257,7 +256,6 @@ export default function contextTier(s, c) {
 
   s.add(sceneAura, view3d, header, captions3d, leftMode0, leftMode12);
   orbitScene(s, c, view3d, { theta: -0.34, phi: 0.9 }, { startOffset: 0.1, endMargin: 0.5 });
-  driftValue(s, c, pulseT, 3.5, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('te-context-tier-0', () => {
     const t = c.cue('te-context-tier-0').start;

@@ -6,7 +6,6 @@ import {
   buildFoldedWorld3d,
   expertSkewTrace,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -39,7 +38,6 @@ export default function experts(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     if (st <= 2) {
@@ -148,9 +146,7 @@ export default function experts(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 315, { radius: 6, color: ROLE.ep }),
       txt(
         st >= 5
           ? 'Parallel folding regroups the same 256 ranks while keeping pipeline stages aligned'

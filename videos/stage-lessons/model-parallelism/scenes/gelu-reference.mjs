@@ -9,7 +9,6 @@ import {
   fmtFixed,
   fmtVec,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -18,13 +17,11 @@ import {
   remainAfterDuration,
   remainBeatDuration,
   remainDuration,
-  runPhase,
   swapViews,
   txt,
 } from '../parts.mjs';
 
 export default function geluReference(s, c) {
-  const phase = s.value(0);
   const showMat = s.value(1);
   const showRows = s.value(0);
   const showCheck = s.value(0);
@@ -137,11 +134,6 @@ export default function geluReference(s, c) {
         proj ? COSMOS.gold : COSMOS.muted,
         'sans',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: ROLE.gpu1,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
@@ -280,17 +272,11 @@ export default function geluReference(s, c) {
         COSMOS.muted,
         'sans',
       ).opacity(a),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: ROLE.good,
-        opacity: a,
-      }),
     );
     return group(...nodes);
   });
 
   s.add(bgAura, title, matView, rowsView, checkView);
-  runPhase(s, c, phase, 14);
 
   c.on('expansion-columns', () =>
     s.play(pCols.to(1, { duration: remainDuration(c, 'expansion-columns', 0.4) })),

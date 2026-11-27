@@ -9,8 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   memNode,
   trimSeg,
@@ -38,7 +36,7 @@ export default function returnSession(s, c) {
   const visual = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
+      const p = 0;
       const stale = skipStale.value;
       const pin = pinInv.value;
       const bg = bgRefresh.value;
@@ -207,15 +205,11 @@ export default function returnSession(s, c) {
         ),
       );
 
-      const dotX = -760 + ((p * 120) % 240);
-      nodes.push(glowDot(dotX, 448, { radius: 4.5, color: pktCol, glow: 8, opacity: 0.7 }));
-
       return group(...nodes);
     },
   );
 
   s.add(bgAuras, header, visual);
-  driftValue(s, c, phase, 4.4);
 
   c.on('fresh-source-three', () => {
     s.play(srcV3.to(1, { duration: clampDur(c, c.cue('fresh-source-three').start, 0.35) }));

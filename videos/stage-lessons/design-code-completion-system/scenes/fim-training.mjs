@@ -2,20 +2,9 @@
 // Contrasting PSM (<PRE> prefix <SUF> suffix <MID> middle) vs Joint-Training SPM
 // (<PRE> <SUF> suffix <MID> prefix middle) and Qwen2.5-Coder trained sentinel IDs.
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function fimTraining(s, c) {
-  const phase = s.value(0);
   const spmOn = s.value(0);
   const qwenOn = s.value(0);
 
@@ -36,7 +25,6 @@ export default function fimTraining(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const sp = spmOn.value;
       const qw = qwenOn.value;
       const nodes = [];
@@ -96,12 +84,6 @@ export default function fimTraining(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.model,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -109,8 +91,6 @@ export default function fimTraining(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('cc-fim-spm', () => {
     s.play(spmOn.to(1, { duration: clampDur(c, c.cue('cc-fim-spm').start, 0.4) }));
   });

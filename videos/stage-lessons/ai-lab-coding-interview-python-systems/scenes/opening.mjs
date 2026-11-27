@@ -6,7 +6,6 @@ import {
   COSMOS,
   ROLE,
   UNSAFE_LINES,
-  ambientClock,
   cinemaAtmosphere,
   codeSpotlight,
   glowDot,
@@ -24,7 +23,6 @@ export default function opening(s, c) {
     accent: ROLE.workerB,
   });
 
-  const amb = ambientClock(s, c);
   const lineA = s.value(0); // 0 -> 1 -> 2 -> 3
   const lineB = s.value(0); // 0 -> 1 -> 2 -> 3
   const activeCode = s.value(1);
@@ -42,7 +40,6 @@ export default function opening(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const yOf = (idx) => codeY + idx * lineH;
       const yA = yOf(lineA.value);
       const yB = yOf(lineB.value);
@@ -127,13 +124,13 @@ export default function opening(s, c) {
       if (lineA.value > 1.8 && lineB.value > 1.8 && callsN === 0) {
         nodes.push(
           glowDot(laneAX + 78, yOf(2), {
-            radius: 6 + 3 * pulse,
+            radius: 8,
             color: ROLE.focus,
             glow: 12,
             opacity: alpha,
           }),
           glowDot(laneBX + 78, yOf(2), {
-            radius: 6 + 3 * pulse,
+            radius: 8,
             color: ROLE.focus,
             glow: 12,
             opacity: alpha,
@@ -225,7 +222,7 @@ export default function opening(s, c) {
             'center',
           )
             .glow(7, ROLE.focus)
-            .opacity(alpha * (0.82 + 0.18 * pulse)),
+            .opacity(alpha),
         );
       } else if (callsN >= 1) {
         nodes.push(

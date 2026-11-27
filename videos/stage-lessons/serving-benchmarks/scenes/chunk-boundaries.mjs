@@ -9,7 +9,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   glowDot,
   glowingTrail,
   guardedDynamic,
@@ -24,7 +23,6 @@ import {
 const WORDS = Object.freeze(['The', 'answer', 'is', '42', '.']);
 
 export default function chunkBoundaries(s, c) {
-  const phase = s.value(0);
   const nowMs = s.value(200); // 200 -> 320 -> 480 -> 500
 
   const firstChunk = tokenTimes[2]; // 320
@@ -200,7 +198,6 @@ export default function chunkBoundaries(s, c) {
   );
 
   s.add(stageAura, header, oscView);
-  driftValue(s, c, phase, 6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('chunk-first', () => {
     const t = c.cue('chunk-first').start;

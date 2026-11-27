@@ -6,17 +6,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const phase = s.value(0);
   // step: 1=col2, 2=terms, 3=sum 3333, 4=dest question (hold!), 5=all-reduce all 4, 6=full vec, 7=sharded question (hold!), 8=which copy, 9=rank 2 keeps 3333, 10=diagonal shards
   const step = s.value(0);
 
@@ -32,7 +29,6 @@ export default function intro(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const rankCols = [ROLE.r0, ROLE.r1, ROLE.r2, ROLE.r3];
 
     const nodes = [
@@ -128,9 +124,7 @@ export default function intro(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 278, { radius: 6, color: st >= 9 ? ROLE.good : COSMOS.gold }),
       txt(
         st >= 9
           ? 'Reduce-Scatter gives Rank 2 slot 2 (3333) and each rank its own slot'
@@ -151,7 +145,6 @@ export default function intro(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['intro-column', 1],
     ['intro-terms', 2],

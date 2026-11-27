@@ -9,14 +9,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   mix,
   txt,
 } from '../parts.mjs';
 
 export default function capacityBounds(s, c) {
-  const pulse = s.value(0);
   const memStart = s.value(0);
   const memProg = s.value(0);
   const decStart = s.value(0);
@@ -184,8 +182,6 @@ export default function capacityBounds(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-capacity-bounds-0', () => {
     s.play(memStart.to(1, { duration: clampDur(c, c.cue('se-capacity-bounds-0').start, 0.35) }));
   });

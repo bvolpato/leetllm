@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function pageAdmission(s, c) {
-  const phase = s.value(0);
   // step: 0=PrefillAdder reserves decode -> 5 places pass arithmetic, 1=1 free page holds 4, 2=5th needs page 2 -> WAITS!
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function pageAdmission(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const blocked = st >= 2;
     const nodes = [];
 
@@ -99,9 +95,7 @@ export default function pageAdmission(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 255, { radius: 6, color: blocked ? ROLE.fail : ROLE.radix }),
       txt(
         blocked
           ? 'In an idle queue, check free KV pages, alignment, running-request caps, and output reservations.'
@@ -119,7 +113,6 @@ export default function pageAdmission(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['sg-page-admission-beat-0', 0],
     ['sg-page-admission-beat-1', 1],

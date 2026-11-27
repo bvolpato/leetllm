@@ -14,12 +14,10 @@ import {
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function transfer(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const drawSteps = s.value(0); // 0..4 draws
 
@@ -266,7 +264,6 @@ export default function transfer(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-transfer-draws', () =>
     s.play(drawSteps.to(4, { duration: remainDuration(c, 'pt-transfer-draws', 1.6) })),

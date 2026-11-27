@@ -5,7 +5,6 @@ import {
   aura,
   buildV1TopologyRig3d,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -35,7 +34,6 @@ export default function entryContract(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [
       txt('V1 SHARED ENGINE TOPOLOGY', 475, -395, 26, ROLE.kv, 'mono').glow(5, ROLE.kv),
       txt('API -> ZeroMQ -> EngineCore -> Workers', 475, 400, 26, COSMOS.muted, 'mono'),
@@ -134,9 +132,7 @@ export default function entryContract(s, c) {
       );
     }
 
-    const u = (p * 0.6) % 1;
     nodes.push(
-      glowDot(-820 + u * 780, 330, { radius: 6, color: ROLE.kv }),
       txt(
         st === 0
           ? 'Both entry paths drive the same V1 engine core'

@@ -9,7 +9,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   glowTex,
   guardedDynamic,
   stepAfter,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function adapterRevisions(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const authNoteOn = s.value(0);
   const resolveOn = s.value(0);
@@ -43,7 +41,6 @@ export default function adapterRevisions(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const authNote = authNoteOn.value > 0.5;
       const resolved = resolveOn.value > 0.5;
       const b1 = b1On.value > 0.5;
@@ -77,8 +74,8 @@ export default function adapterRevisions(s, c) {
               [-140, 72],
             ],
             ROLE.A,
-            p,
-            { width: 3.6, glow: 7, photonCount: 1 },
+            0,
+            { width: 3.6, glow: 7 },
           ),
           beamWithPhotons(
             [
@@ -86,8 +83,8 @@ export default function adapterRevisions(s, c) {
               [140, 72],
             ],
             ROLE.adapter,
-            p + 0.5,
-            { width: 3.6, glow: 7, photonCount: 1 },
+            0,
+            { width: 3.6, glow: 7 },
           ),
 
           rect(1660, 128, {
@@ -257,8 +254,6 @@ export default function adapterRevisions(s, c) {
   );
 
   s.add(stageAura, header, view, eqWrap);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-adapter-revisions-b0', b0On, 1);
   stepAfter(s, c, 'mt-adapter-revisions-s0-1', authNoteOn, 1);
   stepAfter(s, c, 'mt-adapter-revisions-s0-2', resolveOn, 1);

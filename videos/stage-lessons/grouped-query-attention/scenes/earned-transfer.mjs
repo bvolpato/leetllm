@@ -18,7 +18,6 @@ import {
   range,
   rect,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -47,8 +46,6 @@ export default function earnedTransfer(s, c) {
   const aggMiB = ranks * fullMiB; // 96
   const mhaMiB = queries * fullMiB; // 384
   const perTokKiB = perRankMiB(1) * 1024; // 8 KiB
-
-  const phase = s.value(0);
   const vMap = s.value(1); // View 1: 48Q -> 6 KV -> 12 ranks + memory math
   const vRank = s.value(0); // View 2: Single rank 12 MiB admission test
 
@@ -556,7 +553,6 @@ export default function earnedTransfer(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.value), title1, view1, view2);
-  runPhase(s, c, phase, 18);
 
   playCue(s, c, 'size', (d) => s.play(showSize.to(1, { duration: d })), { after: true, dur: 0.4 });
   playCue(s, c, 'ask-group', (d) => s.play(showQ19.to(1, { duration: d })), { dur: 0.45 });

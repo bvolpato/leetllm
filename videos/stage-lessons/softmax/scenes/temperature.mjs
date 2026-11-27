@@ -20,14 +20,12 @@ import {
   lumBar,
   orbitScene,
   positiveTemperature,
-  runAmbientPhase,
   tweenCue,
   txt,
   unitRibbon,
 } from '../parts.mjs';
 
 export default function temperature(s, c) {
-  const phase = s.value(0);
   const tempVal = s.value(1.0);
   const learnedMix = s.value(0); // 0 = original LOGITS, 1 = UPDATED
   const showOrder = s.value(0);
@@ -192,7 +190,6 @@ export default function temperature(s, c) {
   });
 
   s.add(bgAura, simplex, title, eqTemp, live);
-  runAmbientPhase(s, c, phase, 2.2);
   orbitScene(s, c, simplex, { theta: 0.48, phi: 0.96 });
 
   c.on('temperature-original', () => {

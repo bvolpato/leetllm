@@ -4,7 +4,6 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -94,9 +93,7 @@ export default function fsdp2Contract(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 295, { radius: 6, color: ROLE.comm }),
       txt(
         'Frozen base weights still require gathers for compute & input gradients',
         0,

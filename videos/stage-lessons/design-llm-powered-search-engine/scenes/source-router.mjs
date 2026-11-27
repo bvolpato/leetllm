@@ -9,7 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   glowingTrail,
   guardedDynamic,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function sourceRouter(s, c) {
-  const pulse = s.value(0);
   const beat0On = s.value(0);
   const beat1On = s.value(0);
   const liveOn = s.value(0);
@@ -50,7 +48,6 @@ export default function sourceRouter(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const b1 = beat1On.value > 0.5;
       const lv = liveOn.value > 0.5;
       const dc = docOn.value > 0.5;
@@ -188,16 +185,14 @@ export default function sourceRouter(s, c) {
         const freshCol = fr ? ROLE.focus : COSMOS.dim;
 
         nodes.push(
-          beamWithPhotons(quadArcPts([40, -322], [-440, -108], -24), liveCol, p, {
+          beamWithPhotons(quadArcPts([40, -322], [-440, -108], -24), liveCol, 0, {
             width: 3.4,
             glow: lv ? 9 : 0,
-            photonCount: lv ? 1 : 0,
             alpha: lv ? 0.95 : 0.3,
           }),
-          beamWithPhotons(quadArcPts([480, -322], [440, -108], -24), docCol, p + 0.45, {
+          beamWithPhotons(quadArcPts([480, -322], [440, -108], -24), docCol, 0, {
             width: 3.4,
             glow: dc ? 9 : 0,
-            photonCount: dc ? 1 : 0,
             alpha: dc ? 0.95 : 0.3,
           }),
 
@@ -300,8 +295,6 @@ export default function sourceRouter(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-source-router-0', () => {
     s.play(beat0On.to(1, { duration: clampDur(c, c.cue('se-source-router-0').start, 0.35) }));
   });

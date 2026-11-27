@@ -47,14 +47,12 @@ export default function freshProbe(s, c) {
   const r49_2 = ivfRoute(4.9, 2);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sa = showAsk.value;
     const sAns = showAnswer.value;
     const sc = showCount.value;
     const sCmp = showCompare.value;
     const sSp = showSpend.value;
     const sDec = showDecision.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const revealed = sAns > 0.4;
     const spendRevealed = sSp > 0.4;
@@ -85,7 +83,7 @@ export default function freshProbe(s, c) {
       txt('FRESH QUERY:  q = 5.2   (nprobe = 1)', -855, -205, 26, COSMOS.gold, 'mono', 'left'),
       glassCell(-425, -96, 880, 148, revealed ? COSMOS.emerald : COSMOS.gold, {
         fill: revealed ? '#0e2824' : '#181e34',
-        glow: revealed ? 9 * pulse : 4,
+        glow: revealed ? 9 : 4,
       }),
       txt(
         revealed
@@ -125,7 +123,7 @@ export default function freshProbe(s, c) {
       txt('WHICH QUERY BENEFITS FROM A 2nd PROBE?', -855, 22, 26, COSMOS.cyan, 'mono', 'left'),
       glassCell(-425, 118, 880, 96, spendRevealed ? COSMOS.emerald : COSMOS.muted, {
         fill: spendRevealed ? '#0e2824' : '#11182c',
-        glow: spendRevealed ? 9 * pulse : 2,
+        glow: spendRevealed ? 9 : 2,
       }),
       txt('q=4.9:', -840, 120, 26, COSMOS.gold, 'mono', 'left'),
       txt(

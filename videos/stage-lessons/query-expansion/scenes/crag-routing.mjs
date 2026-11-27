@@ -11,12 +11,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function cragRouting(s, c) {
-  const phase = s.value(0);
   const e1Score = s.value(0.81);
   const routeStage = s.value(0); // 0 -> 1 (correct) -> 2 (ambiguous) -> 3 (incorrect)
   const showPermission = s.value(0);
@@ -32,11 +30,9 @@ export default function cragRouting(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const score = e1Score.value;
     const rs = routeStage.value;
     const denied = showPermission.value > 0.5;
-    const pulse = 0.74 + 0.26 * Math.sin(p * 3.8);
 
     const best = Math.max(score, 0.12);
     const activeRoute = correctionPath(best);
@@ -95,7 +91,7 @@ export default function cragRouting(s, c) {
       // Authorization gate panel (right top)
       glassCell(440, -172, 830, 102, denied ? COSMOS.rose : COSMOS.emerald, {
         fill: denied ? '#2a121c' : '#0e2424',
-        glow: denied ? 10 * pulse : 4,
+        glow: denied ? 10 : 4,
       }),
       txt(
         'AUTHORIZATION & EGRESS GATE',
@@ -157,7 +153,7 @@ export default function cragRouting(s, c) {
       nodes.push(
         glassCell(cardXs[idx], 216, 540, 166, isActive ? b.col : COSMOS.dim, {
           fill: isActive ? (denied && b.id === 'external' ? '#2a121c' : '#102236') : '#101729',
-          glow: isActive ? 10 * pulse : 2,
+          glow: isActive ? 10 : 2,
         }),
         txt(b.title, cardXs[idx], 166, 26, isActive ? b.col : COSMOS.muted, 'mono'),
         txt(b.action, cardXs[idx], 216, 30, isActive ? COSMOS.ink : COSMOS.muted, 'sans'),
@@ -179,7 +175,6 @@ export default function cragRouting(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('crag-grade', () => s.play(e1Score.to(0.81, { duration: 0.3 })));
   c.on('crag-internal', () => s.play(routeStage.to(1, { duration: 0.4 })));

@@ -11,12 +11,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function transfer(s, c) {
-  const phase = s.value(0);
   const swappedInput = s.value(0);
   const askState = s.value(0);
   const revealChanged = s.value(0);
@@ -203,7 +201,6 @@ export default function transfer(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
 
   c.on('swap-value', () => s.play(swappedInput.to(1, { duration: 0.45 })));
   c.on('predict-state', () => s.play(askState.to(1, { duration: 0.45 })));

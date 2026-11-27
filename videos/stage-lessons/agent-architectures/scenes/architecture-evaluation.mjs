@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   txt,
@@ -38,7 +37,7 @@ export default function architectureEvaluation(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const mg = migOn.value;
       const ot = outageMode.value;
       const fr = firstReadOn.value;
@@ -236,7 +235,6 @@ export default function architectureEvaluation(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('eval-policies', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('eval-policies').start, 0.25) }));

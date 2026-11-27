@@ -20,13 +20,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function fp8Contract(s, c) {
-  const phase = s.value(0);
-
   // Act 1: E4M3 vs E5M2 bit fields
   const showAct1 = s.value(1);
   const bitsProg = s.value(0.2);
@@ -336,8 +333,6 @@ export default function fp8Contract(s, c) {
   const act4Live = guardedDynamic(showAct4, (a) => {
     const ss = satSlide.value;
     const se = satErr.value;
-    const ph = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(ph * 3.8);
 
     const railL = -720;
     const railR = 720;
@@ -357,7 +352,7 @@ export default function fp8Contract(s, c) {
         width: 5,
         dash: [8, 5],
       })
-        .glow(9 * pulse, COSMOS.rose)
+        .glow(9, COSMOS.rose)
         .opacity(a),
       txt('E4M3 MAX · 448', xMax, axisY - 150, 28, COSMOS.rose, 'mono')
         .glow(6, COSMOS.rose)
@@ -414,7 +409,6 @@ export default function fp8Contract(s, c) {
   });
 
   s.add(bgAura, title1, title2, title3, title4, mxView3d, act1Live, act2Live, act3Live, act4Live);
-  runPhase(s, c, phase, 16);
 
   // Act 1 cues
   c.on('fp8-contract-b1', () => s.play(bitsProg.to(1, { duration: 0.9 })));

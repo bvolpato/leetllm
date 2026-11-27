@@ -14,7 +14,6 @@ import {
   line,
   lumBar,
   rule,
-  runAmbientPhase,
   runtimeAccess,
   tweenCue,
   txt,
@@ -64,7 +63,6 @@ export default function executionBoundaries(s, c) {
     );
   }
 
-  const phase = s.value(0);
   const routeVis = ROUTES.map(() => s.value(0));
   const pathMode = s.value(0); // 0 = report.xml, 1 = notes.txt
   const yesTravel = s.value(0);
@@ -259,7 +257,6 @@ export default function executionBoundaries(s, c) {
   });
 
   s.add(bgAtmo, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   ROUTES.forEach((_, i) => {
     tweenCue(s, c, `eb-route-${i}`, routeVis[i], 1, { duration: 0.45 });

@@ -9,8 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   sysNode,
   trimSeg,
@@ -18,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function taskClaims(s, c) {
-  const phase = s.value(0);
   const casOn = s.value(0);
   const sandOn = s.value(0);
 
@@ -39,7 +36,6 @@ export default function taskClaims(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const cs = casOn.value;
       const sn = sandOn.value;
       const nodes = [];
@@ -68,7 +64,7 @@ export default function taskClaims(s, c) {
       ];
       pairs.forEach(([a, ra, b, rb, col], i) => {
         const [pa, pb] = trimSeg(a, b, ra + 10, rb + 10);
-        nodes.push(beamWithPhotons([pa, pb], col, p + i * 0.25, { width: 3.4, photonCount: 1 }));
+        nodes.push(beamWithPhotons([pa, pb], col, 0, { width: 3.4 }));
       });
       nodes.push(nQ.node, nPr.node, nRn.node, nBl.node, nTm.node);
 
@@ -130,12 +126,6 @@ export default function taskClaims(s, c) {
         ).opacity(sAlpha),
         txt('EDGE CHECK != PERSIST', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('Require atomic CAS or valid lease', 480, -378, 26, COSMOS.ink, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.policy,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -143,8 +133,6 @@ export default function taskClaims(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('sd-task-claims-1-operation', () => {
     s.play(casOn.to(1, { duration: clampDur(c, c.cue('sd-task-claims-1-operation').start, 0.4) }));
   });

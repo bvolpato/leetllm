@@ -20,13 +20,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function controller(s, c) {
-  const phase = s.value(0);
-
   // Act 1 values
   const showAct1 = s.value(1);
   const spikeFlight = s.value(0);
@@ -94,8 +91,6 @@ export default function controller(s, c) {
     const pr = showPreserved.value;
     const bo = showBackoff.value;
     const po = showPoison.value;
-    const ph = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(ph * 4.0);
 
     const rLeft = -760;
     const rRight = 760;
@@ -127,7 +122,7 @@ export default function controller(s, c) {
         width: 4.5,
         dash: [8, 6],
       })
-        .glow((7 + 6 * cp) * pulse, COSMOS.rose)
+        .glow(7 + 6 * cp, COSMOS.rose)
         .opacity(a),
       txt('FP16 MAX · 65,504', xCap, -255, 26, COSMOS.rose, 'mono').glow(6, COSMOS.rose).opacity(a),
 
@@ -469,7 +464,6 @@ export default function controller(s, c) {
   });
 
   s.add(bgAura, title1, title2, title3, derivTex, act1Live, act2Live, act3Live);
-  runPhase(s, c, phase, 18);
 
   // Act 1 cues
   c.on('scale-spike', () => s.play(spikeFlight.to(1, { duration: 1.1 })));

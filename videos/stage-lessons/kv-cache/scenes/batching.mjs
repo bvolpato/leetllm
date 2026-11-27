@@ -13,7 +13,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   guardedDynamic,
   memCell,
   txt,
@@ -22,7 +21,6 @@ import {
 export default function batching(s, c) {
   const act1Vis = s.value(1);
   const act2Vis = s.value(0);
-  const phase = s.value(0);
 
   // Act 1 state
   const staticStep = s.value(0); // 1=waits, 2=idle
@@ -47,7 +45,6 @@ export default function batching(s, c) {
     const st = staticStep.value;
     const ct = contStep.value;
     const pl = poolStep.value;
-    const ph = phase.value;
     const nodes = [];
 
     const colX = (step) => -710 + (step - 1) * 140;
@@ -101,7 +98,6 @@ export default function batching(s, c) {
 
     // 2. Continuous Batching Schedule skeleton visible from start of Act 1, lights up on `continuous`..`join`!
     const cA = a * (ct >= 0.5 ? Math.min(1, ct) : 0.42);
-    const pulse = 0.65 + 0.35 * Math.sin(ph * 5.2);
     nodes.push(
       txt('CONTINUOUS BATCHING (ITERATION LEVEL)', -855, 56, 26, ROLE.reqC, 'mono', 'left')
         .glow(ct >= 0.5 ? 5 : 0, ROLE.reqC)
@@ -123,7 +119,7 @@ export default function batching(s, c) {
           ...(isA || isC ? {} : { dash: [5, 5] }),
         })
           .at(cx, 112)
-          .opacity(cA * (isAsk ? pulse : 1)),
+          .opacity(cA * 1),
         txt(
           isA ? 'A' : isC ? 'C' : isAsk ? '?' : '',
           cx,
@@ -294,7 +290,6 @@ export default function batching(s, c) {
     const q = queueStep.value;
     const ch = chunkStep.value;
     const ds = disaggStep.value;
-    const ph = phase.value;
     const nodes = [];
 
     // Top-left: Longer Prompt Wait Breakdown (Queue + Prefill -> First Token)
@@ -431,7 +426,7 @@ export default function batching(s, c) {
             [395, 174],
           ],
           ROLE.link,
-          ph * 0.8,
+          0,
           { width: 5.0, glow: 14, photonCount: 3, alpha: dA },
         ),
         txt('KV Cache crosses link', 435, 84, 28, ROLE.link, 'mono', 'left')
@@ -446,7 +441,6 @@ export default function batching(s, c) {
   });
 
   s.add(act1Aura, act1Header, act1Dyn, act2Dyn);
-  driftValue(s, c, phase, 9.5, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0 cues
   c.on('waits', () => {

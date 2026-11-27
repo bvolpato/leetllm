@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fsmNode,
   guardedDynamic,
   opticalRail,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function evidenceAction(s, c) {
-  const pulse = s.value(0);
   const b0Hi = s.value(0);
   const quotePass = s.value(0);
   const inventedMode = s.value(0);
@@ -41,7 +39,6 @@ export default function evidenceAction(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const b0 = b0Hi.value;
       const qp = quotePass.value;
       const inv = inventedMode.value;
@@ -69,7 +66,7 @@ export default function evidenceAction(s, c) {
       // Left lower lane: Quoted bytes + substring membership beam from source log
       const qCol = isInvented ? ROLE.prune : membershipOk ? ROLE.legal : ROLE.fsm;
       nodes.push(
-        beamWithPhotons(quadArcPts([-460, -118], [-460, -20], 0), qCol, p * 1.1, {
+        beamWithPhotons(quadArcPts([-460, -118], [-460, -20], 0), qCol, 0, {
           alpha: 0.85,
           width: 3.4,
           photonCount: isInvented ? 0 : 2,
@@ -167,7 +164,6 @@ export default function evidenceAction(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-evidence-action-0', () => {
     s.play(b0Hi.to(1, { duration: clampDur(c, c.cue('sg-evidence-action-0').start, 0.35) }));

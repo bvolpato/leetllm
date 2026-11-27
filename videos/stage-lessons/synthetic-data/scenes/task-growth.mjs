@@ -58,7 +58,6 @@ export default function taskGrowth(s, c) {
         glassCell(465, -45, 600, 120, COSMOS.blue, { fill: '#0f1c38', glow: 6 }),
         txt('EXISTING POOL { x_i }', 465, -43, 30, COSMOS.blue, 'mono'),
         glowingArc([-175, -45], [155, -45], 0, { color: COSMOS.gold, width: 4.2 }),
-        glowDot(-175 + 330 * ((p * 0.45) % 1), -45, { radius: 7, color: COSMOS.gold }),
 
         // Similarity threshold bar
         glassCell(0, 290, 1320, 130, rg > 0.3 ? COSMOS.gold : COSMOS.rule, {

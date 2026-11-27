@@ -9,7 +9,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   gaps,
   glowDot,
   glowingTrail,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function streamTiming(s, c) {
-  const phase = s.value(0);
   const elapsedMs = s.value(0); // 0 -> 240 -> 480 -> 500
   const showMean = s.value(0);
 
@@ -197,7 +195,6 @@ export default function streamTiming(s, c) {
   );
 
   s.add(stageAura, header, oscView);
-  driftValue(s, c, phase, 7, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('stream-first', () => {
     const t = c.cue('stream-first').start;

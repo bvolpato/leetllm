@@ -9,14 +9,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   quoteReceipt,
   txt,
 } from '../parts.mjs';
 
 export default function cacheAuthority(s, c) {
-  const pulse = s.value(0);
   const startOn = s.value(0);
   const beat1On = s.value(0);
   const invalidOn = s.value(0);
@@ -119,8 +117,6 @@ export default function cacheAuthority(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-cache-authority-0', () => {
     s.play(startOn.to(1, { duration: clampDur(c, c.cue('se-cache-authority-0').start, 0.35) }));
   });

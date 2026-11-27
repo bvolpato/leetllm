@@ -24,13 +24,10 @@ import {
   qualityGates,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function earnedTransfer(s, c) {
-  const phase = s.value(0);
-
   // Act 1: Quality-gate scatter + throughput telemetry
   const showAct1 = s.value(1);
   const placedA = s.value(0);
@@ -400,7 +397,6 @@ export default function earnedTransfer(s, c) {
   });
 
   s.add(bgAura, title1, title2, title3, monoView3d, act1Live, act2Live, act3Live);
-  runPhase(s, c, phase, 20);
 
   // Beat 0: Place A & B
   c.on('place-a', () => s.play(placedA.to(1, { duration: 0.45 })));

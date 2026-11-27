@@ -5,18 +5,15 @@ import {
   WAVE_DP4,
   WAVE_DP8,
   aura,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function pipeline(s, c) {
-  const phase = s.value(0);
   // step: 0=1mb S0, 1=1mb handoff S1, 2=DP=4 8 pairs, 3=wave overlap, 4=2/18 (1/9), 5=DP=8 predict (hold!), 6=4 pairs, 7=5 ticks, 8=2/10 (1/5)!
   const step = s.value(0);
 
@@ -32,7 +29,6 @@ export default function pipeline(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const cellW = 114;
     const cellH = 62;
     const x0 = -720;
@@ -128,9 +124,7 @@ export default function pipeline(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 275, { radius: 6, color: st >= 8 ? ROLE.bad : ROLE.pp }),
       txt(
         st >= 8
           ? 'Doubling DP halves microbatches per replica (8 -> 4), raising idle share from 1/9 to 1/5'
@@ -150,7 +144,6 @@ export default function pipeline(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['pipe-first-stage', 0, true],
     ['pipe-handoff', 1, true],

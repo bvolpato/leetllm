@@ -16,12 +16,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function underflow(s, c) {
-  const phase = s.value(0);
   const castZero = s.value(0);
   const showScaledPanel = s.value(0);
   const scaleSlide = s.value(0);
@@ -213,7 +211,6 @@ export default function underflow(s, c) {
   });
 
   s.add(bgAura, title, live, rescueEq);
-  runPhase(s, c, phase, 14);
 
   c.after('underflow-zero-result', () =>
     s.play(

@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function context(s, c) {
-  const phase = s.value(0);
   // step: 0=query6, 1=local 21/4=5.25, 2=remote options (HOLD!), 3=recv3, 4=recv4, 5=recv5, 6=29/7=4.14, 7=pos7=90 masked, 8=equal 3.96, 9=weighted 4/7 & 3/7
   const step = s.value(0);
 
@@ -42,7 +39,6 @@ export default function context(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     nodes.push(
@@ -189,9 +185,7 @@ export default function context(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-740 + u * 1480, 310, { radius: 6, color: ROLE.cp }),
       txt(
         'Context parallelism moves where keys live; global positions still decide causal visibility',
         0,
@@ -205,7 +199,6 @@ export default function context(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['ctx-find-query', 0],
     ['ctx-local-sum', 1],

@@ -6,19 +6,16 @@ import {
   ZERO_2,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function zero2(s, c) {
-  const phase = s.value(0);
   const shardG = s.value(0); // 0 -> 1 shrinks grads 2 -> 0.5
   const showRS = s.value(0);
   const showOwned = s.value(0);
@@ -35,7 +32,6 @@ export default function zero2(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sg = shardG.value;
     const rs = showRS.value;
     const ow = showOwned.value;
@@ -119,9 +115,7 @@ export default function zero2(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-720 + u * 1440, 280, { radius: 6, color: ag > 0.5 ? ROLE.comm : ROLE.grads }),
       txt(
         'Reduce-scatter sums contributions and leaves each rank only its owned gradient shard',
         0,
@@ -136,7 +130,6 @@ export default function zero2(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('zero2-b1-1', () =>
     s.play(shardG.to(0.5, { duration: remainDuration(c, 'zero2-b1-1', 0.45) })),

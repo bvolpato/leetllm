@@ -9,7 +9,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   glowDot,
   guardedDynamic,
   tweenOn,
@@ -17,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function drain(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=close admission, 2=owned R1+R2, 3=R1 completes, 4=R2 still active, 5=empty active, 6=safe shutdown
 
   const header = cinemaHeader(
@@ -38,7 +36,6 @@ export default function drain(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const w = new Worker();
       w.loaded = true;
       w.warmed = true;
@@ -102,7 +99,7 @@ export default function drain(s, c) {
                 [465, sl.y],
               ],
               ROLE.active,
-              p * 1.1,
+              0,
               { width: 3.4, glow: 9, photonCount: 2 },
             ),
           );
@@ -143,7 +140,6 @@ export default function drain(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.0, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'closed-admission', step, 1, 0.25);
   tweenOn(s, c, 'owned-requests', step, 2, 0.25);

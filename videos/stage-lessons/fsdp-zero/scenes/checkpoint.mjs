@@ -5,18 +5,15 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function checkpoint(s, c) {
-  const phase = s.value(0);
   const revResumed = s.value(0);
   const revReset = s.value(0);
 
@@ -31,7 +28,6 @@ export default function checkpoint(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const rr = revResumed.value;
     const rs = revReset.value;
 
@@ -80,7 +76,6 @@ export default function checkpoint(s, c) {
       glowingArc([-376, -30], [-84, -110], -18, { color: ROLE.good, width: 3.4, opacity: 0.85 }),
       glowingArc([-376, 15], [-84, 98], 18, { color: ROLE.bad, width: 3.4, opacity: 0.85 }),
 
-      glowDot(-740 + ((p * 0.65) % 1) * 1480, 275, { radius: 6, color: COSMOS.gold }),
       txt(
         'Save sharded model + optimizer + scheduler + data pos + RNG · test resume vs uninterrupted run',
         0,
@@ -95,7 +90,6 @@ export default function checkpoint(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('resume-update', () =>
     s.play(revResumed.to(1, { duration: remainDuration(c, 'resume-update', 0.45) })),

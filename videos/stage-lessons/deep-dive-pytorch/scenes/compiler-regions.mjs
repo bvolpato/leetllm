@@ -5,17 +5,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function compilerRegions(s, c) {
-  const phase = s.value(0);
   const stage = s.value(0); // 0=pipeline stages, 1=graph break vs guard failure, 2=counting backend / aot_eager / Inductor warmup
 
   const bgAura = aura(0, 20, 620, '#f59e0b1e', '#6ee7b718');
@@ -30,7 +27,6 @@ export default function compilerRegions(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = stage.value;
-    const p = phase.value;
 
     const stages = [
       { title: '1. Dynamo', sub: 'Bytecode + Guards', x: -640, col: ROLE.compile },
@@ -139,9 +135,7 @@ export default function compilerRegions(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 296, { radius: 6, color: ROLE.compile }),
       txt(
         'Keep capture count, staged grad parity, and steady-state Inductor speed as separate measurements',
         0,
@@ -156,7 +150,6 @@ export default function compilerRegions(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-compiler-regions-0', () => s.play(stage.to(0, { duration: 0.25 })));
   c.on('pt-compiler-regions-1', () =>

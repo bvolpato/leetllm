@@ -4,19 +4,16 @@ import {
   arrow,
   aura,
   glassCell,
-  glowDot,
   glowTex,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function frozenBackward(s, c) {
-  const phase = s.value(0);
   const showBack = s.value(0);
   const showTranspose = s.value(0);
   const showAct = s.value(0);
@@ -45,7 +42,6 @@ export default function frozenBackward(s, c) {
   );
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sb = Math.max(showBack.value, showTranspose.value);
     const sa = showAct.value;
     const sq = showQuad.value;
@@ -87,7 +83,6 @@ export default function frozenBackward(s, c) {
         sb > 0.3 ? COSMOS.rose : COSMOS.muted,
         'mono',
       ),
-      glowDot(460 - ((p * 0.55) % 1) * 920, yChain + 112, { radius: 7, color: COSMOS.rose }),
 
       // Bottom left: Sequence activation growth (1024 -> 2048 quadratic attention scores)
       glassCell(-430, 232, 810, 315, sq > 0.2 ? COSMOS.rose : COSMOS.cyan, {
@@ -151,7 +146,6 @@ export default function frozenBackward(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('frozen-backward-1', () => s.play(showBack.to(1, { duration: 0.4 })));
   c.on('frozen-input-gradient', () => s.play(showTranspose.to(1, { duration: 0.45 })));

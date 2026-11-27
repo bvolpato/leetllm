@@ -7,7 +7,6 @@ import {
   bankAddress,
   buildBankRing3d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,

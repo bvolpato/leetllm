@@ -4,13 +4,11 @@ import {
   COSMOS,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -22,7 +20,6 @@ const STATE_COLOR = {
 };
 
 export default function asyncPipeline(s, c) {
-  const phase = s.value(0);
   const stepVal = s.value(0); // 0..8 matching tilePipelinePrefix(steps)
   const showFa3 = s.value(0);
 
@@ -37,11 +34,9 @@ export default function asyncPipeline(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const steps = Math.max(0, Math.min(8, Math.round(stepVal.value)));
     const snap = tilePipelinePrefix(steps);
     const fa3 = showFa3.value;
-    const u = (p * 0.55) % 1;
 
     const slotA = snap.slots.A;
     const slotB = snap.slots.B;
@@ -88,28 +83,16 @@ export default function asyncPipeline(s, c) {
 
     // Active copy / consume energy beams
     if (slotA.status === 'copying') {
-      nodes.push(
-        glowingArc([-468, -70], [-262, -135], -24, { color: COSMOS.cyan, width: 4.0 }),
-        glowDot(-468 + u * 206, -70 - u * 65, { radius: 6, color: COSMOS.cyan }),
-      );
+      nodes.push(glowingArc([-468, -70], [-262, -135], -24, { color: COSMOS.cyan, width: 4.0 }));
     }
     if (slotB.status === 'copying') {
-      nodes.push(
-        glowingArc([-468, 50], [-262, 115], 24, { color: COSMOS.cyan, width: 4.0 }),
-        glowDot(-468 + u * 206, 50 + u * 65, { radius: 6, color: COSMOS.cyan }),
-      );
+      nodes.push(glowingArc([-468, 50], [-262, 115], 24, { color: COSMOS.cyan, width: 4.0 }));
     }
     if (slotA.status === 'reading') {
-      nodes.push(
-        glowingArc([262, -135], [468, -70], -24, { color: COSMOS.emerald, width: 4.0 }),
-        glowDot(262 + u * 206, -135 + u * 65, { radius: 6, color: COSMOS.emerald }),
-      );
+      nodes.push(glowingArc([262, -135], [468, -70], -24, { color: COSMOS.emerald, width: 4.0 }));
     }
     if (slotB.status === 'reading') {
-      nodes.push(
-        glowingArc([262, 115], [468, 50], 24, { color: COSMOS.emerald, width: 4.0 }),
-        glowDot(262 + u * 206, 115 - u * 65, { radius: 6, color: COSMOS.emerald }),
-      );
+      nodes.push(glowingArc([262, 115], [468, 50], 24, { color: COSMOS.emerald, width: 4.0 }));
     }
 
     // Safety invariant / FA3 benchmark bar
@@ -147,7 +130,6 @@ export default function asyncPipeline(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('async-pipeline-beat-1', () => s.play(stepVal.to(0, { duration: 0.01 })));
   c.on('async-pipeline-beat-2', () => s.play(stepVal.to(1, { duration: 0.01 })));

@@ -9,8 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   sysNode,
   trimSeg,
@@ -18,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function requirementsControl(s, c) {
-  const phase = s.value(0);
   const selfHost = s.value(0);
   const ctrlOn = s.value(0);
   const failClosed = s.value(0);
@@ -36,7 +33,6 @@ export default function requirementsControl(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const sh = selfHost.value;
       const ct = ctrlOn.value;
       const fc = failClosed.value;
@@ -77,14 +73,12 @@ export default function requirementsControl(s, c) {
       nodes.push(
         fc > 0.4
           ? line(b1a, b1b, { stroke: ROLE.fail, width: 3.5, dash: [12, 10] }).glow(7, ROLE.fail)
-          : beamWithPhotons([b1a, b1b], ROLE.policy, p, {
+          : beamWithPhotons([b1a, b1b], ROLE.policy, 0, {
               width: 3.8,
-              photonCount: 2,
               alpha: 0.45 + ct * 0.55,
             }),
-        beamWithPhotons([b2a, b2b], sh > 0.4 ? ROLE.ok : ROLE.worker, p + 0.4, {
+        beamWithPhotons([b2a, b2b], sh > 0.4 ? ROLE.ok : ROLE.worker, 0, {
           width: 4,
-          photonCount: 2,
         }),
         nCp.node,
         nGw.node,
@@ -150,12 +144,6 @@ export default function requirementsControl(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.policy,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -163,8 +151,6 @@ export default function requirementsControl(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('requirements-host', () => {
     s.play(selfHost.to(1, { duration: clampDur(c, c.cue('requirements-host').start, 0.4) }));
   });

@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   fadeInHalf,
   fadeOutHalf,
@@ -46,7 +45,7 @@ export default function trajectoryContract(s, c) {
   const chainAct = guardedDynamic(
     () => fadeOutHalf(benchMode.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const lk = linkOn.value;
       const tr = trueOn.value;
       const rd = renderOn.value;
@@ -233,7 +232,6 @@ export default function trajectoryContract(s, c) {
   );
 
   s.add(stageAura, header, chainAct, benchAct);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-trajectory-contract-1', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('tu-trajectory-contract-1').start, 0.25) }));

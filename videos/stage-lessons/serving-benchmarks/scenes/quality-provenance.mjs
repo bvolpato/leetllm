@@ -11,7 +11,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -21,7 +20,6 @@ import {
 } from '../parts.mjs';
 
 export default function qualityProvenance(s, c) {
-  const phase = s.value(0);
   const protoLit = s.value(0.35);
   const mode01 = s.value(0); // 0 = structural gates, 1 = separate semantic sample
   const unscoredHi = s.value(0);
@@ -248,7 +246,6 @@ export default function qualityProvenance(s, c) {
   );
 
   s.add(stageAura, header, view0, view1, view2);
-  driftValue(s, c, phase, 7, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('quality-provenance-beat-0', () => {
     const t = c.cue('quality-provenance-beat-0').start;

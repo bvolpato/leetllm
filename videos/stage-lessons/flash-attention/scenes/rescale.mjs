@@ -16,12 +16,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function rescale(s, c) {
-  const phase = s.value(0);
   const rescaleProg = s.value(0);
   const showFactor = s.value(0);
   const showRatioSame = s.value(0);
@@ -202,7 +200,6 @@ export default function rescale(s, c) {
   });
 
   s.add(bgAura, title, eqScale, live);
-  runPhase(s, c, phase, 10);
 
   c.on('reference-three', () => s.play(rescaleProg.to(0.35, { duration: 0.45 })));
   c.on('common-factor', () => s.play(showFactor.to(1, { duration: 0.45 })));

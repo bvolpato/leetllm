@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   fmtInt,
@@ -245,7 +244,6 @@ export default function qualityEvidence(s, c) {
   );
 
   s.add(sceneAura, header, mode0, mode1);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('te-quality-evidence-0', () => {
     const t = c.cue('te-quality-evidence-0').start;

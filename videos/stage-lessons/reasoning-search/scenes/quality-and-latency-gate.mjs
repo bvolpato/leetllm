@@ -15,7 +15,6 @@ import {
   chooseReasoningStrategy,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
@@ -196,7 +195,6 @@ export default function qualityAndLatencyGate(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('gate-limits', () => {
     s.play(limitsOn.to(1, { duration: clampDur(c, c.cue('gate-limits').start, 0.45) }));

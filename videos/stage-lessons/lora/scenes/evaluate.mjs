@@ -11,12 +11,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function evaluate(s, c) {
-  const phase = s.value(0);
   const trainProg = s.value(0);
   const showTrainLabel = s.value(0);
   const heldProg = s.value(0);
@@ -137,7 +135,6 @@ export default function evaluate(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('evaluate-b1-1', () => s.play(trainProg.to(1, { duration: 1.0 })));
   c.on('evaluate-b2-1', () => s.play(showTrainLabel.to(1, { duration: 0.35 })));

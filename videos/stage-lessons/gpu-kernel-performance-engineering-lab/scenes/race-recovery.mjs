@@ -7,19 +7,16 @@ import {
   aura,
   delay,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   par,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function raceRecovery(s, c) {
-  const phase = s.value(0);
   const showLogs = s.value(1);
   const showMatrix = s.value(0);
 
@@ -53,10 +50,6 @@ export default function raceRecovery(s, c) {
 
   // Beats 0 & 1: Three sanitizer instrument gauges on broken N=33
   const logsView = guardedDynamic(showLogs, (a) => {
-    const p = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
-    const u = (p * 0.45) % 1;
-
     const cards = [
       {
         name: 'memcheck',
@@ -114,7 +107,7 @@ export default function raceRecovery(s, c) {
       nodes.push(
         glassCell(cd.x, 30, 500, 360, cd.lit ? cd.col : COSMOS.rule, {
           fill: cd.lit && cd.isFail ? '#32101e' : '#0e182e',
-          glow: cd.lit && cd.isFail ? 12 * pulse : cd.lit ? 7 : 2,
+          glow: cd.lit && cd.isFail ? 12 : cd.lit ? 7 : 2,
           opacity: a,
         }),
         txt(cd.name, cd.x, -95, 38, cd.col, 'mono').opacity(a),
@@ -138,7 +131,6 @@ export default function raceRecovery(s, c) {
           ? 'Harness exits with code 2 and leaves timing blank for broken variant'
           : 'Valid addresses do not rule out shared-memory data races';
     nodes.push(
-      glowDot(-760 + u * 1520, 250, { radius: 6, color: ROLE.bad, opacity: 0.75 * a }),
       txt(bottom, 0, 330, 28, diffExec.value > 0.3 ? ROLE.bad : ROLE.gold, 'sans').opacity(a),
     );
     return group(...nodes);
@@ -226,7 +218,6 @@ export default function raceRecovery(s, c) {
   });
 
   s.add(bgAura, title, logsView, matrixView);
-  runPhase(s, c, phase, 16);
 
   c.on('gpu-race-recovery-broken', () =>
     s.play(brokenShow.to(1, { duration: remainDuration(c, 'gpu-race-recovery-broken', 0.4) })),

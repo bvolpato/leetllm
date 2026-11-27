@@ -14,7 +14,6 @@ import {
   conduitPts,
   crossSwap,
   glowArrow,
-  glowDot,
   glowRing,
   glowingTrail,
   guardedDynamic,
@@ -207,11 +206,6 @@ export default function wireProtocols(s, c) {
           opacity: m1,
           core: false,
         }),
-        glowDot(...samplePolyline(p1, (ph * 0.32) % 1), {
-          radius: 6,
-          color: ROLE.eval,
-          opacity: m1,
-        }),
         lumBar(-35, y1, 280, 62, {
           color: lookupLit.value > 0.3 ? ROLE.eval : COSMOS.rule,
           fillOpacity: 0.22,
@@ -233,11 +227,6 @@ export default function wireProtocols(s, c) {
           width: 3.6,
           opacity: m1,
           core: false,
-        }),
-        glowDot(...samplePolyline(p2, (ph * 0.25 + 0.5) % 1), {
-          radius: 6,
-          color: ROLE.health,
-          opacity: m1,
         }),
         lumBar(-35, y2, 280, 62, {
           color: vendorLit.value > 0.3 ? ROLE.health : COSMOS.rule,

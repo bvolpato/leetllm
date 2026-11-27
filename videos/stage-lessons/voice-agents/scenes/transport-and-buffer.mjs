@@ -10,7 +10,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   packets,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function transportAndBuffer(s, c) {
-  const phase = s.value(0);
   const shortOn = s.value(0);
   const bufSlide = s.value(0); // 0 = 30 ms buffer, 1 = 60 ms buffer
   const absorbReveal = s.value(0); // STRICT after transport-absorb-p3!
@@ -37,7 +35,6 @@ export default function transportAndBuffer(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const bs = bufSlide.value;
       const ab = absorbReveal.value;
       const sa = shiftAllOn.value;
@@ -202,22 +199,11 @@ export default function transportAndBuffer(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.media,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('transport-short', () => {
     s.play(shortOn.to(1, { duration: clampDur(c, c.cue('transport-short').start, 0.35) }));
   });

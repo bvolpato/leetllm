@@ -7,7 +7,6 @@ import {
   box3d,
   cinematic3d,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
@@ -122,7 +121,6 @@ export default function pairwiseReduction(s, c) {
   });
 
   const tree2d = guardedDynamic(1, () => {
-    const p = phase.value;
     const l1 = level1.value;
     const pg = parallelGlow.value;
     const l2 = level2.value;
@@ -193,15 +191,6 @@ export default function pairwiseReduction(s, c) {
         );
       });
     });
-
-    // Traveling pulse dot on active level
-    if (l1 > 0.5 && l3 < 0.5) {
-      const u = (p * 0.7) % 1;
-      const targetRow = l2 > 0.5 ? 2 : 1;
-      const pts = pos[targetRow];
-      const px = pts[0][0] + u * (pts.at(-1)[0] - pts[0][0]);
-      nodes.push(glowDot(px, rowYs[targetRow] - 46, { radius: 5, color: COSMOS.gold }));
-    }
 
     // Bottom metrics readout
     if (dep > 0.02 || wrk > 0.02) {

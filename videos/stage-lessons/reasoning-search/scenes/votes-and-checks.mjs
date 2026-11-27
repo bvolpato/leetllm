@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   orbNode,
   orbRadius,
@@ -40,7 +39,7 @@ export default function votesAndChecks(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const sh = sharedHi.value;
       const ck = checkOn.value;
       const vf = verifiedOn.value;
@@ -158,7 +157,6 @@ export default function votesAndChecks(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('votes-and-checks-beat-1-focus-1', () => {
     s.play(

@@ -21,7 +21,6 @@ import {
   playCue,
   plotPlane,
   sampleCurve,
-  scenePulse,
   swapVis,
 } from '../parts.mjs';
 
@@ -50,7 +49,6 @@ export default function controlledRuns(s, c) {
   const run4Vis = s.value(0);
   const showLoss = s.value(0);
   const curveSweep = s.value(0);
-  const pulse = s.value(0);
 
   // Act 1: 4 controlled runs
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
@@ -241,7 +239,6 @@ export default function controlledRuns(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.optimal, ROLE.compute), title, act1Layer, act2Layer);
-  scenePulse(s, c, pulse);
 
   // Beat 0: reveal the 4 runs in sync with narration
   playCue(

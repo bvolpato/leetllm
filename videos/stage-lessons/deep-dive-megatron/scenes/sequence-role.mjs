@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function sequenceRole(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 0=overview, 1=SP no world factor, 2=CP remote KV, 3=TP+EP requires SP, CP >= 8k
 
   const bgAura = aura(0, 15, 620, '#60a5fa1a', '#5ce1e61a');
@@ -29,7 +26,6 @@ export default function sequenceRole(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     // Left panel: Sequence Parallelism (SP)
@@ -76,9 +72,7 @@ export default function sequenceRole(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 278, { radius: 6, color: ROLE.cp }),
       txt(
         'Same token positions alternate between TP activation shards (SP) and CP sequence peers',
         0,
@@ -92,7 +86,6 @@ export default function sequenceRole(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 12);
   wireStepCues(s, c, step, [
     ['mg-sequence-role-b0', 0],
     ['mg-sp-chunks', 1],

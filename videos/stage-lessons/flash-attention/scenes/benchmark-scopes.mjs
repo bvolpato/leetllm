@@ -8,12 +8,10 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function benchmarkScopes(s, c) {
-  const phase = s.value(0);
   const showBert = s.value(0.5);
   const showGpt = s.value(0);
   const showAmdahl = s.value(0);
@@ -168,7 +166,6 @@ export default function benchmarkScopes(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 10);
 
   c.on('benchmark-scopes-beat-1', () => s.play(showBert.to(1, { duration: 0.45 })));
   c.on('benchmark-scopes-beat-2', () => s.play(showGpt.to(1, { duration: 0.45 })));

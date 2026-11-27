@@ -4,17 +4,14 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function historicalEvidence(s, c) {
-  const phase = s.value(0);
   // step: 0=2023 paper workloads, 1=hardware + baselines + latency metric, 2=modern matched benchmark checklist
   const step = s.value(0);
 
@@ -30,7 +27,6 @@ export default function historicalEvidence(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     const cards =
@@ -107,9 +103,7 @@ export default function historicalEvidence(s, c) {
       );
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-800 + u * 1600, 315, { radius: 6, color: COSMOS.gold }),
       txt(
         st === 0
           ? 'Keep model, trace distribution, and arrival process attached to the 2x-4x speedup'
@@ -127,7 +121,6 @@ export default function historicalEvidence(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['vv-historical-evidence-op-0', 0],
     ['vv-historical-evidence-op-1', 1],

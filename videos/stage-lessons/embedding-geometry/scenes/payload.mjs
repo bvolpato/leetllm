@@ -13,7 +13,6 @@ import {
   lumBar,
   playCue,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -24,7 +23,6 @@ export default function payload(s, c) {
   const sign = 192;
   const pq = 96;
 
-  const phase = s.value(0);
   const vMain = s.value(1);
   const vScale = s.value(0);
   const pFp32 = s.value(0);
@@ -45,8 +43,6 @@ export default function payload(s, c) {
 
   // View 1: 1M rows × 1,536 dims compression beams
   const mainLayer = guardedDynamic(vMain, (alpha) => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const barL = -590;
     const maxW = 760;
     const rows = [
@@ -124,7 +120,7 @@ export default function payload(s, c) {
             color: r.color,
             fillAlpha: 0.34,
             strokeWidth: 2.4,
-            glow: 8 * pulse,
+            glow: 8,
             opacity: r.prog * alpha,
           }),
           txt(r.detail, barL + maxW + 28, r.y, 28, COSMOS.ink, 'mono', 'left').opacity(
@@ -159,12 +155,12 @@ export default function payload(s, c) {
         color: showOrig.value > 0.3 ? ROLE.query : '#344770',
         fillAlpha: showOrig.value > 0.3 ? 0.3 : 0.08,
         strokeWidth: showOrig.value > 0.3 ? 2.5 : 1.6,
-        glow: showOrig.value > 0.3 ? 9 * pulse : 0,
+        glow: showOrig.value > 0.3 ? 9 : 0,
         opacity: alpha,
       }),
       glowRing(-765, 275, 42, showBook.value > 0.3 ? ROLE.gold : '#3a4e7a', {
         width: 2.8,
-        glow: showBook.value > 0.3 ? 10 * pulse : 0,
+        glow: showBook.value > 0.3 ? 10 : 0,
         opacity: alpha,
       }),
     );
@@ -209,8 +205,6 @@ export default function payload(s, c) {
 
   // View 2: 50M rows × 768 dims volumetric scaling bars
   const scaleLayer = guardedDynamic(vScale, (alpha) => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const barL = -560;
     const maxW = 1040;
     const items = [
@@ -243,7 +237,7 @@ export default function payload(s, c) {
           color: it.color,
           fillAlpha: 0.34,
           strokeWidth: 2.6,
-          glow: 9 * pulse,
+          glow: 9,
           opacity: alpha,
         }),
         txt(`${it.gb.toFixed(1)} GB`, barL + w + 28, it.y, 38, it.color, 'mono', 'left')
@@ -268,8 +262,6 @@ export default function payload(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.code, ROLE.query), title, mainLayer, scaleLayer);
-
-  runPhase(s, c, phase, 8);
 
   playCue(s, c, 'fp32', (d) => s.play(pFp32.to(1, { duration: d })), { after: true, dur: 0.9 });
   playCue(s, c, 'int8', (d) => s.play(pInt8.to(1, { duration: d })), { after: true, dur: 0.9 });

@@ -16,7 +16,6 @@ import {
   lumBar,
   orbitScene,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
   wireframeSlab3d,
@@ -28,7 +27,6 @@ const FINAL_LSE = T1.logSumExp; // ~4.1507
 const TILE_LOSS = FINAL_LSE - 2; // ~2.1507
 
 export default function vocabularyTiles(s, c) {
-  const phase = s.value(0);
   const vMem = s.value(1);
   const vTile = s.value(0);
   const tileSlide = s.value(-1.6);
@@ -326,7 +324,6 @@ export default function vocabularyTiles(s, c) {
   });
 
   s.add(bgAura, view3d, title, viewMem, viewTile);
-  runAmbientPhase(s, c, phase, 2.2);
   orbitScene(s, c, view3d, { theta: 0.45, phi: 0.98 });
 
   // Beat 0

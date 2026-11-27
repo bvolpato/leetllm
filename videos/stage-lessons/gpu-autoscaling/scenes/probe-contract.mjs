@@ -7,7 +7,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   glowDot,
   guardedDynamic,
   tweenOn,
@@ -15,7 +14,6 @@ import {
 } from '../parts.mjs';
 
 export default function probeContract(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=503 booting, 2=200 R1/R2, 3=409 dup, 4=429 full, 5=probes + drain + atomic claim
 
   const header = cinemaHeader(
@@ -36,7 +34,6 @@ export default function probeContract(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
       const nodes = [];
 
       // Left: Two-slot worker core
@@ -107,7 +104,7 @@ export default function probeContract(s, c) {
               [60, ln.y],
             ],
             ln.col,
-            ln.on ? p * 1.0 : null,
+            0,
             { width: 3.0, glow: ln.on ? 8 : 0, photonCount: 1, alpha: op },
           ),
           rect(115, 58, { fill: '#10182b', stroke: ln.col, width: 2.4, radius: 10 })
@@ -165,7 +162,6 @@ export default function probeContract(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 5.5, { startOffset: 0.1, endMargin: 0.5 });
 
   tweenOn(s, c, 'ga-probe-contract-b0', step, 1, 0.3);
   tweenOn(s, c, 'ga-probe-ready', step, 2, 0.3);

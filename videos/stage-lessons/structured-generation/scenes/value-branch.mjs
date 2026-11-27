@@ -12,7 +12,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fsmNode,
   glowDot,
   guardedDynamic,
@@ -23,7 +22,6 @@ import {
 } from '../parts.mjs';
 
 export default function valueBranch(s, c) {
-  const pulse = s.value(0);
   const weightsHi = s.value(0);
   const doubleProg = s.value(0);
   const sourceShow = s.value(0);
@@ -40,7 +38,6 @@ export default function valueBranch(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const wh = weightsHi.value;
       const dp = doubleProg.value;
       const ss = sourceShow.value;
@@ -140,16 +137,14 @@ export default function valueBranch(s, c) {
       const b2 = [730, -395];
       const b3 = [730, -285];
       nodes.push(
-        beamWithPhotons(quadArcPts([b1[0] + 28, b1[1]], [b2[0] - 28, b2[1]], -10), ROLE.schema, p, {
+        beamWithPhotons(quadArcPts([b1[0] + 28, b1[1]], [b2[0] - 28, b2[1]], -10), ROLE.schema, 0, {
           width: 2.8,
           photonCount: 1,
         }),
-        beamWithPhotons(
-          quadArcPts([b1[0] + 28, b1[1]], [b3[0] - 28, b3[1]], 10),
-          ROLE.fsm,
-          p + 0.5,
-          { width: 3.2, photonCount: 1 },
-        ),
+        beamWithPhotons(quadArcPts([b1[0] + 28, b1[1]], [b3[0] - 28, b3[1]], 10), ROLE.fsm, 0, {
+          width: 3.2,
+          photonCount: 1,
+        }),
         fsmNode(b1[0], b1[1], 30, 'V', { color: ROLE.prefix, size: 26 }),
         fsmNode(b2[0], b2[1], 32, 'P', { color: ROLE.schema, accepting: true, size: 26 }),
         fsmNode(b3[0], b3[1], 32, 'F', { color: ROLE.fsm, accepting: true, size: 26 }),
@@ -196,7 +191,6 @@ export default function valueBranch(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 4.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('branch-weights', () => {
     s.play(weightsHi.to(1, { duration: clampDur(c, c.cue('branch-weights').start, 0.4) }));

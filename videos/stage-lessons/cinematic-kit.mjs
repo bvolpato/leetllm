@@ -18,7 +18,6 @@ import {
   linearGradient,
   morphMatching,
   polyPath,
-  radialGradient,
   scene3d,
   tex,
   text,
@@ -144,7 +143,7 @@ export function heroTitle(
     size = 62,
     lineHeight = 72,
     accent = COSMOS.cyan,
-    accentGlow = 6,
+    accentGlow = 0,
     eyebrow,
     subtitle,
     anchor = 'left',
@@ -179,7 +178,7 @@ export function metricReadout(
     y = 190,
     valueSize = 74,
     color = COSMOS.gold,
-    glow = 10,
+    glow = 0,
     sub,
     anchor = 'left',
   } = {},
@@ -200,23 +199,19 @@ export function markDecoration(node) {
   return node;
 }
 
-/** Soft radial-gradient cosmic nebula (marked as decoration so it never trips text_crowded). */
-export function nebula(x, y, radius, innerHex, midHex = '#07091000') {
-  return markDecoration(
-    circle(radius, {
-      fill: radialGradient([0, 0], radius, [
-        [0, innerHex],
-        [0.5, midHex],
-        [1, '#07091000'],
-      ]),
-      stroke: null,
-    }).at(x, y),
-  );
+/**
+ * Ambient backdrop helper (no-op decoration).
+ * Large 8-bit SVG radialGradients create concentric banding rings on dark #070910 frames
+ * and consume 45-84% of Resvg raster time; film-wide Float32+IGN dithered bloom (0.24)
+ * provides smooth, stable, artifact-free glow around all illuminated elements instead.
+ */
+export function nebula() {
+  return markDecoration(group());
 }
 
-/** Additive screen-blended radial aura positioned behind hero 3D or math constructions. */
-export function aura(x, y, radius, innerHex, midHex = '#07091000') {
-  return markDecoration(nebula(x, y, radius, innerHex, midHex).set('blend', 'screen'));
+/** Ambient aura helper (no-op decoration; see nebula). */
+export function aura() {
+  return markDecoration(group());
 }
 
 /** Deterministic deep-space starfield (zero flicker across seeks, marked as decoration). */
@@ -246,7 +241,7 @@ export function cosmicBackdrop({
   accent = COSMOS.cyan,
   nebulaX = 0,
   nebulaY = -40,
-  nebulaRadius = 780,
+  nebulaRadius = 520,
   nebulaInner = '#18244d2a',
   nebulaMid = '#11163314',
   stars = 135,
@@ -380,7 +375,7 @@ export function wireframeSlab3d(
 }
 
 /** Glowing MathJax equation node enforcing phone-readable size (>= 26 px). */
-export function glowTex(latex, { x = 0, y = 0, size = 44, color = COSMOS.gold, glow = 6 } = {}) {
+export function glowTex(latex, { x = 0, y = 0, size = 44, color = COSMOS.gold, glow = 0 } = {}) {
   assertReadableSize(size, `glowTex(${JSON.stringify(latex)})`);
   const node = tex(latex, { size, color }).at(x, y);
   if (glow > 0) node.glow(glow, color);

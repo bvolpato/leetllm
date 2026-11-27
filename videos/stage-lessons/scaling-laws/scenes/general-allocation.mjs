@@ -8,7 +8,6 @@
 //   Act 4 (Beat 4): 20:1 Chinchilla sizing at 10^24 FLOPs -> 91.3B params, 1.83T tokens.
 import {
   COSMOS,
-  glowDot,
   glowTex,
   glowingTrail,
   guardedDynamic,

@@ -16,7 +16,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   energyRail,
   guardedDynamic,
   hexGate,
@@ -55,7 +54,7 @@ export default function outboundContract(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const sh = slotsHi.value;
       const qh = queryHi.value;
       const ph = proxyHi.value;
@@ -160,7 +159,6 @@ export default function outboundContract(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('pi-outbound-contract-0', () => {
     s.play(slotsHi.to(1, { duration: clampDur(c, c.cue('pi-outbound-contract-0').start, 0.45) }));

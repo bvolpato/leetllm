@@ -12,12 +12,10 @@ import {
   range,
   rect,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function modelConfig(s, c) {
-  const phase = s.value(0);
   const showCounts = s.value(0);
   const showRatios = s.value(0);
   const showContext = s.value(0);
@@ -169,15 +167,15 @@ export default function modelConfig(s, c) {
 
     // Needle-in-haystack retrieval strip on 'test'
     if (fs === 4) {
-      const p = (phase.value * 0.25) % 1;
-      const needleX = rx + 70 + p * 600;
       nodes.push(
         txt('RETRIEVAL CHECK: MOVE FACT ACROSS PROMPT', rx, 278, 26, ROLE.gold, 'mono', 'left'),
         rect(750, 28, { fill: '#111a30', stroke: '#334875', width: 1.8, radius: 6 }).at(
           rx + 375,
           326,
         ),
-        glowDot(needleX, 326, { radius: 9, color: ROLE.gold, glow: 14 }),
+        glowDot(rx + 140, 326, { radius: 8, color: ROLE.gold, glow: 12 }),
+        glowDot(rx + 375, 326, { radius: 8, color: ROLE.gold, glow: 12 }),
+        glowDot(rx + 610, 326, { radius: 8, color: ROLE.gold, glow: 12 }),
       );
     }
 
@@ -199,7 +197,6 @@ export default function modelConfig(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.query, ROLE.pos), title, live);
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'counts', (d) => s.play(showCounts.to(1, { duration: d })), {
     after: true,

@@ -13,13 +13,11 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
   warmupTrace,
 } from '../parts.mjs';
 
 export default function clocks(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1); // Beats 0 & 1: Ticket 102 dual clocks
   const clockTime = s.value(0);
   const hostWaiting = s.value(0);
@@ -175,7 +173,6 @@ export default function clocks(s, c) {
   });
 
   s.add(bgAura, title, part1, part2);
-  runPhase(s, c, phase, 14);
 
   c.on('advance-enqueue', () => s.play(clockTime.to(TICKET_CLOCK.hostReturn, { duration: 0.55 })));
   c.on('continue-device', () => s.play(clockTime.to(16, { duration: 0.85 })));

@@ -3,7 +3,6 @@ import {
   COSMOS,
   aura,
   circle,
-  glowDot,
   glowingArc,
   glowingTrail,
   group,
@@ -189,12 +188,6 @@ export default function trainerArtifactAndDiagnosis(s, c) {
         COSMOS.muted,
         'sans',
       ),
-    );
-
-    // Orbiting check photon around scorer core
-    const ang = p * 0.9;
-    nodes.push(
-      glowDot(cx + Math.cos(ang) * 95, cy + Math.sin(ang) * 95, { radius: 5, color: COSMOS.cyan }),
     );
 
     return group(...nodes);

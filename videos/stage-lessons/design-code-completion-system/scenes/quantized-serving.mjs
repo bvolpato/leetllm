@@ -2,20 +2,9 @@
 // 3B parameter raw weight comparison: 16-bit (6.0 GB) vs 8-bit (3.0 GB) vs 4-bit (1.5 GB)
 // + separate scales/metadata/KV/buffers + bandwidth-bound decode kernel & syntax/ACL checks!
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function quantizedServing(s, c) {
-  const phase = s.value(0);
   const sizesOn = s.value(0);
   const bwOn = s.value(0);
 
@@ -36,7 +25,6 @@ export default function quantizedServing(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const sz = sizesOn.value;
       const bw = bwOn.value;
       const nodes = [];
@@ -104,12 +92,6 @@ export default function quantizedServing(s, c) {
         ).opacity(bAlpha),
         txt('POST-TRAINING GPTQ', 480, -425, 26, ROLE.focus, 'mono', 'center'),
         txt('4-bit = 1/4 raw bytes before overhead', 480, -378, 26, COSMOS.muted, 'mono', 'center'),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.gpu,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -117,8 +99,6 @@ export default function quantizedServing(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('cc-weight-six-onehalf', () => {
     s.play(sizesOn.to(1, { duration: clampDur(c, c.cue('cc-weight-six-onehalf').start, 0.35) }));
   });

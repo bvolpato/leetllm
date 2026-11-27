@@ -12,7 +12,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   guardedDynamic,
   hexGate,
@@ -40,7 +39,7 @@ export default function mcpExposure(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const rm = remoteOn.value;
       const ob = outboundOn.value;
       const lc = localOn.value;
@@ -132,7 +131,6 @@ export default function mcpExposure(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-mcp-exposure-1', () => {
     s.play(remoteOn.to(1, { duration: clampDur(c, c.cue('tu-mcp-exposure-1').start, 0.3) }));

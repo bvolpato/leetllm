@@ -14,15 +14,12 @@ import {
   rect,
   renderGqaRack2d,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function budget(s, c) {
   const maxBytes = cacheBytes({ kvHeads: HEADS.mhaKV, tokens: 4 }); // 1024 B
   const limitBytes = 256;
-
-  const phase = s.value(0);
   const rackTokens = s.value(3);
   const barMha = s.value(0);
   const barGqa = s.value(0);
@@ -62,7 +59,6 @@ export default function budget(s, c) {
         slots: 4,
         lit: -1,
         cursor: fg > 0.5 ? 3 : -1,
-        phase: phase.value,
         colNames: ['Rain', 'fell', '2', '3'],
       }),
       rule(-95, -310, -95, 400, COSMOS.rule, 1.6).opacity(0.6),
@@ -218,7 +214,6 @@ export default function budget(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.value), title, live);
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'fixture', (d) => s.play(footStage.to(1, { duration: Math.min(0.25, d) })), {
     after: true,

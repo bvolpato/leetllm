@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   glowDot,
   glowingTrail,
   guardedDynamic,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function arrivalSchedule(s, c) {
-  const phase = s.value(0);
   const openProg = s.value(0);
   const thinkProg = s.value(0);
   const replayMark = s.value(0);
@@ -224,7 +222,6 @@ export default function arrivalSchedule(s, c) {
   );
 
   s.add(stageAura, header, oscView);
-  driftValue(s, c, phase, 6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('arrival-independent', () => {
     const t = c.cue('arrival-independent').start;

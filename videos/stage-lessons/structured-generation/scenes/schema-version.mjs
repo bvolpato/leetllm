@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fsmNode,
   guardedDynamic,
   opticalRail,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function schemaVersion(s, c) {
-  const pulse = s.value(0);
   const b0Hi = s.value(0);
   const codeTagged = s.value(0);
   const b1Hi = s.value(0);
@@ -39,7 +37,6 @@ export default function schemaVersion(s, c) {
   const stageView = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const b0 = b0Hi.value;
       const ct = codeTagged.value;
       const b1 = b1Hi.value;
@@ -59,7 +56,7 @@ export default function schemaVersion(s, c) {
         ),
         txt('run_id · status · failing_job', -805, topY + 54, 26, COSMOS.muted, 'mono', 'left'),
 
-        beamWithPhotons(quadArcPts([-140, topY + 10], [110, topY + 10], -24), ROLE.legal, p * 1.1, {
+        beamWithPhotons(quadArcPts([-140, topY + 10], [110, topY + 10], -24), ROLE.legal, 0, {
           width: 3.4,
         }),
 
@@ -97,7 +94,7 @@ export default function schemaVersion(s, c) {
       // Right consumer compatibility gate
       const cCol = v1 > 0.3 ? ROLE.prune : b1 > 0.3 ? ROLE.schema : COSMOS.dim;
       nodes.push(
-        beamWithPhotons(quadArcPts([-120, midY + 10], [110, midY + 10], 24), cCol, p * 1.1 + 0.5, {
+        beamWithPhotons(quadArcPts([-120, midY + 10], [110, midY + 10], 24), cCol, 0, {
           alpha: 0.35 + 0.65 * Math.max(ct, b1),
           width: 3.2,
           photonCount: v1 > 0.3 ? 0 : 1,
@@ -151,7 +148,6 @@ export default function schemaVersion(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('sg-schema-version-0', () => {
     s.play(b0Hi.to(1, { duration: clampDur(c, c.cue('sg-schema-version-0').start, 0.35) }));

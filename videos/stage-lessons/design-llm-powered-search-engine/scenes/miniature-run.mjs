@@ -12,7 +12,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowMeter,
   guardedDynamic,
   sourceDigest,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function miniatureRun(s, c) {
-  const pulse = s.value(0);
   const corpusOn = s.value(0);
   const eligibleOn = s.value(0);
   const rankOn = s.value(0);
@@ -173,8 +171,6 @@ export default function miniatureRun(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5, { startOffset: 0.1, endMargin: 0.5 });
-
   c.on('se-miniature-run-0', () => {
     s.play(corpusOn.to(1, { duration: clampDur(c, c.cue('se-miniature-run-0').start, 0.35) }));
   });

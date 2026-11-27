@@ -12,12 +12,10 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function servingContract(s, c) {
-  const phase = s.value(0);
   const showDisk = s.value(1);
   const show50 = s.value(0);
   const show700 = s.value(0);
@@ -213,7 +211,6 @@ export default function servingContract(s, c) {
   });
 
   s.add(bgAura, title, partDisk, partEngine);
-  runPhase(s, c, phase, 14);
 
   c.on('serving-contract-1', () => s.play(showDisk.to(1, { duration: 0.2 })));
   c.on('serving-contract-2', () => s.play(show50.to(1, { duration: 0.45 })));

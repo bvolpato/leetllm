@@ -10,12 +10,10 @@ import {
   heroTitle,
   parentExpansion,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function parentChildContext(s, c) {
-  const phase = s.value(0);
   const showChild = s.value(0);
   const showResolve = s.value(0);
   const showDedup = s.value(0);
@@ -33,17 +31,15 @@ export default function parentChildContext(s, c) {
   const exp = parentExpansion();
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sc = showChild.value;
     const sr = showResolve.value;
     const sd = showDedup.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Stage 1: Small precise child hit
       glassCell(-595, -52, 480, 224, sc > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#231e10',
-        glow: sc > 0.3 ? 9 * pulse : 3,
+        glow: sc > 0.3 ? 9 : 3,
       }),
       txt('1. SMALL CHILD HIT', -595, -124, 26, COSMOS.gold, 'mono'),
       txt(`"${exp.child.text}"`, -595, -68, 30, COSMOS.ink, 'mono'),
@@ -55,7 +51,7 @@ export default function parentChildContext(s, c) {
       // Stage 2: Version + Permission check gate
       glassCell(-20, -52, 410, 224, sr > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10213b',
-        glow: sr > 0.3 ? 9 * pulse : 3,
+        glow: sr > 0.3 ? 9 : 3,
       }),
       txt('2. RESOLVE & CHECK', -20, -124, 26, COSMOS.cyan, 'mono'),
       txt('· Match parent ID', -20, -68, 26, COSMOS.ink, 'sans'),
@@ -67,7 +63,7 @@ export default function parentChildContext(s, c) {
       // Stage 3: Returned Parent Section
       glassCell(580, -52, 550, 224, sr > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: '#0e2824',
-        glow: sr > 0.3 ? 10 * pulse : 3,
+        glow: sr > 0.3 ? 10 : 3,
       }),
       txt('3. ADMITTED PARENT (PAGE 7)', 580, -124, 26, COSMOS.emerald, 'mono'),
       txt(
@@ -91,7 +87,7 @@ export default function parentChildContext(s, c) {
       // Bottom: Deduplication & Generator tokenizer rule
       glassCell(0, 194, 1660, 134, sd > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10182d',
-        glow: sd > 0.3 ? 8 * pulse : 2,
+        glow: sd > 0.3 ? 8 : 2,
       }),
       txt('DEDUPLICATE & MEASURE GENERATOR PROMPT', -800, 160, 26, COSMOS.cyan, 'mono', 'left'),
       txt(
@@ -120,7 +116,6 @@ export default function parentChildContext(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('parent-child-context-beat-1-focus-1', () => s.play(showChild.to(1, { duration: 0.45 })));
   c.on('parent-child-context-beat-2-focus-2', () => s.play(showResolve.to(1, { duration: 0.4 })));

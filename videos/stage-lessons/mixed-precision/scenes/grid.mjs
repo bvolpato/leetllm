@@ -23,12 +23,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function grid(s, c) {
-  const phase = s.value(0);
   const travel = s.value(0);
   const landDown = s.value(0);
   const landUp = s.value(0);
@@ -63,8 +61,6 @@ export default function grid(s, c) {
     const ld = landDown.value;
     const lu = landUp.value;
     const sf = showFormula.value;
-    const ph = phase.value;
-    const pulse = 0.72 + 0.28 * Math.sin(ph * 3.6);
 
     const xBelow = xAt(FP16_BELOW);
     const xAbove = xAt(FP16_ABOVE);
@@ -96,14 +92,14 @@ export default function grid(s, c) {
         width: 2.6,
         dash: [6, 6],
       })
-        .glow(6 * pulse, COSMOS.rose)
+        .glow(6, COSMOS.rose)
         .opacity(0.75),
       line([xMidUp, -245], [xMidUp, 184], {
         stroke: COSMOS.rose,
         width: 2.6,
         dash: [6, 6],
       })
-        .glow(6 * pulse, COSMOS.rose)
+        .glow(6, COSMOS.rose)
         .opacity(0.75),
     ];
 
@@ -260,7 +256,6 @@ export default function grid(s, c) {
   });
 
   s.add(bgAura, title, live, formulaTex);
-  runPhase(s, c, phase, 14);
 
   c.on('both-directions', () => s.play(travel.to(1, { duration: 1.2 })));
   c.after('round-down', () =>

@@ -19,7 +19,6 @@ import {
   glowTex,
   guardedDynamic,
   heroTitle,
-  livingDrift,
   mix,
   neonCurve,
   queuePackets,
@@ -35,7 +34,6 @@ import {
 export function samplingError(s, c) {
   const repP = s.value(0);
   const sizeP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.clean, seed: 17 }));
   s.add(decorAura(0, 20, 560, '#5ce1e61c', '#ffd16612'));
@@ -52,7 +50,6 @@ export function samplingError(s, c) {
   const live = dynamic(() => {
     const rp = repP.value;
     const sz = sizeP.value;
-    const ph = drift.value;
     const nodes = [];
 
     const x0 = -760;
@@ -140,7 +137,6 @@ export function samplingError(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'repeat-evaluations', repP, 1, { dur: 1.1 });
   cueTo(s, c, 'sample-size', sizeP, 1, { dur: 0.9 });
 }
@@ -159,7 +155,6 @@ export function rateGap(s, c) {
   const cancelP = s.value(0);
   const plan1P = s.value(0);
   const plan2P = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.likelihood, seed: 18 }));
   s.add(decorAura(0, 30, 560, '#a78bfa1e', '#5ce1e614'));
@@ -375,7 +370,6 @@ export function rateGap(s, c) {
   );
 
   s.add(headline, view1, view2, view3);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'gap-noise', gapP, 1, { dur: 0.8 });
   cueTo(s, c, 'paired-cases', pairP, 1, { dur: 0.85 });
   cueTo(s, c, 'paired-new', newP, 1, { dur: 0.6 });
@@ -394,7 +388,6 @@ export function decisions(s, c) {
   const remP = s.value(0);
   const predP = s.value(0);
   const choiceP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.warning, seed: 19 }));
   s.add(decorAura(-220, 40, 520, '#fb923c1e', '#ff6b8b14'));
@@ -522,7 +515,6 @@ export function decisions(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'strict-removal', remP, 1, { dur: 1.15 });
   cueTo(s, c, 'policy-prediction', predP, 1, { dur: 0.65 });
   cueTo(s, c, 'policy-choice', choiceP, 1, { after: true, dur: 0.6 });
@@ -536,7 +528,6 @@ export function payoff(s, c) {
   const predP = s.value(0);
   const recP = s.value(0);
   const resP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.improved, seed: 20 }));
   s.add(decorAura(0, 20, 560, '#6ee7b722', '#ffd16612'));
@@ -642,7 +633,6 @@ export function payoff(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'improved-prediction', predP, 1, { dur: 0.65 });
   cueTo(s, c, 'improved-recovery', recP, 1, { dur: 1.05 });
   cueTo(s, c, 'improved-result', resP, 1, { after: true, dur: 0.6 });
@@ -668,7 +658,6 @@ export function newBatch(s, c) {
   const addP = s.value(0);
   const fillP = s.value(0);
   const overP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: ROLE.posterior, seed: 21 }));
   s.add(decorAura(0, 20, 580, '#ffd1661c', '#ff6b8b14'));
@@ -846,7 +835,6 @@ export function newBatch(s, c) {
   });
 
   s.add(headline, live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'fresh-rates', ratesP, 1, { dur: 0.65 });
   cueTo(s, c, 'fresh-population', popP, 1, { dur: 0.65 });
   cueTo(s, c, 'fresh-true', trueP, 1, { after: true, dur: 0.6 });

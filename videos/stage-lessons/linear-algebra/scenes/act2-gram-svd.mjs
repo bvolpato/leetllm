@@ -32,7 +32,6 @@ import {
   glassPlate,
   glowDot,
   glowTex,
-  livingDrift,
   markDecor,
   orbitScene,
   photonWire,
@@ -55,7 +54,6 @@ export function gram(s, c) {
   const c01 = s.value(0);
   const c10 = s.value(0);
   const c11 = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.gold, opacity: 0.48, seed: 6 }));
   s.add(aura(390, -20, 520, '#ffd16622', '#60a5fa14'));
@@ -143,7 +141,7 @@ export function gram(s, c) {
           [-340, -55],
           [160, -55],
         ],
-        drift.value * 4 + sweepP.value,
+        0,
         { color: COSMOS.gold, width: 3.4, glow: 10 },
       ),
       // Right: 2x2 Gram matrix filling cell by cell
@@ -183,7 +181,6 @@ export function gram(s, c) {
   });
 
   s.add(live, eqGram);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'gram-column-products', sweepP, 1, { dur: 4.0 });
   cueTo(s, c, 'gram-slow', c00, 1, { dur: 0.7 });
@@ -359,7 +356,6 @@ export function gramAction(s, c) {
 // ---------------------------------------------------------------------------
 export function svdRotate(s, c) {
   const rotP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: LA.fit, opacity: 0.48, seed: 8 }));
   s.add(aura(-160, 20, 560, '#6ee7b722', '#60a5fa18'));
@@ -416,8 +412,6 @@ export function svdRotate(s, c) {
       arcPts.push(plane.pt(0.52 * Math.cos(a), 0.52 * Math.sin(a)));
     }
 
-    const pulse = 1 + 0.06 * Math.sin(drift.value * Math.PI * 8);
-
     return group(
       txt('SVD MOVE 1 OF 3  ·  ROTATE', -840, -420, 26, COSMOS.cyan, 'mono', 'left'),
       txt('Change into common & contrast coordinates', -840, -360, 44, COSMOS.ink, 'serif', 'left'),
@@ -438,7 +432,7 @@ export function svdRotate(s, c) {
       vecArrow(orig, plane.pt(cVec[0], cVec[1]), { color: LA.common, width: 4.5, glow: 8 }),
       vecArrow(orig, plane.pt(kVec[0], kVec[1]), { color: LA.contrast, width: 4.5, glow: 8 }),
       vecArrow(orig, xTip, { color: LA.fit, width: 7, tip: 17, glow: 14 }),
-      glowDot(xTip[0], xTip[1], { radius: 9 * pulse, color: LA.fit, glow: 12 }),
+      glowDot(xTip[0], xTip[1], { radius: 9, color: LA.fit, glow: 12 }),
       glassPlate(560, 45, 540, 560, { stroke: LA.fit, glow: 6 }),
       txt('INPUT  x = [1, 0]', 560, -185, 28, LA.fit, 'mono'),
       txt(`Rotated: [${fmt(rx, 2)}, ${fmt(ry, 2)}]`, 560, -125, 32, LA.fit, 'mono').glow(6, LA.fit),
@@ -449,7 +443,6 @@ export function svdRotate(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'svd-input-basis', rotP, 1, { dur: 1.8 });
   c.show('svd-input-basis', eqVt);
@@ -754,7 +747,6 @@ export function svdEmbed(s, c) {
 // ---------------------------------------------------------------------------
 export function svdSign(s, c) {
   const flipP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.gold, opacity: 0.48, seed: 11 }));
   s.add(aura(-480, -40, 420, '#60a5fa22', '#07091000'));
@@ -791,8 +783,6 @@ export function svdSign(s, c) {
     const ux = Math.cos(aNow) * r;
     const uy = Math.sin(aNow) * r;
 
-    const pulse = 1 + 0.06 * Math.sin(drift.value * Math.PI * 8);
-
     return group(
       txt('SVD SIGN INVARIANCE', -840, -420, 26, COSMOS.gold, 'mono', 'left'),
       txt('Paired sign flips cancel exactly', -840, -360, 48, COSMOS.ink, 'serif', 'left'),
@@ -815,7 +805,7 @@ export function svdSign(s, c) {
       txt(fmt(signNum * Math.sqrt(1.5), 3), 0, -130, 48, colDial, 'mono').glow(8, colDial),
       markDecor(line([-205, -72], [205, -72], { stroke: '#2c3d66', width: 1.8 })),
       txt('RECONSTRUCTED OUTPUT', 0, -20, 26, LA.fit, 'mono'),
-      txt('[1.00,  0.00,  1.00]', 0, 46, 40, LA.fit, 'mono').glow(10 * pulse, LA.fit),
+      txt('[1.00,  0.00,  1.00]', 0, 46, 40, LA.fit, 'mono').glow(10, LA.fit),
       txt('Completely unchanged', 0, 108, 28, COSMOS.ink, 'sans'),
 
       // Photon bridges from dials into center
@@ -824,7 +814,7 @@ export function svdSign(s, c) {
           [lx + r + 18, ly],
           [-265, ly],
         ],
-        drift.value * 3,
+        0,
         { color: colDial, width: 2.8, glow: 8 },
       ),
       photonWire(
@@ -832,14 +822,13 @@ export function svdSign(s, c) {
           [265, ry],
           [rx - r - 18, ry],
         ],
-        drift.value * 3 + 0.5,
+        0,
         { color: colDial, width: 2.8, glow: 8 },
       ),
     );
   });
 
   s.add(live, eqSign);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'signed-right', flipP, 1, { dur: 1.5 });
 }

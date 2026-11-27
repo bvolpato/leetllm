@@ -3,8 +3,8 @@
 // Bottom (2-act swapVis):
 //   Act 1 (Beat 0): 4 stored source positions seen twice -> 8 token presentations.
 //   Act 2 (Beats 1-2): 3 dense contractions (6ND) -> +1 recomputed forward pass (8ND) + 1.2e20 FLOPs.
-import { COSMOS, glowDot, glowTex, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
-import { ROLE, cinemaAtmosphere, lumBar, playCue, scenePulse, swapVis } from '../parts.mjs';
+import { COSMOS, glowTex, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
+import { ROLE, cinemaAtmosphere, lumBar, playCue, swapVis } from '../parts.mjs';
 
 const MAT_X = [
   [1, 2, 1],
@@ -34,7 +34,6 @@ export default function countingContract(s, c) {
   const act2Vis = s.value(0);
   const termProg = s.value(0); // Beat 1: 0 -> 3 contractions
   const recomputeVis = s.value(0); // Beat 2: adds 4th recomputed forward -> 8ND
-  const pulse = s.value(0);
 
   // Top persistent matrix contraction layer
   const matLayer = guardedDynamic(s.value(1), (alpha) => {
@@ -180,7 +179,6 @@ export default function countingContract(s, c) {
     const nodes = [];
     const tp = termProg.value;
     const rec = recomputeVis.value;
-    const p = pulse.value;
 
     const terms = [
       { title: 'Forward XW', cost: '2ND', col: ROLE.params, fill: Math.min(1, tp * 3) },
@@ -234,12 +232,6 @@ export default function countingContract(s, c) {
 
     nodes.push(
       txt(totalText, 0, 295, 32, totalCol, 'mono', 'center').glow(7, totalCol).opacity(alpha),
-      glowDot(-420 + ((p * 2.1) % 1) * 840, 355, {
-        radius: 5,
-        color: totalCol,
-        glow: 10,
-        opacity: 0.8 * alpha,
-      }),
     );
 
     return nodes;
@@ -256,7 +248,6 @@ export default function countingContract(s, c) {
   );
 
   s.add(cinemaAtmosphere(ROLE.tokens, ROLE.amber), title, matLayer, act1Layer, act2Layer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'sl-counting-contract-0', (d) => s.play(exposureProg.to(1, { duration: d })), {
     dur: 1.5,

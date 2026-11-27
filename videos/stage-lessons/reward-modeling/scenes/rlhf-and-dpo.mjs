@@ -20,13 +20,11 @@ import {
   line,
   par,
   remainDuration,
-  runPhase,
   tokenCell,
   txt,
 } from '../parts.mjs';
 
 export default function rlhfAndDpo(s, c) {
-  const phase = s.value(0);
   // Act 1: Best-of-3, PPO, DPO
   const showAct1 = s.value(1);
   const rankOn = s.value(0.35);
@@ -428,7 +426,6 @@ export default function rlhfAndDpo(s, c) {
   });
 
   s.add(bgAura, title, eqDpo, act1, act2);
-  runPhase(s, c, phase, 16);
 
   // Act 1 cues
   c.on('rank-candidates', () => s.play(rankOn.to(1, { duration: 0.45 })));

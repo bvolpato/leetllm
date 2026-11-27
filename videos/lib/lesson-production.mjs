@@ -68,13 +68,19 @@ export function lessonSourcePaths(id, { mode = 'canvas', root } = {}) {
   if (!slug.test(id)) throw new Error(`Invalid lesson id: ${id}`);
   if (!['canvas', 'stage'].includes(mode)) throw new Error(`Unknown lesson mode: ${mode}`);
   const project = `videos/stage-lessons/${id}`;
-  if (
-    mode === 'stage' &&
-    root &&
-    !existsSync(path.join(root, project + '.lesson.yaml')) &&
-    existsSync(path.join(root, project, 'lesson.yaml'))
-  ) {
-    return { lessonFile: project + '/lesson.yaml', moduleFile: project + '/index.mjs' };
+  if (mode === 'stage' && root) {
+    const topYaml = existsSync(path.join(root, project + '.lesson.yaml'));
+    const dirYaml = existsSync(path.join(root, project, 'lesson.yaml'));
+    const dirIndex = existsSync(path.join(root, project, 'index.mjs'));
+    if (dirIndex && (topYaml || dirYaml)) {
+      return {
+        lessonFile: topYaml ? project + '.lesson.yaml' : project + '/lesson.yaml',
+        moduleFile: project + '/index.mjs',
+      };
+    }
+    if (!topYaml && dirYaml) {
+      return { lessonFile: project + '/lesson.yaml', moduleFile: project + '/index.mjs' };
+    }
   }
   const directory = mode === 'stage' ? 'stage-lessons' : 'lessons';
   return {

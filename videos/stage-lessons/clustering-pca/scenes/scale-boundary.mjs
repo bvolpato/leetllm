@@ -11,7 +11,6 @@ import {
   heroTitle,
   means,
   rule,
-  runAmbientPhase,
   stds,
   tweenCue,
   txt,
@@ -23,7 +22,6 @@ const Q_LEN = 300;
 const Q_Z_STORED = (Q_LEN - LEN_MEAN) / LEN_STD; // -0.6276
 
 export default function scaleBoundary(s, c) {
-  const phase = s.value(0);
   const showFit = s.value(0);
   const showQuery = s.value(0);
   const badRefit = s.value(0); // 0 = stored (-0.63), 1 = broken refit (0.00)
@@ -133,7 +131,6 @@ export default function scaleBoundary(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'fit', showFit, 1, { duration: 0.45 });
   c.show('formula', eqScale);

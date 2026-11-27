@@ -9,12 +9,10 @@ import {
   heroTitle,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function causal(s, c) {
-  const phase = s.value(0);
   const showFuture = s.value(0);
   const showDiag = s.value(0);
   const showPast = s.value(0);
@@ -37,29 +35,22 @@ export default function causal(s, c) {
   const gy0 = -280;
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sf = showFuture.value;
     const sd = showDiag.value;
     const sp = showPast.value;
     const sa = showAbs.value;
     const st = showTail.value;
-    const sweepIdx = Math.floor(p * 1.6) % 10;
 
     const nodes = [
       txt('4 × 4 ALIGNED CAUSAL TILE GRID', gx0 + 292, gy0 - 52, 26, COSMOS.cyan, 'mono'),
     ];
 
-    let activeCount = 0;
     for (let r = 0; r < 4; r++) {
       for (let col = 0; col < 4; col++) {
         const cx = gx0 + col * (cell + gap) + cell * 0.5;
         const cy = gy0 + r * (cell + gap) + cell * 0.5;
         const kind = col > r ? 'future' : col === r ? 'diag' : 'past';
-        let isSweep = false;
-        if (kind !== 'future') {
-          isSweep = activeCount === sweepIdx;
-          activeCount++;
-        }
+        const isSweep = false;
         const fill = kind === 'future' ? '#0c0f1c' : kind === 'diag' ? '#241e12' : '#0e2438';
         const stroke =
           kind === 'future'
@@ -161,7 +152,6 @@ export default function causal(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('causal-tiles', () => s.play(showPast.to(0.4, { duration: 0.3 })));
   c.on('skip-future', () => s.play(showFuture.to(1, { duration: 0.45 })));

@@ -24,7 +24,6 @@ import {
   normalizationTransfer,
   playCue,
   rms,
-  scenePulse,
   variance,
 } from '../parts.mjs';
 
@@ -47,7 +46,6 @@ export default function normalizationTransferScene(s, c) {
   const centerT = s.value(0); // 0 -> 1 subtracts row means -> both f1 land on -3
   const divideT = s.value(0); // 0 -> 1 divides by sqrt(5+eps) -> both f1 land on -1.342
   const connectT = s.value(0); // 0 -> 1 routes matched logit to Port column AFTER head-compare
-  const pulse = s.value(0);
   const stageVis = s.value(1);
 
   const mainLayer = guardedDynamic(stageVis, (alpha) => {
@@ -57,7 +55,6 @@ export default function normalizationTransferScene(s, c) {
     const ct = centerT.value;
     const dt = divideT.value;
     const conn = connectT.value;
-    const p = pulse.value;
 
     const mode = mc > 1.5 ? 'rms' : mc > 0.5 ? 'ln' : 'raw';
     const opName =
@@ -185,10 +182,6 @@ export default function normalizationTransferScene(s, c) {
         ).opacity(a),
         txt(fmt(refLogit, 3), 725, y, 36, COSMOS.ink, 'mono', 'center').opacity(a),
       );
-
-      // Subtle flowing photon along top wire
-      const px = -410 + ((p * 2.4 + idx * 0.5) % 1) * 750;
-      nodes.push(glowDot(px, y - 54, { radius: 4.5, color: opCol, glow: 9, opacity: 0.65 * a }));
     });
 
     // Bottom prompt / verdict / next-lesson coda
@@ -215,7 +208,6 @@ export default function normalizationTransferScene(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.norm, ROLE.gold), title, mainLayer);
-  scenePulse(s, c, pulse);
 
   // Beat 0: Add +5 offset row (answer strictly withheld!)
   playCue(s, c, 'transfer-offset', (d) => s.play(row2Vis.to(1, { duration: d })), { dur: 0.7 });

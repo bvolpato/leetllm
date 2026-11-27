@@ -6,18 +6,15 @@ import {
   SPEC_TARGET,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function speculate(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = Draft proposes 8 words (The birds sing near the sea at dawn)
   // 1 = Target agrees on first 5 words (The birds sing near the)
@@ -41,7 +38,6 @@ export default function speculate(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const agreedShown = st >= 1;
     const mismatchShown = st >= 2;
     const committed = st >= 4;
@@ -142,11 +138,6 @@ export default function speculate(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
-    const dotX = feeding ? x0 + 5 * pitch : -680 + u * 1360;
-    const dotY = feeding ? 130 + u * 40 : 285;
-    nodes.push(glowDot(dotX, dotY, { radius: 7, color: kvFilled6 ? ROLE.decode : COSMOS.gold }));
-
     const caption = kvFilled6
       ? 'After feeding "lake" into the target forward pass, all 6 committed positions have ready KV.'
       : feeding
@@ -166,7 +157,6 @@ export default function speculate(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['draft-words', 0],
     ['speculate-agreed-prefix', 1],

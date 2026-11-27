@@ -8,15 +8,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   glowMeter,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function nativeSession(s, c) {
-  const phase = s.value(0);
   const countersOn = s.value(0);
   const diffOn = s.value(0);
   const partsOn = s.value(0);
@@ -39,7 +36,6 @@ export default function nativeSession(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const cnt = countersOn.value;
       const dif = diffOn.value;
       const prt = partsOn.value;
@@ -141,12 +137,6 @@ export default function nativeSession(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.native,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -154,8 +144,6 @@ export default function nativeSession(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.4);
-
   c.on('va-native-session-0-2', () => {
     s.play(countersOn.to(1, { duration: clampDur(c, c.cue('va-native-session-0-2').start, 0.35) }));
   });

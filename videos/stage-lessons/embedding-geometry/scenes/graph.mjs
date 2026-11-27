@@ -17,7 +17,6 @@ import {
   orbitScene,
   playCue,
   rule,
-  runPhase,
   swapVis,
   txt,
 } from '../parts.mjs';
@@ -26,7 +25,6 @@ export default function graph(s, c) {
   const res1 = graphSearch(1);
   const res3 = graphSearch(3);
 
-  const phase = s.value(0);
   const upperVis = s.value(0);
   const vPyramid = s.value(1);
   const vBase = s.value(0);
@@ -83,8 +81,6 @@ export default function graph(s, c) {
   const xy = (v) => [mapX(v[0]), mapY(v[1])];
 
   const baseLayer = guardedDynamic(vBase, (alpha) => {
-    const p = phase.value;
-    const pulse = 0.8 + 0.2 * Math.sin(p * 3.0);
     const run = Math.round(searchRun.value);
     const sp = stepPos.value;
 
@@ -156,7 +152,7 @@ export default function graph(s, c) {
     // Query node q = [5, 2]
     const [qx, qy] = xy(GRAPH.query);
     nodes.push(
-      glowDot(qx, qy, { radius: 9, color: ROLE.query, glow: 12 * pulse, opacity: alpha }),
+      glowDot(qx, qy, { radius: 9, color: ROLE.query, glow: 12, opacity: alpha }),
       txt('q [5, 2]', qx + 28, qy + 38, 28, ROLE.query, 'mono', 'left')
         .glow(6, ROLE.query)
         .opacity(alpha),
@@ -177,7 +173,7 @@ export default function graph(s, c) {
       pathPts[i0][1] + (pathPts[i1][1] - pathPts[i0][1]) * frac,
     ];
     const [tx, ty] = xy(curPos);
-    nodes.push(glowDot(tx, ty, { radius: 11, color: ROLE.gold, glow: 14 * pulse, opacity: alpha }));
+    nodes.push(glowDot(tx, ty, { radius: 11, color: ROLE.gold, glow: 14, opacity: alpha }));
 
     // Right column: Floating search traces (NO boxy table!)
     const rx = 225;
@@ -242,7 +238,7 @@ export default function graph(s, c) {
               color: ROLE.A,
               fillAlpha: 0.24,
               strokeWidth: 2.8,
-              glow: 10 * pulse,
+              glow: 10,
               opacity: foundDone.value * alpha,
             }),
             txt(
@@ -270,7 +266,6 @@ export default function graph(s, c) {
 
   s.add(cinemaAtmosphere(ROLE.code, ROLE.A), title, pyramid3d, pyramidOverlay, baseLayer);
 
-  runPhase(s, c, phase, 10);
   orbitScene(s, c, pyramid3d, { theta: 0.25, phi: 0.98 });
 
   playCue(s, c, 'layers', (d) => s.play(upperVis.to(1, { duration: d })), { dur: 1.1 });

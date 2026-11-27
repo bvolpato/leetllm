@@ -14,12 +14,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function nf4Codec(s, c) {
-  const phase = s.value(0);
   const showLevels = s.value(0);
   const showScale = s.value(0);
   const showNorm = s.value(0);
@@ -196,7 +194,6 @@ export default function nf4Codec(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('nf4-levels', () => s.play(showLevels.to(1, { duration: 0.4 })));
   c.on('nf4-scale', () => s.play(showScale.to(1, { duration: 0.45 })));

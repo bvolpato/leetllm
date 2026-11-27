@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   recipeDigest,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function manifestContract(s, c) {
-  const phase = s.value(0);
   const showFields = s.value(0);
   const showMeta = s.value(0);
   const showMut = s.value(0);
@@ -37,7 +34,6 @@ export default function manifestContract(s, c) {
   const digestS2 = recipeDigest({ stride: [2] }).slice(0, 10);
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const sf = showFields.value;
     const sm = showMeta.value;
     const mu = showMut.value;
@@ -117,9 +113,7 @@ export default function manifestContract(s, c) {
       txt('Record resolved paths + immutable copy + verify digest', 460, 184, 26, ROLE.ir, 'sans'),
     );
 
-    const u = (p * 0.6) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 290, { radius: 6, color: tr > 0.5 ? ROLE.cubin : COSMOS.gold }),
       txt(
         mu > 0.5
           ? '10 single-field mutations: identical recipe hits, every mutation misses'
@@ -136,7 +130,6 @@ export default function manifestContract(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('recipe-fields', () =>
     s.play(showFields.to(1, { duration: remainDuration(c, 'recipe-fields', 0.45) })),

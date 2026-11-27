@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   glowingArc,
   group,
   guardedDynamic,
   heroTitle,
   remainDuration,
   resolve,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function loader(s, c) {
-  const phase = s.value(0);
   // branch: 0=native, 1=ptx, 2=first-compile, 3=missing
   const branch = s.value(0);
 
@@ -31,9 +28,7 @@ export default function loader(s, c) {
   });
 
   const live = guardedDynamic(1, () => {
-    const p = phase.value;
     const br = Math.round(branch.value);
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const hasNative = br === 0;
     const hasPtx = br === 1 || br === 2;
@@ -44,7 +39,7 @@ export default function loader(s, c) {
       // Decision node 1: Compatible Native Cubin?
       glassCell(-540, -105, 440, 118, hasNative ? ROLE.cubin : ROLE.warn, {
         fill: hasNative ? '#0d2924' : '#261b10',
-        glow: hasNative ? 11 * pulse : 5,
+        glow: hasNative ? 11 : 5,
       }),
       txt('1. COMPATIBLE NATIVE?', -540, -132, 26, COSMOS.muted, 'mono'),
       txt(
@@ -59,7 +54,7 @@ export default function loader(s, c) {
       // Decision node 2: Usable PTX + Driver ISA?
       glassCell(-540, 120, 440, 118, hasPtx ? ROLE.ptx : br === 3 ? ROLE.fail : COSMOS.dim, {
         fill: hasPtx ? '#262010' : br === 3 ? '#2c101b' : '#0c1220',
-        glow: hasPtx ? 11 * pulse : br === 3 ? 9 : 0,
+        glow: hasPtx ? 11 : br === 3 ? 9 : 0,
       }),
       txt('2. USABLE PTX + DRIVER?', -540, 92, 26, COSMOS.muted, 'mono'),
       txt(
@@ -81,7 +76,7 @@ export default function loader(s, c) {
       // Right: Outcome & First-Request Cost panel
       glassCell(320, -105, 580, 138, verdictCol, {
         fill: hasNative ? '#0c2722' : hasPtx ? '#241e10' : '#2e101c',
-        glow: 12 * pulse,
+        glow: 12,
       }),
       txt('LOADER VERDICT', 320, -142, 26, COSMOS.muted, 'mono'),
       txt(verdict, 320, -86, 44, verdictCol, 'mono').glow(7, verdictCol),
@@ -120,16 +115,7 @@ export default function loader(s, c) {
       }),
     ];
 
-    const u = (p * 0.7) % 1;
     nodes.push(
-      glowDot(
-        -316 + u * 342,
-        (hasNative ? -105 : 120) * (1 - u) - 105 * u - Math.sin(u * Math.PI) * 15,
-        {
-          radius: 7,
-          color: verdictCol,
-        },
-      ),
       txt(
         br === 3
           ? 'No kernel counters exist yet · inspect fatbinary & separate compile/load/launch'
@@ -146,7 +132,6 @@ export default function loader(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('loader-native-path', () =>
     s.play(branch.to(0, { duration: remainDuration(c, 'loader-native-path', 0.35) })),

@@ -9,8 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   sysNode,
   trimSeg,
@@ -18,7 +16,6 @@ import {
 } from '../parts.mjs';
 
 export default function contract(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 0..5 progressive highlights across boundaries + receipt
 
   const header = cinemaHeader(
@@ -38,7 +35,6 @@ export default function contract(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const st = step.value;
       const nodes = [];
 
@@ -70,9 +66,8 @@ export default function contract(s, c) {
           built[i + 1].obj.r + 14,
         );
         nodes.push(
-          beamWithPhotons([a, b], built[i].col, p + i * 0.2, {
+          beamWithPhotons([a, b], built[i].col, 0, {
             width: 3.6,
-            photonCount: 1,
             alpha: st >= i ? 0.95 : 0.35,
           }),
         );
@@ -126,12 +121,6 @@ export default function contract(s, c) {
           'sans',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.req,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -139,8 +128,6 @@ export default function contract(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.0);
-
   c.on('contract-request-id', () => {
     s.play(step.to(0.5, { duration: clampDur(c, c.cue('contract-request-id').start, 0.25) }));
   });

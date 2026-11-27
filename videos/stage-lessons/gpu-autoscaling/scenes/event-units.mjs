@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   glowTex,
   guardedDynamic,
@@ -19,7 +18,6 @@ import {
 } from '../parts.mjs';
 
 export default function eventUnits(s, c) {
-  const phase = s.value(0);
   const step = s.value(0); // 1=second-packet (prediction!), 2=event-gap(AFTER), 3=bundle-mean(AFTER), 4=collector beat 2
 
   const header = cinemaHeader(
@@ -48,8 +46,6 @@ export default function eventUnits(s, c) {
     () => 1,
     () => {
       const st = step.value;
-      const p = phase.value;
-      const blink = 0.68 + 0.32 * Math.sin(p * 5.0);
       const yPacket = -20;
       const nodes = [];
 
@@ -99,7 +95,7 @@ export default function eventUnits(s, c) {
             'left',
           )
             .glow(8, ROLE.predict)
-            .opacity(blink),
+            .opacity(1),
           txt(
             '4 tokens on screen  ·  2 stamped events',
             -860,
@@ -121,7 +117,7 @@ export default function eventUnits(s, c) {
               [65, yPacket],
             ],
             ROLE.focus,
-            p * 0.9,
+            0,
             { width: 4.5, glow: 11, photonCount: 2 },
           ),
           txt(
@@ -198,7 +194,6 @@ export default function eventUnits(s, c) {
   );
 
   s.add(bgAura, header, dyn);
-  driftValue(s, c, phase, 6.5, { startOffset: 0.1, endMargin: 0.5 });
 
   // Beat 0: setup + question (NO reveal!)
   tweenOn(s, c, 'second-packet', step, 1, 0.35);

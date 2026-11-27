@@ -13,14 +13,12 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function transfer(s, c) {
-  const pulse = s.value(0);
   const factsHi = s.value(0);
   const callExt = s.value(0);
   const valExt = s.value(0);
@@ -182,7 +180,6 @@ export default function transfer(s, c) {
   );
 
   s.add(stageAura, header, stageView);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('retry-facts', () => {
     s.play(factsHi.to(1, { duration: clampDur(c, c.cue('retry-facts').start, 0.4) }));

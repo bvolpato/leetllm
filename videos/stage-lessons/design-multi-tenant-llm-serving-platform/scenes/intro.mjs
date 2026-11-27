@@ -9,7 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   mix,
   playOn,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function intro(s, c) {
-  const pulse = s.value(0);
   const slide = s.value(0);
   const citeHighlight = s.value(0);
   const choiceOn = s.value(0);
@@ -38,7 +36,6 @@ export default function intro(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const sl = slide.value;
       const ch = citeHighlight.value;
       const ask = choiceOn.value > 0.5;
@@ -150,10 +147,9 @@ export default function intro(s, c) {
       // Mismatch beam clearly right of the names (Carol ends ~ -460)
       if (ch > 0.3) {
         nodes.push(
-          beamWithPhotons(quadArcPts([-395, -162], [-395, -40], 26), ROLE.focus, p, {
+          beamWithPhotons(quadArcPts([-395, -162], [-395, -40], 26), ROLE.focus, 0, {
             width: 3,
             glow: 8,
-            photonCount: 1,
             alpha: ch,
           }),
         );
@@ -233,8 +229,6 @@ export default function intro(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   playOn(s, c, 'intro-delivery', slide, 1, 1.3);
   playOn(s, c, 'intro-citation', citeHighlight, 1, 0.45);
   stepOn(s, c, 'intro-choice', choiceOn, 1);

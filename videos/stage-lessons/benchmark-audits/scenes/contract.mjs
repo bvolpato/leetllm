@@ -71,10 +71,6 @@ export default function contract(s, c) {
           }),
         );
       }
-      // Travelling live signal photon gliding cleanly along a track above the rail
-      const travel = (p * 0.22 + (isB ? 0.5 : 0)) % 1;
-      const px = xs[0] + travel * (xs[4] - xs[0]);
-      nodes.push(glowDot(px, cy - 60, { radius: 5.5, color, glow: 11, opacity: 0.85 }));
 
       values.forEach((val, i) => {
         const isModel = i === 2;

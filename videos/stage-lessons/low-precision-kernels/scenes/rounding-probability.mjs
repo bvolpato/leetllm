@@ -13,12 +13,10 @@ import {
   line,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function roundingProbability(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const candProg = s.value(0);
   const revealE4 = s.value(0);
@@ -321,7 +319,6 @@ export default function roundingProbability(s, c) {
   });
 
   s.add(bgAura, title, part1, part2);
-  runPhase(s, c, phase, 16);
 
   c.on('round-candidate', () =>
     s.play(candProg.to(1, { duration: remainDuration(c, 'round-candidate', 0.65) })),

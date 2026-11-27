@@ -509,12 +509,12 @@ export function glowArrow(
   ).opacity(alpha);
 }
 
-/** Glowing curved Bezier arc arrow with optional traveling photon. */
+/** Glowing curved Bezier arc arrow. */
 export function glowArcArrow(
   p0,
   p1,
   liftY = -65,
-  { color = ROLE.workerB, width = 3.4, glow = 8, alpha = 1, photonT = null } = {},
+  { color = ROLE.workerB, width = 3.4, glow = 8, alpha = 1 } = {},
 ) {
   const mx = (p0[0] + p1[0]) / 2;
   const my = (p0[1] + p1[1]) / 2 + liftY;
@@ -530,14 +530,7 @@ export function glowArcArrow(
   }
   const trail = glowingTrail(pts, { color, width, glow, opacity: alpha });
   const tip = arrow(pts[steps - 2], pts[steps], { stroke: color, width, tip: 13 }).opacity(alpha);
-  const items = [trail, tip];
-  if (photonT !== null && photonT >= 0 && photonT <= 1) {
-    const u = 1 - photonT;
-    const px = u * u * p0[0] + 2 * u * photonT * mx + photonT * photonT * p1[0];
-    const py = u * u * p0[1] + 2 * u * photonT * my + photonT * photonT * p1[1];
-    items.push(glowDot(px, py, { radius: 8, color, glow: 13, opacity: alpha }));
-  }
-  return group(...items);
+  return group(trail, tip);
 }
 
 /** Glowing horizontal progress / gauge bar. */

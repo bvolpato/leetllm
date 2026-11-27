@@ -12,7 +12,6 @@ import {
   cinematic3d,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInNodes,
   glowBar,
   glowDot,
@@ -25,7 +24,6 @@ import {
 export default function phases(s, c) {
   const act1Vis = s.value(1);
   const act2Vis = s.value(0);
-  const phase = s.value(0);
 
   // Act 1 state values
   const prefillProg = s.value(0);
@@ -136,7 +134,6 @@ export default function phases(s, c) {
     const ap = appendStep.value;
     const ord = orderVis.value;
     const parA = parallelVis.value;
-    const ph = phase.value;
     const nodes = [];
 
     // 5x5 causal attention mask grid on left (-835 .. -535, y = -120 .. 180)
@@ -210,11 +207,10 @@ export default function phases(s, c) {
           .opacity(a * dc),
       );
       if (parA > 0.05) {
-        const pulse = 0.65 + 0.35 * Math.sin(ph * 6);
         nodes.push(
           txt('Parallel GPU work inside each step', 285, 438, 28, ROLE.key, 'sans')
             .glow(5, ROLE.key)
-            .opacity(a * parA * pulse),
+            .opacity(a * parA),
         );
       }
     }
@@ -240,7 +236,6 @@ export default function phases(s, c) {
     const tt = ttftVis.value;
     const it = itlVis.value;
     const bo = bothVis.value;
-    const ph = phase.value;
     const nodes = [];
 
     // Left: Prefill Compute Saturation Gauge
@@ -285,7 +280,7 @@ export default function phases(s, c) {
         [810, 38],
       ];
       nodes.push(
-        beamWithPhotons(streamPts, ROLE.link, ph * 0.65, {
+        beamWithPhotons(streamPts, ROLE.link, 0, {
           width: 4.5,
           glow: 12,
           photonCount: 5,
@@ -359,7 +354,6 @@ export default function phases(s, c) {
 
   // Start on Act 1
   s.add(act1Aura, crystalView, act1Header, act1Dyn, act2Dyn);
-  driftValue(s, c, phase, 7.5, { startOffset: 0.1, endMargin: 0.5 });
 
   // Orbit crystal smoothly through Act 1
   const stressT = c.cue('stress').start;

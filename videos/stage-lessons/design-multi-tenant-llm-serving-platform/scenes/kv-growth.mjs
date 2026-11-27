@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   buildKvPageTile,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   reserveWholePages,
   stepAfter,
@@ -23,7 +22,6 @@ const EXACT_PAGES = reserveWholePages(HUGE_POS, 0n);
 const FLOAT_PAGES = BigInt(Math.ceil(Number(HUGE_POS) / 16));
 
 export default function kvGrowth(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const crossOn = s.value(0);
   const twoPagesOn = s.value(0);
@@ -44,7 +42,6 @@ export default function kvGrowth(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const cross = crossOn.value > 0.5;
       const twoP = twoPagesOn.value > 0.5;
       const b1 = b1On.value > 0.5;
@@ -94,8 +91,8 @@ export default function kvGrowth(s, c) {
                 [180, -10],
               ],
               ROLE.held,
-              p,
-              { width: 4.5, glow: 10, photonCount: 2 },
+              0,
+              { width: 4.5, glow: 10 },
             ),
             rect(420, 68, { fill: '#221c0c', stroke: ROLE.held, width: 2.6, radius: 12 })
               .at(-80, -78)
@@ -295,8 +292,6 @@ export default function kvGrowth(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-kv-growth-b0', b0On, 1);
   stepAfter(s, c, 'mt-kv-growth-s0-2', crossOn, 1);
   stepAfter(s, c, 'mt-kv-growth-s0-3', twoPagesOn, 1);

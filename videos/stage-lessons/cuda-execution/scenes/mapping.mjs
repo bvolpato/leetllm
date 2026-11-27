@@ -9,13 +9,11 @@ import {
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   threadMap,
   txt,
 } from '../parts.mjs';
 
 export default function mapping(s, c) {
-  const phase = s.value(0);
   const splitProg = s.value(0);
   const predictLit = s.value(0);
   const baseLit = s.value(0);
@@ -185,7 +183,6 @@ export default function mapping(s, c) {
   });
 
   s.add(bgAura, title, live, eqGeneral);
-  runPhase(s, c, phase, 12);
 
   c.on('split-blocks', () => s.play(splitProg.to(1, { duration: 0.75 })));
   c.on('predict-owner', () => s.play(predictLit.to(1, { duration: 0.35 })));

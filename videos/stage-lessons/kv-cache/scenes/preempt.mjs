@@ -14,7 +14,6 @@ import {
   cinematic3d,
   clampDur,
   dashedRule,
-  driftValue,
   fadeInNodes,
   guardedDynamic,
   hideNodes,
@@ -25,7 +24,6 @@ import {
 export default function preempt(s, c) {
   const act1Vis = s.value(1);
   const act2Vis = s.value(0);
-  const phase = s.value(0);
 
   // Act 1 state (8 cues)
   const fullStep = s.value(0); // 1=ceiling, 2=needs-block, 3=empty, 4=decision, 5=delay, 6=evict, 7=unchanged, 8=retry
@@ -93,14 +91,13 @@ export default function preempt(s, c) {
 
   const act1Dyn = guardedDynamic(act1Vis, (a) => {
     const f = fullStep.value;
-    const pulse = 0.72 + 0.28 * Math.sin(phase.value * 5.5);
     const nodes = [
       txt('12 / 12 PHYSICAL BLOCKS OCCUPIED', 255, -420, 26, ROLE.waste, 'mono')
         .glow(6, ROLE.waste)
         .opacity(a),
       txt('FREE LIST: 0 BLOCKS', 255, 458, 28, ROLE.waste, 'mono')
         .glow(8, ROLE.waste)
-        .opacity(a * (f >= 2.5 ? pulse : 0.8)),
+        .opacity(a * (f >= 2.5 ? 1 : 0.8)),
     ];
 
     const lines = [
@@ -138,7 +135,6 @@ export default function preempt(s, c) {
   const act2Dyn = guardedDynamic(act2Vis, (a) => {
     const r = recStep.value;
     const sw = swpStep.value;
-    const ph = phase.value;
     const nodes = [dashedRule(0, -210, 0, 320, '#283657', 0.65 * a)];
 
     // LEFT: RECOMPUTE
@@ -215,7 +211,7 @@ export default function preempt(s, c) {
             [522, -98],
           ],
           ROLE.link,
-          ph * 0.85,
+          0,
           { width: 4.0, glow: 11, photonCount: 2, alpha: sA },
         ),
         beamWithPhotons(
@@ -224,7 +220,7 @@ export default function preempt(s, c) {
             [358, -68],
           ],
           ROLE.fresh,
-          (ph * 0.85 + 0.5) % 1,
+          0,
           { width: 4.0, glow: 11, photonCount: 2, alpha: sA },
         ),
       );
@@ -264,7 +260,6 @@ export default function preempt(s, c) {
   });
 
   s.add(act1Aura, fullView, act1Header, act1Dyn, act2Dyn);
-  driftValue(s, c, phase, 9.5, { startOffset: 0.1, endMargin: 0.5 });
 
   // Orbit 3D full pool through Act 1
   const recStart = c.cue('recompute').start;

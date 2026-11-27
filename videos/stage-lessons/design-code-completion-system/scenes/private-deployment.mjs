@@ -7,7 +7,6 @@ import {
   cinemaHeader,
   clampDur,
   codeNode,
-  driftValue,
   glowDot,
   guardedDynamic,
   trimSeg,
@@ -29,9 +28,6 @@ export function buildPrivateDeployment(s, c) {
 
   const localT = s.value(0);
   const policyT = s.value(0);
-  const pulse = s.value(0);
-  driftValue(s, c, pulse, 2.0);
-
   c.on('cc-offline-local', () =>
     s.play(localT.to(1, { duration: clampDur(c, c.cue('cc-offline-local').start, 0.55) })),
   );
@@ -78,12 +74,11 @@ export function buildPrivateDeployment(s, c) {
       () => {
         const loc = localT.value;
         const pol = policyT.value;
-        const p = pulse.value;
         const nodes = [];
 
         for (let i = 0; i < pts.length - 1; i++) {
           const seg = trimSeg(pts[i], pts[i + 1], 106, 106);
-          nodes.push(beamWithPhotons(seg, ROLE.ok, p + i * 0.22, { alpha: 0.45 + 0.55 * loc }));
+          nodes.push(beamWithPhotons(seg, ROLE.ok, 0, { alpha: 0.45 + 0.55 * loc }));
         }
         pts.forEach((pt, idx) => {
           const { node } = codeNode(pt[0], pt[1], labels[idx][0], ROLE.ok, {

@@ -16,13 +16,11 @@ import {
   range,
   renderGqaRack2d,
   rule,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function map(s, c) {
   const G = groupSize(HEADS.queries, HEADS.gqaKV);
-  const phase = s.value(0);
   const lit = s.value(-1);
   const showDiv = s.value(0);
   const span0 = s.value(0);
@@ -67,7 +65,6 @@ export default function map(s, c) {
         slots: 4,
         lit: lit.value,
         cursor: -1,
-        phase: phase.value,
         colNames: ['Rain', 'fell', '2', '3'],
       }),
       rule(-85, -310, -85, 405, COSMOS.rule, 1.6).opacity(0.6),
@@ -181,7 +178,6 @@ export default function map(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.query, ROLE.key), title, eq, live);
-  runPhase(s, c, phase, 12);
 
   playCue(s, c, 'divide', (d) => s.play(showDiv.to(1, { duration: d })), {
     after: true,

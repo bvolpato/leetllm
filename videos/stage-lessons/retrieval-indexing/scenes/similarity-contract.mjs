@@ -11,14 +11,12 @@ import {
   heroTitle,
   meterBar,
   remainDuration,
-  runPhase,
   txt,
   vectorCosine,
   vectorDot,
 } from '../parts.mjs';
 
 export default function similarityContract(s, c) {
-  const phase = s.value(0);
   const showDenom = s.value(0);
   const showUnit = s.value(0);
   const showZero = s.value(0);
@@ -50,7 +48,6 @@ export default function similarityContract(s, c) {
   const cosB = vectorCosine(CRED_QUERY_VEC, candB);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sd = showDenom.value;
     const su = showUnit.value;
     const sz = showZero.value;
@@ -58,7 +55,6 @@ export default function similarityContract(s, c) {
     const sb = showB.value;
     const sds = showDirScale.value;
     const sc = showContract.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: Candidate A vs Candidate B magnitude flip
@@ -66,7 +62,7 @@ export default function similarityContract(s, c) {
 
       glassCell(-455, -75, 820, 168, sa > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: '#0e2624',
-        glow: sa > 0.3 ? 9 * pulse : 3,
+        glow: sa > 0.3 ? 9 : 3,
       }),
       txt('CANDIDATE A = [1.0, 0.8, 0]  (ALIGNED)', -840, -124, 26, COSMOS.emerald, 'mono', 'left'),
       txt(`dot = ${dotA.toFixed(2)}`, -840, -72, 27, COSMOS.cyan, 'mono', 'left'),
@@ -77,7 +73,7 @@ export default function similarityContract(s, c) {
 
       glassCell(-455, 132, 820, 168, sb > 0.3 ? COSMOS.amber : COSMOS.muted, {
         fill: sb > 0.3 ? '#261b10' : '#12182b',
-        glow: sb > 0.3 ? 9 * pulse : 3,
+        glow: sb > 0.3 ? 9 : 3,
       }),
       txt('CANDIDATE B = [6.0, 0.0, 0]  (SCALED 6x)', -840, 84, 26, COSMOS.amber, 'mono', 'left'),
       txt(`dot = ${dotB.toFixed(2)}`, -840, 134, 27, COSMOS.amber, 'mono', 'left'),
@@ -114,7 +110,7 @@ export default function similarityContract(s, c) {
 
       glassCell(495, 76, 750, 134, sds > 0.3 ? COSMOS.amber : COSMOS.muted, {
         fill: sds > 0.3 ? '#241c10' : '#12182b',
-        glow: sds > 0.3 ? 8 * pulse : 2,
+        glow: sds > 0.3 ? 8 : 2,
       }),
       txt('MODEL DECISION, NOT AUTO-REPAIR', 150, 42, 26, COSMOS.amber, 'mono', 'left'),
       txt('DPR / MIPS models can encode signal in norm', 150, 84, 26, COSMOS.ink, 'sans', 'left'),
@@ -130,7 +126,7 @@ export default function similarityContract(s, c) {
 
       glassCell(495, 240, 750, 118, sc > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: sc > 0.3 ? '#0e2824' : '#12182b',
-        glow: sc > 0.3 ? 8 * pulse : 2,
+        glow: sc > 0.3 ? 8 : 2,
       }),
       txt('LOCK INDEX + QUERY CONTRACT', 150, 210, 26, COSMOS.emerald, 'mono', 'left'),
       txt(
@@ -159,7 +155,6 @@ export default function similarityContract(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('cosine-denominator', () => s.play(showDenom.to(1, { duration: 0.4 })));
   c.on('unit-dot', () => s.play(showUnit.to(1, { duration: 0.4 })));

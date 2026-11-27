@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   evaluationMicro,
   glowBar,
   glowTex,
@@ -49,7 +48,7 @@ export default function batchDeadline(s, c) {
       const lp = liveProg.value;
       const bp = batchProg.value;
       const fp = fitProg.value;
-      const p = pulseT.value;
+      const p = 0;
 
       const nodes = [];
 
@@ -136,7 +135,6 @@ export default function batchDeadline(s, c) {
   );
 
   s.add(sceneAura, header, stageCanvas);
-  driftValue(s, c, pulseT, 4.2, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('interactive-work', () => {
     const t = c.cue('interactive-work').start;

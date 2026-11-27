@@ -10,7 +10,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowBar,
@@ -164,7 +163,7 @@ export default function usageContract(s, c) {
     () => fadeInHalf(Math.max(0, mode.value - 1)),
     (a) => {
       const u = anthProg.value;
-      const p = pulseT.value;
+      const p = 0;
       const nodes = [
         txt(
           'ANTHROPIC SEPARATE FIELDS  ·  RECONSTRUCT TOTAL',
@@ -218,7 +217,6 @@ export default function usageContract(s, c) {
   );
 
   s.add(sceneAura, header, mode0, mode1, mode2);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('te-usage-contract-0', () => {
     const t = c.cue('te-usage-contract-0').start;

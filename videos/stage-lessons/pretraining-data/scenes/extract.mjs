@@ -4,7 +4,6 @@ import {
   aura,
   extractionFixture,
   glassCell,
-  glowDot,
   glowingTrail,
   group,
   guardedDynamic,
@@ -13,12 +12,10 @@ import {
   photonStream,
   rect,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function extract(s, c) {
-  const phase = s.value(0);
   const navDim = s.value(0);
   const bodySelect = s.value(0);
   const proseCopy = s.value(0);
@@ -38,7 +35,6 @@ export default function extract(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const ph = phase.value;
     const nd = navDim.value;
     const bs = bodySelect.value;
     const pc = proseCopy.value;
@@ -124,7 +120,7 @@ export default function extract(s, c) {
       const copyAmt = row.code ? cc : pc;
       if (copyAmt > 0.02) {
         nodes.push(
-          ...photonStream([leftX + 365, srcY], [rightX - 365, dstY], 0, ph + idx * 0.6, {
+          ...photonStream([leftX + 365, srcY], [rightX - 365, dstY], 0, 0, {
             color: row.code ? COSMOS.violet : COSMOS.cyan,
             count: 3,
             opacity: copyAmt,
@@ -206,7 +202,6 @@ export default function extract(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('extract-b1-1', () =>
     s.play(navDim.to(1, { duration: remainDuration(c, 'extract-b1-1', 0.6) })),

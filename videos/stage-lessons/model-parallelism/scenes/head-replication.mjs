@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function headReplication(s, c) {
-  const phase = s.value(0);
   const pIntro = s.value(0);
   const pPrem = s.value(0);
   const pHyb = s.value(0);
@@ -139,19 +136,12 @@ export default function headReplication(s, c) {
           ? '30 other Qwen layers use gated recurrent-style state (budgeted separately)'
           : 'TP=2 divides both 16 Q heads and 2 KV heads cleanly with zero duplication';
 
-    nodes.push(
-      txt(foot, 0, 345, 28, plat ? ROLE.warn : rep ? COSMOS.gold : COSMOS.ink, 'sans'),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 415, {
-        radius: 6,
-        color: plat ? ROLE.warn : ROLE.gpu1,
-      }),
-    );
+    nodes.push(txt(foot, 0, 345, 28, plat ? ROLE.warn : rep ? COSMOS.gold : COSMOS.ink, 'sans'));
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('mp-head-replication-0', () =>
     s.play(pIntro.to(1, { duration: remainDuration(c, 'mp-head-replication-0', 0.35) })),

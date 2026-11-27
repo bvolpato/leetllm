@@ -9,7 +9,6 @@ import {
   cinemaHeader,
   clampDur,
   dashedRule,
-  driftValue,
   glowDot,
   glowingTrail,
   guardedDynamic,
@@ -21,7 +20,6 @@ import {
 } from '../parts.mjs';
 
 export default function generatorClock(s, c) {
-  const phase = s.value(0);
   const baseGlow = s.value(0);
   const shift = s.value(0); // 0 = sent 765, 1 = sent 800
   const revealVerdict = s.value(0); // strictly AFTER generator-verdict
@@ -43,7 +41,6 @@ export default function generatorClock(s, c) {
       const rev = revealVerdict.value;
       const bp = backpressure.value;
       const g = servingClock(sh);
-      const pulse = 0.72 + 0.28 * Math.sin(phase.value * 4.8);
 
       // Hide new numbers while sliding during Beat 1 prediction hold until AFTER generator-verdict
       const inPredict = sh > 0.05 && rev < 0.2;
@@ -200,9 +197,7 @@ export default function generatorClock(s, c) {
             30,
             ROLE.focus,
             'mono',
-          )
-            .glow(7, ROLE.focus)
-            .opacity(pulse),
+          ).glow(7, ROLE.focus),
         );
       } else {
         nodes.push(
@@ -224,7 +219,6 @@ export default function generatorClock(s, c) {
   );
 
   s.add(stageAura, header, clockView);
-  driftValue(s, c, phase, 9, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('generator-base', () => {
     const t = c.cue('generator-base').start;

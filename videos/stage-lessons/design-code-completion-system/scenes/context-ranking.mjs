@@ -2,20 +2,9 @@
 // Jaccard overlap math after ACL permission check: scope_rules 2/4 = 0.50 (SELECT),
 // policy_graph 1/4 = 0.25 (SELECT), metrics 0/5 = 0.00 (DROP) at threshold >= 0.25.
 import { group, line, rect } from 'vizmatic/stage';
-import {
-  COSMOS,
-  ROLE,
-  aura,
-  cinemaHeader,
-  clampDur,
-  driftValue,
-  glowDot,
-  guardedDynamic,
-  txt,
-} from '../parts.mjs';
+import { COSMOS, ROLE, aura, cinemaHeader, clampDur, guardedDynamic, txt } from '../parts.mjs';
 
 export default function contextRanking(s, c) {
-  const phase = s.value(0);
   const scoreOn = s.value(0);
   const selectOn = s.value(0);
   const bm25On = s.value(0);
@@ -37,7 +26,6 @@ export default function contextRanking(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const sc = scoreOn.value;
       const sl = selectOn.value;
       const bm = bm25On.value;
@@ -118,12 +106,6 @@ export default function contextRanking(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);
@@ -131,8 +113,6 @@ export default function contextRanking(s, c) {
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('cc-jaccard-half', () => {
     s.play(scoreOn.to(1, { duration: clampDur(c, c.cue('cc-jaccard-half').start, 0.35) }));
   });

@@ -11,7 +11,6 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
@@ -20,7 +19,6 @@ const PAIR_BILL = SCALE_CALC.pairs[0]; // B100 -> B500
 const PAIR_REL = SCALE_CALC.pairs[1]; // B100 -> D110
 
 export default function scale(s, c) {
-  const phase = s.value(0);
   const showRaw = s.value(0);
   const showWinRaw = s.value(0);
   const stdAmt = s.value(0);
@@ -179,7 +177,6 @@ export default function scale(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'raw', showRaw, 1, { duration: 0.45 });
   tweenCue(s, c, 'winnerraw', showWinRaw, 1, { duration: 0.45 });

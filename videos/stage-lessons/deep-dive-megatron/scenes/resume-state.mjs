@@ -11,13 +11,11 @@ import {
   guardedDynamic,
   heroTitle,
   line,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function resumeState(s, c) {
-  const phase = s.value(0);
   // step: 0=copy A saved v=0.4 (HOLD!), 1=copy B reset v=0 (HOLD!), 2=copy A -> 1.88, 3=copy B -> 1.90
   const step = s.value(0);
 
@@ -33,7 +31,6 @@ export default function resumeState(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     const xOf = (w) => -580 + ((w - 1.84) / (2.02 - 1.84)) * 1160;
@@ -100,9 +97,7 @@ export default function resumeState(s, c) {
       nodes.push(line([xOf(2.0), rulerY + 86], [posB, rulerY + 86], { color: ROLE.bad, width: 4 }));
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-740 + u * 1480, 290, { radius: 6, color: ROLE.dp }),
       txt(
         st <= 1
           ? 'Predict: Both start at 2.00 with identical forward outputs. Which copy steps farther?'
@@ -118,7 +113,6 @@ export default function resumeState(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['resume-old-motion', 0],
     ['resume-zero-motion', 1],

@@ -14,12 +14,10 @@ import {
   meterBar,
   recall,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function recallLedger(s, c) {
-  const phase = s.value(0);
   const showMatch1 = s.value(0);
   const showHalf = s.value(0);
   const showMatch2 = s.value(0);
@@ -39,12 +37,10 @@ export default function recallLedger(s, c) {
   const r2 = recall(PROBE2.result, EXACT_PAIR);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const m1 = showMatch1.value;
     const sh = showHalf.value;
     const m2 = showMatch2.value;
     const sc = showContract.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: Match lane diagram (Exact [A, B] vs nprobe=1 [A, C] vs nprobe=2 [A, B])
@@ -68,7 +64,7 @@ export default function recallLedger(s, c) {
 
       glassCell(-465, 92, 780, 146, m2 > 0.3 ? COSMOS.emerald : COSMOS.muted, {
         fill: '#0e2824',
-        glow: m2 > 0.3 ? 9 * pulse : 2,
+        glow: m2 > 0.3 ? 9 : 2,
       }),
       txt('nprobe = 2 (6 vectors scored):', -825, 52, 26, COSMOS.emerald, 'mono', 'left'),
       txt('Exact [ A, B ]  <->  Approx [ A, B ]', -825, 98, 28, COSMOS.ink, 'mono', 'left'),
@@ -108,7 +104,7 @@ export default function recallLedger(s, c) {
 
       glassCell(495, 114, 750, 204, sc > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#12182d',
-        glow: sc > 0.3 ? 9 * pulse : 2,
+        glow: sc > 0.3 ? 9 : 2,
       }),
       txt('HOLD FIXED BETWEEN EXACT & ANN:', 145, 52, 26, COSMOS.gold, 'mono', 'left'),
       txt('· Same embeddings, metric & tie-break rule', 145, 96, 26, COSMOS.ink, 'sans', 'left'),
@@ -147,7 +143,6 @@ export default function recallLedger(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('recall-ledger-b1-1', () => s.play(showMatch1.to(1, { duration: 0.4 })));
   c.on('recall-ledger-b1-2', () => s.play(showHalf.to(1, { duration: 0.4 })));

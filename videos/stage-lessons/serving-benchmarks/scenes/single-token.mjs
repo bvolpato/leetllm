@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowDot,
   glowTex,
   glowingTrail,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function singleToken(s, c) {
-  const phase = s.value(0);
   const formulaLit = s.value(0.4);
   const r02Lit = s.value(0);
   const nullLit = s.value(0);
@@ -175,7 +173,6 @@ export default function singleToken(s, c) {
   );
 
   s.add(stageAura, header, tpotEq, oscView);
-  driftValue(s, c, phase, 6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('single-token-beat-0', () => {
     const t = c.cue('single-token-beat-0').start;

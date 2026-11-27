@@ -10,9 +10,7 @@ import { line, rect } from 'vizmatic/stage';
 import {
   COSMOS,
   ROLE,
-  ambientClock,
   cinemaAtmosphere,
-  glowDot,
   glowPill,
   guardedDynamic,
   hexAlpha,
@@ -34,7 +32,6 @@ export default function freshWorkerPlan(s, c) {
     accent: ROLE.focus,
   });
 
-  const amb = ambientClock(s, c);
   const stage = s.value(0); // 0=timing transfer, 1=frontier merge transfer, 2=order-independence test
 
   // Stage 0 timing states (strict withholding!)
@@ -61,7 +58,6 @@ export default function freshWorkerPlan(s, c) {
   const layer = guardedDynamic(
     () => 1,
     (alpha) => {
-      const pulse = 0.5 + 0.5 * Math.sin(amb.value * Math.PI * 10);
       const st = Math.round(stage.value);
       const nodes = [];
 
@@ -230,7 +226,7 @@ export default function freshWorkerPlan(s, c) {
               'center',
             )
               .glow(7, ROLE.focus)
-              .opacity(alpha * (0.82 + 0.18 * pulse)),
+              .opacity(alpha),
           );
         } else {
           nodes.push(
@@ -281,7 +277,7 @@ export default function freshWorkerPlan(s, c) {
               'center',
             )
               .glow(7, ROLE.focus)
-              .opacity(alpha * (0.82 + 0.18 * pulse)),
+              .opacity(alpha),
           );
         } else if (ms >= 6) {
           nodes.push(
@@ -414,12 +410,6 @@ export default function freshWorkerPlan(s, c) {
       }
 
       nodes.push(
-        glowDot(-855 + ((amb.value * 400) % 240), 422, {
-          radius: 4.5 + 1.5 * pulse,
-          color: ROLE.focus,
-          glow: 8,
-          opacity: 0.65 * alpha,
-        }),
         lowerFooter(
           'CAPSTONE TRANSFER: TIMING + DETERMINISTIC FRONTIER',
           st === 2

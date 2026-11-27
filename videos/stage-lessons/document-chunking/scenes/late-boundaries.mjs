@@ -9,12 +9,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function lateBoundaries(s, c) {
-  const phase = s.value(0);
   const showOffset = s.value(0);
   const showLimits = s.value(0);
   const showLeak = s.value(0);
@@ -31,12 +29,10 @@ export default function lateBoundaries(s, c) {
   });
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const so = showOffset.value;
     const sl = showLimits.value;
     const sk = showLeak.value;
     const sr = showRepair.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const repaired = sr > 0.4;
 
@@ -122,7 +118,7 @@ export default function lateBoundaries(s, c) {
 
       glassCell(495, -96, 750, 148, sk > 0.3 && !repaired ? COSMOS.rose : COSMOS.muted, {
         fill: sk > 0.3 && !repaired ? '#2a1019' : '#12182b',
-        glow: sk > 0.3 && !repaired ? 9 * pulse : 2,
+        glow: sk > 0.3 && !repaired ? 9 : 2,
       }),
       txt(
         repaired ? 'RESTRICTED PASS (SEPARATE)' : 'MIXED PASS: RESTRICTED + PUBLIC',
@@ -168,7 +164,7 @@ export default function lateBoundaries(s, c) {
 
       glassCell(495, 114, 750, 152, repaired ? COSMOS.emerald : COSMOS.gold, {
         fill: repaired ? '#0e2824' : '#181e34',
-        glow: repaired ? 10 * pulse : 3,
+        glow: repaired ? 10 : 3,
       }),
       txt(
         repaired ? 'PUBLIC PASS: ONLY 4 PUBLIC WORDS' : 'FIX: SPLIT ENCODER INPUT BY SCOPE',
@@ -216,7 +212,6 @@ export default function lateBoundaries(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('late-boundaries-0', () => s.play(showOffset.to(0.4, { duration: 0.35 })));
   c.on('late-shared-encode', () => s.play(showOffset.to(0.7, { duration: 0.35 })));

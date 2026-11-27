@@ -19,7 +19,6 @@ import {
   playCue,
   plotPlane,
   sampleCurve,
-  scenePulse,
   swapVis,
 } from '../parts.mjs';
 
@@ -43,7 +42,6 @@ export default function historicalFrontiers(s, c) {
   const slopeSweep = s.value(0);
   const growthExp = s.value(0); // 0 -> 2 (10^0 = 1x up to 10^2 = 100x)
   const equalFocus = s.value(0);
-  const pulse = s.value(0);
 
   // Act 1: Three separate Kaplan 2020 log-log slopes
   const act1Layer = guardedDynamic(act1Vis, (alpha) => {
@@ -198,7 +196,6 @@ export default function historicalFrontiers(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.optimal), title, act1Layer, act2Layer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'sl-historical-frontiers-0', (d) => s.play(slopeSweep.to(1, { duration: d })), {
     dur: 1.5,

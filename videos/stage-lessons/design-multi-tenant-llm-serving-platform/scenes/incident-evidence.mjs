@@ -9,7 +9,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -38,7 +37,6 @@ const STRESS_MIX = [
 ];
 
 export default function incidentEvidence(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const leakShown = s.value(0);
   const containedOn = s.value(0);
@@ -58,7 +56,6 @@ export default function incidentEvidence(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const cont = containedOn.value > 0.5;
       const b1 = b1On.value > 0.5;
       const diag = diagOn.value > 0.5;
@@ -91,8 +88,8 @@ export default function incidentEvidence(s, c) {
                 [165, -110],
               ],
               ROLE.fail,
-              p,
-              { width: 5, glow: 10, photonCount: 2 },
+              0,
+              { width: 5, glow: 10 },
             ),
             rect(1260, 128, { fill: '#280f1a', stroke: ROLE.fail, width: 3.0, radius: 16 })
               .at(0, 150)
@@ -250,8 +247,6 @@ export default function incidentEvidence(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-incident-evidence-b0', b0On, 1);
   stepAfter(s, c, 'mt-incident-evidence-s0-0', leakShown, 1);
   stepAfter(s, c, 'mt-incident-evidence-s0-1', containedOn, 1);

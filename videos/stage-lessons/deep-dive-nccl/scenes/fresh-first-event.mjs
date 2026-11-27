@@ -10,13 +10,11 @@ import {
   heroTitle,
   line,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function freshFirstEvent(s, c) {
-  const phase = s.value(0);
   // step: 0=prod 0..4, 1=comm 3..7, 2=read@5, 3=replay 4..8, 4=predict (hold!), 5=fix read@3 FIRST!, 6=wait on prod event, 7=replay ends 8ms, 8=reader safe @ 8ms!
   const step = s.value(0);
 
@@ -32,7 +30,6 @@ export default function freshFirstEvent(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     // ms [0..10] -> x in [-560, 640] (120 px/ms)
     const mx = (ms) => -560 + ms * 120;
 
@@ -113,9 +110,7 @@ export default function freshFirstEvent(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 268, { radius: 6, color: st >= 8 ? ROLE.good : COSMOS.gold }),
       txt(
         st >= 8
           ? 'Fix input read @ 3 ms FIRST (wait for producer event); replay unlocks R2 shard safely at 8 ms!'
@@ -135,7 +130,6 @@ export default function freshFirstEvent(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['fresh-input', 0],
     ['fresh-comm', 1],

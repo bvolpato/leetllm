@@ -9,7 +9,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -38,7 +37,7 @@ export default function subjectIntro(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const rl = rulesOn.value;
       const ps = pairSel.value;
       const mv = moveT.value;
@@ -145,7 +144,6 @@ export default function subjectIntro(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('subject-intro-beat-1-focus-1', () => {
     s.play(

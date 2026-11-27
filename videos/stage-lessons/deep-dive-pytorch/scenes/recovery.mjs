@@ -13,12 +13,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function recovery(s, c) {
-  const phase = s.value(0);
   const savedOn = s.value(0);
   const negGrad = s.value(0);
   const revLeft = s.value(0);
@@ -45,7 +43,6 @@ export default function recovery(s, c) {
     const sm = showFreshM.value;
     const rr = revRight.value;
     const sc = showCompare.value;
-    const p = phase.value;
 
     // Weight number line: w in [0.975, 1.005] -> x in [-500, 420]
     const wMin = 0.975;
@@ -138,9 +135,7 @@ export default function recovery(s, c) {
       nodes.push(txt(ln.mText, 455, ln.y, 26, ln.col, 'mono', 'left'));
     });
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 262, { radius: 6, color: rr > 0.5 ? ROLE.bad : ROLE.good }),
       txt(
         sc > 0.5
           ? 'Also restore LR scheduler, grad scaler, RNG, and data cursor for exact distributed resume'
@@ -163,7 +158,6 @@ export default function recovery(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('save-adam', () =>
     s.play(savedOn.to(1, { duration: remainDuration(c, 'save-adam', 0.35) })),

@@ -22,7 +22,6 @@ import {
   glowDot,
   glowTex,
   guardedDynamic,
-  livingDrift,
   markDecor,
   numberRuler,
   photonWire,
@@ -42,7 +41,6 @@ import {
 export function conditioningMap(s, c) {
   const squishP = s.value(0);
   const kappaP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.cyan, opacity: 0.48, seed: 22 }));
   s.add(aura(-140, 20, 560, '#5ce1e622', '#ffd16614'));
@@ -90,7 +88,6 @@ export function conditioningMap(s, c) {
     }
 
     const rx = 525;
-    const pulse = 1 + 0.05 * Math.sin(drift.value * Math.PI * 8);
 
     return group(
       txt('CONDITIONING GEOMETRY', -840, -420, 26, COSMOS.cyan, 'mono', 'left'),
@@ -110,13 +107,12 @@ export function conditioningMap(s, c) {
         ? group(
             txt('CONDITION NUMBER', rx, 24, 26, COSMOS.gold, 'mono'),
             txt('Reversing stretches weak axis 100×', rx, 255, 28, COSMOS.ink, 'sans'),
-          ).opacity(kP * Math.min(1, pulse))
+          ).opacity(kP)
         : txt('Shrinking weak axis 100×...', rx, 255, 30, COSMOS.muted, 'sans'),
     );
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'condition-map', squishP, 1, { dur: 1.9 });
   cueTo(s, c, 'condition-number', kappaP, 1, { dur: 0.7 });
@@ -130,7 +126,6 @@ export function conditioningMap(s, c) {
 export function conditioningNoise(s, c) {
   const noiseP = s.value(0);
   const invP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: LA.contrast, opacity: 0.48, seed: 23 }));
   s.add(aura(0, -140, 500, '#ffd1661c', '#07091000'));
@@ -205,7 +200,7 @@ export function conditioningNoise(s, c) {
           [outNowX, -110],
           [0, -14],
         ],
-        drift.value * 3,
+        0,
         { color: iP > 0.2 ? LA.contrast : COSMOS.gold, width: 3.6, glow: 10 },
       ),
       photonWire(
@@ -213,7 +208,7 @@ export function conditioningNoise(s, c) {
           [0, 106],
           [inNowX, 210],
         ],
-        drift.value * 3 + 0.5,
+        0,
         { color: iP > 0.2 ? LA.contrast : COSMOS.gold, width: 3.6, glow: 10 },
       ),
       glassPlate(0, 46, 650, 108, { stroke: iP > 0.2 ? LA.contrast : COSMOS.gold, glow: 8 }),
@@ -268,7 +263,6 @@ export function conditioningNoise(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'conditioning-noise-b2-1', noiseP, 1, { dur: 1.0 });
   cueTo(s, c, 'conditioning-inverse-b2-2', invP, 1, { dur: 1.3 });
@@ -288,7 +282,6 @@ export function conditioningSolve(s, c) {
   const elimP = s.value(0);
   const roundP = s.value(0);
   const resP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.gold, opacity: 0.45, seed: 24 }));
   s.add(aura(0, 0, 620, '#60a5fa1a', '#ff6b8b14'));
@@ -416,7 +409,6 @@ export function conditioningSolve(s, c) {
       const rhsW = Math.max(8, rhsRem * barScale * eP);
       const exactPivX = barLeft + 0.0008 * barScale;
       const exactRhsX = barLeft + 0.00162 * barScale;
-      const pulse = 0.72 + 0.28 * Math.sin(drift.value * Math.PI * 8);
 
       return group(
         txt(
@@ -488,9 +480,7 @@ export function conditioningSolve(s, c) {
               36,
               COSMOS.gold,
               'serif',
-            )
-              .glow(8, COSMOS.gold)
-              .opacity(pulse),
+            ).glow(8, COSMOS.gold),
       ).opacity(vis);
     },
   );
@@ -552,7 +542,6 @@ export function conditioningSolve(s, c) {
   );
 
   s.add(b0View, b1View, b23View, b4View);
-  livingDrift(s, c, drift, 1);
 
   pulseCue(s, c, 'solve-inputs', inpP, 1, { dur: 0.6 });
   cueTo(s, c, 'stable-solver', directP, 1, { dur: 0.9 });
@@ -581,7 +570,6 @@ export function energyCutoff(s, c) {
   const k2P = s.value(0);
   const ansP = s.value(0);
   const relP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.cyan, opacity: 0.48, seed: 25 }));
   s.add(aura(-280, -80, 560, '#5ce1e622', '#ffd16614'));
@@ -690,7 +678,6 @@ export function energyCutoff(s, c) {
     );
 
     // Bottom readout strictly gated by cues
-    const pulse = 0.72 + 0.28 * Math.sin(drift.value * Math.PI * 8);
     if (pR > 0.2) {
       nodes.push(
         txt(
@@ -740,9 +727,7 @@ export function energyCutoff(s, c) {
           34,
           COSMOS.gold,
           'serif',
-        )
-          .glow(8, COSMOS.gold)
-          .opacity(pAsk > 0.1 ? pulse : 1),
+        ).glow(8, COSMOS.gold),
       );
     }
 
@@ -750,7 +735,6 @@ export function energyCutoff(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'square-areas', areaP, 1, { dur: 1.0 });
   pulseCue(s, c, 'predict-rank', askP, 1, { dur: 0.45 });
@@ -772,7 +756,6 @@ export function lowRankUpdate(s, c) {
   const fCountP = s.value(0);
   const fullP = s.value(0);
   const adamP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: LA.fit, opacity: 0.48, seed: 26 }));
   s.add(aura(0, 0, 620, '#6ee7b71e', '#60a5fa14'));
@@ -1008,7 +991,6 @@ export function lowRankUpdate(s, c) {
   );
 
   s.add(b0, b1, b2);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'low-rank-map', spinP, 1, { dur: 3.5 });
 
@@ -1030,7 +1012,6 @@ export function newRoutingObjective(s, c) {
   const pairMode = s.value(0); // 0 = [4,0] & [0,4], 1 = [0,0] & [4,4]
   const readC2 = s.value(0);
   const totAns = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.gold, opacity: 0.48, seed: 27 }));
   s.add(aura(-230, 30, 560, '#ffd16622', '#ff6b8b14'));
@@ -1114,8 +1095,6 @@ export function newRoutingObjective(s, c) {
       ticks: [-3, 0, 3, 6],
     });
 
-    const pulse = 0.72 + 0.28 * Math.sin(drift.value * Math.PI * 8);
-
     nodes.push(
       glassPlate(rx, 20, 680, 720, { stroke: rulerCol, glow: 6 }),
       txt(
@@ -1144,9 +1123,10 @@ export function newRoutingObjective(s, c) {
 
     if (!isCountTask && t < 0.5) {
       nodes.push(
-        txt('Both land on +2.83! How to turn?', rx, 225, 34, COSMOS.gold, 'serif')
-          .glow(8, COSMOS.gold)
-          .opacity(pulse),
+        txt('Both land on +2.83! How to turn?', rx, 225, 34, COSMOS.gold, 'serif').glow(
+          8,
+          COSMOS.gold,
+        ),
       );
     } else if (!isCountTask && t >= 0.5) {
       nodes.push(
@@ -1168,9 +1148,10 @@ export function newRoutingObjective(s, c) {
           COSMOS.gold,
           'mono',
         ),
-        txt('Can the counter recover both totals?', rx, 280, 32, COSMOS.gold, 'serif')
-          .glow(8, COSMOS.gold)
-          .opacity(pulse),
+        txt('Can the counter recover both totals?', rx, 280, 32, COSMOS.gold, 'serif').glow(
+          8,
+          COSMOS.gold,
+        ),
       );
     } else {
       nodes.push(
@@ -1187,7 +1168,6 @@ export function newRoutingObjective(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   // Beat 1: rotate ruler to contrast
   cueTo(s, c, 'choose-contrast', turn, 1, { dur: 1.0 });
@@ -1219,7 +1199,6 @@ export function decision(s, c) {
   const dispP = s.value(0);
   const bitsP = s.value(0);
   const bothBP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.gold, opacity: 0.5, seed: 28 }));
   s.add(aura(-420, 0, 520, '#60a5fa20', '#07091000'));
@@ -1298,7 +1277,6 @@ export function decision(s, c) {
         );
       });
 
-      const pulse = 0.72 + 0.28 * Math.sin(drift.value * Math.PI * 8);
       nodes.push(
         r2P.value > 0.3
           ? txt(
@@ -1318,9 +1296,7 @@ export function decision(s, c) {
               36,
               COSMOS.gold,
               'serif',
-            )
-              .glow(8, COSMOS.gold)
-              .opacity(f > 0.4 ? pulse : 1),
+            ).glow(8, COSMOS.gold),
       );
 
       return group(...nodes).opacity(vis);
@@ -1497,7 +1473,6 @@ export function decision(s, c) {
   );
 
   s.add(part1, part2);
-  livingDrift(s, c, drift, 1);
 
   // Beats 0-1
   cueTo(s, c, 'restore-contrast', turnP, 1, { dur: 1.0 });

@@ -576,27 +576,9 @@ export function glowStackedBar(
   return group(...nodes);
 }
 
-/** Smooth glowing curve trail with optional animated traveling photon dots. */
-export function beamWithPhotons(
-  pts,
-  color,
-  phaseVal,
-  { width = 3.6, glow = 10, photonCount = 2, alpha = 1 } = {},
-) {
-  const nodes = [glowingTrail(pts, { color, width, glow, opacity: 0.9 * alpha })];
-  if (phaseVal !== null && phaseVal !== undefined && photonCount > 0) {
-    const last = pts.length - 1;
-    for (let i = 0; i < photonCount; i++) {
-      const u = (phaseVal + i / photonCount) % 1;
-      const idx = u * last;
-      const k = Math.min(last - 1, Math.floor(idx));
-      const f = idx - k;
-      const px = pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f;
-      const py = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f;
-      nodes.push(glowDot(px, py, { radius: 5.5, color: '#ffffff', glow: 12, opacity: alpha }));
-    }
-  }
-  return group(...nodes);
+/** Smooth glowing curve trail. */
+export function beamWithPhotons(pts, color, _phaseVal, { width = 3.6, glow = 10, alpha = 1 } = {}) {
+  return glowingTrail(pts, { color, width, glow, opacity: 0.9 * alpha });
 }
 
 /** Floating scene eyebrow + 2-line serif headline with generous spacing (>= 0.3 text-gap). */

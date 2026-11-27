@@ -15,7 +15,6 @@ import {
   heroTitle,
   labels,
   makePlot,
-  runAmbientPhase,
   tweenCue,
   txt,
   withinGroupDistances,
@@ -26,7 +25,6 @@ const DIST_AB = withinGroupDistances[0]; // sqrt(0.68) = 0.8246
 const DIST_AC = distance(xy[0], xy[2]); // sqrt(9 + 10.24) = 4.386
 
 export default function neighbors(s, c) {
-  const phase = s.value(0);
   const legX = s.value(0);
   const legY = s.value(0);
   const showSq = s.value(0);
@@ -201,7 +199,6 @@ export default function neighbors(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'x', legX, 1, { duration: 0.55 });
   tweenCue(s, c, 'y', legY, 1, { duration: 0.55 });

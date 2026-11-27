@@ -13,7 +13,6 @@ import {
   autoNode,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   glowDot,
@@ -56,7 +55,7 @@ export default function processContract(s, c) {
   const mode0 = guardedDynamic(
     () => fadeOutHalf(mode1T.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const st = strictOn.value;
       const rj = rejectOn.value;
       const rt = retryOn.value;
@@ -178,7 +177,7 @@ export default function processContract(s, c) {
   const mode1 = guardedDynamic(
     () => fadeInHalf(mode1T.value) * fadeOutHalf(mode2T.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const bo = bindOk.value;
       const mc = mutCand.value;
       const mk = mutCall.value;
@@ -280,7 +279,7 @@ export default function processContract(s, c) {
   const mode2 = guardedDynamic(
     () => fadeInHalf(mode2T.value),
     (a) => {
-      const p = pulse.value;
+      const p = 0;
       const w2 = w2On.value;
       const mr = missRead.value;
       const br = badRes.value;
@@ -406,7 +405,6 @@ export default function processContract(s, c) {
   );
 
   s.add(stageAura, header, mode0, mode1, mode2);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('strict-once', () => {
     s.play(strictOn.to(1, { duration: clampDur(c, c.cue('strict-once').start, 0.35) }));

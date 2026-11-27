@@ -10,12 +10,10 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function bm25Controls(s, c) {
-  const phase = s.value(0);
   const showFormula = s.value(0);
   const showCred = s.value(0);
   const showCurve = s.value(0);
@@ -54,14 +52,12 @@ export default function bm25Controls(s, c) {
   const asymY = gy0 - (2.2 / maxY) * gh;
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sf = showFormula.value;
     const sc = showCred.value;
     const sv = showCurve.value;
     const sz = showK1Zero.value;
     const sk = showKnobs.value;
     const sl = showLucene.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const f20w = (20 * 2.2) / (20 + 1.2);
     const f3w = (3 * 2.2) / (3 + 1.2);
@@ -71,7 +67,7 @@ export default function bm25Controls(s, c) {
       txt('ROTATION GUIDE (|d|=11, avgdl=8)', -855, -205, 26, COSMOS.cyan, 'mono', 'left'),
       glassCell(-465, -95, 760, 148, sc > 0.3 ? COSMOS.gold : COSMOS.muted, {
         fill: '#10203a',
-        glow: sc > 0.3 ? 8 * pulse : 3,
+        glow: sc > 0.3 ? 8 : 3,
       }),
       txt(
         'api (f=1):  ~ +0.60   |   key (f=3):  ~ +1.05',
@@ -95,7 +91,7 @@ export default function bm25Controls(s, c) {
 
       glassCell(-465, 86, 760, 148, sk > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#11182c',
-        glow: sk > 0.3 ? 8 * pulse : 2,
+        glow: sk > 0.3 ? 8 : 2,
       }),
       txt('TWO MAIN KNOBS', -820, 48, 26, COSMOS.cyan, 'mono', 'left'),
       txt(
@@ -142,14 +138,14 @@ export default function bm25Controls(s, c) {
       glowingTrail(curve12, {
         color: COSMOS.cyan,
         width: 4.5,
-        glow: sv > 0.3 ? 10 * pulse : 4,
+        glow: sv > 0.3 ? 10 : 4,
         opacity: Math.max(0.75, sf),
       }),
 
       glowingTrail(curve0, {
         color: COSMOS.rose,
         width: 3.6,
-        glow: sz > 0.3 ? 8 * pulse : 2,
+        glow: sz > 0.3 ? 8 : 2,
         opacity: Math.max(0.45, sz),
       }),
 
@@ -198,7 +194,6 @@ export default function bm25Controls(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('bm25-tf-formula', () => s.play(showFormula.to(0.5, { duration: 0.35 })));
   c.on('bm25-length-formula', () => s.play(showFormula.to(0.8, { duration: 0.35 })));

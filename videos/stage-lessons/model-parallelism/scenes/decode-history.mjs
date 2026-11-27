@@ -5,19 +5,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   rect,
   remainAfterDuration,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function decodeHistory(s, c) {
-  const phase = s.value(0);
   const p0 = s.value(0);
   const pExist = s.value(0);
   const p1 = s.value(0);
@@ -103,17 +100,12 @@ export default function decodeHistory(s, c) {
         glow: 9,
       }),
       txt(foot, 0, 315, 28, phys ? ROLE.good : dcpDone ? COSMOS.gold : COSMOS.ink, 'mono'),
-      glowDot(-740 + ((phase.value * 0.55) % 1) * 1480, 405, {
-        radius: 6,
-        color: phys ? ROLE.good : ROLE.gpu1,
-      }),
     );
 
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('mp-decode-history-0', () =>
     s.play(p0.to(1, { duration: remainDuration(c, 'mp-decode-history-0', 0.35) })),

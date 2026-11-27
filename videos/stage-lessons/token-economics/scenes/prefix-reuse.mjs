@@ -10,7 +10,6 @@ import {
   clampDur,
   coldMicro,
   dashedRule,
-  driftValue,
   guardedDynamic,
   prefixMicro,
   standard,
@@ -190,7 +189,6 @@ export default function prefixReuse(s, c) {
   );
 
   s.add(sceneAura, header, stageCanvas);
-  driftValue(s, c, pulseT, 3.5, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('read-prefix', () => {
     const t = c.cue('read-prefix').start;

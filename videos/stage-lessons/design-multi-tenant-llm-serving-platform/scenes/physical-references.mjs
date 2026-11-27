@@ -11,7 +11,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   quadArcPts,
   stepAfter,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function physicalReferences(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const b1On = s.value(0);
   const countedOn = s.value(0);
@@ -41,7 +39,6 @@ export default function physicalReferences(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const counted = countedOn.value > 0.5;
       const aRet = aRetireOn.value > 0.5;
       const b2 = b2On.value > 0.5;
@@ -126,21 +123,19 @@ export default function physicalReferences(s, c) {
             beamWithPhotons(
               quadArcPts([rd.cx - 40, -125], [privX, 18], idx === 0 ? -16 : 16),
               rd.col,
-              p,
+              0,
               {
                 width: 4,
                 glow: 8,
-                photonCount: 2,
               },
             ),
             beamWithPhotons(
               quadArcPts([rd.cx + 40, -125], [sharedX, 18], idx === 0 ? 16 : -16),
               rd.col,
-              p + 0.4,
+              0,
               {
                 width: 4,
                 glow: 8,
-                photonCount: 2,
               },
             ),
           );
@@ -235,8 +230,6 @@ export default function physicalReferences(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-physical-references-b0', b0On, 1);
   stepOn(s, c, 'mt-physical-references-b1', b1On, 1);
   stepAfter(s, c, 'mt-physical-references-s1-0', countedOn, 1);

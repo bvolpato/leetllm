@@ -6,17 +6,14 @@ import {
   SCHED_6,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function budget(s, c) {
-  const phase = s.value(0);
   // step:
   // 0 = active-decode (Step 0: reserve R0 decode)
   // 1 = first-prompt-slice (Step 0: place R1 words 0..4 -> 6/6 assigned)
@@ -40,7 +37,6 @@ export default function budget(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const stepIdx = st >= 6 ? 2 : st >= 3 ? 1 : 0;
     const row = SCHED_6[stepIdx];
     const computedPrompt = st >= 5 ? 9 : st >= 2 ? 5 : 0;
@@ -166,16 +162,11 @@ export default function budget(s, c) {
                 ? 'Worker finishes Step 0: 5 prompt words done, reader still waits for first token'
                 : 'Step 0 reserves 1 decode place for R0 and fills 5 remaining places with R1 prompt words';
 
-    const u = (p * 0.65) % 1;
-    nodes.push(
-      glowDot(-780 + u * 1560, 305, { radius: 6, color: ROLE.good }),
-      txt(caption, 0, 368, 26, st >= 5 ? ROLE.good : COSMOS.ink, 'sans'),
-    );
+    nodes.push(txt(caption, 0, 368, 26, st >= 5 ? ROLE.good : COSMOS.ink, 'sans'));
     return group(...nodes);
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['budget-active-decode', 0],
     ['budget-first-prompt-slice', 1],

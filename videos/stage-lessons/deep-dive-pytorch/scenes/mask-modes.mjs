@@ -5,16 +5,13 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   guardedDynamic,
   heroTitle,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function maskModes(s, c) {
-  const phase = s.value(0);
   const passPad = s.value(0);
   const revWrong = s.value(0);
   const inverted = s.value(0);
@@ -45,7 +42,6 @@ export default function maskModes(s, c) {
     const zd = zeroDrop.value;
     const ref = showRef.value;
     const flx = showFlex.value;
-    const p = phase.value;
 
     const vals = [
       { label: 'KEY 0 (real)', v: 4, padFlag: false, x: -560 },
@@ -173,9 +169,7 @@ export default function maskModes(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 290, { radius: 6, color: outCol }),
       txt(
         pp > 0.5 && rw < 0.5
           ? 'Predict: pass [False, False, True] into SDPA; which value comes out?'
@@ -192,7 +186,6 @@ export default function maskModes(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('pass-padding', () =>
     s.play(passPad.to(1, { duration: remainDuration(c, 'pass-padding', 0.35) })),

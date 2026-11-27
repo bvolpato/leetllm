@@ -9,7 +9,6 @@ import {
   aura,
   beamWithPhotons,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   stepAfter,
   stepOn,
@@ -28,7 +27,6 @@ const KEY_PARTS = [
 ];
 
 export default function prefixTrust(s, c) {
-  const pulse = s.value(0);
   const b0On = s.value(0);
   const compOn = s.value(0);
   const groupOn = s.value(0);
@@ -49,7 +47,6 @@ export default function prefixTrust(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const comp = compOn.value > 0.5;
       const grp = groupOn.value > 0.5;
       const b1 = b1On.value > 0.5;
@@ -128,8 +125,8 @@ export default function prefixTrust(s, c) {
               [-25, 225],
             ],
             ROLE.fail,
-            p,
-            { width: 4.2, glow: 8, photonCount: 1 },
+            0,
+            { width: 4.2, glow: 8 },
           ),
           line([0, 138], [0, 312], { stroke: ROLE.fail, width: 9 }).glow(10, ROLE.fail),
 
@@ -212,8 +209,6 @@ export default function prefixTrust(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'mt-prefix-trust-b0', b0On, 1);
   stepAfter(s, c, 'mt-prefix-trust-s0-1', compOn, 1);
   stepAfter(s, c, 'mt-prefix-trust-s0-2', groupOn, 1);

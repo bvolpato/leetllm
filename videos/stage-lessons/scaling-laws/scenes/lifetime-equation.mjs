@@ -24,7 +24,6 @@ import {
   playCue,
   plotPlane,
   sampleCurve,
-  scenePulse,
   serveFlops,
   trainFlops,
 } from '../parts.mjs';
@@ -44,7 +43,6 @@ export default function lifetimeEquation(s, c) {
   const toCross = s.value(0); // life-crossing / life-match: Q 1.0 -> 1.65T
   const matchGlow = s.value(0); // life-match
   const toThree = s.value(0); // life-three: Q 1.65 -> 3.0T
-  const pulse = s.value(0);
 
   const stageLayer = guardedDynamic(s.value(1), (alpha) => {
     const nodes = [];
@@ -242,7 +240,6 @@ export default function lifetimeEquation(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.compute), title, stageLayer);
-  scenePulse(s, c, pulse);
 
   playCue(s, c, 'life-bill', (d) => s.play(billGlow.to(1, { duration: d })), { dur: 0.7 });
   playCue(s, c, 'life-one', (d) => s.play(toOne.to(1, { duration: d })), { dur: 1.2 });

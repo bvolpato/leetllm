@@ -12,7 +12,6 @@ import {
   lumBar,
   playCue,
   rect,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -22,8 +21,6 @@ export default function tradeoff(s, c) {
   const gqaKvGB = origKvGB / 8; // 2 GB
   const totalOrig = weightsGB + origKvGB; // 64
   const totalGqa = weightsGB + gqaKvGB; // 50
-
-  const phase = s.value(0);
   const mhaW = s.value(0);
   const mhaKv = s.value(0);
   const showRuler = s.value(0);
@@ -50,7 +47,6 @@ export default function tradeoff(s, c) {
   );
 
   const live = guardedDynamic(1, () => {
-    const ph = phase.value;
     const mw = mhaW.value;
     const mk = mhaKv.value;
     const rl = showRuler.value;
@@ -132,13 +128,6 @@ export default function tradeoff(s, c) {
           ),
         );
       }
-    }
-
-    // Streaming memory photon pulse across MHA bar
-    if (mw > 10) {
-      const span = px(mw + mk);
-      const pX = barLeft + ((ph * 0.35) % 1) * span;
-      nodes.push(glowDot(pX, mhaY - barH / 2 - 14, { radius: 5, color: ROLE.query, glow: 10 }));
     }
 
     // MHA right-side timing bound
@@ -285,7 +274,6 @@ export default function tradeoff(s, c) {
 
   s.add(cinemaAtmosphere(ROLE.gold, ROLE.key), title, live);
   c.show('ratio', ratioEq, { after: true, fade: 0.45 });
-  runPhase(s, c, phase, 14);
 
   playCue(s, c, 'weights', (d) => s.play(mhaW.to(weightsGB, { duration: d })), { dur: 0.65 });
   playCue(s, c, 'cache', (d) => s.play(mhaKv.to(origKvGB, { duration: d })), {

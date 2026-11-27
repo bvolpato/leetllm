@@ -12,7 +12,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   fadeInHalf,
   fadeOutHalf,
   guardedDynamic,
@@ -259,7 +258,6 @@ export default function freshEconomics(s, c) {
   );
 
   s.add(sceneAura, header, mode0, mode1);
-  driftValue(s, c, pulseT, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('total-receipts', () => {
     const t = c.cue('total-receipts').start;

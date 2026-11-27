@@ -10,13 +10,11 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   tweenCue,
   txt,
 } from '../parts.mjs';
 
 export default function ivfWork(s, c) {
-  const phase = s.value(0);
   const showPayload = s.value(0);
   const showAll = s.value(0);
   const showCodes = s.value(0);
@@ -177,7 +175,6 @@ export default function ivfWork(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.0);
 
   tweenCue(s, c, 'payload', showPayload, 1, { duration: 0.45 });
   tweenCue(s, c, 'all', showAll, 1, { duration: 0.45 });

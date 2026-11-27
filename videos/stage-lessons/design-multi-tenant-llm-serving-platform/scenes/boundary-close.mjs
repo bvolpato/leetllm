@@ -12,7 +12,6 @@ import {
   aura,
   buildPagePoolStage,
   cinemaHeader,
-  driftValue,
   guardedDynamic,
   privateHistory,
   stepAfter,
@@ -20,7 +19,6 @@ import {
 } from '../parts.mjs';
 
 export default function boundaryClose(s, c) {
-  const pulse = s.value(0);
   const hostClosed = s.value(0);
   const askOn = s.value(0);
   const waitOn = s.value(0);
@@ -39,7 +37,6 @@ export default function boundaryClose(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const host = hostClosed.value > 0.5;
       const ask = askOn.value > 0.5;
       const wait = waitOn.value > 0.5;
@@ -86,15 +83,12 @@ export default function boundaryClose(s, c) {
           tracedPage,
           note,
           noteColor,
-          pulse: p,
         }),
       );
     },
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepAfter(s, c, 'close-host', hostClosed, 1);
   stepOn(s, c, 'close-decision', askOn, 1);
   // Strict prediction withholding: reveal Wait ONLY after "Wait. That read still owns a reference".

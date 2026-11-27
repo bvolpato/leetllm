@@ -11,7 +11,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   quadArcPts,
   railBar,
@@ -38,7 +37,7 @@ export default function subjectIntro(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const cg = claimGlow.value;
       const br = bridgeOn.value;
       const ao = accountOpen.value;
@@ -199,7 +198,6 @@ export default function subjectIntro(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('completion-claim', () => {
     s.play(claimGlow.to(1, { duration: clampDur(c, c.cue('completion-claim').start, 0.4) }));

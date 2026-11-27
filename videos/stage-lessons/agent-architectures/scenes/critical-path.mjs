@@ -11,7 +11,6 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
@@ -146,7 +145,6 @@ export default function criticalPath(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.8, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('schedule-plan', () => {
     s.play(pulse.to(0.3, { duration: clampDur(c, c.cue('schedule-plan').start, 0.25) }));

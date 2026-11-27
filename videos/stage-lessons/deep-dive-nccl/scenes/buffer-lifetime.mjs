@@ -4,19 +4,16 @@ import {
   ROLE,
   aura,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
   line,
   rect,
-  runPhase,
   txt,
   wireStepCues,
 } from '../parts.mjs';
 
 export default function bufferLifetime(s, c) {
-  const phase = s.value(0);
   // step: 0..4=Buffer B lifetime + reject free at host return, 5..8=Optimizer W update waits for grad(6ms) AND bwd(9ms) -> 9ms
   const step = s.value(0);
 
@@ -32,7 +29,6 @@ export default function bufferLifetime(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = step.value;
-    const p = phase.value;
     const mx = (ms) => -580 + ms * 118; // 0..11 ms
 
     const nodes = [
@@ -112,9 +108,7 @@ export default function bufferLifetime(s, c) {
       );
     }
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-760 + u * 1520, 268, { radius: 6, color: st >= 5 ? ROLE.good : ROLE.bad }),
       txt(
         st >= 5
           ? 'Both dependencies must finish: gradient ready at 6 ms AND old-weight readers done at 9 ms'
@@ -130,7 +124,6 @@ export default function bufferLifetime(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
   wireStepCues(s, c, step, [
     ['nc-buffer-lifetime-b0-s0', 0],
     ['nc-buffer-lifetime-b0-s1', 1],

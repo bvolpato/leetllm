@@ -12,12 +12,10 @@ import {
   line,
   photonStream,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function annealSynthetic(s, c) {
-  const phase = s.value(0);
   const showPart1 = s.value(1);
   const fortyP = s.value(0);
   const compareOn = s.value(0);
@@ -105,7 +103,6 @@ export default function annealSynthetic(s, c) {
   const part2Live = guardedDynamic(showPart2, (a) => {
     const gn = genOn.value;
     const pr = provOn.value;
-    const ph = phase.value;
 
     const nodes = [
       txt(
@@ -132,12 +129,12 @@ export default function annealSynthetic(s, c) {
       txt('Filtered real program', -490, -14, 34, COSMOS.ink, 'serif').opacity(a),
       txt('Original provenance + license', -490, 36, 26, COSMOS.muted, 'mono').opacity(a),
 
-      ...photonStream([-175, -55], [175, -135], -25, ph, {
+      ...photonStream([-175, -55], [175, -135], -25, 0, {
         color: COSMOS.cyan,
         count: 3,
         opacity: (0.4 + 0.6 * gn) * a,
       }),
-      ...photonStream([-175, 15], [175, 105], 25, ph + 0.7, {
+      ...photonStream([-175, 15], [175, 105], 25, 0, {
         color: COSMOS.amber,
         count: 3,
         opacity: (0.4 + 0.6 * gn) * a,
@@ -265,7 +262,6 @@ export default function annealSynthetic(s, c) {
   });
 
   s.add(bgAura, part1Live, part2Live, part3Live);
-  runPhase(s, c, phase, 14);
 
   c.on('pt-anneal-synthetic-forty', () =>
     s.play(fortyP.to(1, { duration: remainDuration(c, 'pt-anneal-synthetic-forty', 1.1) })),

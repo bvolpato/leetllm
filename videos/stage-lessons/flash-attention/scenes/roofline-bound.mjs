@@ -3,7 +3,6 @@ import {
   COSMOS,
   H100_SPEC,
   aura,
-  circle,
   dot,
   glassCell,
   glowDot,
@@ -14,7 +13,6 @@ import {
   heroTitle,
   line,
   remainDuration,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
@@ -40,7 +38,6 @@ const ROOF_PTS = Array.from({ length: ROOF_SAMPLES }, (_, i) => {
 });
 
 export default function rooflineBound(s, c) {
-  const phase = s.value(0);
   const roofDraw = s.value(0.2);
   const showRidge = s.value(0);
   const climb = s.value(0);
@@ -68,7 +65,6 @@ export default function rooflineBound(s, c) {
   const ai1Y = mapTF(H100_SPEC.hbmTbs);
 
   const live = guardedDynamic(1, () => {
-    const ph = phase.value;
     const rd = roofDraw.value;
     const sr = showRidge.value;
     const cl = climb.value;
@@ -129,7 +125,6 @@ export default function rooflineBound(s, c) {
 
     // Ridge + AI=1 operating point
     if (sr > 0.02) {
-      const pulse = (ph * 0.65) % 1;
       nodes.push(
         line([ridgeX, RY0], [ridgeX, peakY], {
           stroke: COSMOS.gold,
@@ -149,10 +144,6 @@ export default function rooflineBound(s, c) {
           .glow(6, COSMOS.gold)
           .opacity(sr),
         // AI = 1 point
-        circle(10 + pulse * 18, { fill: null, stroke: COSMOS.rose, width: 2.4 })
-          .at(ai1X, ai1Y)
-          .opacity((1 - pulse) * 0.85 * sr)
-          .set('blend', 'screen'),
         glowDot(ai1X, ai1Y, { radius: 8, color: COSMOS.rose, opacity: sr }),
         glassCell(-665, 210, 380, 154, COSMOS.rose, { fill: '#1a1020', glow: 8, opacity: sr }),
         txt('AT 1 FLOP / BYTE', -665, 160, 26, COSMOS.muted, 'mono').opacity(sr),
@@ -189,7 +180,6 @@ export default function rooflineBound(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 12);
 
   c.on('roofline-bound-beat-1', () => s.play(roofDraw.to(1, { duration: 1.4 })));
   c.on('roofline-bound-beat-2', () => s.play(showRidge.to(0.6, { duration: 0.4 })));

@@ -10,7 +10,6 @@ import {
   buildPagePoolStage,
   cinemaHeader,
   clampDur,
-  driftValue,
   guardedDynamic,
   privateHistory,
   stepAfter,
@@ -18,7 +17,6 @@ import {
 } from '../parts.mjs';
 
 export default function pages(s, c) {
-  const pulse = s.value(0);
   const readTables = s.value(0);
   const traceA = s.value(0);
   const traceB = s.value(0);
@@ -38,7 +36,6 @@ export default function pages(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
       const a32 = ask32.value > 0.5;
       const w32 = wrote32.value > 0.5;
       const a33 = ask33.value > 0.5;
@@ -92,15 +89,12 @@ export default function pages(s, c) {
           tracedPage,
           note,
           noteColor,
-          pulse: p,
         }),
       );
     },
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.5);
-
   stepOn(s, c, 'pages-read-tables', readTables, 1);
   c.on('pages-a-chain', () => {
     const q = c.cue('pages-a-chain');

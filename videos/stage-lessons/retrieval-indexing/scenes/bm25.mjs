@@ -17,13 +17,11 @@ import {
   line,
   meterBar,
   remainDuration,
-  runPhase,
   termFrequencyScore,
   txt,
 } from '../parts.mjs';
 
 export default function bm25Scene(s, c) {
-  const phase = s.value(0);
   const showFactors = s.value(0);
   const showRarity = s.value(0);
   const showIdf = s.value(0);
@@ -66,14 +64,12 @@ export default function bm25Scene(s, c) {
   }
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sf = showFactors.value;
     const sr = showRarity.value;
     const si = showIdf.value;
     const sl = showLen.value;
     const sc = showContrib.value;
     const ss = showSat.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const f1Score = termFrequencyScore(1, TOKENS.d4.length);
     const f2Score = termFrequencyScore(2, TOKENS.d4.length);
@@ -96,7 +92,7 @@ export default function bm25Scene(s, c) {
 
       glassCell(-445, -45, 810, 108, si > 0.3 || sr > 0.3 ? COSMOS.cyan : COSMOS.muted, {
         fill: '#10203a',
-        glow: si > 0.3 ? 8 * pulse : 3,
+        glow: si > 0.3 ? 8 : 3,
       }),
       txt(
         `soup: df=${DOC_FREQUENCY.soup}/4 -> IDF = ${soupIdf.toFixed(3)}`,
@@ -119,7 +115,7 @@ export default function bm25Scene(s, c) {
 
       glassCell(-445, 92, 810, 108, sl > 0.3 ? COSMOS.amber : COSMOS.muted, {
         fill: sl > 0.3 ? '#241c10' : '#12182b',
-        glow: sl > 0.3 ? 8 * pulse : 3,
+        glow: sl > 0.3 ? 8 : 3,
       }),
       txt(
         `Length: |d1| = ${TOKENS.d1.length} vs avgdl = ${AVERAGE_LENGTH.toFixed(2)}`,
@@ -173,7 +169,7 @@ export default function bm25Scene(s, c) {
       glowingTrail(curvePts, {
         color: COSMOS.cyan,
         width: 4.4,
-        glow: ss > 0.3 ? 10 * pulse : 4,
+        glow: ss > 0.3 ? 10 : 4,
         opacity: Math.max(0.75, sf),
       }),
 
@@ -196,7 +192,6 @@ export default function bm25Scene(s, c) {
   });
 
   s.add(bgAura, title, eq, live);
-  runPhase(s, c, phase, 14);
 
   c.on('bm25-beat-1-focus-1', () => s.play(showFactors.to(1, { duration: 0.45 })));
   c.on('bm25-beat-1-focus-2', () => s.play(showRarity.to(1, { duration: 0.45 })));

@@ -5,7 +5,6 @@ import {
   aura,
   buildFoldedWorld3d,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -34,7 +33,6 @@ export default function foldedGrid(s, c) {
 
   const live = guardedDynamic(1, () => {
     const st = Math.round(step.value);
-    const p = phase.value;
     const nodes = [];
 
     nodes.push(
@@ -79,9 +77,7 @@ export default function foldedGrid(s, c) {
       ),
     );
 
-    const u = (p * 0.65) % 1;
     nodes.push(
-      glowDot(-780 + u * 1560, 310, { radius: 6, color: ROLE.ep }),
       txt(
         '3D stack: 4 shared pipeline stages; glowing rings expand when folded onto 64 expert ranks',
         0,

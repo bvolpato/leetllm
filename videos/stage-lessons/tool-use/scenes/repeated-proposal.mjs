@@ -10,7 +10,6 @@ import {
   cinemaHeader,
   circuitBreaker,
   clampDur,
-  driftValue,
   energyRail,
   glowMeter,
   guardedDynamic,
@@ -52,7 +51,7 @@ export default function repeatedProposal(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const fp = fpOn.value;
       const ni = noIdOn.value;
       const sr = sortedOn.value;
@@ -182,7 +181,6 @@ export default function repeatedProposal(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 5.0, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('tu-repeated-proposal-1', () => {
     s.play(fpOn.to(1, { duration: clampDur(c, c.cue('tu-repeated-proposal-1').start, 0.3) }));

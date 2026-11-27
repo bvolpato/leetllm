@@ -21,7 +21,6 @@ import {
   heroTitle,
   lumBar,
   rule,
-  runAmbientPhase,
   stableSoftmax,
   tweenCue,
   txt,
@@ -36,7 +35,6 @@ const MEAN_LOSS = SUM_LOSS / 2;
 const DOG_ATE_GRAD = PROBS.map((p, i) => p - Number(i === 2));
 
 export default function transfer(s, c) {
-  const phase = s.value(0);
   const vCat = s.value(1);
   const vPair = s.value(0);
   const vRelabel = s.value(0);
@@ -416,7 +414,6 @@ export default function transfer(s, c) {
   });
 
   s.add(bgAura, title, viewCat, viewPair, viewRelabel);
-  runAmbientPhase(s, c, phase, 2.2);
 
   // Beat 0-1 cues
   c.on('transfer-cat', () => {

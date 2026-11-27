@@ -2,8 +2,8 @@
 // Glowing 100-square compute sheet (5 x 20 -> 10 x 10) with strict prediction withholding
 // until AFTER the spoken "Ten rows" cue, followed by the physical slide-and-drop repack.
 import { line } from 'vizmatic/stage';
-import { COSMOS, glowDot, glowTex, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
-import { ROLE, cinemaAtmosphere, lumBar, playCue, scenePulse } from '../parts.mjs';
+import { COSMOS, glowTex, guardedDynamic, heroTitle, txt } from '../../cinematic-kit.mjs';
+import { ROLE, cinemaAtmosphere, lumBar, playCue } from '../parts.mjs';
 
 export default function intro(s, c) {
   const cols = 5;
@@ -24,7 +24,6 @@ export default function intro(s, c) {
   const doublePrompt = s.value(0); // intro-width: shows 10 x ?
   const revealAnswer = s.value(0); // AFTER intro-answer: reveals 10 x 10
   const slidePhase = s.value(0); // intro-slide: 0 -> 0.5 right, 0.5 -> 1 down
-  const pulse = s.value(0);
 
   const stageVis = s.value(1);
 
@@ -40,7 +39,6 @@ export default function intro(s, c) {
     const dp = doublePrompt.value;
     const ans = revealAnswer.value;
     const sp = slidePhase.value;
-    const p = pulse.value;
 
     // Two-phase physical repack: first slide right, then drop down beside bottom half
     const slideRight = Math.min(1, sp * 2);
@@ -151,12 +149,6 @@ export default function intro(s, c) {
         .opacity(alpha),
       txt('compute squares', rx + 250, -135, 36, COSMOS.ink, 'sans', 'left').opacity(alpha),
       line([rx, -58], [820, -58], { stroke: '#2c3d68', width: 2 }).opacity(0.85 * alpha),
-      glowDot(rx + ((p * 1.8) % 1) * 700, -58, {
-        radius: 4.5,
-        color: ROLE.tokens,
-        glow: 10,
-        opacity: 0.8 * alpha,
-      }),
       txt('Model weights  ×  token rows', rx, 4, 30, COSMOS.muted, 'sans', 'left').opacity(alpha),
       // Starting run
       txt('5 × 20', rx, 92, 62, ROLE.params, 'mono', 'left').glow(8, ROLE.params).opacity(alpha),
@@ -199,7 +191,6 @@ export default function intro(s, c) {
   });
 
   s.add(cinemaAtmosphere(ROLE.params, ROLE.tokens), title, layer, eq);
-  scenePulse(s, c, pulse);
 
   // Opening slide-in of the 20th token row
   c.at(0.15, () => {

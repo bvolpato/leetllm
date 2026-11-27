@@ -14,7 +14,6 @@ import {
   heroTitle,
   lumBar,
   makePlot,
-  runAmbientPhase,
   silhouette,
   tweenCue,
   txt,
@@ -27,7 +26,6 @@ const K4 = clusterTrials[2];
 const SIL_A = silhouette(xy, K3.labels, 0);
 
 export default function chooseK(s, c) {
-  const phase = s.value(0);
   const activeK = s.value(2); // 2, 3, or 4
   const showOwn = s.value(0);
   const showOther = s.value(0);
@@ -180,7 +178,6 @@ export default function chooseK(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runAmbientPhase(s, c, phase, 2.2);
 
   c.on('two', () => s.play(activeK.to(2, { duration: 0.3 })));
   c.on('three', () => s.play(activeK.to(3, { duration: 0.3 })));

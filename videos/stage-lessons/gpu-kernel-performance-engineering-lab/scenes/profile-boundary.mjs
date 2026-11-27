@@ -9,7 +9,6 @@ import {
   buildRooflineSol3d,
   delay,
   glassCell,
-  glowDot,
   group,
   guardedDynamic,
   heroTitle,
@@ -56,12 +55,10 @@ export default function profileBoundary(s, c) {
 
   // Beat 0: Launch stream selector (1 check + 5 warmups skipped -> launch 7 captured)
   const launchView = guardedDynamic(showLaunch, (a) => {
-    const p = phase.value;
     const tg = targetGlow.value;
     const sk = skipShow.value;
     const sl = selectShow.value;
     const rp = replayShow.value;
-    const u = (p * 0.45) % 1;
 
     const nodes = [
       glassCell(0, -170, 1460, 96, tg > 0.3 ? ROLE.input : COSMOS.rule, {
@@ -138,7 +135,6 @@ export default function profileBoundary(s, c) {
         rp > 0.3 ? ROLE.bad : COSMOS.muted,
         'sans',
       ).opacity(a),
-      glowDot(-720 + u * 1440, 215, { radius: 6, color: ROLE.output, opacity: 0.75 * a }),
     );
     return group(...nodes);
   });
@@ -224,16 +220,14 @@ export default function profileBoundary(s, c) {
 
   // Beat 2: Actual permission failure (ERR_NVGPUCTRPERM) + 4 empty counter slots
   const permView = guardedDynamic(showPerm, (a) => {
-    const p = phase.value;
     const er = errShow.value;
     const nn = noneShow.value;
     const un = unestShow.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       glassCell(0, -120, 1460, 180, er > 0.3 ? ROLE.bad : COSMOS.rule, {
         fill: '#2e101d',
-        glow: er > 0.3 ? 12 * pulse : 4,
+        glow: er > 0.3 ? 12 : 4,
         opacity: a,
       }),
       txt(

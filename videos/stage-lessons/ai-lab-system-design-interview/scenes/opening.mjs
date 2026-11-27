@@ -9,14 +9,11 @@ import {
   aura,
   cinemaHeader,
   clampDur,
-  driftValue,
-  glowDot,
   guardedDynamic,
   txt,
 } from '../parts.mjs';
 
 export default function opening(s, c) {
-  const phase = s.value(0);
   const blocksOn = s.value(0);
   const unfoldOn = s.value(0);
   const waitReveal = s.value(0); // STRICT after opening-wait!
@@ -39,7 +36,6 @@ export default function opening(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = phase.value;
       const bl = blocksOn.value;
       const uf = unfoldOn.value;
       const wr = waitReveal.value;
@@ -155,22 +151,11 @@ export default function opening(s, c) {
         );
       }
 
-      nodes.push(
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.req,
-          glow: 8,
-          opacity: 0.7,
-        }),
-      );
-
       return group(...nodes);
     },
   );
 
   s.add(bgAura, header, view);
-  driftValue(s, c, phase, 4.2);
-
   c.on('opening-blocks', () => {
     s.play(blocksOn.to(1, { duration: clampDur(c, c.cue('opening-blocks').start, 0.35) }));
   });

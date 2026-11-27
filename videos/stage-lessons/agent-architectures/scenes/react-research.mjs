@@ -9,7 +9,6 @@ import {
   beamWithPhotons,
   cinemaHeader,
   clampDur,
-  driftValue,
   glowMeter,
   guardedDynamic,
   orbNode,
@@ -43,7 +42,7 @@ export default function reactResearch(s, c) {
   const view = guardedDynamic(
     () => 1,
     () => {
-      const p = pulse.value;
+      const p = 0;
       const bm = barsMode.value;
       const nodes = [];
 
@@ -147,7 +146,6 @@ export default function reactResearch(s, c) {
   );
 
   s.add(stageAura, header, view);
-  driftValue(s, c, pulse, 4.6, { startOffset: 0.1, endMargin: 0.5 });
 
   c.on('aa-react-research-0', () => {
     s.play(pulse.to(0.35, { duration: clampDur(c, c.cue('aa-react-research-0').start, 0.25) }));

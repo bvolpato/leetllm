@@ -9,12 +9,10 @@ import {
   heroTitle,
   remainDuration,
   requiredPhrasesPresent,
-  runPhase,
   txt,
 } from '../parts.mjs';
 
 export default function answerableUnits(s, c) {
-  const phase = s.value(0);
   const showMissing = s.value(0);
   const showEdit = s.value(0);
   const showSame = s.value(0);
@@ -33,11 +31,9 @@ export default function answerableUnits(s, c) {
   const negatedPasses = requiredPhrasesPresent(negated);
 
   const live = guardedDynamic(s.value(1), () => {
-    const p = phase.value;
     const sm = showMissing.value;
     const se = showEdit.value;
     const ss = showSame.value;
-    const pulse = 0.72 + 0.28 * Math.sin(p * 3.8);
 
     const nodes = [
       // Left: Comparing the 3 cuts
@@ -57,7 +53,7 @@ export default function answerableUnits(s, c) {
 
       glassCell(-465, 36, 770, 118, sm > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: '#26111a',
-        glow: sm > 0.3 ? 8 * pulse : 2,
+        glow: sm > 0.3 ? 8 : 2,
       }),
       txt(
         'CUT 2: "15 min + deploy ID. Archive in 14d."',
@@ -95,7 +91,7 @@ export default function answerableUnits(s, c) {
 
       glassCell(495, -52, 760, 224, se > 0.3 ? COSMOS.rose : COSMOS.muted, {
         fill: se > 0.3 ? '#29111a' : '#12182b',
-        glow: se > 0.3 ? 10 * pulse : 3,
+        glow: se > 0.3 ? 10 : 3,
       }),
       txt('INSERT "DO NOT" BEFORE "page on-call":', 145, -124, 26, COSMOS.gold, 'mono', 'left'),
       txt('"Rollback failure: DO NOT page on-call', 145, -72, 26, COSMOS.rose, 'mono', 'left'),
@@ -151,7 +147,6 @@ export default function answerableUnits(s, c) {
   });
 
   s.add(bgAura, title, live);
-  runPhase(s, c, phase, 14);
 
   c.on('missing-trigger', () => s.play(showMissing.to(1, { duration: 0.45 })));
   c.on('edit-instruction', () => s.play(showEdit.to(1, { duration: 0.45 })));

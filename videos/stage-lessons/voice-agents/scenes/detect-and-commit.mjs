@@ -9,7 +9,6 @@ import {
   cinemaHeader,
   clampDur,
   driftValue,
-  glowDot,
   guardedDynamic,
   partialTurns,
   turnComplete,
@@ -128,12 +127,6 @@ export default function detectAndCommit(s, c) {
           'mono',
           'center',
         ),
-        glowDot(-780 + ((p * 110) % 220), 435, {
-          radius: 4.5,
-          color: ROLE.ok,
-          glow: 8,
-          opacity: 0.7,
-        }),
       );
 
       return group(...nodes);

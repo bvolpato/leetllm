@@ -16,7 +16,6 @@ import {
   glassPlate,
   glowDot,
   glowTex,
-  livingDrift,
   markDecor,
   numberRuler,
   photonWire,
@@ -38,7 +37,6 @@ export function intro(s, c) {
   const askP = s.value(0);
   const collideP = s.value(0);
   const fileP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.blue, opacity: 0.52, seed: 1 }));
   s.add(aura(-420, -140, 480, '#60a5fa26', '#18274a0c'));
@@ -49,7 +47,6 @@ export function intro(s, c) {
     const pQ = askP.value;
     const pC = collideP.value;
     const pF = fileP.value;
-    const pulse = 1 + 0.08 * Math.sin(drift.value * Math.PI * 8);
 
     const ruler = numberRuler({
       cx: 0,
@@ -90,7 +87,7 @@ export function intro(s, c) {
             }).opacity(0.45 * (1 - pF)),
           )
         : group(),
-      glowDot(blueDotX, blueDotY, { radius: 15 * pulse, color: LA.slow, glow: 16 }),
+      glowDot(blueDotX, blueDotY, { radius: 15, color: LA.slow, glow: 16 }),
       dot(6, '#ffffff').at(blueDotX, blueDotY),
     ];
 
@@ -163,7 +160,6 @@ export function intro(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'ticket-first', firstP, 1, { dur: 0.75 });
   cueTo(s, c, 'opening-question', askP, 1, { dur: 0.6 });
@@ -178,7 +174,6 @@ export function intro(s, c) {
 // ---------------------------------------------------------------------------
 export function tickets(s, c) {
   const plotP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.cyan, opacity: 0.5, seed: 2 }));
   s.add(aura(260, 0, 560, '#5ce1e622', '#1722420a'));
@@ -242,9 +237,8 @@ export function tickets(s, c) {
       );
 
       if (p > 0.05) {
-        const pulse = 1 + 0.07 * Math.sin(drift.value * Math.PI * 8 + i * 2);
         nodes.push(
-          glowDot(px, py, { radius: 14 * pulse, color: col, glow: 14 }).opacity(Math.min(1, p * 2)),
+          glowDot(px, py, { radius: 14, color: col, glow: 14 }).opacity(Math.min(1, p * 2)),
           dot(5, '#ffffff')
             .at(px, py)
             .opacity(Math.min(1, p * 2)),
@@ -290,7 +284,6 @@ export function tickets(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
   cueTo(s, c, 'ticket-coordinates', plotP, 1, { dur: 1.5 });
 }
 
@@ -303,7 +296,6 @@ export function basis(s, c) {
   const comp1P = s.value(0);
   const comp2P = s.value(0);
   const dropP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: COSMOS.blue, opacity: 0.48, seed: 3 }));
   s.add(aura(-120, 40, 560, '#60a5fa20', '#ff6b8b12'));
@@ -452,11 +444,10 @@ export function basis(s, c) {
         txt('(x · v₁) v₁ = [2, 2]', rx, 82, 32, COSMOS.ink, 'mono'),
       );
     } else {
-      const pulse = 0.72 + 0.28 * Math.sin(drift.value * Math.PI * 6);
       nodes.push(
         txt('Two perpendicular unit arrows', rx, -46, 28, COSMOS.muted, 'sans'),
         txt('span every point in R²', rx, 8, 28, COSMOS.ink, 'sans'),
-        txt('Unit circle radius = 1', rx, 94, 28, COSMOS.gold, 'mono').opacity(pulse),
+        txt('Unit circle radius = 1', rx, 94, 28, COSMOS.gold, 'mono'),
       );
     }
 
@@ -464,7 +455,6 @@ export function basis(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'unit-directions', normP, 1, { dur: 0.9 });
   cueTo(s, c, 'common-component', comp1P, 1, { dur: 0.8 });
@@ -480,7 +470,6 @@ export function basis(s, c) {
 export function commonOutput(s, c) {
   const scoreP = s.value(0);
   const energyP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: LA.common, opacity: 0.48, seed: 4 }));
   s.add(aura(320, -20, 560, '#60a5fa24', '#ffd16614'));
@@ -617,7 +606,6 @@ export function commonOutput(s, c) {
         );
         cursor += segW;
       });
-      const pulse = 1 + 0.06 * Math.sin(drift.value * Math.PI * 8);
       nodes.push(
         txt('SQUARED LENGTH ACCUMULATED', stripLeft, stripY - 62, 26, COSMOS.muted, 'mono', 'left'),
         txt(
@@ -631,7 +619,7 @@ export function commonOutput(s, c) {
         ).opacity(a),
         txt(`‖Av₁‖ = √3 ≈ ${fmt(strengths[0], 3)}`, -480, 365, 36, LA.common, 'mono')
           .glow(8, LA.common)
-          .opacity(a * Math.min(1, pulse)),
+          .opacity(a),
       );
     }
 
@@ -639,7 +627,6 @@ export function commonOutput(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'common-scores', scoreP, 1, { dur: 1.4 });
   cueTo(s, c, 'common-energy', energyP, 1, { dur: 1.3 });
@@ -655,7 +642,6 @@ export function contrastOutput(s, c) {
   const rollP = s.value(0);
   const jointP = s.value(0);
   const lenP = s.value(0);
-  const drift = s.value(0);
 
   s.add(cinemaGrid({ accent: LA.contrast, opacity: 0.48, seed: 5 }));
   s.add(aura(240, -10, 560, '#ff6b8b22', '#6ee7b712'));
@@ -729,11 +715,10 @@ export function contrastOutput(s, c) {
     const y2 = 50;
     nodes.push(txt('Both', -70, y2, 28, LA.both, 'sans', 'right'));
     if (pJoint < 0.02) {
-      const qPulse = 0.72 + 0.28 * Math.sin(drift.value * Math.PI * 8);
       nodes.push(
         txt('Where does [1, 1] land?', zeroX + 260, y2, 32, COSMOS.gold, 'serif')
           .glow(8, COSMOS.gold)
-          .opacity(qPulse * Math.max(0.2, pRoll)),
+          .opacity(Math.max(0.2, pRoll)),
         circle(18, { fill: null, stroke: COSMOS.gold, width: 3, dash: [6, 6] })
           .at(zeroX, y2)
           .opacity(0.65 * Math.max(0.2, pRoll)),
@@ -788,7 +773,6 @@ export function contrastOutput(s, c) {
   });
 
   s.add(live);
-  livingDrift(s, c, drift, 1);
 
   cueTo(s, c, 'contrast-scores', slowP, 1, { dur: 0.75 });
   cueTo(s, c, 'rollback-score', rollP, 1, { dur: 0.75 });
